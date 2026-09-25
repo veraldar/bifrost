@@ -12,6 +12,10 @@ const FILE = path.join(process.cwd(), '.oc-live.json');
 const STALE_MS = 15 * 60_000; // a restart-era entry older than this is garbage
 
 const live = new Map<string, number>();
+// epoch ms of the last finished run per session — the client uses it as an
+// authoritative "your run is over" even when opencode leaves a message
+// un-completed (its run-end bookkeeping is unreliable)
+const runEnds = new Map<string, number>();
 
 let loaded = false;
 function ensureLoaded() {
@@ -44,10 +48,17 @@ export const markRunStart = (sid: string, since = Date.now()) => {
   live.set(sid, since);
   persist();
 };
+/** @returns true if an entry was actually cleared (false = already gone —
+ *  another end-of-run path like abort/poll-heal got there first) */
 export const markRunEnd = (sid: string) => {
   ensureLoaded();
-  if (live.delete(sid)) persist();
+  const had = live.delete(sid);
+  runEnds.set(sid, Date.now());
+  if (had) persist();
+  return had;
 };
+/** Epoch ms of the last finished run for this session (0 = none). */
+export const runEndedAt = (sid: string) => runEnds.get(sid) || 0;
 export const isRunLive = (sid: string) => {
   ensureLoaded();
   return live.has(sid);

@@ -6,7 +6,7 @@ import { NextResponse } from 'next/server';
 import { ocFetch, resolveId } from '@/lib/oc';
 import { bustCache } from '@/lib/oc-cache';
 import { buildParts, forward, runEnded } from '@/lib/oc-forward';
-import { isRunLive, liveSince } from '@/lib/oc-live';
+import { isRunLive, liveSince, runEndedAt } from '@/lib/oc-live';
 import { enqueue, queuedItems } from '@/lib/oc-queue';
 
 export const dynamic = 'force-dynamic';
@@ -58,7 +58,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     // assistant step completed >2min ago proves the run is over (live runs
     // legitimately pause between steps — the grace period guards those).
     if (isRunLive(sid) && lastDone > 0 && Date.now() - lastDone > 120_000) {
-      console.log(`[oc] zombie run entry healed ${sid} (idle ${Math.round((Date.now() - lastDone) / 1000)}s)`);
+      console.log(
+        `[oc] zombie run entry healed ${sid} (idle ${Math.round((Date.now() - lastDone) / 1000)}s)`
+      );
       runEnded(sid, id);
     }
     // long sessions: default to the latest window, older pages load on demand
@@ -82,6 +84,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
         'X-Run-Live': isRunLive(sid) ? '1' : '0',
         // epoch ms the live run started (true elapsed across page refreshes)
         'X-Run-Live-Since': String(liveSince(sid) || 0),
+        // epoch ms the last run finished — an authoritative "the run you are
+        // waiting on is over" even when opencode leaves completed=0 behind
+        'X-Run-Ended': String(runEndedAt(sid) || 0),
         'Cache-Control': 'no-store',
       },
     });

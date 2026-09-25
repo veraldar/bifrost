@@ -146,7 +146,9 @@ export default function SessionView({
     return out;
   }, [searchOpen, query, msgs]);
   // modulo-wrap so ↓ at the last match lands back on the first
-  const safeIdx = matches.length ? ((matchIdx % matches.length) + matches.length) % matches.length : 0;
+  const safeIdx = matches.length
+    ? ((matchIdx % matches.length) + matches.length) % matches.length
+    : 0;
   const hitSet = useMemo(() => new Set(matches), [matches]);
   // jump to the active match whenever it changes (also lands on first hit
   // right after typing) — search scrolls free of the bottom-stick logic
@@ -190,6 +192,9 @@ export default function SessionView({
   // definitive "run in flight" from the proxy (its async POST resolves only
   // when the run finishes) — immune to long between-steps thinking
   const liveRef = useRef(false);
+  // epoch ms the proxy last saw a run finish for this session — authoritative
+  // "your run is over" even when opencode leaves a message un-completed
+  const runEndedRef = useRef(0);
   // synchronous mirror of busy: the poller arms hands-free runs without
   // re-arming on every tick while one is already being watched
   const busyRef = useRef(false);
@@ -313,6 +318,7 @@ export default function SessionView({
           const st = r.headers.get('X-Run-State') || '';
           liveRef.current = r.headers.get('X-Run-Live') === '1';
           const liveSinceMs = Number(r.headers.get('X-Run-Live-Since') || 0);
+          runEndedRef.current = Number(r.headers.get('X-Run-Ended') || 0);
           // "id|completed|lastRole" — completed=0 while a step runs or the
           // last raw message is the user's own prompt
           const [, done] = st.split('|');
@@ -339,8 +345,11 @@ export default function SessionView({
             const lastT = lastMsg?.time || 0;
             const freshPrompt = st.endsWith('|0|user') && lastT > Date.now() - PENDING_TTL_MS;
             // a streaming step ("|0|assistant") is a live run too — voice
-            // prompts bypass the proxy so their only trace is the transcript
-            const streamingStep = st.endsWith('|0|assistant');
+            // prompts bypass the proxy so their only trace is the transcript.
+            // Freshness-gated: a hours-old un-completed step is opencode
+            // bookkeeping debris, not a run
+            const streamingStep =
+              st.endsWith('|0|assistant') && lastT > Date.now() - PENDING_TTL_MS;
             if (liveSinceMs || liveRef.current || freshPrompt || streamingStep) {
               runBaseTotalRef.current = totalCount;
               // true elapsed: proxy-tracked start, else the last message's
@@ -471,9 +480,14 @@ export default function SessionView({
       // saw the same run state, that state is a COMPLETED assistant message
       // (mid part "0" = in-progress — thinking models can hold it for
       // minutes), and the transcript grew past what existed at send time
+      // heuristic: stable completed state across two polls…
+      const settled = runStreakRef.current >= 2 && runStateRef.current.split('|')[1] !== '0';
+      // …or the proxy itself saw the run finish after this busy period began
+      // (opencode sometimes ends a run leaving completed=0 on the last
+      // message — without this the indicator would stick forever)
+      const endedAfterStart = !liveRef.current && runEndedRef.current > busyStartRef.current;
       if (
-        runStreakRef.current >= 2 &&
-        runStateRef.current.split('|')[1] !== '0' &&
+        (settled || endedAfterStart) &&
         totalRef.current > runBaseTotalRef.current &&
         !liveRef.current
       ) {
@@ -1173,15 +1187,15 @@ export default function SessionView({
               ref={inputRef}
               value={input}
               rows={1}
-          onChange={(e) => {
-            setInput(e.target.value);
-            try {
-              if (slug) localStorage.setItem('oz-draft:' + slug, e.target.value);
-            } catch {
-              /* private mode */
-            }
-            autogrow(e.target);
-          }}
+              onChange={(e) => {
+                setInput(e.target.value);
+                try {
+                  if (slug) localStorage.setItem('oz-draft:' + slug, e.target.value);
+                } catch {
+                  /* private mode */
+                }
+                autogrow(e.target);
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();

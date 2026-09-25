@@ -86,6 +86,11 @@ export default function SessionView({
   const photoInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const voicePromiseRef = useRef<Promise<Room> | null>(null);
+  // self-heal reconnect: one attempt scheduled at a time, backing off while
+  // it keeps failing — without this a stale room could tear down its own
+  // replacement and storm LiveKit (seen 2026-09-25: ~5 reconnects/sec)
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectFailsRef = useRef(0);
   // PTT intent survives an async room connect: if the finger lifted before
   // the room was ready, the mic must not be left hot by connectVoice
   const pttWantRef = useRef(false);
@@ -335,6 +340,7 @@ export default function SessionView({
   useEffect(() => {
     return () => {
       unmountedRef.current = true;
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       roomRef.current?.disconnect();
       roomRef.current = null;
     };
@@ -350,6 +356,29 @@ export default function SessionView({
     setVoiceState('connecting');
     voicePromiseRef.current = connectVoice();
     return voicePromiseRef.current;
+  }
+
+  /** Single self-heal path for a dropped/stale room: deduped by timer,
+   *  exponential backoff while connects keep failing. */
+  function reconnectVoice() {
+    if (unmountedRef.current || reconnectTimerRef.current) return;
+    reconnectTimerRef.current = setTimeout(
+      () => {
+        reconnectTimerRef.current = null;
+        if (unmountedRef.current) return;
+        ensureVoice()
+          .then((r) => {
+            reconnectFailsRef.current = 0;
+            if (modeRef.current === 'free') return r.localParticipant.setMicrophoneEnabled(true);
+            return undefined;
+          })
+          .catch(() => {
+            reconnectFailsRef.current += 1; // next attempt waits longer
+            reconnectVoice();
+          });
+      },
+      Math.min(4_000, 250 * 2 ** reconnectFailsRef.current)
+    );
   }
 
   async function connectVoice(): Promise<Room> {
@@ -383,13 +412,7 @@ export default function SessionView({
         // self-heal with a fresh token (e.g. the phone slept past the token
         // TTL and the server dropped the room); a live room implies voice
         // intent since PTT lazily connects from any mode
-        if (!unmountedRef.current) {
-          void ensureVoice()
-            .then((r) =>
-              modeRef.current === 'free' ? r.localParticipant.setMicrophoneEnabled(true) : undefined
-            )
-            .catch(() => {});
-        }
+        if (!unmountedRef.current) reconnectVoice();
       });
       room.on(RoomEvent.MediaDevicesError, (e: Error) => diagEvent('voice-fail', String(e)));
       diagEvent('voice', 'connecting signal…');
@@ -440,7 +463,12 @@ export default function SessionView({
   async function pttDown(e?: React.PointerEvent<HTMLButtonElement>) {
     if (busy) return;
     pttWantRef.current = true;
-    pttCancelRef.current = false;
+    pttCancelArmRef.current = false;
+    setPttCancelArm(false);
+    setPttSlideX(0);
+    // instant feedback: hold UI (equalizer slot) appears on press — the bars
+    // stay flat until the room + mic track are actually live
+    setHolding(true);
     if (e) pttStartRef.current = { x: e.clientX, y: e.clientY };
     try {
       // lazily connect from any mode (first press pays the connect cost)
@@ -464,23 +492,22 @@ export default function SessionView({
           .catch(() => {});
       }
       await room.localParticipant.setMicrophoneEnabled(true);
-      setHolding(true);
     } catch {
-      /* connect/mic failed — error already surfaced by ensureVoice */
+      setHolding(false); // connect/mic failed — error already surfaced by ensureVoice
     }
   }
 
-  // Discord-style slide-to-cancel: a swipe that starts on the PTT button
-  // (e.g. a back gesture) aborts the turn — mic off, buffered audio dropped,
-  // nothing committed
-  const pttCancelRef = useRef(false);
+  // Discord-style slide-to-cancel: sliding left past the threshold enters a
+  // "deleting" zone — mic stays hot, nothing is lost; slide back right and
+  // the talk continues; releasing inside the zone discards the turn
+  const [pttCancelArm, setPttCancelArm] = useState(false);
+  const [pttSlideX, setPttSlideX] = useState(0);
+  // synchronous mirror of pttCancelArm: pointer events fire faster than
+  // React state settles, the release must see the same truth the move saw
+  const pttCancelArmRef = useRef(false);
   const pttStartRef = useRef({ x: 0, y: 0 });
 
-  function pttCancel() {
-    if (pttCancelRef.current) return;
-    pttCancelRef.current = true;
-    setHolding(false);
-    void mic(false);
+  function pttDiscardRpc() {
     const room = roomRef.current;
     const agent = room && Array.from(room.remoteParticipants.values())[0];
     if (room && agent) {
@@ -495,15 +522,28 @@ export default function SessionView({
     }
   }
 
-  async function pttUp() {
+  function pttCancel() {
+    // finger left the button (back-gesture / pointercancel) — release = discard
+    void pttUp(true);
+  }
+
+  async function pttUp(forceDiscard?: boolean) {
+    // browsers double-fire releases on touch (pointerup then pointerleave);
+    // without this guard a second pttUp would tear down the room its first
+    // invocation just reconnected — the reconnect storm of 2026-09-25
+    if (!pttWantRef.current) return;
+    const discard = forceDiscard ?? pttCancelArmRef.current;
     pttWantRef.current = false;
+    pttCancelArmRef.current = false;
+    setPttCancelArm(false);
+    setPttSlideX(0);
     setHolding(false);
     const room = roomRef.current;
     if (!room) return;
-    if (pttCancelRef.current) {
-      // swiped away — the turn is discarded, commit nothing
-      pttCancelRef.current = false;
+    if (discard) {
+      // released inside the delete zone — drop the buffered turn
       if (modeRef.current !== 'free') await mic(false);
+      pttDiscardRpc();
       return;
     }
     if (modeRef.current !== 'free') await mic(false); // hands-free keeps listening
@@ -525,44 +565,40 @@ export default function SessionView({
     } catch {
       // stale voice session (e.g. the agent's session closed earlier) — a
       // retry against the same room keeps failing, so drop it and reconnect
-      // with a fresh token; the next hold-to-talk works again
+      // with a fresh token; the agent side ends the job with its session,
+      // so the fresh room gets a fresh agent (no zombie to fail again)
       setError('voice session stale — reconnecting…');
       setBusy(false);
-      await room.disconnect();
-      roomRef.current = null;
-      voicePromiseRef.current = null;
-      setVoiceState('off');
-      if (!unmountedRef.current) {
-        void ensureVoice()
-          .then((r) =>
-            modeRef.current === 'free' ? r.localParticipant.setMicrophoneEnabled(true) : undefined
-          )
-          .catch(() => {});
+      if (roomRef.current === room) {
+        // only drop OUR room — a newer reconnect must not be torn down
+        roomRef.current = null;
+        voicePromiseRef.current = null;
+        setVoiceState('off');
+        void room.disconnect();
       }
+      reconnectVoice();
       return;
     }
   }
 
   // live mic equalizer shown in place of the text input while PTT is held —
   // 5 voice-band bars (100Hz–2kHz) from the published mic track's FFT, plus
-  // a growing hold-duration readout
+  // a growing hold-duration readout. The hold UI appears before the room and
+  // mic track exist (first press connects), so poll for the track and attach
+  // the analyser the moment it goes live.
   useEffect(() => {
     if (!holding) return;
     setPttSecs(0);
+    setPttLevels(Array(PTT_BARS).fill(0));
     const secs = setInterval(() => setPttSecs((s) => s + 1), 1_000);
-    const room = roomRef.current;
-    const pub = room?.localParticipant.getTrackPublication(Track.Source.Microphone);
-    if (!room || !pub?.audioTrack) return;
-    const { analyser } = createAudioAnalyser(pub.audioTrack);
-    const bins = new Uint8Array(analyser.frequencyBinCount);
-    const nyquist = analyser.context.sampleRate / 2;
-    const binOf = (hz: number) =>
-      Math.min(bins.length - 1, Math.round((hz / nyquist) * bins.length));
-    const lo = binOf(100);
-    const hi = Math.max(lo + PTT_BARS, binOf(2000));
-    const width = Math.max(1, Math.floor((hi - lo + 1) / PTT_BARS));
+    let cancelled = false;
     let raf = 0;
-    const tick = () => {
+    const tick = (
+      analyser: AnalyserNode,
+      bins: Uint8Array<ArrayBuffer>,
+      lo: number,
+      width: number
+    ) => {
       analyser.getByteFrequencyData(bins);
       setPttLevels(
         Array.from({ length: PTT_BARS }, (_, i) => {
@@ -573,12 +609,29 @@ export default function SessionView({
           return Math.min(1, (n ? sum / n : 0) / 255) * 2.2;
         })
       );
-      raf = requestAnimationFrame(tick);
+      raf = requestAnimationFrame(() => tick(analyser, bins, lo, width));
     };
-    tick();
+    const findTrack = setInterval(() => {
+      if (cancelled) return;
+      const room = roomRef.current;
+      const pub = room?.localParticipant.getTrackPublication(Track.Source.Microphone);
+      if (!room || !pub?.audioTrack) return;
+      clearInterval(findTrack);
+      const { analyser } = createAudioAnalyser(pub.audioTrack);
+      const bins = new Uint8Array(analyser.frequencyBinCount);
+      const nyquist = analyser.context.sampleRate / 2;
+      const binOf = (hz: number) =>
+        Math.min(bins.length - 1, Math.round((hz / nyquist) * bins.length));
+      const lo = binOf(100);
+      const hi = Math.max(lo + PTT_BARS, binOf(2000));
+      const width = Math.max(1, Math.floor((hi - lo + 1) / PTT_BARS));
+      tick(analyser, bins, lo, width);
+    }, 100);
     return () => {
-      cancelAnimationFrame(raf);
+      cancelled = true;
+      clearInterval(findTrack);
       clearInterval(secs);
+      cancelAnimationFrame(raf);
     };
   }, [holding]);
 
@@ -812,23 +865,51 @@ export default function SessionView({
         />
         {holding ? (
           <div
-            aria-label="listening"
+            aria-label={voiceState === 'ready' ? 'listening' : 'connecting'}
             role="status"
-            className="flex min-w-0 flex-1 items-end justify-center gap-1 rounded border border-[var(--oz-success)]/60 bg-[var(--oz-surface)] px-3 py-2"
+            className={`flex min-w-0 flex-1 items-end justify-center gap-1 rounded border bg-[var(--oz-surface)] px-3 py-2 transition-colors ${
+              pttCancelArm
+                ? 'border-[var(--oz-danger)] text-[var(--oz-danger)]'
+                : voiceState === 'ready'
+                  ? 'border-[var(--oz-success)]/60'
+                  : 'border-[var(--oz-border)]'
+            }`}
+            style={{
+              transform: `translateX(${pttCancelArm ? pttSlideX : 0}px)`,
+              transition: pttCancelArm ? 'none' : undefined,
+            }}
           >
-            <span
-              aria-label="hold duration"
-              className="mr-1 self-center text-[11px] text-[var(--oz-dim)] tabular-nums"
-            >
-              {Math.floor(pttSecs / 60)}:{String(pttSecs % 60).padStart(2, '0')}
-            </span>
-            {pttLevels.map((l, i) => (
-              <span
-                key={i}
-                className="w-1.5 bg-[var(--oz-success)] transition-[height] duration-75"
-                style={{ height: `${Math.max(3, Math.round(l * 22))}px` }}
-              />
-            ))}
+            {voiceState !== 'ready' ? (
+              // room still dialing in (first press pays the connect cost) —
+              // pulse until the equalizer can take over
+              <span className="oz-ptt-hold flex-1 self-center text-center text-[11px] text-[var(--oz-dim)]">
+                connecting…
+              </span>
+            ) : (
+              <>
+                {pttCancelArm ? (
+                  <span className="flex-1 self-center text-center text-[11px] tracking-widest uppercase">
+                    release to delete
+                  </span>
+                ) : (
+                  <span
+                    aria-label="hold duration"
+                    className="mr-1 self-center text-[11px] text-[var(--oz-dim)] tabular-nums"
+                  >
+                    {Math.floor(pttSecs / 60)}:{String(pttSecs % 60).padStart(2, '0')}
+                  </span>
+                )}
+                {pttLevels.map((l, i) => (
+                  <span
+                    key={i}
+                    className={`w-1.5 transition-[height] duration-75 ${
+                      pttCancelArm ? 'bg-[var(--oz-danger)]' : 'bg-[var(--oz-success)]'
+                    }`}
+                    style={{ height: `${Math.max(3, Math.round(l * 22))}px` }}
+                  />
+                ))}
+              </>
+            )}
           </div>
         ) : (
           <textarea
@@ -868,15 +949,23 @@ export default function SessionView({
               e.preventDefault();
               pttDown(e);
             }}
-            onPointerUp={pttUp}
+            onPointerUp={() => pttUp()}
             onPointerMove={(e) => {
-              if (!holding || pttCancelRef.current) return;
+              if (!holding) return;
               const dx = e.clientX - pttStartRef.current.x;
-              const dy = e.clientY - pttStartRef.current.y;
-              if (Math.hypot(dx, dy) > 24) pttCancel(); // Discord: slide off = discard
+              setPttSlideX(Math.min(0, dx));
+              // slide left arms the delete zone; slide back right disarms
+              // (hysteresis so a shaky finger can't flicker the zone)
+              if (dx < -24 && !pttCancelArmRef.current) {
+                pttCancelArmRef.current = true;
+                setPttCancelArm(true);
+              } else if (dx > -8 && pttCancelArmRef.current) {
+                pttCancelArmRef.current = false;
+                setPttCancelArm(false);
+              }
             }}
             onPointerLeave={() => holding && pttCancel()}
-            onPointerCancel={pttCancel}
+            onPointerCancel={() => holding && pttCancel()}
             onContextMenu={(e) => e.preventDefault()}
             className={`rounded border px-3 py-2 text-sm select-none ${
               holding
@@ -885,6 +974,8 @@ export default function SessionView({
             } ${voiceState === 'connecting' ? 'opacity-50' : ''}`}
             style={{ touchAction: 'none' }}
           >
+            {/* the mic button itself never changes — the recording pill is
+                what turns red when the delete zone is armed */}
             <PixelIcon name="mic" size={16} />
           </button>
         )}

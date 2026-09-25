@@ -1,6 +1,6 @@
 'use client';
 
-import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
+import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Room, RoomEvent, Track, createAudioAnalyser } from 'livekit-client';
 import { PixelIcon } from '@/components/pixel-icon';
 import { type Msg, SessionMessage } from '@/components/session-message';
@@ -131,6 +131,32 @@ export default function SessionView({
   const [total, setTotal] = useState(0);
   const [limit, setLimit] = useState(60);
   const [loadingOlder, setLoadingOlder] = useState(false);
+  // transcript search — an overlay, NOT a mode: text/hands-free keep running
+  // underneath; the bar filters nothing, it rings matches and jumps between them
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [matchIdx, setMatchIdx] = useState(0);
+  const matches = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!searchOpen || !q) return [];
+    const out: number[] = [];
+    msgs.forEach((m, i) => {
+      if (m.text.toLowerCase().includes(q)) out.push(i);
+    });
+    return out;
+  }, [searchOpen, query, msgs]);
+  // modulo-wrap so ↓ at the last match lands back on the first
+  const safeIdx = matches.length ? ((matchIdx % matches.length) + matches.length) % matches.length : 0;
+  const hitSet = useMemo(() => new Set(matches), [matches]);
+  // jump to the active match whenever it changes (also lands on first hit
+  // right after typing) — search scrolls free of the bottom-stick logic
+  useEffect(() => {
+    if (!matches.length) return;
+    document
+      .querySelector(`[data-mi="${matches[safeIdx]}"]`)
+      ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [matches, safeIdx]);
+  useEffect(() => setMatchIdx(0), [query]);
 
   const roomRef = useRef<Room | null>(null);
   const modeRef = useRef<Mode>('text');
@@ -581,6 +607,10 @@ export default function SessionView({
     if (next === mode) return;
     setError('');
     setMode(next); // optimistic — bottom UX must react immediately
+    // sync the ref NOW: the disconnect below fires RoomEvent.Disconnected
+    // asynchronously and the self-heal must already see the new mode, or it
+    // reconnects a room the user just left (socket that never closes)
+    modeRef.current = next;
     try {
       if (next === 'text') {
         // mute is not enough: the room keeps the capture device open, so the
@@ -616,9 +646,16 @@ export default function SessionView({
     try {
       // lazily connect from any mode (first press pays the connect cost)
       const room = await ensureVoice();
-      if (!pttWantRef.current) {
-        // finger lifted before the room was ready — don't leave the mic hot
-        await room.localParticipant.setMicrophoneEnabled(false);
+      if (!pttWantRef.current || modeRef.current === 'text') {
+        // finger lifted (or mode switched) while the room was still dialing
+        // in — don't leave a live room + hot mic behind: tear it down, the
+        // next press reconnects
+        await room.localParticipant.setMicrophoneEnabled(false).catch(() => {});
+        if (roomRef.current === room) roomRef.current = null;
+        voicePromiseRef.current = null;
+        void room.disconnect().catch(() => {});
+        setVoiceState('off');
+        setHolding(false);
         return;
       }
       // agent holds turns manual until release — a mid-sentence pause while
@@ -884,11 +921,77 @@ export default function SessionView({
           {slug}
           {busy && <span className="oz-busy ml-2 text-[var(--oz-active)]">●</span>}
         </div>
-        <div className="flex items-center gap-1 rounded border border-[var(--oz-border)] p-0.5">
-          {segBtn('text', 'keyboard', 'text mode')}
-          {segBtn('free', 'infinity', 'hands-free')}
+        {/* search is not a mode — own button, visually split from the
+            keyboard/hands-free toggle (gap-2) */}
+        <div className="flex items-center gap-2">
+          <button
+            aria-label={searchOpen ? 'close search' : 'search transcript'}
+            aria-pressed={searchOpen}
+            onClick={() => setSearchOpen((o) => !o)}
+            className={`rounded border p-1.5 ${
+              searchOpen
+                ? 'border-[var(--oz-active)] text-[var(--oz-active)]'
+                : 'border-[var(--oz-border)] text-[var(--oz-dim)]'
+            }`}
+          >
+            <PixelIcon name="search" size={16} />
+          </button>
+          <div className="flex items-center gap-1 rounded border border-[var(--oz-border)] p-0.5">
+            {segBtn('text', 'keyboard', 'text mode')}
+            {segBtn('free', 'infinity', 'hands-free')}
+          </div>
         </div>
       </header>
+
+      {searchOpen && (
+        <div className="mb-2 flex items-center gap-2 rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] px-2 py-1.5">
+          <PixelIcon name="search" size={14} className="text-[var(--oz-dim)]" />
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setSearchOpen(false);
+                e.currentTarget.blur();
+              } else if (e.key === 'Enter') {
+                e.preventDefault();
+                setMatchIdx(safeIdx + (e.shiftKey ? -1 : 1));
+              }
+            }}
+            placeholder="search transcript…"
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--oz-dim)]"
+          />
+          {query.trim() && (
+            <span className="text-[10px] text-[var(--oz-dim)] tabular-nums">
+              {matches.length ? `${safeIdx + 1}/${matches.length}` : 'no hits'}
+            </span>
+          )}
+          <button
+            aria-label="previous match"
+            disabled={!matches.length}
+            onClick={() => setMatchIdx(safeIdx - 1)}
+            className="text-[var(--oz-dim)] disabled:opacity-40"
+          >
+            ↑
+          </button>
+          <button
+            aria-label="next match"
+            disabled={!matches.length}
+            onClick={() => setMatchIdx(safeIdx + 1)}
+            className="text-[var(--oz-dim)] disabled:opacity-40"
+          >
+            ↓
+          </button>
+          <button
+            aria-label="close search"
+            onClick={() => setSearchOpen(false)}
+            className="text-[var(--oz-dim)]"
+          >
+            <PixelIcon name="close" size={12} />
+          </button>
+        </div>
+      )}
 
       {error && (
         <div className="mb-2 rounded border border-[var(--oz-danger)]/60 px-3 py-2 text-xs text-[var(--oz-danger)]">
@@ -921,6 +1024,8 @@ export default function SessionView({
           <SessionMessage
             key={i}
             m={m}
+            mi={i}
+            hit={searchOpen && !!query.trim() && hitSet.has(i)}
             // still the newest message while the run is going = sitting in
             // the agent's queue — badge it until a reply lands after it
             queued={busy && m.role === 'user' && i === msgs.length - 1}

@@ -5,7 +5,7 @@ let sessionId = '';
 
 test('home: sessions list renders from live opencode', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'opencode' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Bifrost' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'new session' })).toBeVisible();
   // at least one real session row (list must never be silently empty)
   const rows = page.locator('ul button');
@@ -77,11 +77,13 @@ test('voice: PTT connects to LiveKit, keyboard mode releases the room', async ({
       sockets.push(ws);
     }
   });
-  await page.getByRole('button', { name: 'push-to-talk' }).click();
+  await page.getByRole('button', { name: 'push to talk' }).click();
   await expect
     .poll(() => livekitWs, { timeout: 30_000, message: 'no LiveKit websocket opened' })
     .toBeGreaterThan(0);
-  await expect(page.getByText(/hold to talk|connecting/)).toBeVisible();
+  // compact mic UI: no persistent banner — the opened socket above IS the
+  // connect proof; the button just has to stay usable
+  await expect(page.getByRole('button', { name: 'push to talk' })).toBeEnabled();
   // keyboard mode must tear the room down (mic release fix)
   await page.getByRole('button', { name: 'text mode' }).click();
   await expect
@@ -95,7 +97,7 @@ test('voice: PTT connects to LiveKit, keyboard mode releases the room', async ({
 test('hands-free mode arms without error', async ({ page }) => {
   await page.goto(`/session/${NAME}?id=${sessionId}`);
   await page.getByRole('button', { name: 'hands-free' }).click();
-  await expect(page.getByText(/hands-free — just talk|connecting/)).toBeVisible({
+  await expect(page.getByText(/hands-free — just talk|connecting/).first()).toBeVisible({
     timeout: 30_000,
   });
   await page.getByRole('button', { name: 'text mode' }).click();

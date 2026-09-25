@@ -175,13 +175,27 @@ export default function SessionView({
   /** Reset run tracking at send time so the previous run's settled state
    *  can't instantly clear the new "working…" indicator. */
   function armRunWatch() {
+    const queued = busyRef.current; // already working → this send queues up
     runStateRef.current = '';
     runStreakRef.current = 0;
     runBaseTotalRef.current = totalRef.current;
-    busyStartRef.current = Date.now();
-    diagEvent('busy', `arm ${slug} (send)`);
+    // a queued message must NOT restart the elapsed counter — the working
+    // period started with the first message and ends when the queue drains
+    if (!queued) busyStartRef.current = Date.now();
+    // mirror synchronously — setBusy(true) only lands on the next render,
+    // and back-to-back sends would otherwise each see "not busy yet"
+    busyRef.current = true;
+    busyBeatRef.current = 0;
+    diagEvent(
+      'busy',
+      queued
+        ? `arm ${slug} (QUEUED — timer keeps running, ${Math.round((Date.now() - busyStartRef.current) / 1000)}s)`
+        : `arm ${slug} (send)`
+    );
   }
   const wedgeFiredRef = useRef(false);
+  // 10s heartbeat cadence for the busy metrics (avoids a log line per second)
+  const busyBeatRef = useRef(0);
   // epoch ms the current busy period started — the "working… Ns" counter is
   // derived from it so a page refresh keeps the TRUE elapsed time
   const busyStartRef = useRef(Date.now());
@@ -220,6 +234,18 @@ export default function SessionView({
       totalRef.current = 0;
       liveRef.current = false;
       autoArmRef.current = p.slug;
+      // per-session draft: typing here, leaving, coming back must restore it
+      try {
+        const draft = localStorage.getItem('oz-draft:' + p.slug) || '';
+        setInput(draft);
+        if (draft) {
+          requestAnimationFrame(() => {
+            if (inputRef.current) autogrow(inputRef.current);
+          });
+        }
+      } catch {
+        /* private mode */
+      }
       // instant paint from the session cache while the fresh fetch runs
       try {
         const raw = sessionStorage.getItem('oz-cache:' + p.slug);
@@ -267,6 +293,12 @@ export default function SessionView({
           if (st && st === runStateRef.current) {
             runStreakRef.current += 1;
           } else {
+            // metric: every transcript/run-state transition, with what the
+            // client saw — this is the primary "why is it still working" trail
+            diagEvent(
+              'run',
+              `${slug} → ${st || '(none)'} live=${liveRef.current ? 1 : 0} total=${totalCount}`
+            );
             runStateRef.current = st;
             // fresh state that already shows a completed run = seen once
             runStreakRef.current = done === '0' ? 0 : 1;
@@ -350,9 +382,22 @@ export default function SessionView({
   useEffect(() => {
     loadMsgs();
     const t = setInterval(loadMsgs, 2500);
-    // catch up immediately when the page becomes visible again
+    // visibility metric + catch-up: log hide/show with the busy state at the
+    // moment of the transition (background freeze is the #1 suspect for
+    // stale indicators), then two polls back-to-back — the busy-clear needs
+    // two identical run states, and after a long background freeze the first
+    // poll only SEEDS the streak — without the second, a finished run shows
+    // a stale "working… 700s+" until the user interacts (re-arming wrongly)
     const onVisible = () => {
-      if (!document.hidden) loadMsgs();
+      diagEvent(
+        'vis',
+        `${slug} → ${document.hidden ? 'hidden' : 'visible'}` +
+          (document.hidden || !busyRef.current
+            ? ` busy=${busyRef.current ? 'yes' : 'no'}`
+            : ` busy=${Math.round((Date.now() - busyStartRef.current) / 1000)}s`)
+      );
+      if (document.hidden) return;
+      void loadMsgs().then(() => loadMsgs());
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
@@ -385,6 +430,17 @@ export default function SessionView({
     const t = setInterval(() => {
       const sec = Math.max(0, Math.round((Date.now() - busyStartRef.current) / 1000));
       setBusySecs(sec);
+      // heartbeat metric: every 10s of busy, record exactly WHY it's still
+      // busy — live flag, clear-condition streak, run state, transcript growth
+      if (sec - busyBeatRef.current >= 10) {
+        busyBeatRef.current = sec;
+        diagEvent(
+          'busy',
+          `tick ${slug} ${sec}s live=${liveRef.current ? 1 : 0} ` +
+            `streak=${runStreakRef.current}/2 ${runStateRef.current || '(none)'} ` +
+            `total=${totalRef.current}/${runBaseTotalRef.current}`
+        );
+      }
       // done = the proxy no longer reports a live run, two consecutive polls
       // saw the same run state, that state is a COMPLETED assistant message
       // (mid part "0" = in-progress — thinking models can hold it for
@@ -397,6 +453,7 @@ export default function SessionView({
       ) {
         diagEvent('busy', `clear ${slug} after ${sec}s`);
         setBusy(false);
+        busyBeatRef.current = 0;
         runStreakRef.current = 0;
         clearAsked(slug);
         if (document.hidden) void notifyReply(slug);
@@ -739,6 +796,11 @@ export default function SessionView({
     const text = input.trim();
     if (!text && attachments.length === 0) return;
     setInput('');
+    try {
+      localStorage.removeItem('oz-draft:' + slug);
+    } catch {
+      /* private mode */
+    }
     if (inputRef.current) inputRef.current.style.height = 'auto';
     const images = attachments
       .filter((a): a is Extract<Attach, { kind: 'image' }> => a.kind === 'image')
@@ -856,7 +918,13 @@ export default function SessionView({
           </div>
         )}
         {msgs.map((m, i) => (
-          <SessionMessage key={i} m={m} />
+          <SessionMessage
+            key={i}
+            m={m}
+            // still the newest message while the run is going = sitting in
+            // the agent's queue — badge it until a reply lands after it
+            queued={busy && m.role === 'user' && i === msgs.length - 1}
+          />
         ))}
         {busy && (
           <div className="flex items-center gap-3 text-xs text-[var(--oz-active)]">
@@ -998,10 +1066,15 @@ export default function SessionView({
               ref={inputRef}
               value={input}
               rows={1}
-              onChange={(e) => {
-                setInput(e.target.value);
-                autogrow(e.target);
-              }}
+          onChange={(e) => {
+            setInput(e.target.value);
+            try {
+              if (slug) localStorage.setItem('oz-draft:' + slug, e.target.value);
+            } catch {
+              /* private mode */
+            }
+            autogrow(e.target);
+          }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();

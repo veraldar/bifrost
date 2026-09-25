@@ -30,15 +30,15 @@ function fileChunks(text: string): { kind: 'prose' | 'file'; name?: string; body
 
 function fmtTime(t: number): string {
   if (!t) return '';
-  const d = new Date(t);
-  const opts: Intl.DateTimeFormatOptions =
-    d.toDateString() === new Date().toDateString()
-      ? { hour: '2-digit', minute: '2-digit' }
-      : { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-  return d.toLocaleString(undefined, opts);
+  return new Date(t).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
-export function SessionMessage({ m }: { m: Msg }) {
+export function SessionMessage({ m, queued }: { m: Msg; queued?: boolean }) {
   const [lightbox, setLightbox] = useState<string | null>(null);
   // html blocks render directly (sandboxed); this holds the one showing code
   const [rawIdx, setRawIdx] = useState(-1);
@@ -53,6 +53,7 @@ export function SessionMessage({ m }: { m: Msg }) {
           ({isUser ? 'you' : m.role})
         </span>
         {stamp && <span className="text-[10px] text-[var(--oz-dim)]">{stamp}</span>}
+        {queued && <span className="oz-busy text-[10px] text-[var(--oz-active)]">● queued</span>}
       </div>
       {isUser ? (
         fileChunks(m.text).map((c, i) =>

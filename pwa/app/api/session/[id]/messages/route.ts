@@ -5,7 +5,7 @@
 import { NextResponse } from 'next/server';
 import { ocFetch, resolveId } from '@/lib/oc';
 import { bustCache } from '@/lib/oc-cache';
-import { isRunLive, markRunEnd, markRunStart } from '@/lib/oc-live';
+import { isRunLive, liveSince, markRunEnd, markRunStart } from '@/lib/oc-live';
 import { pushRunDone } from '@/lib/push';
 
 export const dynamic = 'force-dynamic';
@@ -55,6 +55,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
         // definitive live-run flag: the proxy tracks its own in-flight async
         // prompts — the client can't tell "thinking between steps" from "done"
         'X-Run-Live': isRunLive(sid) ? '1' : '0',
+        // epoch ms the live run started (true elapsed across page refreshes)
+        'X-Run-Live-Since': String(liveSince(sid) || 0),
         'Cache-Control': 'no-store',
       },
     });

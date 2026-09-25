@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { Room, RoomEvent, Track, createAudioAnalyser } from 'livekit-client';
 import { PixelIcon } from '@/components/pixel-icon';
 import { type Msg, SessionMessage } from '@/components/session-message';
@@ -32,6 +32,59 @@ function fileToDataUrl(f: File): Promise<string> {
     r.onerror = () => reject(r.error);
     r.readAsDataURL(f);
   });
+}
+
+/** Live mic equalizer — 5 voice-band bars (100Hz–2kHz) from the published
+ *  mic track's FFT. Shared by the PTT hold pill and the hands-free strip;
+ *  the track may not exist yet (dial still in progress), so poll for it and
+ *  attach the analyser the moment it goes live. */
+function useMicLevels(active: boolean, roomRef: RefObject<Room | null>) {
+  const [levels, setLevels] = useState<number[]>(() => Array(PTT_BARS).fill(0));
+  useEffect(() => {
+    if (!active) return;
+    let cancelled = false;
+    let raf = 0;
+    const tick = (
+      analyser: AnalyserNode,
+      bins: Uint8Array<ArrayBuffer>,
+      lo: number,
+      width: number
+    ) => {
+      analyser.getByteFrequencyData(bins);
+      setLevels(
+        Array.from({ length: PTT_BARS }, (_, i) => {
+          let sum = 0;
+          const end = Math.min(lo + (i + 1) * width, bins.length);
+          let n = 0;
+          for (let b = lo + i * width; b < end; b++, n++) sum += bins[b];
+          return Math.min(1, (n ? sum / n : 0) / 255) * 2.2;
+        })
+      );
+      raf = requestAnimationFrame(() => tick(analyser, bins, lo, width));
+    };
+    const findTrack = setInterval(() => {
+      if (cancelled) return;
+      const room = roomRef.current;
+      const pub = room?.localParticipant.getTrackPublication(Track.Source.Microphone);
+      if (!room || !pub?.audioTrack) return;
+      clearInterval(findTrack);
+      const { analyser } = createAudioAnalyser(pub.audioTrack);
+      const bins = new Uint8Array(analyser.frequencyBinCount);
+      const nyquist = analyser.context.sampleRate / 2;
+      const binOf = (hz: number) =>
+        Math.min(bins.length - 1, Math.round((hz / nyquist) * bins.length));
+      const lo = binOf(100);
+      const hi = Math.max(lo + PTT_BARS, binOf(2000));
+      const width = Math.max(1, Math.floor((hi - lo + 1) / PTT_BARS));
+      tick(analyser, bins, lo, width);
+    }, 100);
+    return () => {
+      cancelled = true;
+      clearInterval(findTrack);
+      cancelAnimationFrame(raf);
+    };
+  }, [active]);
+  return levels;
 }
 
 /** Downscale to max 1568px and re-encode JPEG unless it's already small. */
@@ -72,7 +125,6 @@ export default function SessionView({
   const [busySecs, setBusySecs] = useState(0);
   const [holding, setHolding] = useState(false);
   const [pttSecs, setPttSecs] = useState(0);
-  const [pttLevels, setPttLevels] = useState<number[]>(() => Array(PTT_BARS).fill(0));
   const [voiceState, setVoiceState] = useState<'off' | 'connecting' | 'ready'>('off');
   const [error, setError] = useState('');
   const [attachments, setAttachments] = useState<Attach[]>([]);
@@ -122,9 +174,13 @@ export default function SessionView({
     runStateRef.current = '';
     runStreakRef.current = 0;
     runBaseTotalRef.current = totalRef.current;
+    busyStartRef.current = Date.now();
+    diagEvent('busy', `arm ${slug} (send)`);
   }
-  // wedge guard: fires at most once per send (see the busy ticker)
   const wedgeFiredRef = useRef(false);
+  // epoch ms the current busy period started — the "working… Ns" counter is
+  // derived from it so a page refresh keeps the TRUE elapsed time
+  const busyStartRef = useRef(Date.now());
 
   /** Show the user's own message instantly; the poll reconciles later. */
   function addEcho(text: string, images: string[] = []) {
@@ -200,6 +256,7 @@ export default function SessionView({
           totalRef.current = totalCount;
           const st = r.headers.get('X-Run-State') || '';
           liveRef.current = r.headers.get('X-Run-Live') === '1';
+          const liveSinceMs = Number(r.headers.get('X-Run-Live-Since') || 0);
           // "id|completed|lastRole" — completed=0 while a step runs or the
           // last raw message is the user's own prompt
           const [, done] = st.split('|');
@@ -216,11 +273,23 @@ export default function SessionView({
           // re-arm — nothing is running there
           if (autoArmRef.current === slug) {
             autoArmRef.current = '';
-            const lastT = fresh.length ? fresh[fresh.length - 1].time : 0;
+            const lastMsg = fresh[fresh.length - 1];
+            const lastT = lastMsg?.time || 0;
             const freshPrompt = st.endsWith('|0|user') && lastT > Date.now() - PENDING_TTL_MS;
-            if (liveRef.current || freshPrompt) {
+            // a streaming step ("|0|assistant") is a live run too — voice
+            // prompts bypass the proxy so their only trace is the transcript
+            const streamingStep = st.endsWith('|0|assistant');
+            if (liveSinceMs || liveRef.current || freshPrompt || streamingStep) {
               runBaseTotalRef.current = totalCount;
+              // true elapsed: proxy-tracked start, else the last message's
+              // time (best available estimate for voice-driven runs)
+              const since = liveSinceMs || lastT || Date.now();
+              busyStartRef.current = since;
+              const elapsed = Math.max(0, Math.round((Date.now() - since) / 1000));
+              setBusySecs(elapsed);
               setBusy(true);
+              const via = liveSinceMs ? 'live' : streamingStep ? 'step' : 'prompt';
+              diagEvent('busy', `arm ${slug} (entry ${via}) elapsed=${elapsed}s`);
             }
           }
           // backgrounded + the run's final answer landed = notify (a bare
@@ -295,11 +364,10 @@ export default function SessionView({
 
   useEffect(() => {
     if (!busy) return;
-    setBusySecs(0);
     wedgeFiredRef.current = false;
-    let sec = 0;
+    // elapsed derives from busyStartRef (true run start — survives refresh)
     const t = setInterval(() => {
-      sec += 1;
+      const sec = Math.max(0, Math.round((Date.now() - busyStartRef.current) / 1000));
       setBusySecs(sec);
       // done = the proxy no longer reports a live run, two consecutive polls
       // saw the same run state, that state is a COMPLETED assistant message
@@ -311,6 +379,7 @@ export default function SessionView({
         totalRef.current > runBaseTotalRef.current &&
         !liveRef.current
       ) {
+        diagEvent('busy', `clear ${slug} after ${sec}s`);
         setBusy(false);
         runStreakRef.current = 0;
         clearAsked(slug);
@@ -328,6 +397,7 @@ export default function SessionView({
         runStateRef.current.endsWith('|0|user')
       ) {
         wedgeFiredRef.current = true;
+        diagEvent('busy', `wedge ${slug} after ${sec}s (auto-abort)`);
         setError('no reply — the run seemed stuck, auto-stopped. Send again.');
         setBusy(false); // the aborted prompt never completes on its own
         void fetch(`/api/session/${slug}/abort`, { method: 'POST' }).catch(() => {});
@@ -578,59 +648,25 @@ export default function SessionView({
     }
   }
 
-  // live mic equalizer shown in place of the text input while PTT is held —
-  // 5 voice-band bars (100Hz–2kHz) from the published mic track's FFT, plus
-  // a growing hold-duration readout. The hold UI appears before the room and
-  // mic track exist (first press connects), so poll for the track and attach
-  // the analyser the moment it goes live.
+  // live mic equalizer (PTT pill + hands-free strip) — see useMicLevels
+  const pttLevels = useMicLevels(holding, roomRef);
+  const freeLevels = useMicLevels(mode === 'free' && voiceState === 'ready', roomRef);
+
   useEffect(() => {
     if (!holding) return;
     setPttSecs(0);
-    setPttLevels(Array(PTT_BARS).fill(0));
     const secs = setInterval(() => setPttSecs((s) => s + 1), 1_000);
-    let cancelled = false;
-    let raf = 0;
-    const tick = (
-      analyser: AnalyserNode,
-      bins: Uint8Array<ArrayBuffer>,
-      lo: number,
-      width: number
-    ) => {
-      analyser.getByteFrequencyData(bins);
-      setPttLevels(
-        Array.from({ length: PTT_BARS }, (_, i) => {
-          let sum = 0;
-          const end = Math.min(lo + (i + 1) * width, bins.length);
-          let n = 0;
-          for (let b = lo + i * width; b < end; b++, n++) sum += bins[b];
-          return Math.min(1, (n ? sum / n : 0) / 255) * 2.2;
-        })
-      );
-      raf = requestAnimationFrame(() => tick(analyser, bins, lo, width));
-    };
-    const findTrack = setInterval(() => {
-      if (cancelled) return;
-      const room = roomRef.current;
-      const pub = room?.localParticipant.getTrackPublication(Track.Source.Microphone);
-      if (!room || !pub?.audioTrack) return;
-      clearInterval(findTrack);
-      const { analyser } = createAudioAnalyser(pub.audioTrack);
-      const bins = new Uint8Array(analyser.frequencyBinCount);
-      const nyquist = analyser.context.sampleRate / 2;
-      const binOf = (hz: number) =>
-        Math.min(bins.length - 1, Math.round((hz / nyquist) * bins.length));
-      const lo = binOf(100);
-      const hi = Math.max(lo + PTT_BARS, binOf(2000));
-      const width = Math.max(1, Math.floor((hi - lo + 1) / PTT_BARS));
-      tick(analyser, bins, lo, width);
-    }, 100);
-    return () => {
-      cancelled = true;
-      clearInterval(findTrack);
-      clearInterval(secs);
-      cancelAnimationFrame(raf);
-    };
+    return () => clearInterval(secs);
   }, [holding]);
+
+  // hands-free live timer: how long the always-on mic has been armed
+  const [freeSecs, setFreeSecs] = useState(0);
+  useEffect(() => {
+    if (mode !== 'free') return;
+    setFreeSecs(0);
+    const secs = setInterval(() => setFreeSecs((s) => s + 1), 1_000);
+    return () => clearInterval(secs);
+  }, [mode]);
 
   async function loadOlder() {
     if (loadingOlder || !slug || total <= msgs.length) return;
@@ -649,6 +685,10 @@ export default function SessionView({
   }
 
   async function abortGeneration() {
+    diagEvent(
+      'busy',
+      `abort ${slug} after ${Math.max(0, Math.round((Date.now() - busyStartRef.current) / 1000))}s (stop btn)`
+    );
     try {
       await fetch(`/api/session/${slug}/abort`, { method: 'POST' });
     } catch {
@@ -838,8 +878,44 @@ export default function SessionView({
         </div>
       )}
 
-      {/* text input — always available */}
-      <div className="flex items-end gap-2 border-t border-[var(--oz-border)] py-3">
+      {mode === 'free' ? (
+        /* hands-free: the composer (attach / text input / push-to-talk) makes
+           no sense while the mic is always hot — show the live speaking
+           equalizer + session timer instead */
+        <div className="flex items-center gap-3 border-t border-[var(--oz-border)] py-3">
+          <div
+            role="status"
+            aria-label={voiceState === 'ready' ? 'listening' : 'connecting'}
+            className={`flex min-w-0 flex-1 items-end justify-center gap-1 rounded border bg-[var(--oz-surface)] px-3 py-2 transition-colors ${
+              voiceState === 'ready'
+                ? 'border-[var(--oz-success)]/60'
+                : 'border-[var(--oz-border)]'
+            }`}
+          >
+            {voiceState !== 'ready' ? (
+              <span className="oz-ptt-hold flex-1 self-center text-center text-[11px] text-[var(--oz-dim)]">
+                connecting…
+              </span>
+            ) : (
+              freeLevels.map((l, i) => (
+                <span
+                  key={i}
+                  className="w-1.5 bg-[var(--oz-success)] transition-[height] duration-75"
+                  style={{ height: `${Math.max(3, Math.round(l * 22))}px` }}
+                />
+              ))
+            )}
+          </div>
+          <span
+            aria-label="hands-free duration"
+            className="self-center text-[11px] text-[var(--oz-dim)] tabular-nums"
+          >
+            {Math.floor(freeSecs / 60)}:{String(freeSecs % 60).padStart(2, '0')}
+          </span>
+        </div>
+      ) : (
+        /* text input — always available */
+        <div className="flex items-end gap-2 border-t border-[var(--oz-border)] py-3">
         {/* single paper-clip button — opens the phone's photo/camera picker
             (accept=image/*); files ride along when picked from there */}
         <button
@@ -971,13 +1047,12 @@ export default function SessionView({
             <PixelIcon name="mic" size={16} />
           </button>
         )}
-      </div>
+        </div>
+      )}
 
       {mode === 'free' && (
-        <div className="border-t border-[var(--oz-border)] py-4 text-center text-xs text-[var(--oz-success)]">
-          {voiceState === 'connecting'
-            ? 'connecting…'
-            : '● hands-free — just talk, pauses end your turn'}
+        <div className="py-3 text-center text-xs text-[var(--oz-success)]">
+          ● hands-free — just talk, pauses end your turn
         </div>
       )}
     </main>

@@ -2,9 +2,13 @@ import { NextResponse } from 'next/server';
 import {
   AccessToken,
   type AccessTokenOptions,
+  AgentDispatchClient,
   RoomConfiguration,
   type VideoGrant,
 } from 'livekit-server-sdk';
+
+// must match agent/agent.py: @server.rtc_session(agent_name=...)
+const AGENT_NAME = 'bifrost';
 
 type ConnectionDetails = {
   serverUrl: string;
@@ -47,8 +51,10 @@ export async function POST(req: Request) {
       : new RoomConfiguration();
 
     // Room = session slug passed by the sessions shell.
-    const roomName = String(body?.room || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 60) ||
-      `session_${Math.floor(Math.random() * 10_000)}`;
+    const roomName =
+      String(body?.room || '')
+        .replace(/[^a-zA-Z0-9_-]/g, '')
+        .slice(0, 60) || `session_${Math.floor(Math.random() * 10_000)}`;
 
     // Stable identity per room so reconnects resume the same participant.
     const participantName = 'user';
@@ -59,6 +65,27 @@ export async function POST(req: Request) {
       roomName,
       roomConfig
     );
+
+    // Explicit agent dispatch. LiveKit only auto-dispatches a job when a room
+    // is CREATED, so rejoining a not-yet-deleted room (fast mode switch,
+    // self-heal) used to land in an agent-less room: hot mic, "listening"
+    // UI, nothing transcribed (2026-09-25 veraldar-org---home). Dispatching
+    // per mint guarantees an agent for every fresh phone connect. Best-effort:
+    // a failed dispatch still returns the token (voice just stays agent-less
+    // and the session page surfaces it).
+    try {
+      // LIVEKIT_URL is the phone-facing TLS alias (proxied websockets only —
+      // its Twirp path 404s into the PWA); the server API needs the direct
+      // host. Same box, so 127.0.0.1:7880 is the sane default.
+      const apiHost = (process.env.LIVEKIT_API_URL || 'http://127.0.0.1:7880').replace(
+        /^ws(s):/,
+        'http$1:'
+      );
+      const dispatchClient = new AgentDispatchClient(apiHost, API_KEY, API_SECRET);
+      await dispatchClient.createDispatch(roomName, AGENT_NAME);
+    } catch (dispatchError) {
+      console.error(`agent dispatch failed for room ${roomName}:`, dispatchError);
+    }
 
     // Return connection details
     const data: ConnectionDetails = {

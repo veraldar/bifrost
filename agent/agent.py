@@ -1,5 +1,6 @@
 """LiveKit voice agent bridging phone audio to a local opencode server."""
 
+import asyncio
 import os
 from typing import AsyncIterable
 
@@ -48,6 +49,10 @@ class OpenCodeLLM(llm.LLM):
         self._base = base_url.rstrip("/")
         self._room_key = room_key.lower()
         self._session_id: str | None = None
+        # last full (cumulative) voice prompt posted for this room — hands-free
+        # VAD re-commits turns as A, A+B, A+B+C… while the previous reply is
+        # still playing; only the delta may reach opencode (see _run)
+        self.last_prompt = ""
 
     @staticmethod
     def _slugify(title: str) -> str:
@@ -132,8 +137,18 @@ class OpenCodeStream(LLMStream):
         if not prompt:
             logger.info("opencode bridge: empty or absent user turn, skipping")
             return
+        # the session can re-commit the SAME speech as a growing cumulative
+        # turn (seen live 2026-09-25: one hands-free utterance flooded the
+        # transcript with A, A+呃, A+呃+B…) — identical means already sent,
+        # a strict extension means only the new tail is actually new
+        prev = self._oc.last_prompt
+        if prev and prompt == prev:
+            logger.info("opencode bridge: duplicate cumulative turn, skipping")
+            return
+        send = prompt[len(prev) :].strip() if prev and prompt.startswith(prev) else prompt
+        self._oc.last_prompt = prompt
         try:
-            reply = await self._oc.ask(prompt)
+            reply = await self._oc.ask(send)
         except Exception as e:  # noqa: BLE001 - surface errors as speech
             reply = f"Sorry, talking to opencode failed: {e}"
         self._event_ch.send_nowait(
@@ -144,11 +159,18 @@ class OpenCodeStream(LLMStream):
 server = AgentServer()
 
 
-@server.rtc_session()
+@server.rtc_session(agent_name="bifrost")
 async def entrypoint(ctx: JobContext) -> None:
     _api_key = "not-needed"
     session = AgentSession(
-        vad=silero.VAD.load(),
+        # 0.9s of silence ends a turn (default 0.55s commits on every short
+        # mid-sentence pause in hands-free, fragmenting one thought into
+        # several runs)
+        vad=silero.VAD.load(min_silence_duration=0.9),
+        # batch whisper needs 1-2s per segment: with the 0.5s default the
+        # turn commits BEFORE the STT final lands (livekit logs "transcript
+        # arrives after turn has been committed") and the speech is dropped
+        turn_handling={"endpointing": {"min_delay": 1.5}},
         stt=openai.STT(base_url=SPEACHES_URL, api_key=_api_key, model=STT_MODEL),
         llm=OpenCodeLLM(OPENCODE_URL, room_key=ctx.room.name),
         tts=openai.TTS(base_url=SPEACHES_URL, api_key=_api_key, model=TTS_MODEL, voice=TTS_VOICE),
@@ -158,6 +180,28 @@ async def entrypoint(ctx: JobContext) -> None:
         room_input_options=RoomInputOptions(text_enabled=True),
         agent=Agent(instructions=INSTRUCTIONS),
     )
+
+    # explicit dispatch can double-fire (token minted twice while an old job
+    # is still draining) — two agents would both STT the mic and both reply.
+    # The phone's identity is deterministic (pwa token route: user_<room>);
+    # anything else already in the room is another agent → yield to it.
+    # NOTE: only meaningful after start() — the room connects there, so
+    # remote_participants is empty any earlier (verified live: the check at
+    # entrypoint start never saw the sibling).
+    human_identity = f"user_{ctx.room.name}"
+    if any(p.identity != human_identity for p in ctx.room.remote_participants.values()):
+        logger.warning("another agent already in room '%s' — shutting down", ctx.room.name)
+        ctx.shutdown("duplicate agent")
+        return
+
+    def _end_job_with_session(_ev) -> None:
+        # start() returns immediately, so the job would otherwise outlive its
+        # session: a zombie agent keeps answering room RPCs with "not-running"
+        # and traps the phone in a reconnect loop. End the job with the
+        # session — the next join dispatches a fresh one.
+        ctx.shutdown("session closed")
+
+    session.on("close", _end_job_with_session)
 
     async def _ptt_begin_rpc(data) -> str:
         # a PTT hold must be ONE message: VAD endpointing would auto-commit
@@ -205,6 +249,15 @@ async def entrypoint(ctx: JobContext) -> None:
     ctx.room.local_participant.register_rpc_method("ptt_begin", _ptt_begin_rpc)
     ctx.room.local_participant.register_rpc_method("ptt_abort", _ptt_abort_rpc)
     ctx.room.local_participant.register_rpc_method("commit_turn", _commit_turn_rpc)
+
+    # explicit dispatch lands the agent in the room BEFORE the phone connects,
+    # and speech into an unlinked room is lost audio — wait for the human
+    # (capped, so a never-arriving phone can't pin the job) before greeting
+    deadline = asyncio.get_running_loop().time() + 30
+    while human_identity not in {p.identity for p in ctx.room.remote_participants.values()}:
+        if asyncio.get_running_loop().time() > deadline:
+            break
+        await asyncio.sleep(0.2)
 
     # greet locally — generate_reply would post its instruction text into the
     # shared opencode session as if the user had typed it

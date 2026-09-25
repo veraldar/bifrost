@@ -115,7 +115,7 @@ export default function SessionView({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ id?: string }>;
+  searchParams: Promise<{ id?: string; q?: string }>;
 }) {
   const [slug, setSlug] = useState('');
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -150,15 +150,21 @@ export default function SessionView({
     ? ((matchIdx % matches.length) + matches.length) % matches.length
     : 0;
   const hitSet = useMemo(() => new Set(matches), [matches]);
-  // jump to the active match whenever it changes (also lands on first hit
-  // right after typing) — search scrolls free of the bottom-stick logic
+  // jump to the active match whenever it changes — search scrolls free of
+  // the bottom-stick logic. A deep link from global search (?q=…) lands on
+  // the NEWEST match instead: "pick up work" means freshest context first
+  const jumpNewestRef = useRef(false);
   useEffect(() => {
     if (!matches.length) return;
+    if (jumpNewestRef.current) {
+      jumpNewestRef.current = false;
+      setMatchIdx(matches.length - 1);
+      return;
+    }
     document
       .querySelector(`[data-mi="${matches[safeIdx]}"]`)
       ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }, [matches, safeIdx]);
-  useEffect(() => setMatchIdx(0), [query]);
 
   const roomRef = useRef<Room | null>(null);
   const modeRef = useRef<Mode>('text');
@@ -297,6 +303,19 @@ export default function SessionView({
       }
     });
   }, [params]);
+
+  // deep link from global search: /session/<slug>?q=… opens the search
+  // overlay pre-filled; once transcripts load the jump effect lands on the
+  // newest match (jumpNewestRef)
+  useEffect(() => {
+    searchParams.then((p) => {
+      const q = (p.q || '').trim();
+      if (!q) return;
+      jumpNewestRef.current = true;
+      setSearchOpen(true);
+      setQuery(q);
+    });
+  }, [searchParams]);
 
   const loadMsgs = useCallback(
     async (lim?: number) => {
@@ -592,10 +611,15 @@ export default function SessionView({
         roomRef.current = null;
         voicePromiseRef.current = null;
         setVoiceState('off');
-        // self-heal with a fresh token (e.g. the phone slept past the token
-        // TTL and the server dropped the room); a live room implies voice
-        // intent since PTT lazily connects from any mode
-        if (!unmountedRef.current) reconnectVoice();
+        // self-heal ONLY while voice is actually wanted (e.g. the phone slept
+        // past the token TTL and the server dropped the room). A deliberate
+        // keyboard-mode release fires this event too: reconnecting there
+        // spawned a muted zombie room with no voice agent in it — the
+        // "listening" animation kept running but nothing transcribed or sent
+        // (2026-09-25 veraldar-org---home). Explicit reconnectVoice() callers
+        // (stale-turn recovery in pttUp) bypass this gate on purpose.
+        const wantsVoice = modeRef.current !== 'text' || pttWantRef.current;
+        if (!unmountedRef.current && wantsVoice) reconnectVoice();
       });
       room.on(RoomEvent.MediaDevicesError, (e: Error) => diagEvent('voice-fail', String(e)));
       diagEvent('voice', 'connecting signal…');
@@ -639,8 +663,19 @@ export default function SessionView({
       } else {
         // hands-free: mic stays on, VAD drives turns (agent auto-commits).
         // PTT from the composer works in both modes (mic mutes on release).
-        await ensureVoice();
+        const room = await ensureVoice();
         await mic(true);
+        // honesty check: hands-free renders "listening" from local mic levels
+        // alone — if the voice agent never joined (lk-agent down, dispatch
+        // lost), surface it instead of faking it (2026-09-25: the animation
+        // ran for minutes with nobody transcribing)
+        window.setTimeout(() => {
+          if (unmountedRef.current || modeRef.current !== 'free') return;
+          if (roomRef.current === room && room.remoteParticipants.size === 0) {
+            diagEvent('voice-fail', 'hands-free: no voice agent in the room after 10s');
+            setError('voice agent missing from the room — is lk-agent running? tap hands-free to retry');
+          }
+        }, 10_000);
       }
     } catch {
       setMode('text'); // connect/mic failed (error surfaced by ensureVoice)
@@ -965,7 +1000,10 @@ export default function SessionView({
           <input
             autoFocus
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setMatchIdx(0); // new query → start from the first hit again
+              setQuery(e.target.value);
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Escape') {
                 setSearchOpen(false);

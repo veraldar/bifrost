@@ -5,10 +5,17 @@
 import { NextResponse } from 'next/server';
 import { ocFetch, resolveId } from '@/lib/oc';
 import { bustCache } from '@/lib/oc-cache';
-import { isRunLive, liveSince, markRunEnd, markRunStart } from '@/lib/oc-live';
-import { pushRunDone } from '@/lib/push';
+import { buildParts, forward, runEnded } from '@/lib/oc-forward';
+import { isRunLive, liveSince } from '@/lib/oc-live';
+import { enqueue, queuedItems } from '@/lib/oc-queue';
 
 export const dynamic = 'force-dynamic';
+
+type SendBody = {
+  text?: string;
+  images?: string[];
+  files?: { name: string; content: string }[];
+};
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
@@ -45,10 +52,28 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     // 3rd field = role of the last raw message: the client needs to know
     // "runner never started" (assistant steps absent → still user-last)
     const runState = `${lastRaw?.info?.id || lastRaw?.id || 'none'}|${lastDone}|${lastRole}`;
+    // self-heal zombie live entries: a proxy restart orphans the in-flight
+    // POST, so nothing ever calls markRunEnd — blinking dot + "queued"
+    // everything, forever. opencode serializes per session, so a last
+    // assistant step completed >2min ago proves the run is over (live runs
+    // legitimately pause between steps — the grace period guards those).
+    if (isRunLive(sid) && lastDone > 0 && Date.now() - lastDone > 120_000) {
+      console.log(`[oc] zombie run entry healed ${sid} (idle ${Math.round((Date.now() - lastDone) / 1000)}s)`);
+      runEnded(sid, id);
+    }
     // long sessions: default to the latest window, older pages load on demand
     const limit = Number(new URL(req.url).searchParams.get('limit') || 0);
     const body = limit > 0 ? all.slice(-limit) : all;
-    return NextResponse.json(body, {
+    // messages waiting in the proxy queue render like the transcript (with
+    // queued: true) — refresh-proof, no client-side echo needed
+    const queued = queuedItems(sid).map((q) => ({
+      role: 'user',
+      text: q.text,
+      images: q.images,
+      time: q.at,
+      queued: true,
+    }));
+    return NextResponse.json([...body, ...queued], {
       headers: {
         'X-Total-Count': String(all.length),
         'X-Run-State': runState,
@@ -71,42 +96,26 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const sid = await resolveId(id);
     const body = await req.json();
     const async = body.async === true;
-    const parts: any[] = [];
-    const text = String(body.text || '').trim();
-    if (text) parts.push({ type: 'text', text });
-
-    for (const dataUrl of body.images || []) {
-      // opencode accepts attachments as file parts with a data: url
-      // ({type:'image'} is rejected with 400 — verified against the live server)
-      const mime = /^data:([^;,]+)/.exec(String(dataUrl))?.[1] || 'image/png';
-      parts.push({ type: 'file', mime, url: dataUrl });
-    }
-    for (const f of body.files || []) {
-      // md/txt/html arrive as fenced content so the model sees them verbatim
-      parts.push({
-        type: 'text',
-        text: `\n\n--- attached file: ${f.name} ---\n\`\`\`\n${String(f.content).slice(0, 200_000)}\n\`\`\``,
-      });
-    }
+    const parts = buildParts(body);
     if (!parts.length) return NextResponse.json({ error: 'empty' }, { status: 400 });
 
     if (async) {
+      if (isRunLive(sid)) {
+        // a run is in flight: hold the message in the proxy queue. opencode's
+        // own queue stalls forever after an abort — here the run's end
+        // (abort included) automatically forwards the next queued message
+        enqueue(sid, {
+          text: String(body.text || ''),
+          images: body.images || [],
+          files: body.files || [],
+        });
+        bustCache();
+        return NextResponse.json({ queued: true });
+      }
       // fire-and-forget: reply lands via transcript polling. The POST only
       // resolves when the whole run finishes — that window IS the live-run
       // flag, and its end fires Web Push (wakes a frozen phone) + cache bust
-      const t0 = Date.now();
-      markRunStart(sid);
-      ocFetch(`/session/${sid}/message`, {
-        method: 'POST',
-        body: JSON.stringify({ parts }),
-      })
-        .then(() => console.log(`[oc] async prompt done ${Date.now() - t0}ms`))
-        .catch((e) => console.error(`[oc] async prompt failed: ${e}`))
-        .finally(() => {
-          markRunEnd(sid);
-          bustCache(); // list drops the "awaiting answer" state
-          void pushRunDone(id);
-        });
+      forward(sid, id, body);
       bustCache();
       return NextResponse.json({ queued: true });
     }

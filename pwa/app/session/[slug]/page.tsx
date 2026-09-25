@@ -646,10 +646,11 @@ export default function SessionView({
     try {
       // lazily connect from any mode (first press pays the connect cost)
       const room = await ensureVoice();
-      if (!pttWantRef.current || modeRef.current === 'text') {
-        // finger lifted (or mode switched) while the room was still dialing
-        // in — don't leave a live room + hot mic behind: tear it down, the
-        // next press reconnects
+      if (!pttWantRef.current) {
+        // finger lifted before the room was ready — don't leave a live room
+        // + hot mic behind: tear it down, the next press reconnects. NOTE:
+        // modeRef === 'text' is NORMAL here — the composer mic IS push to
+        // talk; only a pre-ready release kills the room
         await room.localParticipant.setMicrophoneEnabled(false).catch(() => {});
         if (roomRef.current === room) roomRef.current = null;
         voicePromiseRef.current = null;
@@ -873,6 +874,7 @@ export default function SessionView({
       }
       return;
     }
+    const willQueue = busyRef.current; // server will hold it in the proxy queue
     setBusy(true);
     armRunWatch();
     try {
@@ -888,8 +890,8 @@ export default function SessionView({
         setError(d.error || `send failed (${r.status})`);
         setInput((prev) => (prev.trim() ? prev : text)); // draft back, no clobber
         setBusy(false);
-      } else {
-        addEcho(text, images);
+      } else if (!willQueue) {
+        addEcho(text, images); // queued sends come back via the poll instead
       }
       await loadMsgs();
     } catch {
@@ -1028,7 +1030,7 @@ export default function SessionView({
             hit={searchOpen && !!query.trim() && hitSet.has(i)}
             // still the newest message while the run is going = sitting in
             // the agent's queue — badge it until a reply lands after it
-            queued={busy && m.role === 'user' && i === msgs.length - 1}
+            queued={busy && !!m.queued}
           />
         ))}
         {busy && (

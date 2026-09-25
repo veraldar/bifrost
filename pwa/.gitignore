@@ -44,3 +44,4 @@ next-env.d.ts
 # web-push subscriptions (device endpoints, gitignored)
 .push-subs.json
 .oc-live.json
+.oc-queue.json

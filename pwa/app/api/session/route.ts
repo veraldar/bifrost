@@ -11,7 +11,8 @@
  */
 import { NextResponse } from 'next/server';
 import { bustCache, getCache, setCache } from '@/lib/oc-cache';
-import { PENDING_TTL_MS, isRunLive } from '@/lib/oc-live';
+import { isRunLive } from '@/lib/oc-live';
+import { PENDING_TTL_MS } from '@/lib/pending-ttl';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,28 +47,45 @@ export async function GET() {
           // NOTE: /messages (plural) is the SPA catch-all HTML page, not an
           // API — r.json() throws and every session silently enriched empty
           const msgs = (await ocFetch(`/session/${s.id}/message`)) as Array<{
-            info?: { role?: string; time?: { created?: number } };
+            role?: string;
+            info?: {
+              role?: string;
+              time?: { created?: number; completed?: number };
+            };
             parts?: Array<{ type?: string; text?: string }>;
           }>;
           const last = [...msgs].reverse().find((m) => textOf(m.parts));
           const lastRole = last?.info?.role || '';
+          const lastText = textOf(last?.parts);
+          // mid-run detection on the RAW last message (may be a tool-only
+          // step with no text): user msg last, or assistant step still
+          // streaming (no completed time) — a run is in flight even when a
+          // text reply already landed mid-run (restart wiped the live map)
+          const lastRaw = msgs[msgs.length - 1];
+          const rawRole = lastRaw?.info?.role || lastRaw?.role || '';
+          const rawCreated = lastRaw?.info?.time?.created || 0;
+          const midRun =
+            rawRole === 'user' ||
+            (rawRole === 'assistant' && !lastRaw?.info?.time?.completed);
           return {
             id: s.id,
             title: s.title || s.id,
             updated: s.time?.updated || 0,
-            preview: textOf(last?.parts).slice(0, 80),
+            preview: lastText.slice(0, 80),
             lastRole,
+            // full-text question check — the client only sees an 80-char
+            // preview, which usually cuts off before the actual questions
+            lastHasQ: lastText.includes('?'),
             // when the last visible message landed — the client compares it
             // against its local read marks to badge unread replies
             lastAt: last?.info?.time?.created || 0,
             // awaiting an answer: a run is live right now (definitive, tracked
-            // in-flight by the proxy), or the last visible message is the
-            // user's own prompt AND it's fresh — aborted/failed prompts stay
-            // user-last forever and must not pin the session as thinking
+            // in-flight by the proxy — survives restarts via disk), or the
+            // transcript itself shows a run in flight AND it's fresh —
+            // aborted/failed prompts stay that way forever and must not pin
+            // the session as thinking
             pending:
-              isRunLive(s.id) ||
-              (lastRole === 'user' &&
-                (last?.info?.time?.created || 0) > Date.now() - PENDING_TTL_MS),
+              isRunLive(s.id) || (midRun && rawCreated > Date.now() - PENDING_TTL_MS),
           };
         } catch {
           return {
@@ -76,6 +94,7 @@ export async function GET() {
             updated: s.time?.updated || 0,
             preview: '',
             lastRole: '',
+            lastHasQ: false,
             lastAt: 0,
             pending: isRunLive(s.id),
           };

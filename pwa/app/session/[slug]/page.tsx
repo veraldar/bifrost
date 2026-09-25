@@ -1,12 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import { Room, RoomEvent, Track, createAudioAnalyser } from 'livekit-client';
 import { PixelIcon } from '@/components/pixel-icon';
 import { type Msg, SessionMessage } from '@/components/session-message';
 import { diagEvent } from '@/lib/diag';
 import { clearAsked, ensureNotifyPermission, markAsked, notifyReply } from '@/lib/notify';
-import { PENDING_TTL_MS } from '@/lib/oc-live';
+import { PENDING_TTL_MS } from '@/lib/pending-ttl';
 import { markRead } from '@/lib/read';
 
 type Mode = 'text' | 'free';
@@ -83,7 +83,7 @@ function useMicLevels(active: boolean, roomRef: RefObject<Room | null>) {
       clearInterval(findTrack);
       cancelAnimationFrame(raf);
     };
-  }, [active]);
+  }, [active, roomRef]);
   return levels;
 }
 
@@ -164,6 +164,10 @@ export default function SessionView({
   // definitive "run in flight" from the proxy (its async POST resolves only
   // when the run finishes) — immune to long between-steps thinking
   const liveRef = useRef(false);
+  // synchronous mirror of busy: the poller arms hands-free runs without
+  // re-arming on every tick while one is already being watched
+  const busyRef = useRef(false);
+  busyRef.current = busy;
   // arms ONE busy-restoration check on entering a session: navigating away
   // and back (or a reload) must re-show the working indicator
   const autoArmRef = useRef('');
@@ -295,6 +299,18 @@ export default function SessionView({
           // backgrounded + the run's final answer landed = notify (a bare
           // assistant message is not enough — steps land mid-run)
           const lastFresh = fresh[fresh.length - 1];
+          // hands-free has no local send: the agent commits turns itself, so
+          // the poll must arm the working indicator when new user speech
+          // lands — otherwise nothing on screen reacts until a page reload
+          if (
+            modeRef.current === 'free' &&
+            !busyRef.current &&
+            fresh.length > seenRef.current &&
+            lastFresh?.role === 'user'
+          ) {
+            setBusy(true);
+            armRunWatch();
+          }
           if (
             document.hidden &&
             runStreakRef.current >= 1 &&
@@ -531,7 +547,8 @@ export default function SessionView({
   }
 
   async function pttDown(e?: React.PointerEvent<HTMLButtonElement>) {
-    if (busy) return;
+    // deliberately NOT gated on busy: talking while the agent works queues
+    // the turn (opencode serializes per session); stop is the only cancel
     pttWantRef.current = true;
     pttCancelArmRef.current = false;
     setPttCancelArm(false);
@@ -886,11 +903,7 @@ export default function SessionView({
           <div
             role="status"
             aria-label={voiceState === 'ready' ? 'listening' : 'connecting'}
-            className={`flex min-w-0 flex-1 items-end justify-center gap-1 rounded border bg-[var(--oz-surface)] px-3 py-2 transition-colors ${
-              voiceState === 'ready'
-                ? 'border-[var(--oz-success)]/60'
-                : 'border-[var(--oz-border)]'
-            }`}
+            className={`flex min-w-0 flex-1 items-end justify-center gap-1 rounded border bg-[var(--oz-surface)] px-3 py-2 transition-colors ${voiceState === 'ready' ? 'border-[var(--oz-success)]/60' : 'border-[var(--oz-border)]'}`}
           >
             {voiceState !== 'ready' ? (
               <span className="oz-ptt-hold flex-1 self-center text-center text-[11px] text-[var(--oz-dim)]">
@@ -916,137 +929,136 @@ export default function SessionView({
       ) : (
         /* text input — always available */
         <div className="flex items-end gap-2 border-t border-[var(--oz-border)] py-3">
-        {/* single paper-clip button — opens the phone's photo/camera picker
+          {/* single paper-clip button — opens the phone's photo/camera picker
             (accept=image/*); files ride along when picked from there */}
-        <button
-          aria-label="attach"
-          onClick={() => photoInputRef.current?.click()}
-          className="rounded border border-[var(--oz-border)] px-2.5 py-2 text-[var(--oz-dim)]"
-        >
-          <PixelIcon name="attachment" size={16} />
-        </button>
-        <input
-          ref={photoInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          hidden
-          onChange={(e) => {
-            void addAttachments(e.target.files);
-            e.currentTarget.value = '';
-          }}
-        />
-        {holding ? (
-          <div
-            aria-label={voiceState === 'ready' ? 'listening' : 'connecting'}
-            role="status"
-            className={`flex min-w-0 flex-1 items-end justify-center gap-1 rounded border bg-[var(--oz-surface)] px-3 py-2 transition-colors ${
-              pttCancelArm
-                ? 'border-[var(--oz-danger)] text-[var(--oz-danger)]'
-                : voiceState === 'ready'
-                  ? 'border-[var(--oz-success)]/60'
-                  : 'border-[var(--oz-border)]'
-            }`}
+          <button
+            aria-label="attach"
+            onClick={() => photoInputRef.current?.click()}
+            className="rounded border border-[var(--oz-border)] px-2.5 py-2 text-[var(--oz-dim)]"
           >
-            {voiceState !== 'ready' ? (
-              // room still dialing in (first press pays the connect cost) —
-              // pulse until the equalizer can take over
-              <span className="oz-ptt-hold flex-1 self-center text-center text-[11px] text-[var(--oz-dim)]">
-                connecting…
-              </span>
-            ) : (
-              <>
-                {pttCancelArm ? (
-                  <span className="flex-1 self-center text-center text-[11px] tracking-widest uppercase">
-                    release to delete
-                  </span>
-                ) : (
-                  <span
-                    aria-label="hold duration"
-                    className="mr-1 self-center text-[11px] text-[var(--oz-dim)] tabular-nums"
-                  >
-                    {Math.floor(pttSecs / 60)}:{String(pttSecs % 60).padStart(2, '0')}
-                  </span>
-                )}
-                {pttLevels.map((l, i) => (
-                  <span
-                    key={i}
-                    className={`w-1.5 transition-[height] duration-75 ${
-                      pttCancelArm ? 'bg-[var(--oz-danger)]' : 'bg-[var(--oz-success)]'
-                    }`}
-                    style={{ height: `${Math.max(3, Math.round(l * 22))}px` }}
-                  />
-                ))}
-              </>
-            )}
-          </div>
-        ) : (
-          <textarea
-            ref={inputRef}
-            value={input}
-            rows={1}
+            <PixelIcon name="attachment" size={16} />
+          </button>
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
             onChange={(e) => {
-              setInput(e.target.value);
-              autogrow(e.target);
+              void addAttachments(e.target.files);
+              e.currentTarget.value = '';
             }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendText();
-              }
-            }}
-            placeholder="message…"
-            className="min-w-0 flex-1 resize-none rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] px-3 py-2 text-sm leading-snug outline-none placeholder:text-[var(--oz-dim)]"
-            style={{ maxHeight: 96 }}
           />
-        )}
-        {/* discord-style rightmost button: mic (hold to talk) when empty,
+          {holding ? (
+            <div
+              aria-label={voiceState === 'ready' ? 'listening' : 'connecting'}
+              role="status"
+              className={`flex min-w-0 flex-1 items-end justify-center gap-1 rounded border bg-[var(--oz-surface)] px-3 py-2 transition-colors ${
+                pttCancelArm
+                  ? 'border-[var(--oz-danger)] text-[var(--oz-danger)]'
+                  : voiceState === 'ready'
+                    ? 'border-[var(--oz-success)]/60'
+                    : 'border-[var(--oz-border)]'
+              }`}
+            >
+              {voiceState !== 'ready' ? (
+                // room still dialing in (first press pays the connect cost) —
+                // pulse until the equalizer can take over
+                <span className="oz-ptt-hold flex-1 self-center text-center text-[11px] text-[var(--oz-dim)]">
+                  connecting…
+                </span>
+              ) : (
+                <>
+                  {pttCancelArm ? (
+                    <span className="flex-1 self-center text-center text-[11px] tracking-widest uppercase">
+                      release to delete
+                    </span>
+                  ) : (
+                    <span
+                      aria-label="hold duration"
+                      className="mr-1 self-center text-[11px] text-[var(--oz-dim)] tabular-nums"
+                    >
+                      {Math.floor(pttSecs / 60)}:{String(pttSecs % 60).padStart(2, '0')}
+                    </span>
+                  )}
+                  {pttLevels.map((l, i) => (
+                    <span
+                      key={i}
+                      className={`w-1.5 transition-[height] duration-75 ${
+                        pttCancelArm ? 'bg-[var(--oz-danger)]' : 'bg-[var(--oz-success)]'
+                      }`}
+                      style={{ height: `${Math.max(3, Math.round(l * 22))}px` }}
+                    />
+                  ))}
+                </>
+              )}
+            </div>
+          ) : (
+            <textarea
+              ref={inputRef}
+              value={input}
+              rows={1}
+              onChange={(e) => {
+                setInput(e.target.value);
+                autogrow(e.target);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  sendText();
+                }
+              }}
+              placeholder="message…"
+              className="min-w-0 flex-1 resize-none rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] px-3 py-2 text-sm leading-snug outline-none placeholder:text-[var(--oz-dim)]"
+              style={{ maxHeight: 96 }}
+            />
+          )}
+          {/* discord-style rightmost button: mic (hold to talk) when empty,
             send as soon as there's something to send */}
-        {input.trim() || attachments.length > 0 ? (
-          <button
-            onClick={sendText}
-            aria-label="send"
-            className="rounded border border-[var(--oz-success)]/60 px-3 py-2 text-sm text-[var(--oz-success)]"
-          >
-            <PixelIcon name="send" size={16} />
-          </button>
-        ) : (
-          <button
-            aria-label="push to talk"
-            disabled={busy}
-            onPointerDown={(e) => {
-              e.preventDefault();
-              pttDown(e);
-            }}
-            onPointerUp={() => pttUp()}
-            onPointerMove={(e) => {
-              if (!holding) return;
-              const dx = e.clientX - pttStartRef.current.x;
-              // slide left arms the delete zone; slide back right disarms
-              // (hysteresis so a shaky finger can't flicker the zone)
-              if (dx < -24 && !pttCancelArmRef.current) {
-                pttCancelArmRef.current = true;
-                setPttCancelArm(true);
-              } else if (dx > -8 && pttCancelArmRef.current) {
-                pttCancelArmRef.current = false;
-                setPttCancelArm(false);
-              }
-            }}
-            onPointerLeave={() => holding && pttCancel()}
-            onPointerCancel={() => holding && pttCancel()}
-            onContextMenu={(e) => e.preventDefault()}
-            className={`rounded border px-3 py-2 text-sm select-none ${
-              holding
-                ? 'oz-ptt-hold border-[var(--oz-success)]'
-                : 'border-[var(--oz-border)] text-[var(--oz-dim)]'
-            } ${voiceState === 'connecting' ? 'opacity-50' : ''}`}
-            style={{ touchAction: 'none' }}
-          >
-            {/* the mic button itself never changes — the recording pill is
+          {input.trim() || attachments.length > 0 ? (
+            <button
+              onClick={sendText}
+              aria-label="send"
+              className="rounded border border-[var(--oz-success)]/60 px-3 py-2 text-sm text-[var(--oz-success)]"
+            >
+              <PixelIcon name="send" size={16} />
+            </button>
+          ) : (
+            <button
+              aria-label="push to talk"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                pttDown(e);
+              }}
+              onPointerUp={() => pttUp()}
+              onPointerMove={(e) => {
+                if (!holding) return;
+                const dx = e.clientX - pttStartRef.current.x;
+                // slide left arms the delete zone; slide back right disarms
+                // (hysteresis so a shaky finger can't flicker the zone)
+                if (dx < -24 && !pttCancelArmRef.current) {
+                  pttCancelArmRef.current = true;
+                  setPttCancelArm(true);
+                } else if (dx > -8 && pttCancelArmRef.current) {
+                  pttCancelArmRef.current = false;
+                  setPttCancelArm(false);
+                }
+              }}
+              onPointerLeave={() => holding && pttCancel()}
+              onPointerCancel={() => holding && pttCancel()}
+              onContextMenu={(e) => e.preventDefault()}
+              className={`rounded border px-3 py-2 text-sm select-none ${
+                holding
+                  ? 'oz-ptt-hold border-[var(--oz-success)]'
+                  : 'border-[var(--oz-border)] text-[var(--oz-dim)]'
+              } ${voiceState === 'connecting' ? 'opacity-50' : ''}`}
+              style={{ touchAction: 'none' }}
+            >
+              {/* the mic button itself never changes — the recording pill is
                 what turns red when the delete zone is armed */}
-            <PixelIcon name="mic" size={16} />
-          </button>
-        )}
+              <PixelIcon name="mic" size={16} />
+            </button>
+          )}
         </div>
       )}
 

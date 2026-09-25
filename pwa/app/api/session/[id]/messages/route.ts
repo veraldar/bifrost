@@ -109,6 +109,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           images: body.images || [],
           files: body.files || [],
         });
+        console.log(`[queue] enqueue ${sid} (depth ${queuedItems(sid).length})`);
         bustCache();
         return NextResponse.json({ queued: true });
       }

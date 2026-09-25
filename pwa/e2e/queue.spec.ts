@@ -1,0 +1,40 @@
+import { expect, test } from '@playwright/test';
+
+/** Regression test for the proxy-managed queue: a message sent while a run
+ *  is live shows ● queued; stop advances to it instead of stalling
+ *  (opencode v1.18 stalls its own queue after an abort — the proxy owns
+ *  pickup now). */
+const NAME = `e2e-queue-${Date.now().toString(36)}`;
+let sessionId = '';
+
+test('queue: mid-run send queues, stop advances to it', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'new session' }).click();
+  await page.getByPlaceholder('session name…').fill(NAME);
+  await page.getByRole('button', { name: 'create & open' }).click();
+  await expect(page).toHaveURL(new RegExp(`/session/${NAME}`));
+  sessionId = new URL(page.url()).searchParams.get('id') || '';
+
+  // long-running task keeps the busy indicator up while we queue behind it
+  await page.getByPlaceholder('message…').fill(
+    'Run exactly this bash command: sleep 20. Then reply with exactly: A-done'
+  );
+  await page.getByRole('button', { name: 'send', exact: true }).click();
+  await expect(page.getByText(/working… \d+s/)).toBeVisible({ timeout: 20_000 });
+
+  // mid-run send → ● queued chip on the message bubble
+  await page.getByPlaceholder('message…').fill('Reply with exactly: B-done');
+  await page.getByRole('button', { name: 'send', exact: true }).click();
+  await expect(page.getByText('● queued')).toBeVisible({ timeout: 15_000 });
+
+  // stop kills the current run; the proxy must forward B automatically
+  await page.getByRole('button', { name: 'stop', exact: true }).click();
+  // B is "done" when both its prompt echo and the assistant reply exist
+  await expect(page.getByText('B-done')).toHaveCount(2, { timeout: 90_000 });
+  await expect(page.getByText(/working… \d+s/)).toHaveCount(0);
+});
+
+test('cleanup: delete the queue test session', async ({ request }) => {
+  test.skip(!sessionId, 'nothing to clean');
+  expect((await request.delete(`/api/session/${sessionId}`)).ok()).toBeTruthy();
+});

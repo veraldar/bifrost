@@ -12,7 +12,7 @@ Talk or type from the phone; the code you're changing lives here. Full architect
 This box runs everything. Mac Studio serves speech models (MLX Qwen3-ASR/TTS) on the LAN — endpoint in `agent/.env` (`SPEACHES_URL`). Private IPs/hostnames/ssh: `docs/local.md` (gitignored). Tailnet-only, nothing public.
 
 ## Verify
-- pwa: `cd pwa && npm run build`
+- pwa: `cd pwa && npm run build` + e2e: `cd pwa && npx playwright test`
 - agent: `cd agent && uv run agent.py console` (local mic test)
 - deploy: `cd deploy && docker compose up -d`
 - services: `systemctl --user restart lk-pwa lk-agent opencode-serve`

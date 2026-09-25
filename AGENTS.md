@@ -30,3 +30,10 @@ The user often reads replies on the phone PWA. Make answers visual:
 - To show a UI/mockup/page: paste it as a fenced ```html block — the phone renders it
   inline in a sandboxed frame automatically.
 - Never point the phone at LAN IPs/ports; only `/api/artifact/...` links are reachable.
+
+## Parallel sessions (avoid overlap)
+Before working: `git log --oneline -8` + read `docs/claims.md`. Working on something
+non-trivial? Claim it FIRST (one line: scope + files + session name), delete the claim
+when done. Commit small and often with req-linked messages — tests (cd pwa && npx
+playwright test) are the referee: run them before claiming done. Never edit a file
+another session holds a claim on unless merging deliberately.

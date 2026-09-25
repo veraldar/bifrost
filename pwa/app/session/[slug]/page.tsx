@@ -465,7 +465,6 @@ export default function SessionView({
     pttWantRef.current = true;
     pttCancelArmRef.current = false;
     setPttCancelArm(false);
-    setPttSlideX(0);
     // instant feedback: hold UI (equalizer slot) appears on press — the bars
     // stay flat until the room + mic track are actually live
     setHolding(true);
@@ -501,7 +500,6 @@ export default function SessionView({
   // "deleting" zone — mic stays hot, nothing is lost; slide back right and
   // the talk continues; releasing inside the zone discards the turn
   const [pttCancelArm, setPttCancelArm] = useState(false);
-  const [pttSlideX, setPttSlideX] = useState(0);
   // synchronous mirror of pttCancelArm: pointer events fire faster than
   // React state settles, the release must see the same truth the move saw
   const pttCancelArmRef = useRef(false);
@@ -536,7 +534,6 @@ export default function SessionView({
     pttWantRef.current = false;
     pttCancelArmRef.current = false;
     setPttCancelArm(false);
-    setPttSlideX(0);
     setHolding(false);
     const room = roomRef.current;
     if (!room) return;
@@ -874,10 +871,6 @@ export default function SessionView({
                   ? 'border-[var(--oz-success)]/60'
                   : 'border-[var(--oz-border)]'
             }`}
-            style={{
-              transform: `translateX(${pttCancelArm ? pttSlideX : 0}px)`,
-              transition: pttCancelArm ? 'none' : undefined,
-            }}
           >
             {voiceState !== 'ready' ? (
               // room still dialing in (first press pays the connect cost) —
@@ -953,7 +946,6 @@ export default function SessionView({
             onPointerMove={(e) => {
               if (!holding) return;
               const dx = e.clientX - pttStartRef.current.x;
-              setPttSlideX(Math.min(0, dx));
               // slide left arms the delete zone; slide back right disarms
               // (hysteresis so a shaky finger can't flicker the zone)
               if (dx < -24 && !pttCancelArmRef.current) {

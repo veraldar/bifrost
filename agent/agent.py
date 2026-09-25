@@ -125,14 +125,12 @@ class OpenCodeStream(LLMStream):
             "opencode chat_ctx: %s",
             [(m.role, (m.text_content or "")[:60]) for m in messages],
         )
-        prompt = ""
-        for msg in reversed(messages):
-            t = (msg.text_content or "").strip()
-            if t:
-                prompt = t
-                break
+        # only act on the newest turn: a PTT push with no recognized speech
+        # must not re-send an earlier message to opencode
+        last = messages[-1] if messages else None
+        prompt = (last.text_content or "").strip() if last is not None and last.role == "user" else ""
         if not prompt:
-            logger.warning("opencode bridge: no text content in chat_ctx, skipping")
+            logger.info("opencode bridge: empty or absent user turn, skipping")
             return
         try:
             reply = await self._oc.ask(prompt)
@@ -161,6 +159,17 @@ async def entrypoint(ctx: JobContext) -> None:
         agent=Agent(instructions=INSTRUCTIONS),
     )
 
+    async def _ptt_begin_rpc(data) -> str:
+        # a PTT hold must be ONE message: VAD endpointing would auto-commit
+        # on every mid-sentence pause, flushing partial transcripts as
+        # separate opencode messages — switch to manual turns for the hold
+        try:
+            session.update_options(turn_detection="manual")
+        except Exception as e:  # noqa: BLE001
+            logger.warning("ptt_begin: %s", e)
+            return "not-running"
+        return "ok"
+
     async def _commit_turn_rpc(data) -> str:
         # the phone can call this while the session is already closing (stale
         # room, participant disconnect race) — raising here surfaces as a raw
@@ -171,8 +180,30 @@ async def entrypoint(ctx: JobContext) -> None:
         except Exception as e:  # noqa: BLE001
             logger.warning("commit_turn on dead session: %s", e)
             return "not-running"
+        finally:
+            # hold is over: hands-free needs VAD turn-taking again
+            try:
+                session.update_options(turn_detection="vad")
+            except Exception:  # noqa: BLE001
+                pass
         return "ok"
 
+    async def _ptt_abort_rpc(data) -> str:
+        # Discord-style slide-to-cancel: drop the buffered turn, restore VAD
+        # turn-taking, commit nothing
+        try:
+            session.clear_user_turn()
+        except Exception as e:  # noqa: BLE001
+            logger.warning("ptt_abort: %s", e)
+        finally:
+            try:
+                session.update_options(turn_detection="vad")
+            except Exception:  # noqa: BLE001
+                pass
+        return "ok"
+
+    ctx.room.local_participant.register_rpc_method("ptt_begin", _ptt_begin_rpc)
+    ctx.room.local_participant.register_rpc_method("ptt_abort", _ptt_abort_rpc)
     ctx.room.local_participant.register_rpc_method("commit_turn", _commit_turn_rpc)
 
     # greet locally — generate_reply would post its instruction text into the

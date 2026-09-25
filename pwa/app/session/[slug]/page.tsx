@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Room, RoomEvent } from 'livekit-client';
+import { Room, RoomEvent, Track, createAudioAnalyser } from 'livekit-client';
 import { PixelIcon } from '@/components/pixel-icon';
 import { type Msg, SessionMessage } from '@/components/session-message';
 import { diagEvent } from '@/lib/diag';
@@ -9,10 +9,12 @@ import { clearAsked, ensureNotifyPermission, markAsked, notifyReply } from '@/li
 import { PENDING_TTL_MS } from '@/lib/oc-live';
 import { markRead } from '@/lib/read';
 
-type Mode = 'text' | 'ptt' | 'free';
+type Mode = 'text' | 'free';
 type Attach =
   | { kind: 'image'; name: string; dataUrl: string }
   | { kind: 'file'; name: string; content: string };
+
+const PTT_BARS = 5;
 
 function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
   return Promise.race([
@@ -69,6 +71,8 @@ export default function SessionView({
   const [busy, setBusy] = useState(false);
   const [busySecs, setBusySecs] = useState(0);
   const [holding, setHolding] = useState(false);
+  const [pttSecs, setPttSecs] = useState(0);
+  const [pttLevels, setPttLevels] = useState<number[]>(() => Array(PTT_BARS).fill(0));
   const [voiceState, setVoiceState] = useState<'off' | 'connecting' | 'ready'>('off');
   const [error, setError] = useState('');
   const [attachments, setAttachments] = useState<Attach[]>([]);
@@ -82,6 +86,9 @@ export default function SessionView({
   const photoInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const voicePromiseRef = useRef<Promise<Room> | null>(null);
+  // PTT intent survives an async room connect: if the finger lifted before
+  // the room was ready, the mic must not be left hot by connectVoice
+  const pttWantRef = useRef(false);
   const echoesRef = useRef<Msg[]>([]);
   const seenRef = useRef(0);
   const pollInFlightRef = useRef(false);
@@ -373,17 +380,21 @@ export default function SessionView({
         roomRef.current = null;
         voicePromiseRef.current = null;
         setVoiceState('off');
-        // in voice modes, self-heal once with a fresh token (e.g. the phone
-        // slept past the token TTL and the server dropped the room)
-        if (!unmountedRef.current && modeRef.current !== 'text') {
-          void ensureVoice().catch(() => {});
+        // self-heal with a fresh token (e.g. the phone slept past the token
+        // TTL and the server dropped the room); a live room implies voice
+        // intent since PTT lazily connects from any mode
+        if (!unmountedRef.current) {
+          void ensureVoice()
+            .then((r) =>
+              modeRef.current === 'free' ? r.localParticipant.setMicrophoneEnabled(true) : undefined
+            )
+            .catch(() => {});
         }
       });
       room.on(RoomEvent.MediaDevicesError, (e: Error) => diagEvent('voice-fail', String(e)));
       diagEvent('voice', 'connecting signal…');
       await withTimeout(room.connect(d.serverUrl, d.participantToken), 12_000, 'signal');
-      diagEvent('voice', 'connected, enabling mic…');
-      await withTimeout(room.localParticipant.setMicrophoneEnabled(true), 10_000, 'mic');
+      diagEvent('voice', 'connected, mic stays muted until a mode/handler turns it on');
       roomRef.current = room;
       setVoiceState('ready');
       diagEvent('voice', 'ready');
@@ -415,11 +426,9 @@ export default function SessionView({
         setVoiceState('off');
         diagEvent('voice', 'released (keyboard mode)');
         await room?.disconnect();
-      } else if (next === 'ptt') {
-        await ensureVoice();
-        await mic(false); // muted until held
       } else {
-        // hands-free: mic stays on, VAD drives turns (agent auto-commits)
+        // hands-free: mic stays on, VAD drives turns (agent auto-commits).
+        // PTT from the composer works in both modes (mic mutes on release).
         await ensureVoice();
         await mic(true);
       }
@@ -428,17 +437,76 @@ export default function SessionView({
     }
   }
 
-  async function pttDown() {
-    if (busy || !roomRef.current) return;
-    await mic(true);
-    setHolding(true);
+  async function pttDown(e?: React.PointerEvent<HTMLButtonElement>) {
+    if (busy) return;
+    pttWantRef.current = true;
+    pttCancelRef.current = false;
+    if (e) pttStartRef.current = { x: e.clientX, y: e.clientY };
+    try {
+      // lazily connect from any mode (first press pays the connect cost)
+      const room = await ensureVoice();
+      if (!pttWantRef.current) {
+        // finger lifted before the room was ready — don't leave the mic hot
+        await room.localParticipant.setMicrophoneEnabled(false);
+        return;
+      }
+      // agent holds turns manual until release — a mid-sentence pause while
+      // the button is down must not flush a partial message (fire & forget)
+      const agent = Array.from(room.remoteParticipants.values())[0];
+      if (agent) {
+        void room.localParticipant
+          .performRpc({
+            destinationIdentity: agent.identity,
+            method: 'ptt_begin',
+            payload: '{}',
+            responseTimeout: 4_000,
+          })
+          .catch(() => {});
+      }
+      await room.localParticipant.setMicrophoneEnabled(true);
+      setHolding(true);
+    } catch {
+      /* connect/mic failed — error already surfaced by ensureVoice */
+    }
+  }
+
+  // Discord-style slide-to-cancel: a swipe that starts on the PTT button
+  // (e.g. a back gesture) aborts the turn — mic off, buffered audio dropped,
+  // nothing committed
+  const pttCancelRef = useRef(false);
+  const pttStartRef = useRef({ x: 0, y: 0 });
+
+  function pttCancel() {
+    if (pttCancelRef.current) return;
+    pttCancelRef.current = true;
+    setHolding(false);
+    void mic(false);
+    const room = roomRef.current;
+    const agent = room && Array.from(room.remoteParticipants.values())[0];
+    if (room && agent) {
+      void room.localParticipant
+        .performRpc({
+          destinationIdentity: agent.identity,
+          method: 'ptt_abort',
+          payload: '{}',
+          responseTimeout: 4_000,
+        })
+        .catch(() => {});
+    }
   }
 
   async function pttUp() {
+    pttWantRef.current = false;
     setHolding(false);
     const room = roomRef.current;
     if (!room) return;
-    await mic(false);
+    if (pttCancelRef.current) {
+      // swiped away — the turn is discarded, commit nothing
+      pttCancelRef.current = false;
+      if (modeRef.current !== 'free') await mic(false);
+      return;
+    }
+    if (modeRef.current !== 'free') await mic(false); // hands-free keeps listening
     stickRef.current = true;
     setBusy(true); // cleared when the run state settles (see poller)
     armRunWatch();
@@ -464,12 +532,55 @@ export default function SessionView({
       roomRef.current = null;
       voicePromiseRef.current = null;
       setVoiceState('off');
-      if (!unmountedRef.current && modeRef.current !== 'text') {
-        void ensureVoice().catch(() => {});
+      if (!unmountedRef.current) {
+        void ensureVoice()
+          .then((r) =>
+            modeRef.current === 'free' ? r.localParticipant.setMicrophoneEnabled(true) : undefined
+          )
+          .catch(() => {});
       }
       return;
     }
   }
+
+  // live mic equalizer shown in place of the text input while PTT is held —
+  // 5 voice-band bars (100Hz–2kHz) from the published mic track's FFT, plus
+  // a growing hold-duration readout
+  useEffect(() => {
+    if (!holding) return;
+    setPttSecs(0);
+    const secs = setInterval(() => setPttSecs((s) => s + 1), 1_000);
+    const room = roomRef.current;
+    const pub = room?.localParticipant.getTrackPublication(Track.Source.Microphone);
+    if (!room || !pub?.audioTrack) return;
+    const { analyser } = createAudioAnalyser(pub.audioTrack);
+    const bins = new Uint8Array(analyser.frequencyBinCount);
+    const nyquist = analyser.context.sampleRate / 2;
+    const binOf = (hz: number) =>
+      Math.min(bins.length - 1, Math.round((hz / nyquist) * bins.length));
+    const lo = binOf(100);
+    const hi = Math.max(lo + PTT_BARS, binOf(2000));
+    const width = Math.max(1, Math.floor((hi - lo + 1) / PTT_BARS));
+    let raf = 0;
+    const tick = () => {
+      analyser.getByteFrequencyData(bins);
+      setPttLevels(
+        Array.from({ length: PTT_BARS }, (_, i) => {
+          let sum = 0;
+          const end = Math.min(lo + (i + 1) * width, bins.length);
+          let n = 0;
+          for (let b = lo + i * width; b < end; b++, n++) sum += bins[b];
+          return Math.min(1, (n ? sum / n : 0) / 255) * 2.2;
+        })
+      );
+      raf = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => {
+      cancelAnimationFrame(raf);
+      clearInterval(secs);
+    };
+  }, [holding]);
 
   async function loadOlder() {
     if (loadingOlder || !slug || total <= msgs.length) return;
@@ -606,7 +717,6 @@ export default function SessionView({
         </div>
         <div className="flex items-center gap-1 rounded border border-[var(--oz-border)] p-0.5">
           {segBtn('text', 'keyboard', 'text mode')}
-          {segBtn('ptt', 'mic', 'push-to-talk')}
           {segBtn('free', 'infinity', 'hands-free')}
         </div>
       </header>
@@ -700,55 +810,85 @@ export default function SessionView({
             e.currentTarget.value = '';
           }}
         />
-        <textarea
-          ref={inputRef}
-          value={input}
-          rows={1}
-          onChange={(e) => {
-            setInput(e.target.value);
-            autogrow(e.target);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              sendText();
-            }
-          }}
-          placeholder="message…"
-          className="min-w-0 flex-1 resize-none rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] px-3 py-2 text-sm leading-snug outline-none placeholder:text-[var(--oz-dim)]"
-          style={{ maxHeight: 96 }}
-        />
-        <button
-          onClick={sendText}
-          aria-label="send"
-          disabled={!input.trim() && attachments.length === 0}
-          className="rounded border border-[var(--oz-success)]/60 px-3 py-2 text-sm text-[var(--oz-success)] disabled:opacity-40"
-        >
-          <PixelIcon name="send" size={16} />
-        </button>
-      </div>
-
-      {mode === 'ptt' && (
-        <div className="border-t border-[var(--oz-border)] py-4">
+        {holding ? (
+          <div
+            aria-label="listening"
+            role="status"
+            className="flex min-w-0 flex-1 items-end justify-center gap-1 rounded border border-[var(--oz-success)]/60 bg-[var(--oz-surface)] px-3 py-2"
+          >
+            <span
+              aria-label="hold duration"
+              className="mr-1 self-center text-[11px] text-[var(--oz-dim)] tabular-nums"
+            >
+              {Math.floor(pttSecs / 60)}:{String(pttSecs % 60).padStart(2, '0')}
+            </span>
+            {pttLevels.map((l, i) => (
+              <span
+                key={i}
+                className="w-1.5 bg-[var(--oz-success)] transition-[height] duration-75"
+                style={{ height: `${Math.max(3, Math.round(l * 22))}px` }}
+              />
+            ))}
+          </div>
+        ) : (
+          <textarea
+            ref={inputRef}
+            value={input}
+            rows={1}
+            onChange={(e) => {
+              setInput(e.target.value);
+              autogrow(e.target);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendText();
+              }
+            }}
+            placeholder="message…"
+            className="min-w-0 flex-1 resize-none rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] px-3 py-2 text-sm leading-snug outline-none placeholder:text-[var(--oz-dim)]"
+            style={{ maxHeight: 96 }}
+          />
+        )}
+        {/* discord-style rightmost button: mic (hold to talk) when empty,
+            send as soon as there's something to send */}
+        {input.trim() || attachments.length > 0 ? (
           <button
+            onClick={sendText}
+            aria-label="send"
+            className="rounded border border-[var(--oz-success)]/60 px-3 py-2 text-sm text-[var(--oz-success)]"
+          >
+            <PixelIcon name="send" size={16} />
+          </button>
+        ) : (
+          <button
+            aria-label="push to talk"
+            disabled={busy}
             onPointerDown={(e) => {
               e.preventDefault();
-              pttDown();
+              pttDown(e);
             }}
             onPointerUp={pttUp}
-            onPointerLeave={() => holding && pttUp()}
+            onPointerMove={(e) => {
+              if (!holding || pttCancelRef.current) return;
+              const dx = e.clientX - pttStartRef.current.x;
+              const dy = e.clientY - pttStartRef.current.y;
+              if (Math.hypot(dx, dy) > 24) pttCancel(); // Discord: slide off = discard
+            }}
+            onPointerLeave={() => holding && pttCancel()}
+            onPointerCancel={pttCancel}
             onContextMenu={(e) => e.preventDefault()}
-            className={`w-full rounded border py-10 text-base tracking-widest uppercase select-none ${
+            className={`rounded border px-3 py-2 text-sm select-none ${
               holding
                 ? 'oz-ptt-hold border-[var(--oz-success)]'
                 : 'border-[var(--oz-border)] text-[var(--oz-dim)]'
-            }`}
+            } ${voiceState === 'connecting' ? 'opacity-50' : ''}`}
             style={{ touchAction: 'none' }}
           >
-            {voiceState === 'connecting' ? 'connecting…' : holding ? '● listening' : 'hold to talk'}
+            <PixelIcon name="mic" size={16} />
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {mode === 'free' && (
         <div className="border-t border-[var(--oz-border)] py-4 text-center text-xs text-[var(--oz-success)]">

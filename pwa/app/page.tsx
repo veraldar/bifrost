@@ -14,6 +14,7 @@ type Sess = {
   updated: number;
   lastRole?: string;
   lastAt?: number;
+  lastHasQ?: boolean;
   pending?: boolean;
 };
 
@@ -89,6 +90,10 @@ export default function SessionsPage() {
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(true);
   const loadInFlightRef = useRef(false);
+  // undo window: row vanishes instantly, but the DELETE only fires when the
+  // 3s toast expires (or on unmount — entering a session commits it)
+  const [toast, setToast] = useState<{ s: Sess; key: number } | null>(null);
+  const pendingRef = useRef<{ s: Sess; timer: ReturnType<typeof setTimeout> } | null>(null);
 
   const load = useCallback(async () => {
     // backgrounded mobile tabs freeze in-flight polls for minutes and then
@@ -102,7 +107,8 @@ export default function SessionsPage() {
         signal: AbortSignal.timeout(10_000),
       });
       const list: Sess[] = await r.json();
-      setSessions(list);
+      // hide rows sitting in an undo window — the server still has them
+      setSessions(list.filter((x) => x.id !== pendingRef.current?.s.id));
       // first run after this feature shipped: treat everything currently in
       // the list as read — a wall of unread dots helps nobody
       if (!localStorage.getItem('oz-read-init')) {
@@ -158,29 +164,77 @@ export default function SessionsPage() {
     setName('');
   }
 
-  async function remove(s: Sess) {
-    setSessions((list) => list.filter((x) => x.id !== s.id)); // optimistic
-    try {
-      await fetch(`/api/session/${s.id}`, { method: 'DELETE' });
-    } catch {
-      void load(); // failed — resync with the server list
-    }
+  function fireDelete(id: string) {
+    void fetch(`/api/session/${id}`, { method: 'DELETE' }).catch(() => void load());
   }
+
+  function commitPending() {
+    const p = pendingRef.current;
+    if (!p) return;
+    clearTimeout(p.timer);
+    pendingRef.current = null;
+    setToast(null);
+    fireDelete(p.s.id);
+  }
+
+  function remove(s: Sess) {
+    commitPending(); // a new delete supersedes an older undo window
+    setSessions((list) => list.filter((x) => x.id !== s.id)); // optimistic
+    pendingRef.current = { s, timer: setTimeout(commitPending, 3000) };
+    setToast({ s, key: Date.now() });
+  }
+
+  function undo() {
+    const p = pendingRef.current;
+    if (!p) return;
+    clearTimeout(p.timer);
+    pendingRef.current = null;
+    setToast(null);
+    setSessions((list) => [...list, p.s]); // sort re-places it
+  }
+
+  // navigating away (opening a session) mid-window still counts as deleted
+  useEffect(
+    () => () => {
+      const p = pendingRef.current;
+      if (p) {
+        clearTimeout(p.timer);
+        void fetch(`/api/session/${p.s.id}`, { method: 'DELETE' }).catch(() => {});
+      }
+    },
+    []
+  );
 
   return (
     <>
       <div aria-hidden="true" className="oz-ygg-bg" />
       <main className="relative z-[1] mx-auto flex min-h-dvh max-w-md flex-col px-3 pb-6">
-        <header className="flex items-center justify-between pt-4 pb-2">
-          <h1 className="text-sm font-bold tracking-widest uppercase">Bifrost</h1>
-          <button onClick={load} className="text-xs text-[var(--oz-dim)] hover:text-white">
+        <header className="mt-4 mb-2 flex items-center justify-between rounded-lg border border-[var(--oz-border)] bg-[var(--oz-surface)] px-4 py-3">
+          <div className="flex items-center gap-2.5">
+            <svg
+              viewBox="0 0 16 16"
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden="true"
+            >
+              <path d="M3 1v14M3 2l7 3-7 3M3 8l7 3-7 3" />
+            </svg>
+            <h1 className="text-base font-bold tracking-[0.1em] uppercase">Bifrost</h1>
+          </div>
+          <button
+            onClick={load}
+            className="rounded-md border border-[var(--oz-border)] px-3 py-1.5 text-xs text-[var(--oz-dim)] hover:text-white"
+          >
             {loading ? '···' : 'refresh'}
           </button>
         </header>
 
         <button
           onClick={() => setCreating(true)}
-          className="oz-row mb-2 flex items-center gap-2 rounded border border-[var(--oz-success)]/60 px-3 py-3 text-left text-sm text-[var(--oz-success)]"
+          className="oz-row mb-2 flex items-center gap-2 rounded border border-[var(--oz-success)]/60 bg-[var(--oz-surface)] px-3 py-3 text-left text-sm text-[var(--oz-success)]"
         >
           <PixelIcon name="plus" size={14} /> new session
         </button>
@@ -214,26 +268,36 @@ export default function SessionsPage() {
 
         <ul className="flex flex-col gap-1">
           {[...sessions]
-            .map((s) => ({
-              s,
-              unread:
-                s.lastRole === 'assistant' && (s.lastAt || 0) > lastRead(slugify(s.title || s.id)),
-            }))
+            .map((s) => {
+              const unread =
+                s.lastRole === 'assistant' && (s.lastAt || 0) > lastRead(slugify(s.title || s.id));
+              // opened & caught up, but the agent's last message still asks
+              // something and no reply followed (lastRole is still
+              // 'assistant') → "open question" badge in a second color.
+              // lastHasQ is computed server-side on the FULL message text —
+              // the 80-char preview usually ends before the questions do
+              const openQ = s.lastRole === 'assistant' && !s.pending && !unread && !!s.lastHasQ;
+              return { s, unread, openQ };
+            })
             .sort(
               (a, b) =>
+                // dot tiers first (pending ●, unread ●, open question ●),
+                // each tier latest-first, then everything else latest-first
                 Number(!!b.s.pending) - Number(!!a.s.pending) ||
                 Number(b.unread) - Number(a.unread) ||
-                (b.s.updated || 0) - (a.s.updated || 0)
+                Number(b.openQ) - Number(a.openQ) ||
+                (b.s.updated || b.s.lastAt || 0) - (a.s.updated || a.s.lastAt || 0)
             )
-            .map(({ s, unread }) => (
+            .map(({ s, unread, openQ }) => (
               <li key={s.id}>
                 <SwipeRow
                   onOpen={() => router.push(`/session/${slugify(s.title)}?id=${s.id}`)}
-                  onDelete={() => void remove(s)}
+                  onDelete={() => remove(s)}
                 >
                   <div className="flex items-center gap-1.5">
                     {s.pending && <span className="oz-busy text-[var(--oz-active)]">●</span>}
                     {unread && !s.pending && <span className="text-[var(--oz-active)]">●</span>}
+                    {openQ && <span className="text-[var(--oz-info)]">●</span>}
                     <div className={`truncate text-sm ${unread ? 'font-bold' : ''}`}>
                       {s.title || s.id}
                     </div>
@@ -248,6 +312,27 @@ export default function SessionsPage() {
             ))}
         </ul>
       </main>
+
+      {/* undo toast — bar mirrors the 3s window; tap undo to restore the row */}
+      {toast && (
+        <div
+          key={toast.key}
+          className="fixed inset-x-3 bottom-4 z-50 mx-auto flex max-w-md items-center gap-3 overflow-hidden rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] px-4 py-3 shadow-lg"
+        >
+          <div className="min-w-0 flex-1 truncate text-xs text-[var(--oz-dim)]">
+            deleted “{toast.s.title || toast.s.id}”
+          </div>
+          <button
+            onClick={undo}
+            className="shrink-0 rounded border border-[var(--oz-success)]/60 px-3 py-1.5 text-xs text-[var(--oz-success)]"
+          >
+            undo
+          </button>
+          <div className="absolute inset-x-0 bottom-0 h-0.5">
+            <div className="oz-toast-bar h-full bg-[var(--oz-success)]/70" />
+          </div>
+        </div>
+      )}
     </>
   );
 }

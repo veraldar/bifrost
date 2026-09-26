@@ -1,10 +1,28 @@
 'use client';
 
-import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type RefObject,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { useRouter } from 'next/navigation';
 import { Room, RoomEvent, Track, createAudioAnalyser } from 'livekit-client';
 import { PixelIcon } from '@/components/pixel-icon';
 import { type Msg, SessionMessage } from '@/components/session-message';
+import {
+  getSpeech,
+  pauseSpeech,
+  rateSpeech,
+  resumeSpeech,
+  seekSpeech,
+  startSpeech,
+  stopSpeech,
+  subscribeSpeech,
+} from '@/lib/speech';
 import { diagDump, diagEvent } from '@/lib/diag';
 import { slugify } from '@/lib/slug';
 import { clearAsked, ensureNotifyPermission, markAsked, notifyReply } from '@/lib/notify';
@@ -17,6 +35,13 @@ type Attach =
   | { kind: 'file'; name: string; content: string };
 
 const PTT_BARS = 5;
+
+// hands-free silence timeline — MUST mirror the agent (agent/agent.py:
+// silero min_silence_duration=0.9, endpointing min_delay=1.5): 0.9s of
+// silence ends the speech, the turn commits at 0.9+1.5≈2.4s, after which
+// the message is in opencode and only the working-stop button can halt it
+const FREE_VAD_END_S = 0.9;
+const FREE_COMMIT_S = 2.4;
 
 function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
   return Promise.race([
@@ -121,6 +146,10 @@ export default function SessionView({
 }) {
   const router = useRouter();
   const [slug, setSlug] = useState('');
+  // tts deck store (speak-last-reply dock) + seek-bar drag state
+  const speech = useSyncExternalStore(subscribeSpeech, getSpeech);
+  const [seekFrac, setSeekFrac] = useState<number | null>(null);
+  const seekRef = useRef<HTMLDivElement>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<Mode>('text');
@@ -157,16 +186,30 @@ export default function SessionView({
   // the bottom-stick logic. A deep link from global search (?q=…) lands on
   // the NEWEST match instead: "pick up work" means freshest context first
   const jumpNewestRef = useRef(false);
+  // Tall messages (pasted dumps) center badly with scrollIntoView — the top,
+  // where the match usually sits, ends up off-screen. Scroll to the first
+  // <mark> inside when there is one (exact keyword, centered); otherwise pin
+  // the message top below header+search bar (scroll-mt-24 on the root)
+  const jumpTo = (mi: number) => {
+    const el = document.querySelector(`[data-mi="${mi}"]`);
+    if (!el) return;
+    const mark = el.querySelector('mark');
+    (mark ?? el).scrollIntoView({ block: mark ? 'center' : 'start', behavior: 'smooth' });
+  };
   useEffect(() => {
     if (!matches.length) return;
     if (jumpNewestRef.current) {
+      // deep link: land on the NEWEST match. Must scroll HERE — setMatchIdx
+      // alone doesn't retrigger this effect when the index doesn't actually
+      // change (single-hit sessions: len-1 === 0 === current) and the very
+      // first landing never scrolled at all
       jumpNewestRef.current = false;
-      setMatchIdx(matches.length - 1);
+      const last = matches.length - 1;
+      setMatchIdx(last);
+      jumpTo(matches[last]);
       return;
     }
-    document
-      .querySelector(`[data-mi="${matches[safeIdx]}"]`)
-      ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    jumpTo(matches[safeIdx]);
   }, [matches, safeIdx]);
 
   const roomRef = useRef<Room | null>(null);
@@ -549,12 +592,26 @@ export default function SessionView({
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       roomRef.current?.disconnect();
       roomRef.current = null;
+      stopSpeech(); // leaving the page kills the tts deck
     };
   }, []);
 
   useEffect(() => {
     modeRef.current = mode;
   }, [mode]);
+
+  // --- tts deck handlers ---
+  const lastAssistant = useMemo(
+    () => [...msgs].reverse().find((m) => m.role === 'assistant' && m.text.trim()),
+    [msgs]
+  );
+
+  function seekFracFromEvent(e: React.PointerEvent): number {
+    const el = seekRef.current;
+    if (!el) return 0;
+    const r = el.getBoundingClientRect();
+    return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+  }
 
   async function ensureVoice(): Promise<Room> {
     if (roomRef.current && voiceState === 'ready') return roomRef.current;
@@ -816,6 +873,55 @@ export default function SessionView({
   // live mic equalizer (PTT pill + hands-free strip) — see useMicLevels
   const pttLevels = useMicLevels(holding, roomRef);
   const freeLevels = useMicLevels(mode === 'free' && voiceState === 'ready', roomRef);
+
+  // hands-free silence countdown: counts up from the last loud mic frame,
+  // resets on voice — makes the invisible commit clock (FREE_COMMIT_S) seen
+  const freeLevelsRef = useRef(freeLevels);
+  freeLevelsRef.current = freeLevels;
+  const [freeSilence, setFreeSilence] = useState(0);
+  const [freePhase, setFreePhase] = useState<'listening' | 'counting' | 'sending' | 'cancelled'>(
+    'listening'
+  );
+  const lastVoiceRef = useRef(0);
+  const cancelHoldRef = useRef(0); // performance.now() until which "cancelled" shows at minimum
+  const cancelWaitRef = useRef(false); // stay "cancelled" until the next loud frame
+  useEffect(() => {
+    if (mode !== 'free' || voiceState !== 'ready') {
+      lastVoiceRef.current = 0;
+      cancelWaitRef.current = false;
+      setFreeSilence(0);
+      setFreePhase('listening');
+      return;
+    }
+    lastVoiceRef.current = performance.now();
+    const id = setInterval(() => {
+      const now = performance.now();
+      if (Math.max(...freeLevelsRef.current) > 0.3) {
+        lastVoiceRef.current = now;
+        cancelWaitRef.current = false;
+      }
+      if (now < cancelHoldRef.current || cancelWaitRef.current) {
+        setFreePhase('cancelled');
+        return;
+      }
+      const s = (now - lastVoiceRef.current) / 1000;
+      setFreeSilence(s);
+      setFreePhase(s < 0.25 ? 'listening' : s < FREE_COMMIT_S ? 'counting' : 'sending');
+    }, 100);
+    return () => clearInterval(id);
+  }, [mode, voiceState]);
+
+  function freeCancel() {
+    // same discard path as the PTT slide-to-cancel: the agent clears its
+    // buffered turn, so the pending pause commits nothing
+    pttDiscardRpc();
+    lastVoiceRef.current = performance.now();
+    // hold "cancelled" (min 1.5s, then until the user speaks again) — a
+    // silent room must not count back up to a "sending" that can't happen
+    cancelHoldRef.current = performance.now() + 1500;
+    cancelWaitRef.current = true;
+    setFreePhase('cancelled');
+  }
 
   useEffect(() => {
     if (!holding) return;
@@ -1130,6 +1236,7 @@ export default function SessionView({
             m={m}
             mi={i}
             hit={searchOpen && !!query.trim() && hitSet.has(i)}
+            q={searchOpen ? query : ''}
             // still the newest message while the run is going = sitting in
             // the agent's queue — badge it until a reply lands after it
             queued={busy && !!m.queued}
@@ -1169,6 +1276,124 @@ export default function SessionView({
               </button>
             </span>
           ))}
+        </div>
+      )}
+
+      {/* tts deck — speak the last reply. Toggle: start (idle) / ■ stop
+          (active, the only kill, above the deck). Loading = one big centered
+          animation inside the deck. */}
+      {speech.phase !== 'idle' && speech.phase !== 'loading' && (
+        <div className="flex justify-end pb-1.5">
+          <button
+            onClick={stopSpeech}
+            className="rounded border border-[var(--oz-danger)]/60 px-3 py-1.5 text-xs text-[var(--oz-danger)]"
+          >
+            ■ stop
+          </button>
+        </div>
+      )}
+
+      {speech.phase === 'loading' && (
+        <div className="mb-2 rounded border border-[var(--oz-success)]/50 bg-[var(--oz-surface)]">
+          <div className="flex flex-col items-center gap-3 py-8">
+            <div className="flex gap-2.5">
+              <span className="oz-tts-dot" />
+              <span className="oz-tts-dot" style={{ animationDelay: '.18s' }} />
+              <span className="oz-tts-dot" style={{ animationDelay: '.36s' }} />
+            </div>
+            <div className="text-[11px] tracking-widest text-[var(--oz-dim)]">synthesizing…</div>
+          </div>
+        </div>
+      )}
+
+      {(speech.phase === 'playing' || speech.phase === 'paused') && (
+        <div className="mb-2 rounded border border-[var(--oz-success)]/50 bg-[var(--oz-surface)] px-3 py-2.5 shadow-lg">
+          <div className="flex items-center gap-2">
+            <span
+              role="status"
+              aria-label={speech.phase === 'paused' ? 'paused' : 'speaking'}
+              className={`oz-eq ${speech.phase === 'paused' ? 'oz-eq-paused' : ''}`}
+            >
+              <i />
+              <i />
+              <i />
+              <i />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div
+                className={`truncate text-[11px] ${
+                  speech.phase === 'paused' ? 'text-[var(--oz-dim)]' : 'text-[var(--oz-success)]'
+                }`}
+              >
+                {speech.phase === 'paused'
+                  ? `paused · ${Math.round(speech.progress * 100)}%`
+                  : 'speaking · last reply'}
+              </div>
+              <div className="truncate text-[10px] text-[var(--oz-dim)]">{speech.excerpt}</div>
+            </div>
+          </div>
+          {/* seek bar — drag anywhere: back/within-cache is instant, forward
+              into un-synthesized text synthesizes first (stripes = not ready) */}
+          <div
+            ref={seekRef}
+            className="oz-seek"
+            onPointerDown={(e) => {
+              e.currentTarget.setPointerCapture(e.pointerId);
+              setSeekFrac(seekFracFromEvent(e));
+            }}
+            onPointerMove={(e) => {
+              if (seekFrac !== null) setSeekFrac(seekFracFromEvent(e));
+            }}
+            onPointerUp={(e) => {
+              seekSpeech(seekFracFromEvent(e));
+              setSeekFrac(null);
+            }}
+            onPointerCancel={() => setSeekFrac(null)}
+          >
+            <div className="oz-seek-track">
+              <div className="oz-seek-fill" style={{ width: `${(seekFrac ?? speech.progress) * 100}%` }} />
+              <div className="oz-seek-stripes" style={{ left: `${speech.cachedTo * 100}%` }} />
+            </div>
+            <div className="oz-seek-thumb" style={{ left: `${(seekFrac ?? speech.progress) * 100}%` }} />
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <button
+              onClick={() => (speech.phase === 'paused' ? resumeSpeech() : pauseSpeech())}
+              className="rounded border border-[var(--oz-success)]/60 bg-[var(--oz-success)]/10 px-4 py-1.5 text-sm text-[var(--oz-success)]"
+              aria-label={speech.phase === 'paused' ? 'resume speech' : 'pause speech'}
+            >
+              {speech.phase === 'paused' ? '▶' : '⏸'}
+            </button>
+            <span className="flex-1" />
+            <div className="flex overflow-hidden rounded border border-[var(--oz-success)]/50">
+              {[1, 1.5, 2].map((r) => (
+                <button
+                  key={r}
+                  onClick={() => rateSpeech(r)}
+                  className={`px-2.5 py-1.5 text-xs ${
+                    speech.rate === r
+                      ? 'bg-[var(--oz-success)]/15 text-[var(--oz-success)]'
+                      : 'text-[var(--oz-dim)]'
+                  }`}
+                >
+                  {r}x
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {speech.phase === 'idle' && (
+        <div className="flex justify-end pb-1.5">
+          <button
+            onClick={() => lastAssistant && startSpeech(lastAssistant.text, slug)}
+            disabled={!lastAssistant}
+            aria-label="speak last reply"
+            className="rounded border border-[var(--oz-border)] px-2.5 py-2 text-[var(--oz-dim)] disabled:opacity-40"
+          >
+            <PixelIcon name="volume" size={14} />
+          </button>
         </div>
       )}
 
@@ -1345,8 +1570,41 @@ export default function SessionView({
       )}
 
       {mode === 'free' && (
-        <div className="py-3 text-center text-xs text-[var(--oz-success)]">
-          ● hands-free — just talk, pauses end your turn
+        <div className="flex items-center justify-center gap-3 py-3 text-xs">
+          <span
+            role="status"
+            data-testid="free-phase"
+            className={`tabular-nums ${
+              freePhase === 'sending'
+                ? 'text-[var(--oz-active)]'
+                : freePhase === 'cancelled'
+                  ? 'text-[var(--oz-danger)]'
+                  : 'text-[var(--oz-success)]'
+            }`}
+          >
+            {voiceState !== 'ready'
+              ? '● hands-free — connecting…'
+              : freePhase === 'cancelled'
+                ? '✕ cancelled — nothing sent, talk again'
+                : freePhase === 'sending'
+                  ? 'sending…'
+                  : freeSilence < FREE_VAD_END_S
+                    ? `● hands-free — pause ${freeSilence.toFixed(1)}s`
+                    : `ending turn — sending in ${Math.max(0, FREE_COMMIT_S - freeSilence).toFixed(1)}s`}
+          </span>
+          <button
+            data-testid="free-cancel"
+            onClick={freeCancel}
+            disabled={voiceState !== 'ready' || freePhase === 'sending'}
+            aria-label="cancel spoken message"
+            className={`rounded border px-2 py-1 ${
+              voiceState !== 'ready' || freePhase === 'sending'
+                ? 'border-[var(--oz-border)] text-[var(--oz-dim)] opacity-50'
+                : 'border-[var(--oz-danger)]/70 text-[var(--oz-danger)]'
+            }`}
+          >
+            <PixelIcon name="close" size={10} /> cancel
+          </button>
         </div>
       )}
     </main>

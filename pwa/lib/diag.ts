@@ -88,7 +88,9 @@ function wrapFetch(): void {
   window.fetch = async (...args: Parameters<typeof fetch>) => {
     const url = typeof args[0] === 'string' ? args[0] : ((args[0] as Request)?.url ?? '');
     const method =
-      typeof args[0] === 'string' ? (args[1]?.method ?? 'GET') : ((args[0] as Request).method ?? 'GET');
+      typeof args[0] === 'string'
+        ? (args[1]?.method ?? 'GET')
+        : ((args[0] as Request).method ?? 'GET');
     const isPoll = method === 'GET' && /\/messages(\?|$)/.test(url);
     const t0 = performance.now();
     try {
@@ -180,7 +182,8 @@ export function initDiag(): void {
     true
   );
 
-  const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+  const nav = performance.getEntriesByType('navigation')[0] as
+    PerformanceNavigationTiming | undefined;
   if (nav) {
     push(
       'load',
@@ -188,7 +191,10 @@ export function initDiag(): void {
         `load ${Math.round(nav.loadEventEnd - nav.startTime)}ms`
     );
   }
-  push('open', `${navigator.userAgent} · ${screen.width}x${screen.height} · ${Intl.DateTimeFormat().resolvedOptions().timeZone}`);
+  push(
+    'open',
+    `${navigator.userAgent} · ${screen.width}x${screen.height} · ${Intl.DateTimeFormat().resolvedOptions().timeZone}`
+  );
 
   setInterval(() => void flush('timer'), FLUSH_MS);
   document.addEventListener('visibilitychange', () => {

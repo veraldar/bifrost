@@ -19,3 +19,5 @@ Voice-and-text remote for a local coding agent: talk or type from a phone, a Liv
 ## Non-goals (v1)
 
 Multi-user/shared access, public URL, SIP/telephony, video, agent provisioning UI.
+Nightly memory consolidation / self-organizing agents ("dreaming"): specced for
+post-v1 in `spec-dream.md`, deliberately not built yet.

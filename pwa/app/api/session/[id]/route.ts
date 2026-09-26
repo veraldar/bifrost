@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { bustCache } from '@/lib/oc-cache';
 import { ocFetch, resolveId } from '@/lib/oc';
+import { bustCache } from '@/lib/oc-cache';
 
 export const dynamic = 'force-dynamic';
 

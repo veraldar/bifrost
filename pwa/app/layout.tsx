@@ -15,10 +15,10 @@ const commitMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: 'opencode',
+  title: 'Bifrost',
   description: 'Voice & text sessions',
   manifest: '/manifest.json',
-  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'opencode' },
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'Bifrost' },
 };
 
 export const viewport: Viewport = {

@@ -3,9 +3,8 @@
  *  journalctl, full events appended to pwa/.diag/diag-YYYY-MM-DD.log.
  *  GET  /api/diag → tail the most recent diag file (text/plain).
  *  Diagnostics are log-only; no automatic fix sessions are created. */
-
 import { NextResponse } from 'next/server';
-import { appendFile, mkdir, readdir, readFile } from 'fs/promises';
+import { appendFile, mkdir, readFile, readdir } from 'fs/promises';
 import path from 'path';
 
 export const dynamic = 'force-dynamic';
@@ -37,7 +36,9 @@ export async function POST(req: Request) {
 
     // server log gets the summary + anything alarming, verbatim
     const bad = events.filter((e) => e.kind !== 'net' && e.kind !== 'tap');
-    console.log(`[diag] +${events.length} (${b.reason || '-'}) ${b.page || '?'} client=${b.client || 'anon'}`);
+    console.log(
+      `[diag] +${events.length} (${b.reason || '-'}) ${b.page || '?'} client=${b.client || 'anon'}`
+    );
     for (const e of bad.slice(0, 10)) {
       console.log(`[diag] ${e.kind}: ${String(e.msg).slice(0, 300)}`);
     }

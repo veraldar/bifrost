@@ -97,11 +97,11 @@ test('voice: PTT connects to LiveKit, keyboard mode releases the room', async ({
 test('hands-free mode arms without error', async ({ page }) => {
   await page.goto(`/session/${NAME}?id=${sessionId}`);
   await page.getByRole('button', { name: 'hands-free' }).click();
-  await expect(page.getByText(/hands-free — just talk|connecting/).first()).toBeVisible({
+  await expect(page.getByText(/hands-free/).first()).toBeVisible({
     timeout: 30_000,
   });
   await page.getByRole('button', { name: 'text mode' }).click();
-  await expect(page.getByText('hands-free — just talk')).toHaveCount(0);
+  await expect(page.getByTestId('free-phase')).toHaveCount(0);
 });
 
 test('cleanup: delete the e2e session', async ({ request }) => {

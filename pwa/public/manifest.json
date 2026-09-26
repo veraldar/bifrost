@@ -1,16 +1,16 @@
 {
-  "name": "opencode voice",
-  "short_name": "opencode",
-  "description": "Voice & text sessions with opencode",
+  "name": "Bifrost",
+  "short_name": "Bifrost",
+  "description": "Voice & text coding sessions",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#080810",
   "theme_color": "#080810",
   "icons": [
     {
-      "src": "/lk-logo-dark.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/favicon.ico",
+      "sizes": "16x16 32x32",
+      "type": "image/x-icon",
       "purpose": "any"
     }
   ]

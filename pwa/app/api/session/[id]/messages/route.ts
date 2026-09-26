@@ -8,6 +8,9 @@ import { bustCache } from '@/lib/oc-cache';
 import { buildParts, forward, runEnded } from '@/lib/oc-forward';
 import { isRunLive, liveSince, runEndedAt } from '@/lib/oc-live';
 import { enqueue, queuedItems } from '@/lib/oc-queue';
+import { bustTranscript } from '@/lib/oc-transcript';
+import { ensureWatchdog } from '@/lib/oc-watchdog';
+import { PENDING_TTL_MS } from '@/lib/pending-ttl';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,16 +45,36 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     const all = out.filter((m: any) => m.text || m.images.length);
     // run state for the busy indicator: opencode emits one assistant message
     // per step, so "an assistant message landed" ≠ "the run is done". The run
-    // is done only when the LAST raw message is an assistant message with
+    // is done only when the last relevant message is an assistant message with
     // time.completed set (0 while a step is in progress or the last message
     // is the user's). State string lets the client detect "unchanged since
     // last poll" without trusting wall clocks.
-    const lastRaw = msgs[msgs.length - 1];
-    const lastRole = lastRaw?.info?.role || lastRaw?.role || '';
-    const lastDone = lastRole === 'assistant' ? lastRaw?.info?.time?.completed || 0 : 0;
-    // 3rd field = role of the last raw message: the client needs to know
-    // "runner never started" (assistant steps absent → still user-last)
-    const runState = `${lastRaw?.info?.id || lastRaw?.id || 'none'}|${lastDone}|${lastRole}`;
+    // The last RAW message alone lies when a follow-up prompt stacks on top
+    // of an in-flight run: opencode persists the new user message instantly
+    // and serializes its run behind the one still executing (voice turns
+    // land seconds apart). Last-raw is then the stacked prompt (|0|user),
+    // the client reads "runner never picked it up", and its 30s wedge guard
+    // aborts a LIVE session — killing the in-flight run and the queued
+    // prompt (opencode drops its queue on abort). Scan back for the last
+    // assistant message: fresh and un-completed means a run is genuinely in
+    // progress and IT is the true run state (|0|assistant). Stale debris
+    // (crashed opencode) stays out via the same TTL the client arms with.
+    let stateMsg = msgs[msgs.length - 1];
+    for (let i = msgs.length - 1; i >= 0 && i >= msgs.length - 8; i--) {
+      const m = msgs[i];
+      if ((m.info?.role || m.role || '') !== 'assistant') continue;
+      const done = m.info?.time?.completed || 0;
+      if (
+        !done &&
+        (m.info?.time?.created || 0) > Date.now() - PENDING_TTL_MS
+      ) {
+        stateMsg = m;
+      }
+      break; // the LAST assistant message decides — older ones are history
+    }
+    const lastRole = stateMsg?.info?.role || stateMsg?.role || '';
+    const lastDone = lastRole === 'assistant' ? stateMsg?.info?.time?.completed || 0 : 0;
+    const runState = `${stateMsg?.info?.id || stateMsg?.id || 'none'}|${lastDone}|${lastRole}`;
     // self-heal zombie live entries: a proxy restart orphans the in-flight
     // POST, so nothing ever calls markRunEnd — blinking dot + "queued"
     // everything, forever. opencode serializes per session, so a last
@@ -97,6 +120,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
+    ensureWatchdog(); // POST-only: Next 15 bundles each handler export as its
+    // own module graph — arming in GET too would run two watchdogs. The GET
+    // path's zombie heal already covers restart orphans on the read side.
     const { id } = await ctx.params;
     const sid = await resolveId(id);
     const body = await req.json();
@@ -104,7 +130,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const parts = buildParts(body);
     if (!parts.length) return NextResponse.json({ error: 'empty' }, { status: 400 });
 
-    if (async) {
+      if (async) {
       if (isRunLive(sid)) {
         // a run is in flight: hold the message in the proxy queue. opencode's
         // own queue stalls forever after an abort — here the run's end
@@ -116,6 +142,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         });
         console.log(`[queue] enqueue ${sid} (depth ${queuedItems(sid).length})`);
         bustCache();
+        bustTranscript(sid);
         return NextResponse.json({ queued: true });
       }
       // fire-and-forget: reply lands via transcript polling. The POST only
@@ -123,6 +150,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       // flag, and its end fires Web Push (wakes a frozen phone) + cache bust
       forward(sid, id, body);
       bustCache();
+      bustTranscript(sid);
       return NextResponse.json({ queued: true });
     }
 
@@ -131,6 +159,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       body: JSON.stringify({ parts }),
     });
     bustCache();
+    bustTranscript(sid);
     const out = (reply.parts || [])
       .filter((p: any) => p.type === 'text')
       .map((p: any) => p.text || '')

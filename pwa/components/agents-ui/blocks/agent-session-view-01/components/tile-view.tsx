@@ -5,9 +5,11 @@ import {
   type TrackReference,
   VideoTrack,
   useLocalParticipant,
+  useMultibandTrackVolume,
   useTracks,
   useVoiceAssistant,
 } from '@livekit/components-react';
+import { AgentAudioVisualizerBar } from '@/components/agents-ui/agent-audio-visualizer-bar';
 import { cn } from '@/lib/shadcn/utils';
 import { AudioVisualizer } from './audio-visualizer';
 
@@ -65,6 +67,41 @@ export function useLocalTrackRef(source: Track.Source) {
     [source, publication, localParticipant]
   );
   return trackRef;
+}
+
+/** Number of bars and gentle gain so normal speech visibly moves the mic bars. */
+const MIC_BAR_COUNT = 5;
+const MIC_GAIN = 1.5;
+
+function MicVisualizer() {
+  const microphoneTrack = useLocalTrackRef(Track.Source.Microphone);
+  const isMicEnabled = microphoneTrack !== undefined && !microphoneTrack.publication.isMuted;
+  const micBands = useMultibandTrackVolume(isMicEnabled ? microphoneTrack : undefined, {
+    bands: MIC_BAR_COUNT,
+    loPass: 100,
+    hiPass: 800,
+  });
+
+  return (
+    <motion.div
+      key="mic"
+      layout="position"
+      initial={{ opacity: 0, scale: 0 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0 }}
+      transition={ANIMATION_TRANSITION}
+      className="aspect-square size-[90px] place-content-center"
+    >
+      <AgentAudioVisualizerBar
+        size="sm"
+        state={isMicEnabled ? 'speaking' : 'disconnected'}
+        volumeBands={micBands.map((volume) => Math.min(1, volume * MIC_GAIN))}
+        className="mx-auto"
+      >
+        <span className="w-2 min-h-2 origin-center rounded-full bg-current/10 transition-[height] duration-100 ease-linear data-[lk-highlighted=true]:bg-current" />
+      </AgentAudioVisualizerBar>
+    </motion.div>
+  );
 }
 
 interface TileLayoutProps {
@@ -248,6 +285,9 @@ export function TileLayout({
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* Local microphone intensity */}
+            <AnimatePresence>{!hasSecondTile && <MicVisualizer />}</AnimatePresence>
           </div>
         </div>
       </div>

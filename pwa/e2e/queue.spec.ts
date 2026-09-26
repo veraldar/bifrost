@@ -26,6 +26,7 @@ test('queue: mid-run send queues, stop advances to it', async ({ page }) => {
   await page.getByPlaceholder('message…').fill('Reply with exactly: B-done');
   await page.getByRole('button', { name: 'send', exact: true }).click();
   await expect(page.getByText('● queued')).toBeVisible({ timeout: 15_000 });
+  await page.screenshot({ path: '../artifacts/e2e-queued.png' });
 
   // stop kills the current run; the proxy must forward B automatically
   await page.getByRole('button', { name: 'stop', exact: true }).click();

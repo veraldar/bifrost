@@ -3,9 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { PixelIcon } from '@/components/pixel-icon';
+import { Marked } from '@/components/marked';
 import { askedSessions, clearAsked, notifyReply } from '@/lib/notify';
 import { lastRead, markRead } from '@/lib/read';
 import { slugify } from '@/lib/slug';
+
+// open-question circles go stale after this long
+const OPEN_QUESTION_TTL_MS = 48 * 60 * 60 * 1000;
 
 type Sess = {
   id: string;
@@ -16,6 +20,14 @@ type Sess = {
   lastAt?: number;
   lastHasQ?: boolean;
   pending?: boolean;
+};
+
+type GHit = {
+  id: string;
+  title: string;
+  hits: number;
+  lastHit: number;
+  snippets: { role: string; time: number; text: string }[];
 };
 
 /** Mobile-style swipe row: drag left to reveal a red delete zone; release
@@ -83,9 +95,28 @@ function SwipeRow({
   );
 }
 
+/** Compact row stamp: clock time for today, short date for older — Discord style. */
+function fmtListTime(t?: number): string {
+  if (!t) return '';
+  const d = new Date(t);
+  return d.toDateString() === new Date().toDateString()
+    ? d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
 export default function SessionsPage() {
   const router = useRouter();
-  const [sessions, setSessions] = useState<Sess[]>([]);
+  // instant paint on back-navigation: the last fetched list is cached in
+  // sessionStorage (per-tab), so the rows are there before the first fetch
+  // answers — the fresh fetch then updates/corrects underneath
+  const [sessions, setSessions] = useState<Sess[]>(() => {
+    try {
+      const raw = sessionStorage.getItem('oz-sessions');
+      return raw ? (JSON.parse(raw) as Sess[]) : [];
+    } catch {
+      return [];
+    }
+  });
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(true);
@@ -94,6 +125,38 @@ export default function SessionsPage() {
   // 3s toast expires (or on unmount — entering a session commits it)
   const [toast, setToast] = useState<{ s: Sess; key: number } | null>(null);
   const pendingRef = useRef<{ s: Sess; timer: ReturnType<typeof setTimeout> } | null>(null);
+
+  // global transcript search — lives on home because "where did I talk about
+  // X?" starts from the session list; results replace the list while active
+  const [gOpen, setGOpen] = useState(false);
+  const [gq, setGq] = useState('');
+  const [gHits, setGHits] = useState<GHit[] | null>(null);
+  const [gBusy, setGBusy] = useState(false);
+  const gInFlight = useRef(false);
+
+  useEffect(() => {
+    const q = gq.trim();
+    if (!gOpen || !q) {
+      setGHits(null);
+      return;
+    }
+    const t = setTimeout(() => {
+      if (gInFlight.current) return;
+      gInFlight.current = true;
+      setGBusy(true);
+      fetch(`/api/search?q=${encodeURIComponent(q)}`, {
+        signal: AbortSignal.timeout(15_000),
+      })
+        .then((r) => r.json())
+        .then((d) => setGHits(d.sessions || []))
+        .catch(() => setGHits([]))
+        .finally(() => {
+          gInFlight.current = false;
+          setGBusy(false);
+        });
+    }, 350);
+    return () => clearTimeout(t);
+  }, [gq, gOpen]);
 
   const load = useCallback(async () => {
     // backgrounded mobile tabs freeze in-flight polls for minutes and then
@@ -108,7 +171,13 @@ export default function SessionsPage() {
       });
       const list: Sess[] = await r.json();
       // hide rows sitting in an undo window — the server still has them
-      setSessions(list.filter((x) => x.id !== pendingRef.current?.s.id));
+      const visible = list.filter((x) => x.id !== pendingRef.current?.s.id);
+      setSessions(visible);
+      try {
+        sessionStorage.setItem('oz-sessions', JSON.stringify(visible));
+      } catch {
+        /* quota — skip cache */
+      }
       // first run after this feature shipped: treat everything currently in
       // the list as read — a wall of unread dots helps nobody
       if (!localStorage.getItem('oz-read-init')) {
@@ -232,12 +301,23 @@ export default function SessionsPage() {
           </button>
         </header>
 
-        <button
-          onClick={() => setCreating(true)}
-          className="oz-row mb-2 flex items-center gap-2 rounded border border-[var(--oz-success)]/60 bg-[var(--oz-surface)] px-3 py-3 text-left text-sm text-[var(--oz-success)]"
-        >
-          <PixelIcon name="plus" size={14} /> new session
-        </button>
+        <div className="mb-2 flex items-stretch gap-2">
+          <button
+            onClick={() => setCreating(true)}
+            className="oz-row flex flex-1 items-center gap-2 rounded border border-[var(--oz-success)]/60 bg-[var(--oz-surface)] px-3 py-3 text-left text-sm text-[var(--oz-success)]"
+          >
+            <PixelIcon name="plus" size={14} /> new session
+          </button>
+          {!gOpen && (
+            <button
+              aria-label="search all sessions"
+              onClick={() => setGOpen(true)}
+              className="oz-row flex items-center justify-center rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] px-3 text-[var(--oz-dim)]"
+            >
+              <PixelIcon name="search" size={14} />
+            </button>
+          )}
+        </div>
 
         {creating && (
           <div className="mb-2 rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] p-3">
@@ -266,26 +346,106 @@ export default function SessionsPage() {
           </div>
         )}
 
-        <ul className="flex flex-col gap-1">
+        {/* global search — expands from the header icon into the query field */}
+        {gOpen && (
+          <div className="mb-2 flex items-center gap-2 rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] px-3 py-2">
+            <PixelIcon name="search" size={14} className="text-[var(--oz-dim)]" />
+            <input
+              autoFocus
+              value={gq}
+              onChange={(e) => setGq(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setGOpen(false);
+                  setGq('');
+                  e.currentTarget.blur();
+                }
+              }}
+              placeholder="search all sessions…"
+              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--oz-dim)]"
+            />
+            {gBusy && <span className="text-[10px] text-[var(--oz-dim)]">···</span>}
+            <button
+              aria-label="close global search"
+              onClick={() => {
+                setGOpen(false);
+                setGq('');
+              }}
+              className="text-[var(--oz-dim)]"
+            >
+              <PixelIcon name="close" size={12} />
+            </button>
+          </div>
+        )}
+
+        {gOpen && gq.trim() ? (
+          /* results replace the list: grouped per session, newest match first */
+          gHits && gHits.length === 0 ? (
+            <div className="pt-6 text-center text-xs text-[var(--oz-dim)]">no hits</div>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {(gHits || []).map((h) => (
+                <li key={h.id}>
+                  <button
+                    onClick={() =>
+                      router.push(
+                        `/session/${slugify(h.title)}?id=${h.id}&q=${encodeURIComponent(gq.trim())}`
+                      )
+                    }
+                    className="oz-row w-full rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] px-3 py-2 text-left"
+                  >
+                    <div className="flex items-baseline gap-1.5">
+                      <div className="truncate text-sm">{h.title}</div>
+                      <span className="ml-auto shrink-0 text-[10px] text-[var(--oz-dim)]">
+                        {fmtListTime(h.lastHit)} · {h.hits} hit{h.hits === 1 ? '' : 's'}
+                      </span>
+                    </div>
+                    {h.snippets.map((sn, i) => (
+                      <div
+                        key={i}
+                        className={`mt-0.5 truncate text-xs ${
+                          i === 0 ? 'text-[var(--oz-dim)]' : 'text-[var(--oz-dim)]/70'
+                        }`}
+                      >
+                        <span className="text-[10px]">({sn.role}) </span>
+                        <Marked text={sn.text} q={gq} />
+                      </div>
+                    ))}
+                  </button>
+                </li>
+              ))}
+              {gBusy && !gHits && (
+                <li className="pt-6 text-center text-xs text-[var(--oz-dim)]">searching…</li>
+              )}
+            </ul>
+          )
+        ) : (
+          <ul className="flex flex-col gap-1">
           {[...sessions]
             .map((s) => {
               const unread =
                 s.lastRole === 'assistant' && (s.lastAt || 0) > lastRead(slugify(s.title || s.id));
-              // opened & caught up, but the agent's last message still asks
-              // something and no reply followed (lastRole is still
-              // 'assistant') → "open question" badge in a second color.
-              // lastHasQ is computed server-side on the FULL message text —
-              // the 80-char preview usually ends before the questions do
-              const openQ = s.lastRole === 'assistant' && !s.pending && !unread && !!s.lastHasQ;
+              // last assistant message still asks something and no reply
+              // followed (lastRole is still 'assistant') → white outlined
+              // circle. Read or unread both count; it decays after 48h so
+              // dead questions don't glow forever, and it never reorders
+              // the list. lastHasQ is computed server-side on the FULL
+              // message text — the 80-char preview usually ends before the
+              // questions do
+              const openQ =
+                s.lastRole === 'assistant' &&
+                !s.pending &&
+                !!s.lastHasQ &&
+                Date.now() - (s.lastAt || 0) < OPEN_QUESTION_TTL_MS;
               return { s, unread, openQ };
             })
             .sort(
               (a, b) =>
-                // dot tiers first (pending ●, unread ●, open question ●),
-                // each tier latest-first, then everything else latest-first
+                // pending (live runs) and unread float to the top, each
+                // latest-first; question circles are a hint only — they never
+                // reorder the list, recency decides everything else
                 Number(!!b.s.pending) - Number(!!a.s.pending) ||
                 Number(b.unread) - Number(a.unread) ||
-                Number(b.openQ) - Number(a.openQ) ||
                 (b.s.updated || b.s.lastAt || 0) - (a.s.updated || a.s.lastAt || 0)
             )
             .map(({ s, unread, openQ }) => (
@@ -296,11 +456,16 @@ export default function SessionsPage() {
                 >
                   <div className="flex items-center gap-1.5">
                     {s.pending && <span className="oz-busy text-[var(--oz-active)]">●</span>}
-                    {unread && !s.pending && <span className="text-[var(--oz-active)]">●</span>}
-                    {openQ && <span className="text-[var(--oz-info)]">●</span>}
+                    {!s.pending && openQ && <span className="text-white">○</span>}
+                    {!s.pending && unread && !openQ && (
+                      <span className="text-[var(--oz-active)]">●</span>
+                    )}
                     <div className={`truncate text-sm ${unread ? 'font-bold' : ''}`}>
                       {s.title || s.id}
                     </div>
+                    <span className="ml-auto shrink-0 text-[10px] text-[var(--oz-dim)]">
+                      {fmtListTime(s.updated || s.lastAt)}
+                    </span>
                   </div>
                   <div
                     className={`truncate text-xs ${unread ? 'text-white/80' : 'text-[var(--oz-dim)]'}`}
@@ -310,7 +475,8 @@ export default function SessionsPage() {
                 </SwipeRow>
               </li>
             ))}
-        </ul>
+          </ul>
+        )}
       </main>
 
       {/* undo toast — bar mirrors the 3s window; tap undo to restore the row */}

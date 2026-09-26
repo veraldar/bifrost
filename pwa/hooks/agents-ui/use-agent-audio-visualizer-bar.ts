@@ -18,6 +18,19 @@ function generateListeningSequenceBar(columns: number): number[][] {
   return [[center], [noIndex]];
 }
 
+function generateThinkingSequenceBar(columns: number): number[][] {
+  const center = Math.floor((columns - 1) / 2);
+  const sequence: number[][] = [];
+
+  for (let offset = 0; offset < columns; offset++) {
+    sequence.push(
+      [center - offset, center + offset].filter((index) => index >= 0 && index < columns)
+    );
+  }
+
+  return sequence;
+}
+
 export function useAgentAudioVisualizerBarAnimator(
   state: AgentState | undefined,
   columns: number,
@@ -28,7 +41,7 @@ export function useAgentAudioVisualizerBarAnimator(
 
   useEffect(() => {
     if (state === 'thinking') {
-      setSequence(generateListeningSequenceBar(columns));
+      setSequence(generateThinkingSequenceBar(columns));
     } else if (state === 'connecting' || state === 'initializing') {
       const sequence = [...generateConnectingSequenceBar(columns)];
       setSequence(sequence);

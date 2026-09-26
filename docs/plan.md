@@ -33,8 +33,10 @@ Checklist = board. A phase done = all boxes checked.
 ## Current — harden to v1.0
 
 - [ ] Phone e2e pass (user, on the phone): voice round-trip, busy→notify, mic
-  release, scroll feel, ⚙ tool lines visible
-- [ ] Vercel deploy validated in isolated container (clean `npm ci && build`, smoke)
+  release, scroll feel, ⚙ tool lines visible — PTT + scroll confirmed by user
+  09-26; hands-free human pass still pending (suite 19/19 green covers it
+  automatically; waived for v0.1.0, see phase-log.md)
+- [x] Vercel deploy validated in isolated container (clean `npm ci && build`, smoke)
 - [ ] Release v0.1.0 (tag + GitHub release) only after all boxes above
 
 ## Human-only checks (cannot be automated on the desktop — run on the phone)
@@ -52,3 +54,5 @@ Checklist = board. A phase done = all boxes checked.
 
 - [ ] LiveKit on €3 OVH VPS (only `LIVEKIT_URL` + DNS/TLS change)
 - [ ] Multi-user / public mode, SIP, video
+- [ ] Dreaming — nightly memory consolidation + self-organizing agents, spec only
+  (`docs/spec-dream.md`), starts at roadmap D1 after v1.0

@@ -67,3 +67,15 @@ export const liveSince = (sid: string) => {
   ensureLoaded();
   return live.get(sid) || 0;
 };
+/** Sessions with an in-flight run (stall watchdog scans these). */
+export const liveSids = (): string[] => {
+  ensureLoaded();
+  return [...live.keys()];
+};
+
+// epoch ms of the last deliberate stop per session — the forward path uses
+// it to tell "run ended because the user pressed stop" (never re-fire it)
+// from "run silently swallowed by opencode post-abort stall" (re-fire once)
+const lastAbort = new Map<string, number>();
+export const markAborted = (sid: string) => lastAbort.set(sid, Date.now());
+export const abortedAt = (sid: string) => lastAbort.get(sid) || 0;

@@ -20,3 +20,21 @@ Append-only log. One line per decision or incident; newest first. Open decisions
 - **STT/TTS local-only**: speaches (OpenAI-compatible) was the first answer; superseded by the Mac MLX wrapper above.
 
 - **Same day, later**: (1) **Context injection** — root cause of "agent doesn't know bifrost": server scope is `~/Work` (sessions list invariant) so repo-root `AGENTS.md` never loaded. Fix: layered stub `~/Work/AGENTS.md` (always on, 6 lines) → `bifrost/AGENTS.md` (full). e2e enforces "meta question ⇒ ≤1 pointer read, no repo crawl". (2) **Wedge incident** ("bugs" session): a run hung without completing (assistant message stuck, `completed=null`) and every later prompt 200'd but queued forever. Fix: run-state now carries last-role; client auto-aborts when 30s busy with user-last state, then hints to resend. Manual abort verified the fix path. (3) **Tool transparency** — tool-only assistant steps were dropped by the proxy (phone showed "thinking then nothing" while the agent ran 12 tools). They now render as a one-line ⚙ summary. (4) **Traceability policy** (user request): each user request gets referenced in the commit that implements it; phone-sent instructions count.
+
+## 09-26 — v0.1.0 decisions & fixes
+- **OQ#2 answered (user)**: one-click Vercel deploy is for OTHERS cloning the repo
+  (README button now a real clone link with env pre-listed); this box's own deployment
+  stays tailnet-only per spec Security. Container validation satisfies the plan box.
+- **PTT one-hold-one-message**: VAD endpointing auto-committed on mid-hold pauses →
+  partial transcripts landed as 3 separate messages. Agent now flips to
+  `turn_detection="manual"` on `ptt_begin` RPC, back to `"vad"` after the release
+  commit; phone fires `ptt_begin` before the mic opens. Hold-duration timer added to
+  the equalizer (user req).
+- **Queue swallow fix**: opencode v1.18 occasionally no-ops a POST right after an
+  abort (live: "20s" run resolved in ~200ms, no reply). forward() now verifies
+  pickup (prompt in transcript + assistant reply after it) and re-fires ONCE,
+  never for deliberate stops (markAborted). Queue spec went ~50% flaky → 3/3 green.
+- **states.spec**: hands-free cancel ack held only in silent rooms; e2e fake mic is a
+  loud tone, so the test now asserts the real invariant (cancel never sends, no new
+  user message) instead of acoustics.
+- **e2e**: 19/19 green against the live stack before tagging.

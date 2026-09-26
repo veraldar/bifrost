@@ -5,7 +5,7 @@ voice agent bridges your words to a local [opencode](https://github.com/anomalyc
 server, and you get the answer back as text **and speech** — with markdown,
 attachments, multi-session support, and frontend diagnostics.
 
-![Deploy with Vercel](https://vercel.com/button)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fveraldar%2Fyggdrasil-bifrost&root-directory=pwa&env=LIVEKIT_URL%2CLIVEKIT_API_KEY%2CLIVEKIT_API_SECRET%2COPENCODE_URL)
 
 > One-click Vercel deploy of the PWA: after cloning, set the env vars
 > `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` (see

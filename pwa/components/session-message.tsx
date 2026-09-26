@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { Streamdown } from 'streamdown';
+import { Marked } from '@/components/marked';
 
-export type Msg = { role: string; text: string; images: string[]; time: number };
+export type Msg = { role: string; text: string; images: string[]; time: number; queued?: boolean };
 
 function htmlBlocks(text: string): string[] {
   const out: string[] = [];
@@ -38,7 +39,23 @@ function fmtTime(t: number): string {
   });
 }
 
-export function SessionMessage({ m, queued }: { m: Msg; queued?: boolean }) {
+export function SessionMessage({
+  m,
+  queued,
+  mi,
+  hit,
+  q = '',
+}: {
+  m: Msg;
+  queued?: boolean;
+  /** index in the session's message list — the search jump target anchor */
+  mi?: number;
+  /** transcript search hit — ring the whole message (markdown-safe) */
+  hit?: boolean;
+  /** active search term — marked inside user prose (assistant goes through
+   *  markdown, only ringed) */
+  q?: string;
+}) {
   const [lightbox, setLightbox] = useState<string | null>(null);
   // html blocks render directly (sandboxed); this holds the one showing code
   const [rawIdx, setRawIdx] = useState(-1);
@@ -47,7 +64,14 @@ export function SessionMessage({ m, queued }: { m: Msg; queued?: boolean }) {
   const stamp = fmtTime(m.time);
 
   return (
-    <div className="text-sm leading-relaxed break-words">
+    <div
+      data-mi={mi}
+      className={`scroll-mt-24 text-sm leading-relaxed break-words ${
+        hit
+          ? '-mx-2 rounded border border-[var(--oz-active)] bg-[var(--oz-active)]/10 px-2 py-1'
+          : ''
+      }`}
+    >
       <div className="mb-0.5 flex items-baseline gap-2">
         <span className={isUser ? 'text-[var(--oz-success)]' : 'text-[var(--oz-dim)]'}>
           ({isUser ? 'you' : m.role})
@@ -59,7 +83,7 @@ export function SessionMessage({ m, queued }: { m: Msg; queued?: boolean }) {
         fileChunks(m.text).map((c, i) =>
           c.kind === 'prose' ? (
             <span key={i} className="whitespace-pre-wrap">
-              {c.body}
+              <Marked text={c.body} q={q} />
             </span>
           ) : (
             <details

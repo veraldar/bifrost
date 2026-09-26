@@ -313,7 +313,7 @@ export function AgentTrackControl({
           >
             <span
               className={cn([
-                'h-full min-h-0.5 w-0.5 origin-center',
+                'h-full min-h-0.5 w-1 origin-center transition-[height] duration-100 ease-linear',
                 'group-data-[state=on]/track:bg-foreground group-data-[state=off]/track:bg-destructive',
                 'data-lk-muted:bg-muted',
               ])}

@@ -38,3 +38,9 @@ Append-only log. One line per decision or incident; newest first. Open decisions
   loud tone, so the test now asserts the real invariant (cancel never sends, no new
   user message) instead of acoustics.
 - **e2e**: 19/19 green against the live stack before tagging.
+- **v0.1.1 (09-26)**: user asked for a self-hoster release + whether the
+  container/VM path is tested. Honest gap: only PWA-from-zero was. Shipped
+  `scripts/selfhost-check.sh` (clone→build→boot→probe), validated in a clean
+  node:24 container vs fresh GitHub clone; release notes carry an explicit
+  test matrix — full-stack-on-fresh-VPS stays "documented, not machine-validated"
+  until the onboarding spec lands.

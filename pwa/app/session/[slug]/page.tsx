@@ -1,10 +1,12 @@
 'use client';
 
 import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Room, RoomEvent, Track, createAudioAnalyser } from 'livekit-client';
 import { PixelIcon } from '@/components/pixel-icon';
 import { type Msg, SessionMessage } from '@/components/session-message';
-import { diagEvent } from '@/lib/diag';
+import { diagDump, diagEvent } from '@/lib/diag';
+import { slugify } from '@/lib/slug';
 import { clearAsked, ensureNotifyPermission, markAsked, notifyReply } from '@/lib/notify';
 import { PENDING_TTL_MS } from '@/lib/pending-ttl';
 import { markRead } from '@/lib/read';
@@ -117,6 +119,7 @@ export default function SessionView({
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ id?: string; q?: string }>;
 }) {
+  const router = useRouter();
   const [slug, setSlug] = useState('');
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
@@ -231,6 +234,7 @@ export default function SessionView({
     );
   }
   const wedgeFiredRef = useRef(false);
+  const reportingRef = useRef(false);
   // 10s heartbeat cadence for the busy metrics (avoids a log line per second)
   const busyBeatRef = useRef(0);
   // epoch ms the current busy period started — the "working… Ns" counter is
@@ -964,6 +968,49 @@ export default function SessionView({
     </button>
   );
 
+  /** One-tap bug report: package the error + context into a fresh session
+   *  and let an agent fix it (user req: next to dismiss). */
+  async function sendErrorToAgent() {
+    if (reportingRef.current) return;
+    reportingRef.current = true;
+    const report = [
+      'A frontend error occurred in the voice PWA. Find the root cause in',
+      '~/Work/bifrost/pwa, fix it, and verify with `cd pwa && npx playwright test`.',
+      '',
+      `error: ${error}`,
+      `page: ${location.pathname}${location.search}`,
+      `happened in session: ${slug}`,
+      `time: ${new Date().toISOString()}`,
+      `ua: ${navigator.userAgent}`,
+      '',
+      'recent diagnostics (last events):',
+      diagDump().split('\n').slice(-12).join('\n'),
+    ].join('\n');
+    setError('sending bug report…');
+    try {
+      const cr = await fetch('/api/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: `fix ${slug} ${new Date().toLocaleTimeString()}` }),
+      });
+      const s = await cr.json();
+      if (!s.id) throw new Error(s.error || 'session create failed');
+      const pr = await fetch(`/api/session/${slugify(s.title)}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: report, async: true }),
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!pr.ok) throw new Error(`prompt failed (${pr.status})`);
+      setError('');
+      router.push(`/session/${slugify(s.title)}?id=${s.id}`);
+    } catch (e) {
+      setError(`bug report failed: ${e instanceof Error ? e.message : e}`);
+    } finally {
+      reportingRef.current = false;
+    }
+  }
+
   return (
     <main className="mx-auto flex h-dvh max-w-md flex-col overflow-hidden px-3">
       {/* header */}
@@ -1050,6 +1097,9 @@ export default function SessionView({
       {error && (
         <div className="mb-2 rounded border border-[var(--oz-danger)]/60 px-3 py-2 text-xs text-[var(--oz-danger)]">
           {error}{' '}
+          <button onClick={() => void sendErrorToAgent()} className="underline">
+            fix this
+          </button>{' '}
           <button onClick={() => setError('')} className="underline">
             dismiss
           </button>

@@ -71,6 +71,7 @@ Everything is systemd-managed on omarchy (`lk-pwa`, `lk-agent`,
 
 ```bash
 git clone https://github.com/veraldar/yggdrasil-bifrost.git && cd yggdrasil-bifrost
+scripts/selfhost-check.sh   # one-command check: can this box run the PWA? (clone→build→boot→probe)
 
 # 1. LiveKit + speech stack (cp example → real; edit .env LIVEKIT_KEYS and
 #    livekit.yaml ICE IPs for your network — see deploy/livekit.yaml.example)

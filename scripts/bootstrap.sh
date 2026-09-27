@@ -169,13 +169,18 @@ sleep 2
 VERDICT="PARTIAL"
 probe() { curl -s -m 5 -o /dev/null -w '%{http_code}' "$1" 2>/dev/null; }
 PWA="$(probe http://127.0.0.1:8080/)"; OC="$(probe http://127.0.0.1:4096/)"; LK="$(probe http://127.0.0.1:7880/)"
+# CSS probe: a page that returns 200 with a dead stylesheet renders unstyled
+# (seen in the wild: node < 22 breaks tailwind4's native oxide silently)
+CSS_HREF="$(curl -s -m 5 http://127.0.0.1:8080/ 2>/dev/null | grep -o 'href="[^"]*\.css[^"]*"' | head -1 | sed 's/href="//;s/"$//')"
+CSS="${CSS_HREF:+$(probe "http://127.0.0.1:8080$CSS_HREF")}"
 [[ "$PWA" == 200 && "$OC" != 000 && "$LK" != 000 ]] && VERDICT="READY"
 [[ "$PWA" == 200 && "$LK" == 000 && "$OC" != 000 ]] && VERDICT="READY (no docker — media layers skipped)"
+[[ "$PWA" == 200 && "$CSS" != 200 ]] && VERDICT="BROKEN styling (css probe: ${CSS:-no <link> in html}) — check 'node --version' (need ≥22) and re-run npm run build"
 (( ${#FAIL[@]} )) && VERDICT="PARTIAL (with failures)"
 
 say "---------------- summary ----------------"
 say "verdict: $VERDICT"
-say "probes: pwa=$PWA opencode=$OC livekit=$LK"
+say "probes: pwa=$PWA opencode=$OC livekit=$LK css=${CSS:-n/a}"
 for s in "${OK[@]}";  do say "  ok:   $s"; done
 for s in "${SKIP[@]}"; do say "  skip: $s"; done
 for s in "${FAIL[@]}"; do say "  FAIL: $s"; done

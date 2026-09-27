@@ -70,6 +70,9 @@ export async function GET() {
           return {
             id: s.id,
             title: s.title || s.id,
+            // sub-sessions (created by an agent task inside another session)
+            // carry the parent link — the home list nests them under it
+            parentId: s.parentID || null,
             updated: s.time?.updated || 0,
             preview: lastText.slice(0, 80),
             lastRole,
@@ -91,6 +94,7 @@ export async function GET() {
           return {
             id: s.id,
             title: s.title || s.id,
+            parentId: s.parentID || null,
             updated: s.time?.updated || 0,
             preview: '',
             lastRole: '',

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PixelIcon } from '@/components/pixel-icon';
@@ -15,6 +15,9 @@ const OPEN_QUESTION_TTL_MS = 48 * 60 * 60 * 1000;
 type Sess = {
   id: string;
   title: string;
+  // set on sub-sessions: the session that spawned them (via an agent task).
+  // Children never sort the list themselves — they nest under their parent
+  parentId?: string | null;
   preview: string;
   updated: number;
   lastRole?: string;
@@ -122,10 +125,56 @@ export default function SessionsPage() {
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(true);
   const loadInFlightRef = useRef(false);
-  // undo window: row vanishes instantly, but the DELETE only fires when the
-  // 3s toast expires (or on unmount — entering a session commits it)
-  const [toast, setToast] = useState<{ s: Sess; key: number } | null>(null);
-  const pendingRef = useRef<{ s: Sess; timer: ReturnType<typeof setTimeout> } | null>(null);
+  // undo window: row (and its sub-tree) vanishes instantly, but the DELETE
+  // only fires when the 3s toast expires (or on unmount — entering a session
+  // commits it). opencode cascades deletes server-side, so the family is
+  // stashed here to hide + restore atomically
+  const [toast, setToast] = useState<{ s: Sess; famCount: number; key: number } | null>(null);
+  const pendingRef = useRef<{ s: Sess; fam: Sess[]; timer: ReturnType<typeof setTimeout> } | null>(
+    null
+  );
+
+  // sub-sessions group under their parent at render time; the parent list's
+  // sort order is untouched. Children whose parent is gone (deleted) fall
+  // back to the top level — nothing silently disappears from the list
+  const kidsById = useMemo(() => {
+    const m = new Map<string, Sess[]>();
+    for (const s of sessions) {
+      if (!s.parentId) continue;
+      const arr = m.get(s.parentId);
+      if (arr) arr.push(s);
+      else m.set(s.parentId, [s]);
+    }
+    for (const arr of m.values())
+      arr.sort((a, b) => (b.updated || b.lastAt || 0) - (a.updated || a.lastAt || 0));
+    return m;
+  }, [sessions]);
+  const knownIds = useMemo(() => new Set(sessions.map((s) => s.id)), [sessions]);
+  const roots = useMemo(
+    () => sessions.filter((s) => !s.parentId || !knownIds.has(s.parentId)),
+    [sessions, knownIds]
+  );
+
+  // which parents have their sub-tree expanded — per-tab persistence so
+  // back-navigation doesn't collapse what you opened
+  const [subsOpen, setSubsOpen] = useState<Record<string, boolean>>(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem('oz-subs-open') || '{}') as Record<string, boolean>;
+    } catch {
+      return {};
+    }
+  });
+  function toggleSubs(id: string) {
+    setSubsOpen((o) => {
+      const next = { ...o, [id]: !o[id] };
+      try {
+        sessionStorage.setItem('oz-subs-open', JSON.stringify(next));
+      } catch {
+        /* quota — skip cache */
+      }
+      return next;
+    });
+  }
 
   // global transcript search — lives on home because "where did I talk about
   // X?" starts from the session list; results replace the list while active
@@ -171,8 +220,11 @@ export default function SessionsPage() {
         signal: AbortSignal.timeout(10_000),
       });
       const list: Sess[] = await r.json();
-      // hide rows sitting in an undo window — the server still has them
-      const visible = list.filter((x) => x.id !== pendingRef.current?.s.id);
+      // hide rows sitting in an undo window — the server still has the
+      // whole family until the toast expires
+      const p = pendingRef.current;
+      const hideIds = p ? new Set([p.s.id, ...p.fam.map((x) => x.id)]) : null;
+      const visible = list.filter((x) => !hideIds || !hideIds.has(x.id));
       setSessions(visible);
       try {
         sessionStorage.setItem('oz-sessions', JSON.stringify(visible));
@@ -249,9 +301,21 @@ export default function SessionsPage() {
 
   function remove(s: Sess) {
     commitPending(); // a new delete supersedes an older undo window
-    setSessions((list) => list.filter((x) => x.id !== s.id)); // optimistic
-    pendingRef.current = { s, timer: setTimeout(commitPending, 3000) };
-    setToast({ s, key: Date.now() });
+    // opencode cascades the delete server-side — collect the whole sub-tree
+    // so orphaned sub-rows never linger at the top level
+    const fam: Sess[] = [];
+    const frontier = [s.id];
+    while (frontier.length) {
+      const id = frontier.pop() as string;
+      for (const k of kidsById.get(id) || []) {
+        fam.push(k);
+        frontier.push(k.id);
+      }
+    }
+    const famIds = new Set(fam.map((x) => x.id));
+    setSessions((list) => list.filter((x) => x.id !== s.id && !famIds.has(x.id))); // optimistic
+    pendingRef.current = { s, fam, timer: setTimeout(commitPending, 3000) };
+    setToast({ s, famCount: fam.length, key: Date.now() });
   }
 
   function undo() {
@@ -260,7 +324,7 @@ export default function SessionsPage() {
     clearTimeout(p.timer);
     pendingRef.current = null;
     setToast(null);
-    setSessions((list) => [...list, p.s]); // sort re-places it
+    setSessions((list) => [...list, p.s, ...p.fam]); // sort re-places them
   }
 
   // navigating away (opening a session) mid-window still counts as deleted
@@ -422,7 +486,7 @@ export default function SessionsPage() {
           )
         ) : (
           <ul className="flex flex-col gap-1">
-          {[...sessions]
+          {[...roots]
             .map((s) => {
               const unread =
                 s.lastRole === 'assistant' && (s.lastAt || 0) > lastRead(slugify(s.title || s.id));
@@ -449,33 +513,106 @@ export default function SessionsPage() {
                 Number(b.unread) - Number(a.unread) ||
                 (b.s.updated || b.s.lastAt || 0) - (a.s.updated || a.s.lastAt || 0)
             )
-            .map(({ s, unread, openQ }) => (
-              <li key={s.id}>
-                <SwipeRow
-                  onOpen={() => router.push(`/session/${slugify(s.title)}?id=${s.id}`)}
-                  onDelete={() => remove(s)}
-                >
-                  <div className="flex items-center gap-1.5">
-                    {s.pending && <span className="oz-busy text-[var(--oz-active)]">●</span>}
-                    {!s.pending && openQ && <span className="text-white">○</span>}
-                    {!s.pending && unread && !openQ && (
-                      <span className="text-[var(--oz-active)]">●</span>
-                    )}
-                    <div className={`truncate text-sm ${unread ? 'font-bold' : ''}`}>
-                      {s.title || s.id}
-                    </div>
-                    <span className="ml-auto shrink-0 text-[10px] text-[var(--oz-dim)]">
-                      {fmtListTime(s.updated || s.lastAt)}
-                    </span>
-                  </div>
-                  <div
-                    className={`truncate text-xs ${unread ? 'text-white/80' : 'text-[var(--oz-dim)]'}`}
+            .map(({ s, unread, openQ }) => {
+              const kids = kidsById.get(s.id) || [];
+              const anyKidLive = kids.some((k) => k.pending);
+              return (
+                <li key={s.id}>
+                  <SwipeRow
+                    onOpen={() => router.push(`/session/${slugify(s.title)}?id=${s.id}`)}
+                    onDelete={() => remove(s)}
                   >
-                    {s.pending ? 'awaiting answer…' : s.preview || '\u00a0'}
-                  </div>
-                </SwipeRow>
-              </li>
-            ))}
+                    <div className="flex items-center gap-1.5">
+                      {s.pending && <span className="oz-busy text-[var(--oz-active)]">●</span>}
+                      {!s.pending && openQ && <span className="text-white">○</span>}
+                      {!s.pending && unread && !openQ && (
+                        <span className="text-[var(--oz-active)]">●</span>
+                      )}
+                      <div className={`truncate text-sm ${unread ? 'font-bold' : ''}`}>
+                        {s.title || s.id}
+                      </div>
+                      {kids.length > 0 && (
+                        // tap target for the sub-tree only — the row itself
+                        // still opens the session; a live sub glows green so
+                        // activity is visible even while collapsed
+                        <span
+                          role="button"
+                          aria-expanded={!!subsOpen[s.id]}
+                          aria-label={`${kids.length} sub-session${kids.length === 1 ? '' : 's'}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSubs(s.id);
+                          }}
+                          className={`shrink-0 rounded-full border px-2 text-[10px] leading-4 ${
+                            subsOpen[s.id]
+                              ? 'border-white/30 text-white'
+                              : anyKidLive
+                                ? 'text-[var(--oz-success)]'
+                                : 'border-[var(--oz-border)] text-[var(--oz-dim)]'
+                          }`}
+                          style={
+                            !subsOpen[s.id] && anyKidLive
+                              ? { borderColor: 'rgba(74,222,128,.5)' }
+                              : undefined
+                          }
+                        >
+                          {kids.length} sub{kids.length === 1 ? '' : 's'}
+                          {anyKidLive && !subsOpen[s.id] ? ' ●' : ''}
+                        </span>
+                      )}
+                      <span className="ml-auto shrink-0 text-[10px] text-[var(--oz-dim)]">
+                        {fmtListTime(s.updated || s.lastAt)}
+                      </span>
+                    </div>
+                    <div
+                      className={`truncate text-xs ${unread ? 'text-white/80' : 'text-[var(--oz-dim)]'}`}
+                    >
+                      {s.pending ? 'awaiting answer…' : s.preview || '\u00a0'}
+                    </div>
+                  </SwipeRow>
+                  {kids.length > 0 && subsOpen[s.id] && (
+                    <div className="ml-4 mt-1 flex flex-col gap-1 border-l-2 border-[var(--oz-border)] pl-2.5">
+                      {kids.map((k) => {
+                        const kUnread =
+                          k.lastRole === 'assistant' &&
+                          (k.lastAt || 0) > lastRead(slugify(k.title || k.id));
+                        return (
+                          <button
+                            key={k.id}
+                            onClick={() =>
+                              router.push(`/session/${slugify(k.title || k.id)}?id=${k.id}`)
+                            }
+                            className="oz-row w-full rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] px-3 py-1.5 text-left"
+                          >
+                            <div className="flex items-baseline gap-1.5">
+                              {k.pending && (
+                                <span className="oz-busy text-[10px] text-[var(--oz-active)]">
+                                  ●
+                                </span>
+                              )}
+                              {!k.pending && kUnread && (
+                                <span className="text-[10px] text-[var(--oz-active)]">●</span>
+                              )}
+                              <div className="truncate text-xs text-white/85">
+                                {k.title || k.id}
+                              </div>
+                              <span className="ml-auto shrink-0 text-[10px] text-[var(--oz-dim)]">
+                                {fmtListTime(k.updated || k.lastAt)}
+                              </span>
+                            </div>
+                            {(k.pending ? 'awaiting answer…' : k.preview) && (
+                              <div className="truncate text-[10px] text-[var(--oz-dim)]">
+                                {k.pending ? 'awaiting answer…' : k.preview}
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </main>
@@ -488,6 +625,8 @@ export default function SessionsPage() {
         >
           <div className="min-w-0 flex-1 truncate text-xs text-[var(--oz-dim)]">
             deleted “{toast.s.title || toast.s.id}”
+            {toast.famCount > 0 &&
+              ` + ${toast.famCount} sub${toast.famCount === 1 ? '' : 's'}`}
           </div>
           <button
             onClick={undo}

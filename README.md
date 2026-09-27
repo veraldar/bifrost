@@ -1,9 +1,26 @@
-# opencode voice — talk to your coding agent from your phone
+# Bifrost — talk to your coding agent from your phone
 
 A voice-controlled opencode: speak or type on your phone (PWA), a LiveKit
 voice agent bridges your words to a local [opencode](https://github.com/anomalyco/opencode)
 server, and you get the answer back as text **and speech** — with markdown,
 attachments, multi-session support, and frontend diagnostics.
+
+## Easiest install: let an agent do it (Omarchy, Arch, Debian, any Linux box)
+
+Open your coding agent (opencode, Claude Code, Codex, …) in an empty folder
+and give it this one line:
+
+```
+https://raw.githubusercontent.com/veraldar/yggdrasil-bifrost/main/skills/install/SKILL.md set it up
+```
+
+That's the whole instruction. The agent fetches the skill, clones this repo,
+checks prerequisites (Node ≥ 22, docker for voice), mints every secret,
+starts LiveKit + opencode + the voice agent + the PWA, verifies each layer,
+and prints a verdict + the URL to open. Already cloned? Say instead:
+*"follow skills/install/SKILL.md and set it up"*. One manual step remains
+afterwards: `opencode auth login` (your LLM provider key — nothing may mint
+that for you). Prefer manual setup? Keep reading.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fveraldar%2Fyggdrasil-bifrost&root-directory=pwa&env=LIVEKIT_URL%2CLIVEKIT_API_KEY%2CLIVEKIT_API_SECRET%2COPENCODE_URL)
 
@@ -79,14 +96,6 @@ Everything is systemd-managed on omarchy (`lk-pwa`, `lk-agent`,
 ```bash
 git clone https://github.com/veraldar/yggdrasil-bifrost.git && cd yggdrasil-bifrost
 scripts/selfhost-check.sh   # one-command check: can this box run the PWA? (clone→build→boot→probe)
-
-### Agent harnesses (opencode, Claude Code, Codex, …)
-
-Give your coding agent this link and the words "set it up" — the skill drives
-the whole install (or just say it inside a clone of this repo):
-`https://raw.githubusercontent.com/veraldar/yggdrasil-bifrost/main/skills/install/SKILL.md`
-It runs `scripts/bootstrap.sh`: mints all secrets, writes every config,
-starts LiveKit + opencode + agent + PWA, verifies, prints a verdict.
 
 # 0. opencode itself (the coding agent this whole thing drives)
 #    install: curl -fsSL https://opencode.ai/install | bash   (or your package manager)

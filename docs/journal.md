@@ -44,3 +44,8 @@ Append-only log. One line per decision or incident; newest first. Open decisions
   node:24 container vs fresh GitHub clone; release notes carry an explicit
   test matrix — full-stack-on-fresh-VPS stays "documented, not machine-validated"
   until the onboarding spec lands.
+
+## 2026-09-27 (late)
+
+- **Themes layer-1**: `veraldar-theme` repo now speaks W3C DTCG tokens; `build.sh all` renders ONE tokens.css (`:root` = aether default + `[data-theme=…]` blocks). PWA consumes it via `@import` in globals.css, switching via **next-themes** (`/theme` page: slide cards, live apply, reached by tapping the ⌁ brand mark). Light theme (`drift`) gets a dark tree variant + `color-scheme: light`. e2e 19/19 green. Reuse decisions: next-themes (standard), DTCG (future Style Dictionary path), Phaser+Tiled for realms later — no hand-rolled plumbing kept.
+- **Backdrop generator**: forensics on ygg tree (angles {0,45,90}, ~20px bands, mirror symmetry) → `SPEC.md` + procedural generator + validator in veraldar-theme (pixelarticons/lucide pattern: spec + generator + validator, never tracing/AI-SVG). Three themed backdrops regenerated; validator caught real geometry bugs (illegal angles, band crossings, missing mirrors). Lesson: constraint-heavy styles need by-construction generation.

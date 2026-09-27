@@ -37,7 +37,9 @@ Checklist = board. A phase done = all boxes checked.
   09-26; hands-free human pass still pending (suite 19/19 green covers it
   automatically; waived for v0.1.0, see phase-log.md)
 - [x] Vercel deploy validated in isolated container (clean `npm ci && build`, smoke)
-- [ ] Release v0.1.0 (tag + GitHub release) only after all boxes above
+- [x] Release v0.1.0 (tag + GitHub release) only after all boxes above — tagged
+  and published 09-26 with the hands-free human pass explicitly waived
+  (phase-log.md); box above stays open for the full pass
 
 ## Human-only checks (cannot be automated on the desktop — run on the phone)
 
@@ -53,6 +55,8 @@ Checklist = board. A phase done = all boxes checked.
 ## Deferred
 
 - [ ] LiveKit on €3 OVH VPS (only `LIVEKIT_URL` + DNS/TLS change)
+- [ ] One-button onboarding: VPS `bootstrap.sh` + QR pairing — spec draft at
+  `docs/spec-onboard.md` (under review)
 - [ ] Multi-user / public mode, SIP, video
 - [ ] Dreaming — nightly memory consolidation + self-organizing agents, spec only
   (`docs/spec-dream.md`), starts at roadmap D1 after v1.0

@@ -184,4 +184,27 @@
 <rect x="508" y="840" width="2" height="2" fill="#ff6a3c" opacity="0.6"/>
 <rect x="310" y="772" width="2" height="2" fill="#ff6a3c" opacity="0.4"/>
 <rect x="1128" y="838" width="2" height="2" fill="#ff6a3c" opacity="0.6"/>
+<polyline points="250,0 400,150 550,150" fill="none" stroke="#4a4452" stroke-width="20" stroke-linecap="square" stroke-linejoin="miter" opacity="0.55"/>
+<polyline points="1158,0 1008,150 858,150" fill="none" stroke="#4a4452" stroke-width="20" stroke-linecap="square" stroke-linejoin="miter" opacity="0.55"/>
+<polyline points="550,150 632,232 714,232" fill="none" stroke="#4a4452" stroke-width="20" stroke-linecap="square" stroke-linejoin="miter" opacity="0.55"/>
+<polyline points="714,232 759,277 804,277" fill="none" stroke="#4a4452" stroke-width="20" stroke-linecap="square" stroke-linejoin="miter" opacity="0.55"/>
+<polyline points="694,232 649,277 604,277" fill="none" stroke="#4a4452" stroke-width="20" stroke-linecap="square" stroke-linejoin="miter" opacity="0.55"/>
+<rect x="790" y="263" width="28" height="28" fill="#4a4452" opacity="0.55"/>
+<rect x="590" y="263" width="28" height="28" fill="#4a4452" opacity="0.55"/>
+<polyline points="804,277 804,301" fill="none" stroke="#4a4452" stroke-width="20" stroke-linecap="square" stroke-linejoin="miter" opacity="0.55"/>
+<polyline points="604,277 604,301" fill="none" stroke="#4a4452" stroke-width="20" stroke-linecap="square" stroke-linejoin="miter" opacity="0.55"/>
+<rect x="790" y="287" width="28" height="28" fill="#4a4452" opacity="0.55"/>
+<rect x="590" y="287" width="28" height="28" fill="#4a4452" opacity="0.55"/>
+<rect x="790" y="287" width="28" height="28" fill="#4a4452" opacity="0.55"/>
+<rect x="590" y="287" width="28" height="28" fill="#4a4452" opacity="0.55"/>
+<rect x="700" y="218" width="28" height="28" fill="#4a4452" opacity="0.55"/>
+<rect x="680" y="218" width="28" height="28" fill="#4a4452" opacity="0.55"/>
+<rect x="536" y="136" width="28" height="28" fill="#4a4452" opacity="0.55"/>
+<rect x="844" y="136" width="28" height="28" fill="#4a4452" opacity="0.55"/>
+<rect x="1144" y="-14" width="28" height="28" fill="#4a4452" opacity="0.55"/>
+<rect x="236" y="-14" width="28" height="28" fill="#4a4452" opacity="0.55"/>
+<rect x="466" y="-14" width="28" height="28" fill="#6a6274" opacity="0.4"/>
+<rect x="914" y="-14" width="28" height="28" fill="#6a6274" opacity="0.4"/>
+<rect x="914" y="-14" width="28" height="28" fill="#6a6274" opacity="0.4"/>
+<rect x="466" y="-14" width="28" height="28" fill="#6a6274" opacity="0.4"/>
 </svg>

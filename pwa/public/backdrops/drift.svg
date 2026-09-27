@@ -51,6 +51,26 @@
 <polyline points="988,350 1028,310 1248,310 1288,350 1138,500 988,350" fill="none" stroke="#5cc4b6" stroke-width="16" stroke-linecap="square" stroke-linejoin="miter" opacity="0.85"/>
 <polyline points="1078,320 1148,390 1148,445" fill="none" stroke="#3a3a6e" stroke-width="10" stroke-linecap="square" stroke-linejoin="miter" opacity="0.85"/>
 <rect x="1124" y="486" width="28" height="28" fill="#3a3a6e" opacity="0.85"/>
+<polyline points="270,310 350,230 430,230" fill="none" stroke="#2e7a78" stroke-width="20" stroke-linecap="square" stroke-linejoin="miter" opacity="0.8"/>
+<polyline points="1138,310 1058,230 978,230" fill="none" stroke="#2e7a78" stroke-width="20" stroke-linecap="square" stroke-linejoin="miter" opacity="0.8"/>
+<polyline points="430,230 494,166 558,166" fill="none" stroke="#2e7a78" stroke-width="20" stroke-linecap="square" stroke-linejoin="miter" opacity="0.8"/>
+<polyline points="978,230 914,166 850,166" fill="none" stroke="#2e7a78" stroke-width="20" stroke-linecap="square" stroke-linejoin="miter" opacity="0.8"/>
+<rect x="544" y="152" width="28" height="28" fill="#2e7a78" opacity="0.8"/>
+<rect x="836" y="152" width="28" height="28" fill="#2e7a78" opacity="0.8"/>
+<polyline points="558,166 558,131" fill="none" stroke="#2e7a78" stroke-width="20" stroke-linecap="square" stroke-linejoin="miter" opacity="0.8"/>
+<polyline points="850,166 850,131" fill="none" stroke="#2e7a78" stroke-width="20" stroke-linecap="square" stroke-linejoin="miter" opacity="0.8"/>
+<rect x="544" y="117" width="28" height="28" fill="#2e7a78" opacity="0.8"/>
+<rect x="836" y="117" width="28" height="28" fill="#2e7a78" opacity="0.8"/>
+<rect x="544" y="117" width="28" height="28" fill="#2e7a78" opacity="0.8"/>
+<rect x="836" y="117" width="28" height="28" fill="#2e7a78" opacity="0.8"/>
+<polyline points="430,230 430,186" fill="none" stroke="#2e7a78" stroke-width="20" stroke-linecap="square" stroke-linejoin="miter" opacity="0.8"/>
+<polyline points="978,230 978,186" fill="none" stroke="#2e7a78" stroke-width="20" stroke-linecap="square" stroke-linejoin="miter" opacity="0.8"/>
+<rect x="416" y="172" width="28" height="28" fill="#2e7a78" opacity="0.8"/>
+<rect x="964" y="172" width="28" height="28" fill="#2e7a78" opacity="0.8"/>
+<rect x="416" y="172" width="28" height="28" fill="#2e7a78" opacity="0.8"/>
+<rect x="964" y="172" width="28" height="28" fill="#2e7a78" opacity="0.8"/>
+<rect x="1124" y="296" width="28" height="28" fill="#2e7a78" opacity="0.8"/>
+<rect x="256" y="296" width="28" height="28" fill="#2e7a78" opacity="0.8"/>
 <polyline points="40,520 80,480 180,480 220,520 130,610 40,520" fill="none" stroke="#5cc4b6" stroke-width="16" stroke-linecap="square" stroke-linejoin="miter" opacity="0.5"/>
 <rect x="116" y="596" width="28" height="28" fill="#3a3a6e" opacity="0.5"/>
 <polyline points="1188,520 1228,480 1328,480 1368,520 1278,610 1188,520" fill="none" stroke="#5cc4b6" stroke-width="16" stroke-linecap="square" stroke-linejoin="miter" opacity="0.5"/>

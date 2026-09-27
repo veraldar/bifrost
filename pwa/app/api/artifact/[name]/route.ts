@@ -21,6 +21,8 @@ const TYPES: Record<string, string> = {
   '.md': 'text/plain; charset=utf-8',
   '.json': 'application/json',
   '.pdf': 'application/pdf',
+  '.wav': 'audio/wav',
+  '.mp3': 'audio/mpeg',
 };
 
 export async function GET(_req: Request, ctx: { params: Promise<{ name: string }> }) {

@@ -12,6 +12,7 @@ Generation is serialized (MLX single-device semantics).
 
 import os
 import tempfile
+import glob
 import threading
 import time
 
@@ -187,8 +188,12 @@ def speech(body: dict):
                     join_audio=True,
                     verbose=False,
                 )
-                with open(out_path, "rb") as f:
-                    data = f.read()
+                produced = sorted(glob.glob(os.path.join(out_dir, "audio*")))
+                if not produced:
+                    produced = sorted(glob.glob(os.path.join(out_dir, "*")))
+                if produced:
+                    with open(produced[0], "rb") as f:
+                        data = f.read()
                 # embedding INSIDE the lock: it runs on the same GPU as
                 # generation — outside, it contends with parallel chunk
                 # requests and stalls the whole pipeline
@@ -238,6 +243,10 @@ def speech_stream(body: dict):
     t0 = time.time()
     try:
         gen_model = _cached_model(model)
+        # pin the RNG: same seed + same text = identical audio. The client
+        # keeps one seed per session so the voice never re-rolls.
+        if body.get("seed") is not None:
+            mx.random.seed(int(body["seed"]) % (2**31))
         results = gen_model.generate(
             text=text,
             voice=voice,

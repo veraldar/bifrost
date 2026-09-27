@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { useRouter } from 'next/navigation';
 import { Room, RoomEvent, Track, createAudioAnalyser } from 'livekit-client';
+import Link from 'next/link';
 import { PixelIcon } from '@/components/pixel-icon';
 import { type Msg, SessionMessage } from '@/components/session-message';
 import {
@@ -35,13 +36,6 @@ type Attach =
   | { kind: 'file'; name: string; content: string };
 
 const PTT_BARS = 5;
-
-// hands-free silence timeline — MUST mirror the agent (agent/agent.py:
-// silero min_silence_duration=0.9, endpointing min_delay=1.5): 0.9s of
-// silence ends the speech, the turn commits at 0.9+1.5≈2.4s, after which
-// the message is in opencode and only the working-stop button can halt it
-const FREE_VAD_END_S = 0.9;
-const FREE_COMMIT_S = 2.4;
 
 function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
   return Promise.race([
@@ -686,6 +680,14 @@ export default function SessionView({
       diagEvent('voice', 'connecting signal…');
       await withTimeout(room.connect(d.serverUrl, d.participantToken), 12_000, 'signal');
       diagEvent('voice', 'connected, mic stays muted until a mode/handler turns it on');
+      // the agent calls this on "over and out": leave hands-free, teardown
+      // to keyboard (the final reply lands as text in the session instead
+      // of being spoken — radio "out" expects no answer)
+      room.localParticipant.registerRpcMethod('end_free', async () => {
+        diagEvent('voice', 'end_free rpc — exiting hands-free');
+        void exitFree();
+        return 'ok';
+      });
       roomRef.current = room;
       setVoiceState('ready');
       diagEvent('voice', 'ready');
@@ -700,6 +702,20 @@ export default function SessionView({
 
   async function mic(on: boolean) {
     await roomRef.current?.localParticipant.setMicrophoneEnabled(on);
+  }
+
+  // radio "out": the agent committed the final turn — release mic + room
+  // exactly like switchMode('text') does, but without its same-mode guard
+  // (the RPC handler must work no matter what the closure saw)
+  async function exitFree() {
+    modeRef.current = 'text';
+    setMode('text');
+    const room = roomRef.current;
+    roomRef.current = null;
+    voicePromiseRef.current = null;
+    setVoiceState('off');
+    diagEvent('voice', 'released (over and out)');
+    await room?.disconnect();
   }
 
   async function switchMode(next: Mode) {
@@ -722,7 +738,8 @@ export default function SessionView({
         diagEvent('voice', 'released (keyboard mode)');
         await room?.disconnect();
       } else {
-        // hands-free: mic stays on, VAD drives turns (agent auto-commits).
+        // hands-free: mic stays on, turns are keyword-driven — the agent
+        // buffers everything until "over" / "over and out" (agent.py).
         // PTT from the composer works in both modes (mic mutes on release).
         const room = await ensureVoice();
         await mic(true);
@@ -873,55 +890,6 @@ export default function SessionView({
   // live mic equalizer (PTT pill + hands-free strip) — see useMicLevels
   const pttLevels = useMicLevels(holding, roomRef);
   const freeLevels = useMicLevels(mode === 'free' && voiceState === 'ready', roomRef);
-
-  // hands-free silence countdown: counts up from the last loud mic frame,
-  // resets on voice — makes the invisible commit clock (FREE_COMMIT_S) seen
-  const freeLevelsRef = useRef(freeLevels);
-  freeLevelsRef.current = freeLevels;
-  const [freeSilence, setFreeSilence] = useState(0);
-  const [freePhase, setFreePhase] = useState<'listening' | 'counting' | 'sending' | 'cancelled'>(
-    'listening'
-  );
-  const lastVoiceRef = useRef(0);
-  const cancelHoldRef = useRef(0); // performance.now() until which "cancelled" shows at minimum
-  const cancelWaitRef = useRef(false); // stay "cancelled" until the next loud frame
-  useEffect(() => {
-    if (mode !== 'free' || voiceState !== 'ready') {
-      lastVoiceRef.current = 0;
-      cancelWaitRef.current = false;
-      setFreeSilence(0);
-      setFreePhase('listening');
-      return;
-    }
-    lastVoiceRef.current = performance.now();
-    const id = setInterval(() => {
-      const now = performance.now();
-      if (Math.max(...freeLevelsRef.current) > 0.3) {
-        lastVoiceRef.current = now;
-        cancelWaitRef.current = false;
-      }
-      if (now < cancelHoldRef.current || cancelWaitRef.current) {
-        setFreePhase('cancelled');
-        return;
-      }
-      const s = (now - lastVoiceRef.current) / 1000;
-      setFreeSilence(s);
-      setFreePhase(s < 0.25 ? 'listening' : s < FREE_COMMIT_S ? 'counting' : 'sending');
-    }, 100);
-    return () => clearInterval(id);
-  }, [mode, voiceState]);
-
-  function freeCancel() {
-    // same discard path as the PTT slide-to-cancel: the agent clears its
-    // buffered turn, so the pending pause commits nothing
-    pttDiscardRpc();
-    lastVoiceRef.current = performance.now();
-    // hold "cancelled" (min 1.5s, then until the user speaks again) — a
-    // silent room must not count back up to a "sending" that can't happen
-    cancelHoldRef.current = performance.now() + 1500;
-    cancelWaitRef.current = true;
-    setFreePhase('cancelled');
-  }
 
   useEffect(() => {
     if (!holding) return;
@@ -1119,12 +1087,17 @@ export default function SessionView({
 
   return (
     <main className="mx-auto flex h-dvh max-w-md flex-col overflow-hidden px-3">
-      {/* header */}
+      {/* header — the slug is the way into session settings (name / model /
+          think / agent); busy dot stays pinned to the right of the name */}
       <header className="flex items-center justify-between gap-2 py-3">
-        <div className="min-w-0 flex-1 truncate text-sm">
+        <Link
+          href={`/session/${slug}/settings`}
+          aria-label="session settings"
+          className="min-w-0 flex-1 truncate text-sm hover:opacity-80"
+        >
           {slug}
           {busy && <span className="oz-busy ml-2 text-[var(--oz-active)]">●</span>}
-        </div>
+        </Link>
         {/* search is not a mode — own button, visually split from the
             keyboard/hands-free toggle (gap-2) */}
         <div className="flex items-center gap-2">
@@ -1253,6 +1226,21 @@ export default function SessionView({
             </button>
           </div>
         )}
+
+        {/* listen chip — anchored to the last message, in the text flow.
+            Only when that message IS the assistant's (the chip plays it);
+            hidden while the deck is active (fixed deck owns the controls). */}
+        {speech.phase === 'idle' &&
+          lastAssistant &&
+          msgs.length > 0 &&
+          msgs[msgs.length - 1] === lastAssistant && (
+            <button
+              onClick={() => startSpeech(lastAssistant.text, slug)}
+              className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-[var(--oz-border)] px-3 py-1.5 text-xs text-[var(--oz-dim)]"
+            >
+              <PixelIcon name="volume" size={12} /> listen
+            </button>
+          )}
       </div>
 
       {attachments.length > 0 && (
@@ -1395,19 +1383,6 @@ export default function SessionView({
         </div>
       )}
 
-      {speech.phase === 'idle' && (
-        <div className="flex justify-end pb-1.5">
-          <button
-            onClick={() => lastAssistant && startSpeech(lastAssistant.text, slug)}
-            disabled={!lastAssistant}
-            aria-label="speak last reply"
-            className="rounded border border-[var(--oz-border)] px-2.5 py-2 text-[var(--oz-dim)] disabled:opacity-40"
-          >
-            <PixelIcon name="volume" size={14} />
-          </button>
-        </div>
-      )}
-
       {mode === 'free' ? (
         /* hands-free: the composer (attach / text input / push-to-talk) makes
            no sense while the mic is always hot — show the live speaking
@@ -1521,7 +1496,7 @@ export default function SessionView({
                 autogrow(e.target);
               }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
+                if (e.key === 'Enter' && !e.shiftKey && !e.altKey) {
                   e.preventDefault();
                   sendText();
                 }
@@ -1585,37 +1560,12 @@ export default function SessionView({
           <span
             role="status"
             data-testid="free-phase"
-            className={`tabular-nums ${
-              freePhase === 'sending'
-                ? 'text-[var(--oz-active)]'
-                : freePhase === 'cancelled'
-                  ? 'text-[var(--oz-danger)]'
-                  : 'text-[var(--oz-success)]'
-            }`}
+            className="text-[var(--oz-success)]"
           >
             {voiceState !== 'ready'
               ? '● hands-free — connecting…'
-              : freePhase === 'cancelled'
-                ? '✕ cancelled — nothing sent, talk again'
-                : freePhase === 'sending'
-                  ? 'sending…'
-                  : freeSilence < FREE_VAD_END_S
-                    ? `● hands-free — pause ${freeSilence.toFixed(1)}s`
-                    : `ending turn — sending in ${Math.max(0, FREE_COMMIT_S - freeSilence).toFixed(1)}s`}
+              : '● hands-free — say “over” to send · “over and out” to end'}
           </span>
-          <button
-            data-testid="free-cancel"
-            onClick={freeCancel}
-            disabled={voiceState !== 'ready' || freePhase === 'sending'}
-            aria-label="cancel spoken message"
-            className={`rounded border px-2 py-1 ${
-              voiceState !== 'ready' || freePhase === 'sending'
-                ? 'border-[var(--oz-border)] text-[var(--oz-dim)] opacity-50'
-                : 'border-[var(--oz-danger)]/70 text-[var(--oz-danger)]'
-            }`}
-          >
-            <PixelIcon name="close" size={10} /> cancel
-          </button>
         </div>
       )}
     </main>

@@ -16,13 +16,16 @@ French voice = Elise. English voice = base clone of `ref_voice.wav`.
   - `mx.random.seed(body.seed)` pinned before generate (see limits below).
 - Models:
   - French: `thaddeusk/Qwen3-TTS-12Hz-1.7B-Elise-v2` — CustomVoice fine-tune,
-    single speaker `elise`, `french` in supported languages.
-  - English: `cr2k2/Qwen3-TTS-12Hz-1.7B-Base-fp32` — voice clone of
-    `ref_voice.wav` (English speaker; fine for English, unusable for French).
+    single speaker `elise`, `french` in supported languages. (user-chosen)
+  - English: `mlx-community/Kokoro-82M-bf16`, voice `af_heart`, lang `a`
+    (user-chosen after audition; Kokoro lang codes are single letters
+    a/b/e/f/h/i/p/j/z — `auto` asserts). Base clone `ref_voice.wav` retained
+    for the livekit agent path only.
   - Do NOT use `mlx-community/Qwen3-TTS-*-MLX-4bit` variants for image/other —
     for TTS the `mlx-community` bf16 CustomVoice/VoiceDesign work; the
     `Qwen-Image` MLX ports are diffusers-incompatible (silent noise output).
-- Sampling: `temperature 0.3, top_k 20, repetition_penalty 1.3`.
+- Sampling: `temperature 0.2, top_k 20, repetition_penalty 1.3` (0.2 → replay
+  embedding sim 0.997; 0.3 → 0.99, more prosody drift).
 - Proxy `pwa/app/api/tts/stream/route.ts`: PCM pass-through + X-Sample-Rate.
 - Client `pwa/lib/speech.ts`: fetch stream → PCM → 6s WAV blobs
   (silence-trimmed ±120ms edges) → double-buffered native `<audio>` playlist.
@@ -71,6 +74,27 @@ French voice = Elise. English voice = base clone of `ref_voice.wav`.
 - Diag events: `[tts]` timings (wrapper log), `tts: first audio in Xms`,
   `ctx created/resume/state` (AudioContext), `boundary stall` (stream behind
   playback) — all land in `pwa/.diag/`.
+
+## Late bugs (streaming player)
+
+- Prebuffer start bug: playback began on the LATEST enqueued piece (content
+  from ~12s in) instead of piece 0 — the chain must ALWAYS start at the first
+  piece; later pieces only queue (onended chain advances).
+- Pause vs natural-end race: ⏸ pressed at the very end of the last piece lost
+  the race against the ended event → deck closed like a stop. userPaused now
+  keeps the deck open paused.
+- Reused audio elements: `removeAttribute('src')` is not enough — call
+  `load()` to force position reset between plays.
+- Piece boundary gaps: fixed with double-buffered elements (piece N+1
+  preloaded on the twin while N plays; instant swap at the boundary).
+- Piece size 10s (was 6s): half the boundaries, more stall margin.
+- Prebuffer TWO pieces (~20s) before starting playback: absorbs network
+  hiccups; first audio delayed ~2s only (stream runs 3× faster than playback).
+- Boundary stall (stream behind playback): phase `loading`, resume in place
+  when the stream catches up; diag `boundary stall` marks each occurrence.
+- Listen chip anchored to the LAST assistant message (inline in the flow,
+  label "listen", English UI); hidden while the deck is active and when the
+  last message is the user's own.
 
 ## Client playback contract
 

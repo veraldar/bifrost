@@ -10,13 +10,21 @@ export const dynamic = 'force-dynamic';
 
 const BASE = process.env.SPEACHES_URL || '';
 const MODEL_FR = process.env.TTS_MODEL_FR || 'mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-bf16';
-const MODEL = process.env.TTS_MODEL || 'cr2k2/Qwen3-TTS-12Hz-1.7B-Base-fp32';
 const VOICE_FR = process.env.TTS_VOICE_FR || 'serena';
+// English: Kokoro-82M — native English female/male voices (lang codes are
+// single letters: a=American, b=British, f=French — 'auto' is invalid there)
+const MODEL_EN = process.env.TTS_MODEL_EN || 'mlx-community/Kokoro-82M-bf16';
+const VOICE_EN = process.env.TTS_VOICE_EN || 'af_heart';
+const LANG_EN = process.env.TTS_LANG_EN || 'a';
 
 export async function POST(req: Request) {
   if (!BASE) return NextResponse.json({ error: 'SPEACHES_URL not configured' }, { status: 500 });
   try {
-    const { text, lang } = (await req.json()) as { text?: string; lang?: 'fr' | 'en' };
+    const { text, lang, seed } = (await req.json()) as {
+      text?: string;
+      lang?: 'fr' | 'en';
+      seed?: number;
+    };
     const input = (text || '').slice(0, 4000);
     if (!input.trim()) return NextResponse.json({ error: 'empty text' }, { status: 400 });
     const french = lang === 'fr' ? true : lang === 'en' ? false : true; // franglais → French
@@ -25,17 +33,18 @@ export async function POST(req: Request) {
           model: MODEL_FR,
           voice: VOICE_FR,
           lang_code: 'french',
-          temperature: 0.3,
+          temperature: 0.2,
           top_k: 20,
           repetition_penalty: 1.3,
           streaming_interval: 4.0,
+          seed: typeof seed === 'number' ? seed : undefined,
           input,
         }
       : {
-          model: MODEL,
-          voice: 'default',
-          lang_code: 'auto',
-          temperature: 0.3,
+          model: MODEL_EN,
+          voice: VOICE_EN,
+          lang_code: LANG_EN,
+          temperature: 0.2,
           top_k: 20,
           repetition_penalty: 1.3,
           streaming_interval: 4.0,

@@ -14,7 +14,8 @@ export function FreshReload() {
       if (document.hidden) return;
       try {
         const r = await fetch('/api/build', { cache: 'no-store', signal: AbortSignal.timeout(5000) });
-        const { id } = (await r.json()) as { id: string };
+        const { id, ttsVoice } = (await r.json()) as { id: string; ttsVoice?: string };
+        if (ttsVoice) sessionStorage.setItem('oz-tts-voice', ttsVoice);
         if (!id || id === 'unknown') return;
         const seen = sessionStorage.getItem(key);
         if (seen && seen !== id) {

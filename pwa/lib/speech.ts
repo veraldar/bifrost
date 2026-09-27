@@ -1,11 +1,12 @@
 /** Streaming TTS deck: ONE continuous generation per message on the Mac
  *  (raw PCM stream) — the voice is physically constant, no chunk boundaries.
  *
- *  Playback through a native <audio> element (NOT WebAudio): phones suspend
- *  AudioContexts when the screen locks or the tab hides, while the media
- *  pipeline keeps playing in the background. Received PCM is wrapped into
- *  ~6s WAV blobs played as a playlist; all pieces are kept so seek works
- *  forwards AND backwards. */
+ *  Playback through native <audio> elements (phones suspend WebAudio in the
+ *  background; the media pipeline keeps playing). Received PCM is wrapped
+ *  into ~6s WAV blobs played as a DOUBLE-BUFFERED playlist: while piece N
+ *  plays, piece N+1 is preloaded on the second element — the swap at the
+ *  boundary is instant instead of leaving an audible gap. All pieces are
+ *  kept so seek works forwards AND backwards. */
 
 export type SpeechPhase = 'idle' | 'loading' | 'playing' | 'paused';
 export type SpeechState = {
@@ -22,7 +23,7 @@ export type SpeechState = {
 };
 
 const SAMPLE_RATE = 24000;
-const PIECE_SEC = 6; // wav blob length for the playlist
+const PIECE_SEC = 10; // wav blob length for the playlist
 const SEC_PER_CHAR = 0.075;
 
 let state: SpeechState = {
@@ -47,7 +48,8 @@ export function getSpeech(): SpeechState {
   return state;
 }
 
-let audio: HTMLAudioElement | null = null;
+let els: [HTMLAudioElement, HTMLAudioElement] | null = null;
+let activeEl = 0; // which element is (or will be) playing the current piece
 let abort: AbortController | null = null;
 let gen = 0;
 let msgLang: 'fr' | 'en' = 'fr';
@@ -55,14 +57,13 @@ let curSlug = '';
 
 type Piece = { url: string; startSample: number; samples: number };
 let pieces: Piece[] = []; // every piece, in order — kept for seeks
-let curIdx = -1; // piece loaded in the audio element
-let nextIdx = 0; // next piece to play
+let curIdx = -1; // piece loaded in the active element
+let userPaused = false;
 let pendingFloat: Float32Array | null = null; // received PCM not yet wrapped
 let pendingLen = 0;
 let totalReceived = 0;
 let streamDone = false;
 let pendingSkip: number | null = null; // seek target beyond received audio
-let userPaused = false;
 let tickTimer: ReturnType<typeof setInterval> | null = null;
 let startedAt = 0;
 
@@ -85,15 +86,101 @@ function detectLang(s: string): 'fr' | 'en' {
   return fr >= 1 && fr >= en ? 'fr' : 'en';
 }
 
-function ensureAudio(): HTMLAudioElement {
-  if (!audio) {
-    audio = new Audio();
-    audio.preload = 'auto';
-    (audio as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
-    audio.addEventListener('ended', () => playNext());
+function ensureEls(): [HTMLAudioElement, HTMLAudioElement] {
+  if (!els) {
+    const make = (): HTMLAudioElement => {
+      const a = new Audio();
+      a.preload = 'auto';
+      (a as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
+      a.addEventListener('ended', () => onPieceEnded(a));
+      return a;
+    };
+    els = [make(), make()];
   }
-  return audio;
+  return els;
 }
+
+function onPieceEnded(el: HTMLAudioElement): void {
+  if (el !== els![activeEl]) return; // idle twin ended prematurely — ignore
+  const nextIdx = curIdx + 1;
+  if (nextIdx < pieces.length) {
+    const twinHadNext = !!els![1 - activeEl].src;
+    activeEl = 1 - activeEl;
+    const el2 = els![activeEl];
+    el2.playbackRate = state.rate;
+    if (!userPaused) {
+      void el2.play().catch((e) => console.warn('tts swap play failed:', String(e)));
+    }
+    curIdx = nextIdx;
+    tick();
+    // refill the idle twin with the piece after the next
+    if (pieces[curIdx + 1] && !els![1 - activeEl].src) {
+      els![1 - activeEl].src = pieces[curIdx + 1].url;
+    }
+    if (!twinHadNext) {
+      // the swap element had no preloaded src — playPiece path filled it,
+      // nothing more to do here
+    }
+  } else if (streamDone) {
+    // user paused right at the natural end → keep the deck open, paused
+    if (userPaused) setPhase('paused');
+    else stopSpeech(); // natural end
+  } else {
+    diagEvent('tts', 'boundary stall: stream lagging behind playback');
+    setPhase('loading'); // stream lagging — enqueue() resumes playback
+  }
+}
+
+function tick(): void {
+  if (state.phase === 'idle') return;
+  if (curIdx >= 0 && pieces[curIdx] && els) {
+    const el = els[activeEl];
+    const posSec = (pieces[curIdx].startSample + el.currentTime * SAMPLE_RATE) / SAMPLE_RATE;
+    set({
+      positionSec: posSec,
+      progress: Math.min(1, posSec / Math.max(state.totalEstSec, 0.5)),
+    });
+  }
+}
+
+function playPiece(idx: number, offsetSec = 0): void {
+  const [e0, e1] = ensureEls();
+  activeEl = 0;
+  const piece = pieces[idx];
+  curIdx = idx;
+  e0.src = piece.url;
+  e0.playbackRate = state.rate;
+  e1.removeAttribute('src'); // clear the twin
+  if (offsetSec > 0) {
+    const onMeta = () => {
+      try {
+        e0.currentTime = offsetSec;
+      } catch {
+        /* not seekable yet */
+      }
+      e0.removeEventListener('loadedmetadata', onMeta);
+    };
+    e0.addEventListener('loadedmetadata', onMeta);
+  }
+  if (userPaused) {
+    setPhase('paused');
+    return;
+  }
+  void e0.play().then(() => {
+    if (state.phase === 'loading') {
+      setPhase('playing');
+      if (startedAt) {
+        console.warn(`tts: first audio in ${Date.now() - startedAt}ms`);
+        startedAt = 0;
+      }
+    }
+    if (pieces[idx + 1]) e1.src = pieces[idx + 1].url; // preload next
+  }).catch((e) => {
+    console.warn('tts audio play failed:', String(e)); // diag
+    setPhase('paused');
+  });
+}
+
 
 function wavBlob(f32: Float32Array, len: number): Blob {
   const buf = new ArrayBuffer(44 + len * 2);
@@ -121,88 +208,41 @@ function wavBlob(f32: Float32Array, len: number): Blob {
   return new Blob([buf], { type: 'audio/wav' });
 }
 
-function tick(): void {
-  if (state.phase === 'idle') return;
-  if (curIdx >= 0 && pieces[curIdx] && audio) {
-    const posSec = (pieces[curIdx].startSample + audio.currentTime * SAMPLE_RATE) / SAMPLE_RATE;
-    set({
-      positionSec: posSec,
-      progress: Math.min(1, posSec / Math.max(state.totalEstSec, 0.5)),
-    });
-  }
-}
-
-function playNext(): void {
-  const a = ensureAudio();
-  // seek target beyond the next piece(s): skip what a seek left behind
-  while (pendingSkip !== null && nextIdx < pieces.length) {
-    const p = pieces[nextIdx];
-    if (pendingSkip < p.startSample + p.samples) break;
-    nextIdx++;
-  }
-  if (nextIdx >= pieces.length) {
-    if (streamDone) stopSpeech(); // natural end
-    return; // waiting for more pieces — enqueue() will call playNext()
-  }
-  let piece = pieces[nextIdx];
-  let offset = 0;
-  if (pendingSkip !== null && pendingSkip > piece.startSample) {
-    offset = (pendingSkip - piece.startSample) / SAMPLE_RATE;
-    pendingSkip = null;
-  }
-  curIdx = nextIdx;
-  nextIdx++;
-  const a2 = a;
-  a2.src = piece.url;
-  a2.playbackRate = state.rate;
-  if (offset > 0) {
-    const onMeta = () => {
-      try {
-        a2.currentTime = offset;
-      } catch {
-        /* not seekable yet */
-      }
-      a2.removeEventListener('loadedmetadata', onMeta);
-    };
-    a2.addEventListener('loadedmetadata', onMeta);
-  }
-  if (userPaused) {
-    setPhase('paused');
-    return;
-  }
-  void a2.play().then(() => {
-    if (state.phase === 'loading') {
-      setPhase('playing');
-      if (startedAt) {
-        console.warn(`tts: first audio in ${Date.now() - startedAt}ms`);
-        startedAt = 0;
-      }
-    }
-  }).catch((e) => {
-    console.warn('tts audio play failed:', String(e)); // diag
-    setPhase('paused');
-  });
-}
-
 function enqueuePiece(startSample: number, len: number): void {
   const url = URL.createObjectURL(wavBlob(pendingFloat!, len));
   pieces.push({ url, startSample, samples: len });
-  // start/resume playback when this is the piece the player waits for
-  if (nextIdx === pieces.length - 1 && (state.phase === 'loading' || audio?.ended || audio?.paused)) {
-    if (!userPaused || state.phase === 'loading') playNext();
+  const idx = pieces.length - 1;
+  // start playback if the player is waiting for this piece — but prebuffer
+  // TWO pieces (20s of audio) first: the stream synths 3× faster than
+  // playback, so this only delays the start ~2s while absorbing network
+  // hiccups that would otherwise break playback at an early boundary
+  const initialReady = curIdx < 0 && (pieces.length >= 2 || streamDone);
+  const stalledAtBoundary = curIdx >= 0 && idx === curIdx + 1 && state.phase === 'loading';
+  const continuationWhileEnded =
+    curIdx >= 0 && els !== null && els[activeEl].ended;
+  if (initialReady || stalledAtBoundary || continuationWhileEnded) {
+    // ALWAYS start the chain at the FIRST piece (the beginning of the text) —
+    // starting at idx (the latest enqueued) made playback jump to ~12s on open
+    const startIdx = curIdx < 0 ? 0 : idx;
+    let offsetSec = 0;
+    if (pendingSkip !== null && pendingSkip > pieces[startIdx].startSample) {
+      offsetSec = (pendingSkip - pieces[startIdx].startSample) / SAMPLE_RATE;
+      pendingSkip = null;
+    }
+    playPiece(startIdx, offsetSec);
   }
 }
 
 function maybeFinish(): void {
-  if (streamDone && nextIdx >= pieces.length && state.phase !== 'idle') {
+  if (streamDone && curIdx >= pieces.length - 1 && state.phase !== 'idle') {
     stopSpeech(); // natural end
   }
 }
 
 /** Position in absolute samples. */
 function positionSamples(): number {
-  if (curIdx >= 0 && pieces[curIdx] && audio) {
-    return pieces[curIdx].startSample + Math.round(audio.currentTime * SAMPLE_RATE);
+  if (curIdx >= 0 && pieces[curIdx] && els) {
+    return pieces[curIdx].startSample + Math.round(els[activeEl].currentTime * SAMPLE_RATE);
   }
   return Math.round(state.positionSec * SAMPLE_RATE);
 }
@@ -236,8 +276,10 @@ async function run(text: string, myGen: number): Promise<void> {
     pendingFloat = null;
     pendingLen = 0;
   }
-  maybeFinish();
+  // if the last piece already ended while we were wrapping, finish now
+  if (curIdx >= pieces.length - 1) maybeFinish();
 }
+
 
 function appendPcm(int16: Int16Array, myGen: number): void {
   if (!pendingFloat || pendingFloat.length < pendingLen + int16.length) {
@@ -285,16 +327,15 @@ export function startSpeech(text: string, slug = ''): void {
   if (!clean) return;
   stopSpeech();
   curSlug = slug;
-  msgLang = detectLang(clean.slice(0, 600));
+  msgLang = detectLang(clean.slice(0, 600)); // ONE language per message
   userPaused = false;
-  ensureAudio();
+  ensureEls();
   abort = new AbortController();
   startedAt = Date.now();
   streamDone = false;
   pendingSkip = null;
   pieces = [];
   curIdx = -1;
-  nextIdx = 0;
   pendingFloat = null;
   pendingLen = 0;
   totalReceived = 0;
@@ -308,17 +349,23 @@ export function startSpeech(text: string, slug = ''): void {
 export function pauseSpeech(): void {
   if (state.phase !== 'playing') return;
   userPaused = true;
-  audio?.pause();
+  els?.[activeEl].pause();
   setPhase('paused');
 }
 
 export function resumeSpeech(): void {
   if (state.phase !== 'paused') return;
   userPaused = false;
-  if (audio && audio.src) {
-    void audio.play().catch((e) => console.warn('tts resume failed:', String(e)));
+  if (els && curIdx >= 0) {
+    void els[activeEl].play().catch((e) => console.warn('tts resume failed:', String(e)));
   } else {
-    playNext();
+    // nothing loaded (e.g. paused during initial synthesis) — enqueue will start
+    if (pendingLen > 0) {
+      const start = totalReceived - pendingLen;
+      enqueuePiece(start, pendingLen);
+      pendingFloat = null;
+      pendingLen = 0;
+    }
   }
   setPhase('playing');
 }
@@ -335,35 +382,26 @@ export function seekSpeech(fraction: number): void {
   );
   if (idx >= 0) {
     pendingSkip = null;
-    curIdx = idx;
-    nextIdx = idx + 1;
-    const a = ensureAudio();
-    a.src = pieces[idx].url;
-    a.playbackRate = state.rate;
-    const seek = () => {
-      try {
-        a.currentTime = (target - pieces[idx].startSample) / SAMPLE_RATE;
-      } catch {
-        /* not seekable yet */
-      }
-      a.removeEventListener('loadedmetadata', seek);
-    };
-    a.addEventListener('loadedmetadata', seek);
-    if (!userPaused) {
-      void a.play().catch(() => {});
+    const wasPaused = userPaused || state.phase === 'paused';
+    playPiece(idx, (target - pieces[idx].startSample) / SAMPLE_RATE);
+    if (wasPaused) {
+      userPaused = true;
+      els![activeEl].pause();
+      setPhase('paused');
     }
     return;
   }
-  // beyond received — wait for the stream (queued pieces are re-checked)
+  // beyond received — wait for the stream
   pendingSkip = target;
-  nextIdx = 0;
-  if (audio && !audio.paused) audio.pause();
   setPhase('loading');
 }
 
 export function rateSpeech(rate: number): void {
   set({ rate });
-  if (audio) audio.playbackRate = rate;
+  if (els) {
+    els[0].playbackRate = rate;
+    els[1].playbackRate = rate;
+  }
 }
 
 /** Kill everything. */
@@ -371,14 +409,17 @@ export function stopSpeech(): void {
   gen++;
   abort?.abort();
   abort = null;
-  if (audio) {
-    audio.pause();
-    audio.removeAttribute('src');
+  if (els) {
+    for (const el of els) {
+      el.pause();
+      el.removeAttribute('src');
+      el.load(); // force position reset — the element is reused across plays
+    }
   }
   for (const p of pieces) URL.revokeObjectURL(p.url);
   pieces = [];
   curIdx = -1;
-  nextIdx = 0;
+  activeEl = 0;
   pendingFloat = null;
   pendingLen = 0;
   totalReceived = 0;

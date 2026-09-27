@@ -9,15 +9,20 @@ import path from 'path';
 
 export const dynamic = 'force-dynamic';
 
-/** Current build id — the client auto-reloads when this changes (stale
- *  PWA tabs keep running old JS for days otherwise). */
+/** Current build id + TTS voice — the client auto-reloads when the build
+ *  changes (stale PWA tabs keep running old JS for days otherwise), and
+ *  namespaces the speaker-anchor storage by voice. */
 export async function GET() {
+  let id = 'unknown';
   try {
-    const id = (
+    id = (
       await fs.readFile(path.join(process.cwd(), '.next', 'BUILD_ID'), 'utf8')
     ).trim();
-    return NextResponse.json({ id });
   } catch {
-    return NextResponse.json({ id: 'unknown' });
+    /* keep 'unknown' */
   }
+  return NextResponse.json({
+    id,
+    ttsVoice: process.env.TTS_VOICE_FR || 'serena',
+  });
 }

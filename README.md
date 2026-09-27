@@ -80,6 +80,14 @@ Everything is systemd-managed on omarchy (`lk-pwa`, `lk-agent`,
 git clone https://github.com/veraldar/yggdrasil-bifrost.git && cd yggdrasil-bifrost
 scripts/selfhost-check.sh   # one-command check: can this box run the PWA? (clone→build→boot→probe)
 
+### Agent harnesses (opencode, Claude Code, Codex, …)
+
+Give your coding agent this link and the words "set it up" — the skill drives
+the whole install (or just say it inside a clone of this repo):
+`https://raw.githubusercontent.com/veraldar/yggdrasil-bifrost/main/skills/install/SKILL.md`
+It runs `scripts/bootstrap.sh`: mints all secrets, writes every config,
+starts LiveKit + opencode + agent + PWA, verifies, prints a verdict.
+
 # 0. opencode itself (the coding agent this whole thing drives)
 #    install: curl -fsSL https://opencode.ai/install | bash   (or your package manager)
 opencode auth login                          # configure your LLM provider key

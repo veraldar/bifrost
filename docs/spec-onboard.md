@@ -146,3 +146,11 @@ So the skill must be self-bootstrapping from a bare URL:
   local files)
 - frontmatter description must match "set it up" / "install bifrost" intents
 - zero assumptions beyond: a shell, git, network, sudo-or-user-install paths
+
+## Status 09-27: phase 1 built (by hand — two agent runs wedged)
+
+`skills/install/SKILL.md` + `scripts/bootstrap.sh` landed. Cold-container
+validated (node:24, no docker/uv): self-clones, mints everything, boots
+PWA+opencode → probes 200/200, docker/uv layers skip honestly. Pending:
+cross-harness (Claude Code) container test of the raw skill URL; real-VPS
+trial of the docker/uv/tailscale layers.

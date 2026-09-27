@@ -25,6 +25,10 @@ verify steps are best-effort — the bootstrap degrades gracefully and prints
 what it skipped). Tailscale is OPTIONAL (HTTPS for the phone; LAN HTTP works
 without it).
 
+**Node must be ≥ 22 (24 recommended)** — Tailwind 4's native engine silently
+emits no CSS on older Node: the site loads but renders completely unstyled.
+Check `node --version` first and install a current Node if older.
+
 ## 2. Run the bootstrap
 
 ```bash
@@ -45,9 +49,16 @@ the bootstrap cannot mint).
 
 1. `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/` → `200`
 2. `curl -s http://127.0.0.1:8080/ | grep -o '<title>[^<]*</title>'` → `Bifrost`
-3. `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4096/` → any HTTP code (opencode up)
-4. `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:7880/` → any HTTP code (LiveKit up)
-5. Full clean-room check (optional, heavy): `bash scripts/selfhost-check.sh`
+3. **Styling**: extract the css link from the page
+   (`curl -s http://127.0.0.1:8080/ | grep -o 'href="[^"]*\.css[^"]*"'`) and
+   fetch it — must be `200`. A 200 page with a dead stylesheet renders
+   unstyled (the Node-too-old trap from §1).
+4. `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4096/` → any HTTP code (opencode up)
+5. `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:7880/` → any HTTP code (LiveKit up)
+6. Full clean-room check (optional, heavy): `bash scripts/selfhost-check.sh`
+
+Theme note: three themes ship in-repo (`aether`, `terminus`, `drift`),
+picker at `/theme` — nothing external to install.
 
 ## 4. Report
 

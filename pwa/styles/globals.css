@@ -127,19 +127,9 @@
 
 /* ============================================
    opencode voice — viz design tokens
+   generated from veraldar-theme (W3C DTCG source)
    ============================================ */
-:root {
-  --oz-bg: #080810;
-  --oz-surface: #000000;
-  --oz-surface-hover: #111111;
-  --oz-border: rgba(255, 255, 255, 0.14);
-  --oz-text: #ffffff;
-  --oz-dim: #888888;
-  --oz-success: #4ade80;
-  --oz-active: #fbbf24;
-  --oz-danger: #f87171;
-  --oz-info: #38bdf8;
-}
+@import './tokens.css';
 
 .oz {
   background: var(--oz-bg);
@@ -148,6 +138,8 @@
   min-height: 100dvh;
 }
 .oz * { color-scheme: dark; }
+[data-theme='drift'] .oz * { color-scheme: light; }
+[data-theme='drift'] .oz-ygg-bg { background-image: url('/yggdrasil_dark.svg'); }
 .oz ::-webkit-scrollbar { width: 4px; }
 .oz ::-webkit-scrollbar-thumb { background: #333; }
 .oz-row:hover { background: var(--oz-surface-hover); }

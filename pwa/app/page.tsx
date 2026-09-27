@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PixelIcon } from '@/components/pixel-icon';
 import { Marked } from '@/components/marked';
@@ -279,7 +280,7 @@ export default function SessionsPage() {
       <div aria-hidden="true" className="oz-ygg-bg" />
       <main className="relative z-[1] mx-auto flex min-h-dvh max-w-md flex-col px-3 pb-6">
         <header className="mt-4 mb-2 flex items-center justify-between rounded-lg border border-[var(--oz-border)] bg-[var(--oz-surface)] px-4 py-3">
-          <div className="flex items-center gap-2.5">
+          <Link href="/theme" className="flex items-center gap-2.5" aria-label="theme">
             <svg
               viewBox="0 0 16 16"
               width="18"
@@ -292,7 +293,7 @@ export default function SessionsPage() {
               <path d="M3 1v14M3 2l7 3-7 3M3 8l7 3-7 3" />
             </svg>
             <h1 className="text-base font-bold tracking-[0.1em] uppercase">Bifrost</h1>
-          </div>
+          </Link>
           <button
             onClick={load}
             className="rounded-md border border-[var(--oz-border)] px-3 py-1.5 text-xs text-[var(--oz-dim)] hover:text-white"

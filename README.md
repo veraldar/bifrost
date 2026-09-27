@@ -69,20 +69,34 @@ Everything is systemd-managed on omarchy (`lk-pwa`, `lk-agent`,
 
 ## One-click install (self-host)
 
+> **Minimum hardware:** ONE Linux box (any machine that runs Docker + Node) +
+> your phone. No Mac needed — the CPU speech fallback (speaches, in the
+> compose) works out of the box; a Mac Studio running MLX speech models is an
+> optional quality upgrade (see `agent/.env.example` → `SPEACHES_URL`).
+> Everything below runs on that one box; nothing needs to be public —
+> Tailscale is the only network requirement (install it on box + phone).
+
 ```bash
 git clone https://github.com/veraldar/yggdrasil-bifrost.git && cd yggdrasil-bifrost
 scripts/selfhost-check.sh   # one-command check: can this box run the PWA? (clone→build→boot→probe)
 
+# 0. opencode itself (the coding agent this whole thing drives)
+#    install: curl -fsSL https://opencode.ai/install | bash   (or your package manager)
+opencode auth login                          # configure your LLM provider key
+opencode serve --port 4096 &                 # REST server on 127.0.0.1:4096
+
 # 1. LiveKit + speech stack (cp example → real; edit .env LIVEKIT_KEYS and
-#    livekit.yaml ICE IPs for your network — see deploy/livekit.yaml.example)
+#    livekit.yaml ICE IPs for your network — see deploy/livekit.yaml.example;
+#    `tailscale ip` on the box gives the tailnet IP to pin)
 cd deploy && cp livekit.yaml.example livekit.yaml && docker compose up -d && cd ..
 
 # 2. Voice agent
-cd agent && uv sync && cp .env.example .env  # edit values
+cd agent && uv sync && cp .env.example .env  # edit values (SPEACHES_URL empty = CPU fallback)
 uv run agent.py dev                          # or a systemd unit
 
 # 3. PWA
 cd ../pwa && npm install && cp .env.example .env.local  # edit values
+npx web-push generate-vapid-keys --json      # paste into .env.local for push notifications
 npm run build && npm start                   # :8080
 tailscale serve --bg 8080                    # tailnet-only HTTPS
 ```

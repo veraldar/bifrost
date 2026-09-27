@@ -5,9 +5,9 @@ import Link from 'next/link';
 import { PixelIcon } from '@/components/pixel-icon';
 
 const THEMES = [
-  { id: 'aether', desc: 'deep-space terminal' },
-  { id: 'terminus', desc: 'ash & ember' },
-  { id: 'drift', desc: 'moonlit light' },
+  { id: 'aether', desc: 'deep-space terminal', bg: '/yggdrasil_final.svg' },
+  { id: 'terminus', desc: 'ash & ember', bg: '/backdrops/terminus.svg' },
+  { id: 'drift', desc: 'moonlit light', bg: '/backdrops/drift.svg' },
 ];
 
 export default function ThemePage() {
@@ -46,6 +46,14 @@ export default function ThemePage() {
                 {cur && <span className="text-[10px] text-[var(--oz-dim)]">current</span>}
               </div>
               <div className="text-[10px] text-[var(--oz-dim)] mb-3">{t.desc}</div>
+              <div
+                className="h-24 mb-3 rounded border border-[var(--oz-border)] bg-[var(--oz-bg)]"
+                style={{
+                  backgroundImage: `url(${t.bg})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }}
+              />
               <div className="grid grid-cols-5 gap-1 mb-3">
                 {(['bg', 'surface', 'surface-hover', 'text', 'dim', 'success', 'active', 'danger', 'info', 'border'] as const).map((r) => (
                   <i key={r} className="h-4 border border-[var(--oz-border)]" style={{ background: `var(--oz-${r})` }} />

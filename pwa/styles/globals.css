@@ -139,7 +139,8 @@
 }
 .oz * { color-scheme: dark; }
 [data-theme='drift'] .oz * { color-scheme: light; }
-[data-theme='drift'] .oz-ygg-bg { background-image: url('/yggdrasil_dark.svg'); }
+[data-theme='terminus'] .oz-ygg-bg { background-image: url('/backdrops/terminus.svg'); }
+[data-theme='drift'] .oz-ygg-bg { background-image: url('/backdrops/drift.svg'); }
 .oz ::-webkit-scrollbar { width: 4px; }
 .oz ::-webkit-scrollbar-thumb { background: #333; }
 .oz-row:hover { background: var(--oz-surface-hover); }

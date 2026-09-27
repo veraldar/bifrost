@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
+import { ThemeProvider } from 'next-themes';
 import { DiagBoot } from '@/components/diag-boot';
+import { FreshReload } from '@/components/fresh-reload';
 import '@/styles/globals.css';
 
 const commitMono = localFont({
@@ -31,10 +33,13 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={commitMono.variable}>
+    <html lang="en" className={commitMono.variable} suppressHydrationWarning>
       <body className="oz">
-        <DiagBoot />
-        {children}
+        <ThemeProvider attribute="data-theme" themes={['aether', 'terminus', 'drift']} defaultTheme="aether">
+          <DiagBoot />
+          <FreshReload />
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

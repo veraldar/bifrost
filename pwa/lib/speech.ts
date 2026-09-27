@@ -1,31 +1,40 @@
-/** Singleton TTS deck player (the "speak last reply" dock in the session).
- *  Streams the message as speech in sentence chunks with pause/resume, seek
- *  across the whole message, and 1x/1.5x/2x speed. UI subscribes to the store
- *  via useSyncExternalStore; phases: idle → loading → playing ⇄ paused. */
+/** Streaming TTS deck: ONE continuous generation per message on the Mac
+ *  (raw PCM stream) — the voice is physically constant, no chunk boundaries.
+ *
+ *  Playback through a native <audio> element (NOT WebAudio): phones suspend
+ *  AudioContexts when the screen locks or the tab hides, while the media
+ *  pipeline keeps playing in the background. Received PCM is wrapped into
+ *  ~6s WAV blobs played as a playlist; all pieces are kept so seek works
+ *  forwards AND backwards. */
 
 export type SpeechPhase = 'idle' | 'loading' | 'playing' | 'paused';
 export type SpeechState = {
   phase: SpeechPhase;
-  /** played position, 0..1 across the whole message */
+  /** played position, 0..1 of the estimated total */
   progress: number;
-  /** cached frontier, 0..1 — the bar renders stripes from here to 1 */
-  cachedTo: number;
-  /** text of the chunk under the playhead */
-  excerpt: string;
+  /** played position, seconds */
+  positionSec: number;
+  /** received (synthesized) audio, seconds */
+  receivedSec: number;
+  /** rough total estimate, seconds (text-length based) */
+  totalEstSec: number;
   rate: number;
 };
 
-type Chunk = { text: string; url?: string; est?: number };
+const SAMPLE_RATE = 24000;
+const PIECE_SEC = 6; // wav blob length for the playlist
+const SEC_PER_CHAR = 0.075;
 
-let chunks: Chunk[] = [];
-let gen = 0; // generation token — bumped by stopSpeech() to cancel in-flight work
-let el: HTMLAudioElement | null = null;
-let curIdx = 0;
-let pausedWanted = false;
-let fetching = false;
-
-let state: SpeechState = { phase: 'idle', progress: 0, cachedTo: 0, excerpt: '', rate: 1 };
+let state: SpeechState = {
+  phase: 'idle',
+  progress: 0,
+  positionSec: 0,
+  receivedSec: 0,
+  totalEstSec: 0,
+  rate: 1,
+};
 const subs = new Set<() => void>();
+import { diagEvent } from '@/lib/diag';
 function set(patch: Partial<SpeechState>) {
   state = { ...state, ...patch };
   subs.forEach((f) => f());
@@ -38,11 +47,230 @@ export function getSpeech(): SpeechState {
   return state;
 }
 
-/** Strip markdown the voice must not read, then split into sentence chunks.
- *  First chunk = first sentence only (≤130 chars → ~2.5-3s to first audio);
- *  the rest run 240 chars (~16s of speech, ~5.5s of synthesis each — RTF
- *  ~0.4 means every chunk banks ~10s of buffer for the pipeline). */
-function chunkForSpeech(text: string, maxChars = 4000): string[] {
+let audio: HTMLAudioElement | null = null;
+let abort: AbortController | null = null;
+let gen = 0;
+let msgLang: 'fr' | 'en' = 'fr';
+let curSlug = '';
+
+type Piece = { url: string; startSample: number; samples: number };
+let pieces: Piece[] = []; // every piece, in order — kept for seeks
+let curIdx = -1; // piece loaded in the audio element
+let nextIdx = 0; // next piece to play
+let pendingFloat: Float32Array | null = null; // received PCM not yet wrapped
+let pendingLen = 0;
+let totalReceived = 0;
+let streamDone = false;
+let pendingSkip: number | null = null; // seek target beyond received audio
+let userPaused = false;
+let tickTimer: ReturnType<typeof setInterval> | null = null;
+let startedAt = 0;
+
+function setPhase(p: SpeechPhase) {
+  if (state.phase !== p) set({ phase: p });
+}
+
+function detectLang(s: string): 'fr' | 'en' {
+  if (/[àâçéèêëîïôùûüœ]/i.test(s)) return 'fr';
+  const fr = (
+    s.toLowerCase().match(
+      /\b(le|la|les|un|une|des|du|et|est|que|qui|pour|avec|dans|pas|vous|je|sur|au|aux|ce|cette|mais|plus|tout|tous|par|comme|il|elle|on|nous|son|sa|ses|ne|se|en|y|déjà|très|alors|donc|corriger|corrigé|déployer|déployé|deploye|tester|testé|changer|changé|voix|faut|était|peux|veux|vais|voilà|merci|parce|pendant|depuis|encore|aussi|besoin)\b/gi
+    ) || []
+  ).length;
+  const en = (
+    s.toLowerCase().match(
+      /\b(the|and|is|are|you|for|with|this|that|have|not|was|from|but|they|will|can|what|when|how|should|would|there|then|again)\b/gi
+    ) || []
+  ).length;
+  return fr >= 1 && fr >= en ? 'fr' : 'en';
+}
+
+function ensureAudio(): HTMLAudioElement {
+  if (!audio) {
+    audio = new Audio();
+    audio.preload = 'auto';
+    (audio as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
+    audio.addEventListener('ended', () => playNext());
+  }
+  return audio;
+}
+
+function wavBlob(f32: Float32Array, len: number): Blob {
+  const buf = new ArrayBuffer(44 + len * 2);
+  const v = new DataView(buf);
+  const wstr = (off: number, s: string) => {
+    for (let i = 0; i < s.length; i++) v.setUint8(off + i, s.charCodeAt(i));
+  };
+  wstr(0, 'RIFF');
+  v.setUint32(4, 36 + len * 2, true);
+  wstr(8, 'WAVE');
+  wstr(12, 'fmt ');
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); // PCM
+  v.setUint16(22, 1, true); // mono
+  v.setUint32(24, SAMPLE_RATE, true);
+  v.setUint32(28, SAMPLE_RATE * 2, true);
+  v.setUint16(32, 2, true);
+  v.setUint16(34, 16, true);
+  wstr(36, 'data');
+  v.setUint32(40, len * 2, true);
+  for (let i = 0; i < len; i++) {
+    const s = Math.max(-1, Math.min(1, f32[i]));
+    v.setInt16(44 + i * 2, s * 32767, true);
+  }
+  return new Blob([buf], { type: 'audio/wav' });
+}
+
+function tick(): void {
+  if (state.phase === 'idle') return;
+  if (curIdx >= 0 && pieces[curIdx] && audio) {
+    const posSec = (pieces[curIdx].startSample + audio.currentTime * SAMPLE_RATE) / SAMPLE_RATE;
+    set({
+      positionSec: posSec,
+      progress: Math.min(1, posSec / Math.max(state.totalEstSec, 0.5)),
+    });
+  }
+}
+
+function playNext(): void {
+  const a = ensureAudio();
+  // seek target beyond the next piece(s): skip what a seek left behind
+  while (pendingSkip !== null && nextIdx < pieces.length) {
+    const p = pieces[nextIdx];
+    if (pendingSkip < p.startSample + p.samples) break;
+    nextIdx++;
+  }
+  if (nextIdx >= pieces.length) {
+    if (streamDone) stopSpeech(); // natural end
+    return; // waiting for more pieces — enqueue() will call playNext()
+  }
+  let piece = pieces[nextIdx];
+  let offset = 0;
+  if (pendingSkip !== null && pendingSkip > piece.startSample) {
+    offset = (pendingSkip - piece.startSample) / SAMPLE_RATE;
+    pendingSkip = null;
+  }
+  curIdx = nextIdx;
+  nextIdx++;
+  const a2 = a;
+  a2.src = piece.url;
+  a2.playbackRate = state.rate;
+  if (offset > 0) {
+    const onMeta = () => {
+      try {
+        a2.currentTime = offset;
+      } catch {
+        /* not seekable yet */
+      }
+      a2.removeEventListener('loadedmetadata', onMeta);
+    };
+    a2.addEventListener('loadedmetadata', onMeta);
+  }
+  if (userPaused) {
+    setPhase('paused');
+    return;
+  }
+  void a2.play().then(() => {
+    if (state.phase === 'loading') {
+      setPhase('playing');
+      if (startedAt) {
+        console.warn(`tts: first audio in ${Date.now() - startedAt}ms`);
+        startedAt = 0;
+      }
+    }
+  }).catch((e) => {
+    console.warn('tts audio play failed:', String(e)); // diag
+    setPhase('paused');
+  });
+}
+
+function enqueuePiece(startSample: number, len: number): void {
+  const url = URL.createObjectURL(wavBlob(pendingFloat!, len));
+  pieces.push({ url, startSample, samples: len });
+  // start/resume playback when this is the piece the player waits for
+  if (nextIdx === pieces.length - 1 && (state.phase === 'loading' || audio?.ended || audio?.paused)) {
+    if (!userPaused || state.phase === 'loading') playNext();
+  }
+}
+
+function maybeFinish(): void {
+  if (streamDone && nextIdx >= pieces.length && state.phase !== 'idle') {
+    stopSpeech(); // natural end
+  }
+}
+
+/** Position in absolute samples. */
+function positionSamples(): number {
+  if (curIdx >= 0 && pieces[curIdx] && audio) {
+    return pieces[curIdx].startSample + Math.round(audio.currentTime * SAMPLE_RATE);
+  }
+  return Math.round(state.positionSec * SAMPLE_RATE);
+}
+
+async function run(text: string, myGen: number): Promise<void> {
+  const res = await fetch('/api/tts/stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, lang: msgLang }),
+    signal: abort!.signal,
+  });
+  if (!res.ok) throw new Error(`tts ${res.status}: ${(await res.text()).slice(0, 120)}`);
+  const reader = res.body!.getReader();
+  let carry = new Uint8Array(0);
+  while (true) {
+    const { done, value } = await reader.read();
+    if (gen !== myGen) return;
+    if (done) break;
+    const all = new Uint8Array(carry.length + value.length);
+    all.set(carry);
+    all.set(value, carry.length);
+    const usable = all.length - (all.length % 2);
+    carry = all.slice(usable);
+    const int16 = new Int16Array(all.buffer, 0, usable / 2);
+    if (int16.length) appendPcm(int16, myGen);
+  }
+  streamDone = true;
+  if (pendingLen > 0) {
+    const start = totalReceived - pendingLen;
+    enqueuePiece(start, pendingLen);
+    pendingFloat = null;
+    pendingLen = 0;
+  }
+  maybeFinish();
+}
+
+function appendPcm(int16: Int16Array, myGen: number): void {
+  if (!pendingFloat || pendingFloat.length < pendingLen + int16.length) {
+    const cap = Math.max(
+      pendingLen + int16.length,
+      (pendingFloat?.length || 0) * 2,
+      SAMPLE_RATE * PIECE_SEC
+    );
+    const nb = new Float32Array(cap);
+    if (pendingFloat && pendingLen) nb.set(pendingFloat.subarray(0, pendingLen));
+    pendingFloat = nb;
+  }
+  for (let i = 0; i < int16.length; i++) pendingFloat[pendingLen + i] = int16[i] / 32768;
+  pendingLen += int16.length;
+  totalReceived += int16.length;
+  const receivedSec = totalReceived / SAMPLE_RATE;
+  set({ receivedSec, totalEstSec: Math.max(state.totalEstSec, receivedSec) });
+
+  // seek beyond received: hold on "synthesizing" until the stream arrives
+  if (pendingSkip !== null && totalReceived < pendingSkip) {
+    setPhase('loading');
+    return;
+  }
+  if (pendingLen >= SAMPLE_RATE * PIECE_SEC) {
+    const start = totalReceived - pendingLen;
+    enqueuePiece(start, pendingLen);
+    pendingFloat = null;
+    pendingLen = 0;
+  }
+}
+
+/** Start speaking `text` from the beginning (stops any current playback). */
+export function startSpeech(text: string, slug = ''): void {
   const clean = text
     .replace(/```[\s\S]*?```/g, ' (code block) ')
     .replace(/`([^`]+)`/g, '$1')
@@ -53,280 +281,116 @@ function chunkForSpeech(text: string, maxChars = 4000): string[] {
     .replace(/^\s*[-*+]\s+/gm, '')
     .replace(/\s+/g, ' ')
     .trim()
-    .slice(0, maxChars);
-  if (!clean) return [];
-  const pack = (s: string, target: number): string[] => {
-    const sentences = s.match(/[^.!?…]+[.!?…]+["')\]]*\s*|[^.!?…]+$/g) || [s];
-    const out: string[] = [];
-    let buf = '';
-    for (const sent of sentences) {
-      if (buf && (buf + sent).length > target) {
-        out.push(buf.trim());
-        buf = '';
-      }
-      buf += sent;
-    }
-    if (buf.trim()) out.push(buf.trim());
-    return out;
-  };
-  // peel the first sentence so playback starts after one short synthesis
-  const first = clean.match(/^[^.!?…]+[.!?…]+["')\]]*\s*/)?.[0] ?? '';
-  if (first && first.trim().length <= 130) {
-    return [first.trim(), ...pack(clean.slice(first.length), 240)];
-  }
-  return pack(clean, 240);
-}
-
-function cachedFraction(): number {
-  for (let i = 0; i < chunks.length; i++) if (!chunks[i].url) return i / chunks.length;
-  return 1;
-}
-
-// deduped background prefetch — the Mac serializes synthesis under its own
-// lock anyway, so firing several ahead just keeps the model continuously fed;
-// the queue absorbs rate spikes (1.5x/2x) without starving the playhead
-const pending = new Map<number, Promise<boolean>>();
-const PREFETCH_AHEAD = 4;
-function prefetch(i: number, myGen: number): Promise<boolean> {
-  if (i >= chunks.length) return Promise.resolve(false);
-  let p = pending.get(i);
-  if (!p) {
-    p = fetchChunk(i, myGen).finally(() => pending.delete(i));
-    pending.set(i, p);
-  }
-  return p;
-}
-
-let startedAt = 0;
-let curSlug = '';
-// language of the CURRENT message, detected once on the full text — per-chunk
-// detection made the proxy flip voices on chunks without French markers
-// (lists "1. 2. 3.", short lines, code) — the speaker must not alternate
-let msgLang: 'fr' | 'en' = 'en';
-const frRe = /[àâçéèêëîïôùûüœ]/i;
-// broad list: the user speaks franglais — tech verbs + everyday words must
-// count as French even inside English sentences
-const frWords =
-  /\b(le|la|les|un|une|des|du|et|est|que|qui|pour|avec|dans|pas|vous|je|sur|au|aux|ce|cette|mais|plus|tout|tous|par|comme|il|elle|on|nous|son|sa|ses|ne|se|en|y|déjà|très|alors|donc|corriger|corrige|corrigé|déployer|déploie|déployé|deploye|tester|testé|essayer|essaye|changer|changé|marche|marché|voix|voix|faut|était|étai|peux|veux|vais|aller|faire|dire|savoir|prendre|mettre|donner|trouver|laisser|passer|rester|devenir|revenir|aider|regarder|demander|répondre|comprendre|apprendre|utiliser|travailler|commencer|finir|choisir|recevoir|écrire|voilà|oui|non|bon|merci|parce|pendant|depuis|encore|aussi|besoin|envie|ok)\b/i;
-
-function detectLang(s: string): 'fr' | 'en' {
-  if (frRe.test(s)) return 'fr';
-  const fr = (s.toLowerCase().match(new RegExp(frWords.source, 'gi')) || []).length;
-  const en = (
-    s.toLowerCase().match(/\b(the|and|is|are|you|for|with|this|that|have|not|was|from|but|they|will|can|what|when|how|should|would|there|then|again)\b/gi) || []
-  ).length;
-  // franglais → prefer French: accented chars win outright, otherwise one
-  // French marker is enough to tie-break (the user's messages are French-first)
-  return fr >= 1 && fr >= en ? 'fr' : 'en';
-}
-
-// duration estimates per chunk (fetched: exact from wav size; unfetched:
-// ~0.065s/char from the measured RTF) — makes seek/progress correct even
-// with the small first chunk + big rest mix
-function estOf(i: number): number {
-  const c = chunks[i];
-  if (!c) return 0.1;
-  return c.est ?? Math.max(0.5, c.text.length * 0.065);
-}
-function cumEst(i: number): number {
-  let t = 0;
-  for (let k = 0; k < i && k < chunks.length; k++) t += estOf(k);
-  return t;
-}
-function totalEst(): number {
-  return cumEst(chunks.length);
-}
-
-async function fetchChunk(i: number, myGen: number): Promise<boolean> {
-  const c = chunks[i];
-  if (c.url) return true;
-  try {
-    const r = await fetch('/api/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: c.text, lang: msgLang }),
-      signal: AbortSignal.timeout(60_000),
-    });
-    if (!r.ok) throw new Error(`tts ${r.status}: ${(await r.text()).slice(0, 120)}`);
-    const blob = await r.blob();
-    if (myGen !== gen) return false;
-    c.url = URL.createObjectURL(blob);
-    // 24kHz 16-bit mono WAV: bytes ≈ samples*2 + 44 header — duration without
-    // waiting for metadata (keeps seek/progress math instant)
-    c.est = Math.max(0.2, (blob.size - 44) / 48_000);
-    set({ cachedTo: cachedFraction() });
-    return true;
-  } catch (e) {
-    if (myGen === gen) {
-      console.warn('tts chunk failed:', String(e)); // lands in the diag log
-      stopSpeech();
-    }
-    return false;
-  }
-}
-
-function updateProgress() {
-  if (!el || !chunks.length) return;
-  const durEff =
-    Number.isFinite(el.duration) && el.duration > 0 ? el.duration : estOf(curIdx);
-  const frac = durEff > 0 ? Math.min(1, el.currentTime / durEff) : 0;
-  set({ progress: (cumEst(curIdx) + frac * estOf(curIdx)) / totalEst() });
-}
-
-async function playChunk(i: number, fracIn = 0) {
-  const myGen = gen;
-  curIdx = i;
-  set({
-    excerpt: chunks[i].text,
-    progress: (cumEst(i) + fracIn * estOf(i)) / totalEst(),
-  });
-  try {
-    fetching = true;
-    const ok = await prefetch(i, myGen);
-    fetching = false;
-    if (myGen !== gen || !ok) return;
-    // keep the pipeline full: the next chunks synthesize while this one
-    // plays — with 240-char chunks (~16s audio, ~5.5s synth each) even 2x
-    // playback stays ahead of the serial server
-    for (let k = 1; k <= PREFETCH_AHEAD; k++) void prefetch(i + k, myGen);
-    // one element for the whole message — created ONCE here (a null el here
-    // used to throw post-fetch and leave the deck stuck in 'loading' forever)
-    el ??= new Audio();
-    const a = el;
-    a.volume = 1; // never inherit a leftover unlock volume
-    a.src = chunks[i].url!;
-    a.playbackRate = state.rate;
-    a.ontimeupdate = updateProgress;
-    a.onloadedmetadata = () => {
-      // mid-chunk seek: land at the requested offset once duration is known
-      if (myGen !== gen || fracIn <= 0) return;
-      try {
-        if (Number.isFinite(a.duration) && a.duration > 0) a.currentTime = a.duration * fracIn;
-      } catch {
-        /* not seekable yet */
-      }
-    };
-    a.onended = () => {
-      if (myGen !== gen) return;
-      if (i + 1 < chunks.length) void playChunk(i + 1);
-      else stopSpeech(); // natural end
-    };
-    if (pausedWanted) {
-      set({ phase: 'paused' });
-      return;
-    }
-    await a.play();
-    if (myGen === gen) {
-      if (i === 0 && startedAt) {
-        // metric: tap → first audio (lands in the diag log)
-        console.warn(`tts: first audio in ${Date.now() - startedAt}ms (${chunks.length} chunks)`);
-        startedAt = 0;
-      }
-      set({ phase: 'playing' });
-    }
-  } catch (e) {
-    // ANY failure must be visible (deck returns to idle + diag), never a hang
-    if (myGen === gen) {
-      console.warn('tts playChunk failed:', String(e));
-      stopSpeech();
-    }
-  }
-}
-
-let unlocked = false;
-/** Must run synchronously inside the user's tap: plays a silent wav through
- *  the element once so iOS/Safari allows the programmatic play() that happens
- *  after the async chunk-fetch gap (gesture context is expired by then). */
-function unlockAudio(): void {
-  if (unlocked) return;
-  unlocked = true;
-  el ??= new Audio();
-  el.src =
-    'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
-  el.volume = 0.01;
-  void el.play().catch(() => {});
-  el.volume = 1; // restore — this element IS the player afterwards
-}
-
-/** Start speaking `text` from the beginning (stops any current playback).
- *  `slug` is reserved for per-session voice prefs. */
-export function startSpeech(text: string, slug = ''): void {
-  const parts = chunkForSpeech(text);
-  if (!parts.length) return;
+    .slice(0, 4000);
+  if (!clean) return;
   stopSpeech();
-  unlockAudio();
-  chunks = parts.map((t) => ({ text: t }));
-  pausedWanted = false;
-  startedAt = Date.now();
   curSlug = slug;
-  msgLang = detectLang(text.slice(0, 600)); // ONE language per message
-  set({ phase: 'loading', progress: 0, cachedTo: 0, excerpt: chunks[0].text });
-  void playChunk(0);
+  msgLang = detectLang(clean.slice(0, 600));
+  userPaused = false;
+  ensureAudio();
+  abort = new AbortController();
+  startedAt = Date.now();
+  streamDone = false;
+  pendingSkip = null;
+  pieces = [];
+  curIdx = -1;
+  nextIdx = 0;
+  pendingFloat = null;
+  pendingLen = 0;
+  totalReceived = 0;
+  const totalEstSec = Math.max(3, clean.length * SEC_PER_CHAR);
+  set({ phase: 'loading', progress: 0, positionSec: 0, receivedSec: 0, totalEstSec });
+  if (tickTimer) clearInterval(tickTimer);
+  tickTimer = setInterval(() => tick(), 500); // drives position/progress UI
+  void run(clean, gen);
 }
 
 export function pauseSpeech(): void {
   if (state.phase !== 'playing') return;
-  pausedWanted = true; // also covers a fetch in flight — hold before autoplay
-  el?.pause();
-  set({ phase: 'paused' });
+  userPaused = true;
+  audio?.pause();
+  setPhase('paused');
 }
 
 export function resumeSpeech(): void {
   if (state.phase !== 'paused') return;
-  pausedWanted = false;
-  if (el && el.src) {
-    void el.play().catch((e) => console.warn('tts resume failed:', String(e)));
+  userPaused = false;
+  if (audio && audio.src) {
+    void audio.play().catch((e) => console.warn('tts resume failed:', String(e)));
+  } else {
+    playNext();
   }
-  set({ phase: 'playing' });
+  setPhase('playing');
 }
 
-/** Seek to `fraction` (0..1) across the whole message, weighted by each
- *  chunk's estimated duration. Backward/within-cache is instant; forward
- *  into un-synthesized text synthesizes first, then plays. */
+/** Seek to `fraction` (0..1) of the estimated total. Within received audio:
+ *  instant. Beyond: pauses on "synthesizing" until the stream arrives. */
 export function seekSpeech(fraction: number): void {
-  if (state.phase === 'idle' || !chunks.length) return;
+  if (state.phase === 'idle') return;
   const frac = Math.min(0.999, Math.max(0, fraction));
-  // map fraction → (chunk, offset) via cumulative duration estimates
-  const target = frac * totalEst();
-  let i = 0;
-  while (i < chunks.length - 1 && cumEst(i + 1) <= target) i++;
-  const fracIn =
-    estOf(i) > 0 ? Math.min(1, Math.max(0, (target - cumEst(i)) / estOf(i))) : 0;
-  const wasPaused = pausedWanted || state.phase === 'paused';
-  const curDur = el && Number.isFinite(el.duration) && el.duration > 0 ? el.duration : estOf(curIdx);
-  if (i === curIdx && el && el.src && curDur > 0) {
-    // same chunk — jump without touching the network
-    try {
-      el.currentTime = curDur * fracIn;
-    } catch {
-      /* not seekable yet */
+  const totalSamples = Math.max(Math.round(state.totalEstSec * SAMPLE_RATE), totalReceived + 1);
+  const target = Math.round(frac * totalSamples);
+  const idx = pieces.findIndex(
+    (p) => target >= p.startSample && target < p.startSample + p.samples
+  );
+  if (idx >= 0) {
+    pendingSkip = null;
+    curIdx = idx;
+    nextIdx = idx + 1;
+    const a = ensureAudio();
+    a.src = pieces[idx].url;
+    a.playbackRate = state.rate;
+    const seek = () => {
+      try {
+        a.currentTime = (target - pieces[idx].startSample) / SAMPLE_RATE;
+      } catch {
+        /* not seekable yet */
+      }
+      a.removeEventListener('loadedmetadata', seek);
+    };
+    a.addEventListener('loadedmetadata', seek);
+    if (!userPaused) {
+      void a.play().catch(() => {});
     }
-    set({ progress: frac });
     return;
   }
-  pausedWanted = wasPaused;
-  void playChunk(i, fracIn);
+  // beyond received — wait for the stream (queued pieces are re-checked)
+  pendingSkip = target;
+  nextIdx = 0;
+  if (audio && !audio.paused) audio.pause();
+  setPhase('loading');
 }
 
 export function rateSpeech(rate: number): void {
   set({ rate });
-  if (el) el.playbackRate = rate;
+  if (audio) audio.playbackRate = rate;
 }
 
-/** Kill everything (also the natural-end path): cancels in-flight fetches. */
+/** Kill everything. */
 export function stopSpeech(): void {
   gen++;
-  pausedWanted = false;
-  fetching = false;
-  if (el) {
-    el.onended = null;
-    el.ontimeupdate = null;
-    el.pause();
-    el.removeAttribute('src');
-    el.load();
+  abort?.abort();
+  abort = null;
+  if (audio) {
+    audio.pause();
+    audio.removeAttribute('src');
   }
-  for (const c of chunks) if (c.url) URL.revokeObjectURL(c.url);
-  chunks = [];
-  curIdx = 0;
-  if (state.phase !== 'idle') set({ phase: 'idle', progress: 0, cachedTo: 0, excerpt: '' });
+  for (const p of pieces) URL.revokeObjectURL(p.url);
+  pieces = [];
+  curIdx = -1;
+  nextIdx = 0;
+  pendingFloat = null;
+  pendingLen = 0;
+  totalReceived = 0;
+  streamDone = false;
+  pendingSkip = null;
+  userPaused = false;
+  startedAt = 0;
+  if (tickTimer) {
+    clearInterval(tickTimer);
+    tickTimer = null;
+  }
+  if (state.phase !== 'idle') {
+    set({ phase: 'idle', progress: 0, positionSec: 0, receivedSec: 0 });
+  }
 }

@@ -1326,10 +1326,12 @@ export default function SessionView({
                 }`}
               >
                 {speech.phase === 'paused'
-                  ? `paused · ${Math.round(speech.progress * 100)}%`
-                  : 'speaking · last reply'}
+                  ? `paused · ${Math.round(speech.positionSec)}s / ${Math.round(speech.receivedSec)}s`
+                  : `speaking · last reply · ${Math.round(speech.positionSec)}s / ~${Math.round(speech.totalEstSec)}s`}
               </div>
-              <div className="truncate text-[10px] text-[var(--oz-dim)]">{speech.excerpt}</div>
+              <div className="truncate text-[10px] text-[var(--oz-dim)]">
+                {Math.round(speech.receivedSec)}s synthesized
+              </div>
             </div>
           </div>
           {/* seek bar — drag anywhere: back/within-cache is instant, forward
@@ -1351,10 +1353,19 @@ export default function SessionView({
             onPointerCancel={() => setSeekFrac(null)}
           >
             <div className="oz-seek-track">
-              <div className="oz-seek-fill" style={{ width: `${(seekFrac ?? speech.progress) * 100}%` }} />
-              <div className="oz-seek-stripes" style={{ left: `${speech.cachedTo * 100}%` }} />
+              <div
+                className="oz-seek-fill"
+                style={{
+                  width: `${(seekFrac ?? Math.min(1, speech.positionSec / Math.max(speech.totalEstSec, 0.5))) * 100}%`,
+                }}
+              />
             </div>
-            <div className="oz-seek-thumb" style={{ left: `${(seekFrac ?? speech.progress) * 100}%` }} />
+            <div
+              className="oz-seek-thumb"
+              style={{
+                left: `${(seekFrac ?? Math.min(1, speech.positionSec / Math.max(speech.totalEstSec, 0.5))) * 100}%`,
+              }}
+            />
           </div>
           <div className="mt-2 flex items-center gap-2">
             <button

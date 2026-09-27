@@ -14,7 +14,9 @@ export default function ThemePage() {
   const { theme, setTheme } = useTheme();
 
   return (
-    <main className="relative z-[1] mx-auto flex min-h-dvh max-w-md flex-col px-3 pb-6">
+    <>
+      <div aria-hidden="true" className="oz-ygg-bg" />
+      <main className="relative z-[1] mx-auto flex min-h-dvh max-w-md flex-col px-3 pb-6">
       <header className="mt-4 mb-4 flex items-center gap-2">
         <Link href="/" className="oz-row flex items-center gap-2 rounded-md border border-[var(--oz-border)] px-3 py-1.5 text-xs text-[var(--oz-dim)]">
           <PixelIcon name="arrow-left" size={14} /> back
@@ -47,12 +49,16 @@ export default function ThemePage() {
               </div>
               <div className="text-[10px] text-[var(--oz-dim)] mb-3">{t.desc}</div>
               <div
-                className="h-24 mb-3 rounded border border-[var(--oz-border)] bg-[var(--oz-bg)]"
+                className="h-24 mb-3 rounded border border-[var(--oz-border)] bg-[var(--oz-bg)] cursor-pointer"
                 style={{
                   backgroundImage: `url(${t.bg})`,
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                 }}
+                onClick={() => setTheme(t.id)}
+                role="button"
+                aria-label={`apply ${t.id} theme`}
+                title="tap to apply"
               />
               <div className="grid grid-cols-5 gap-1 mb-3">
                 {(['bg', 'surface', 'surface-hover', 'text', 'dim', 'success', 'active', 'danger', 'info', 'border'] as const).map((r) => (
@@ -74,6 +80,7 @@ export default function ThemePage() {
         })}
       </div>
       <p className="text-center text-[10px] text-[var(--oz-dim)]">slide → tap a card to apply live</p>
-    </main>
+      </main>
+    </>
   );
 }

@@ -13,6 +13,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { slugify } from '@/lib/slug';
+import { ErrorBox } from '@/components/app/error-box';
 
 type ModelRef = {
   providerID: string;
@@ -119,8 +120,12 @@ export default function SessionSettingsView() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         });
-        const d = await r.json();
+        // the body can come back empty (proxy hiccup / service restart mid-
+        // request) — parse defensively instead of dying on 'Unexpected end
+        // of JSON input' (user hit this picking a model)
+        const d = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(d.error || `save failed (${r.status})`);
+        if (!d.id) throw new Error(`save failed (${r.status}, empty response)`);
         setInfo(d);
         return d;
       } catch (e) {
@@ -156,14 +161,7 @@ export default function SessionSettingsView() {
           {live && <span className="oz-busy text-[11px] text-[var(--oz-active)]">●</span>}
         </div>
 
-        {error && (
-          <div className="mb-2 rounded border border-[var(--oz-danger)]/60 px-3 py-2 text-xs text-[var(--oz-danger)]">
-            {error}{' '}
-            <button onClick={() => setError('')} className="underline">
-              dismiss
-            </button>
-          </div>
-        )}
+        {error && <ErrorBox error={error} onDismiss={() => setError('')} slug={slug} />}
 
         {/* NAME */}
         <section className="mb-3 rounded-2xl border border-[var(--oz-border)]/70 bg-[var(--oz-surface)] p-3.5">

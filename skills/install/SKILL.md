@@ -67,3 +67,18 @@ are up (pwa / opencode / livekit / agent / speaches), what was skipped and
 why, the URL to open (LAN or tailnet), and the single remaining manual step
 if any (`opencode auth login`). If any verify probe failed, include the last
 20 lines of `bootstrap.log`.
+
+## 5. Updating an existing install
+
+If bifrost is already installed here (a `bifrost/` clone with services
+running), "update" means:
+
+```bash
+cd bifrost && git pull --ff-only
+bash scripts/bootstrap.sh   # idempotent — existing secrets/configs untouched
+```
+
+Then rebuild/restart only what changed (the bootstrap does this), re-run the
+verify steps in §3, and report the same summary as §4 plus the git short
+hash now deployed (`git rev-parse --short HEAD`). Never delete or regenerate
+existing `.env` files — secrets persist across updates.

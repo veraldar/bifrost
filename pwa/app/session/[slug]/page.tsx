@@ -14,6 +14,7 @@ import { Room, RoomEvent, Track, createAudioAnalyser } from 'livekit-client';
 import Link from 'next/link';
 import { PixelIcon } from '@/components/pixel-icon';
 import { type Msg, SessionMessage } from '@/components/session-message';
+import { MessageHistory } from '@/components/message-history';
 import {
   getSpeech,
   pauseSpeech,
@@ -146,6 +147,8 @@ export default function SessionView({
   const seekRef = useRef<HTMLDivElement>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
+  // swipe-history browser: index of the message on screen, null = closed
+  const [histIdx, setHistIdx] = useState<number | null>(null);
   const [mode, setMode] = useState<Mode>('text');
   const [busy, setBusy] = useState(false);
   const [busySecs, setBusySecs] = useState(0);
@@ -1213,6 +1216,14 @@ export default function SessionView({
             // still the newest message while the run is going = sitting in
             // the agent's queue — badge it until a reply lands after it
             queued={busy && !!m.queued}
+            // swipe → steps into the past (opens the message BEFORE this
+            // one); swipe ← back toward the present. Out-of-bounds swipes
+            // are "already there" no-ops (newest ← = still no message)
+            onOpenHistory={(mi, dir) => {
+              const next = dir === 'older' ? mi - 1 : mi + 1;
+              if (next < 0 || next >= msgs.length) return;
+              setHistIdx(next);
+            }}
           />
         ))}
         {busy && (
@@ -1242,6 +1253,16 @@ export default function SessionView({
             </button>
           )}
       </div>
+
+      {/* swipe-history browser — fixed overlay, one message at a time */}
+      {histIdx !== null && msgs.length > 0 && (
+        <MessageHistory
+          msgs={msgs}
+          index={histIdx}
+          onIndex={setHistIdx}
+          onClose={() => setHistIdx(null)}
+        />
+      )}
 
       {attachments.length > 0 && (
         <div className="flex flex-wrap gap-1 pb-1">

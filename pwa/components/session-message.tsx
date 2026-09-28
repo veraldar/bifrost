@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Streamdown } from 'streamdown';
 import { Marked } from '@/components/marked';
 
@@ -39,12 +39,16 @@ function fmtTime(t: number): string {
   });
 }
 
+/** Committed horizontal swipe distance to open the history browser. */
+const SWIPE_PX = 48;
+
 export function SessionMessage({
   m,
   queued,
   mi,
   hit,
   q = '',
+  onOpenHistory,
 }: {
   m: Msg;
   queued?: boolean;
@@ -55,6 +59,9 @@ export function SessionMessage({
   /** active search term — marked inside user prose (assistant goes through
    *  markdown, only ringed) */
   q?: string;
+  /** horizontal swipe on the message: 'older' = dragged right (into the
+   *  past), 'newer' = dragged left (back toward the present) */
+  onOpenHistory?: (mi: number, dir: 'older' | 'newer') => void;
 }) {
   const [lightbox, setLightbox] = useState<string | null>(null);
   // html blocks render directly (sandboxed); this holds the one showing code
@@ -62,10 +69,41 @@ export function SessionMessage({
   const isUser = m.role === 'user';
   const htmls = isUser ? [] : htmlBlocks(m.text);
   const stamp = fmtTime(m.time);
+  // swipe intent: x/y origin + null (undecided) → true (horizontal, ours)
+  // or false (vertical, native scroll wins)
+  const swipe = useRef<{ x: number; y: number; horiz: boolean | null } | null>(null);
 
   return (
     <div
       data-mi={mi}
+      onPointerDown={(e) => {
+        if (!e.isPrimary) return;
+        swipe.current = { x: e.clientX, y: e.clientY, horiz: null };
+      }}
+      onPointerMove={(e) => {
+        const s = swipe.current;
+        if (!s || s.horiz === false) return;
+        const dx = e.clientX - s.x;
+        const dy = e.clientY - s.y;
+        if (s.horiz === null) {
+          if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+          s.horiz = Math.abs(dx) > Math.abs(dy);
+          if (!s.horiz) return;
+        }
+        e.preventDefault();
+      }}
+      onPointerUp={(e) => {
+        const s = swipe.current;
+        swipe.current = null;
+        if (!s?.horiz || !onOpenHistory || mi === undefined) return;
+        const dx = e.clientX - s.x;
+        if (Math.abs(dx) < SWIPE_PX) return;
+        onOpenHistory(mi, dx > 0 ? 'older' : 'newer');
+      }}
+      onPointerCancel={() => {
+        swipe.current = null;
+      }}
+      style={{ touchAction: 'pan-y' }}
       className={`scroll-mt-24 text-sm leading-relaxed break-words ${
         hit
           ? '-mx-2 rounded border border-[var(--oz-active)] bg-[var(--oz-active)]/10 px-2 py-1'
@@ -144,6 +182,7 @@ export function SessionMessage({
       {lightbox && (
         <div
           onClick={() => setLightbox(null)}
+          onPointerDown={(e) => e.stopPropagation()}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}

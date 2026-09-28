@@ -64,32 +64,19 @@ test('search: hit ring, 1/2 counter, jump, Escape closes', async ({ page }) => {
   expect(await ringed()).toHaveLength(0);
 });
 
-test('hands-free: silence countdown + cancel ack, screenshots', async ({ page }) => {
+test('hands-free: keyword protocol status, no cancel button, screenshot', async ({ page }) => {
   await page.goto(`/session/${NAME}?id=${sessionId}`);
   await page.getByRole('button', { name: 'hands-free' }).click();
   const phase = page.getByTestId('free-phase');
   await expect(phase).toBeVisible({ timeout: 30_000 });
-  // agent joined → ready: the live silence clock replaces "connecting…"
+  // agent joined → ready: the keyword hint replaces "connecting…"
   await expect(phase).not.toContainText('connecting', { timeout: 30_000 });
+  // the cancel button is gone; turns are committed by saying "over"
+  await expect(page.getByTestId('free-cancel')).toHaveCount(0);
+  await expect(phase).toContainText('over');
   await page.screenshot({ path: '../artifacts/e2e-free-listening.png' });
-  // cancel is reachable while armed; the ack must never lead to a send.
-  // The e2e fake mic emits a loud synthetic tone, so "cancelled" may hand
-  // back to listening once the 1.5s ack hold expires — the invariant is
-  // that nothing is sent and no message lands while nobody spoke
-  await page.getByTestId('free-cancel').click();
-  await expect(phase).toContainText('cancelled');
-  const userMsgs = () =>
-    page.evaluate(
-      () =>
-        [...document.querySelectorAll('[data-mi] > div span')].filter(
-          (el) => el.textContent === '(you)'
-        ).length
-    );
-  const before = await userMsgs();
-  await page.waitForTimeout(1600);
-  await expect(page.getByText('sending…')).toHaveCount(0);
-  expect(await userMsgs()).toBe(before);
-  await page.screenshot({ path: '../artifacts/e2e-free-cancelled.png' });
+  // leave hands-free quickly — the fake mic never says "over", so nothing
+  // can commit, but short tests keep the shared server state clean
   await page.getByRole('button', { name: 'text mode' }).click();
 });
 

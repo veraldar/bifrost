@@ -26,13 +26,23 @@ const SAMPLE_RATE = 24000;
 const PIECE_SEC = 10; // wav blob length for the playlist
 const SEC_PER_CHAR = 0.075;
 
+function initialRate(): number {
+  // spoken replies default to the last rate the user chose (survives reloads)
+  try {
+    const r = Number(localStorage.getItem('oz-tts-rate'));
+    return r > 0 ? r : 1;
+  } catch {
+    return 1;
+  }
+}
+
 let state: SpeechState = {
   phase: 'idle',
   progress: 0,
   positionSec: 0,
   receivedSec: 0,
   totalEstSec: 0,
-  rate: 1,
+  rate: initialRate(),
 };
 const subs = new Set<() => void>();
 import { diagEvent } from '@/lib/diag';
@@ -235,7 +245,13 @@ function enqueuePiece(startSample: number, len: number): void {
 
 function maybeFinish(): void {
   if (streamDone && curIdx >= pieces.length - 1 && state.phase !== 'idle') {
-    stopSpeech(); // natural end
+    // only finish when the last piece ACTUALLY finished playing. A short
+    // reply's stream completes while the first play() is still starting —
+    // stopping here pauses an element mid-play-start and the play() promise
+    // rejects with AbortError (the reply is murdered before a single sample).
+    // The natural 'ended' event → onPieceEnded → stopSpeech() finishes it.
+    const el = els?.[activeEl];
+    if (!el || el.ended) stopSpeech();
   }
 }
 
@@ -398,6 +414,11 @@ export function seekSpeech(fraction: number): void {
 
 export function rateSpeech(rate: number): void {
   set({ rate });
+  try {
+    localStorage.setItem('oz-tts-rate', String(rate));
+  } catch {
+    /* private mode */
+  }
   if (els) {
     els[0].playbackRate = rate;
     els[1].playbackRate = rate;

@@ -15,6 +15,7 @@ import Link from 'next/link';
 import { PixelIcon } from '@/components/pixel-icon';
 import { type Msg, SessionMessage } from '@/components/session-message';
 import { MessageHistory } from '@/components/message-history';
+import { ErrorBox } from '@/components/app/error-box';
 import {
   getSpeech,
   pauseSpeech,
@@ -25,8 +26,7 @@ import {
   stopSpeech,
   subscribeSpeech,
 } from '@/lib/speech';
-import { diagDump, diagEvent } from '@/lib/diag';
-import { slugify } from '@/lib/slug';
+import { diagEvent } from '@/lib/diag';
 import { clearAsked, ensureNotifyPermission, markAsked, notifyReply } from '@/lib/notify';
 import { PENDING_TTL_MS } from '@/lib/pending-ttl';
 import { markRead } from '@/lib/read';
@@ -274,7 +274,6 @@ export default function SessionView({
     );
   }
   const wedgeFiredRef = useRef(false);
-  const reportingRef = useRef(false);
   // 10s heartbeat cadence for the busy metrics (avoids a log line per second)
   const busyBeatRef = useRef(0);
   // epoch ms the current busy period started — the "working… Ns" counter is
@@ -691,6 +690,22 @@ export default function SessionView({
         void exitFree();
         return 'ok';
       });
+      // keyword turn cycle: processing = mute mic + working animation while
+      // opencode runs; the phone itself speaks the reply (auto-listen below)
+      // and returns the mic when playback ends
+      room.localParticipant.registerRpcMethod('free_state', async (data) => {
+        let state = '';
+        try {
+          state = JSON.parse(data.payload).state;
+        } catch {
+          return 'bad-payload';
+        }
+        if (state === 'processing') {
+          setFreeCycle('processing');
+          await mic(false);
+        }
+        return 'ok';
+      });
       roomRef.current = room;
       setVoiceState('ready');
       diagEvent('voice', 'ready');
@@ -713,6 +728,7 @@ export default function SessionView({
   async function exitFree() {
     modeRef.current = 'text';
     setMode('text');
+    setFreeCycle('listening');
     const room = roomRef.current;
     roomRef.current = null;
     voicePromiseRef.current = null;
@@ -744,6 +760,7 @@ export default function SessionView({
         // hands-free: mic stays on, turns are keyword-driven — the agent
         // buffers everything until "over" / "over and out" (agent.py).
         // PTT from the composer works in both modes (mic mutes on release).
+        setFreeCycle('listening');
         const room = await ensureVoice();
         await mic(true);
         // honesty check: hands-free renders "listening" from local mic levels
@@ -892,7 +909,71 @@ export default function SessionView({
 
   // live mic equalizer (PTT pill + hands-free strip) — see useMicLevels
   const pttLevels = useMicLevels(holding, roomRef);
+  // hands-free turn cycle, driven by the agent's free_state RPCs: "over"
+  // mutes the mic while the reply is generated + spoken ("processing"),
+  // then the mic comes back ("listening") for the next turn
+  const [freeCycle, setFreeCycle] = useState<'listening' | 'processing'>('listening');
   const freeLevels = useMicLevels(mode === 'free' && voiceState === 'ready', roomRef);
+
+  // auto-listen cycle: while waiting for the reply (free_state "processing"),
+  // the first assistant message that lands is spoken via the same TTS as the
+  // listen chip. The mic stays muted from "over" until the playback is
+  // finished or stopped — synthesis alone is not enough (it can start and
+  // still fail), only real audio playback counts. The agent never speaks
+  // over the room.
+  const freeWaitSinceRef = useRef(0); // Date.now() when "over" committed
+  const freeSpokeMsgRef = useRef(0); // time of the message we auto-started
+  const freeSpokeRef = useRef(false); // real playback happened (phase=playing)
+  function freeMicGiveBack() {
+    freeSpokeRef.current = false;
+    freeSpokeMsgRef.current = 0;
+    setFreeCycle('listening');
+    if (modeRef.current === 'free') void mic(true);
+  }
+  useEffect(() => {
+    if (freeCycle === 'processing') {
+      freeWaitSinceRef.current = Date.now();
+      freeSpokeMsgRef.current = 0;
+      freeSpokeRef.current = false;
+    }
+  }, [freeCycle]);
+  useEffect(() => {
+    if (freeCycle !== 'processing') return;
+    const a = lastAssistant;
+    if (!a || a.time <= freeWaitSinceRef.current) return;
+    // the reply streams: opencode creates the assistant message the moment
+    // the run starts — speaking it then would read out a growing fragment.
+    // Only a completed reply (time.completed) may be spoken.
+    if (a.done === false) return;
+    // message polls recreate objects — the SAME message must not restart
+    // (a second startSpeech stops the first one mid-playback)
+    if (freeSpokeMsgRef.current === a.time) return;
+    freeSpokeMsgRef.current = a.time;
+    try {
+      startSpeech(a.text, slug);
+    } catch {
+      freeMicGiveBack(); // TTS failed to start — don't leave the mic hostage
+    }
+    return;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [freeCycle, lastAssistant, slug]);
+  useEffect(() => {
+    if (freeCycle !== 'processing') return;
+    // LIVE store read, not the render snapshot: startSpeech() sets phase to
+    // 'loading' during the previous effect — this effect's `speech` closure
+    // still says 'idle', and trusting it handed the mic back immediately
+    const live = getSpeech();
+    if (live.phase === 'playing') {
+      freeSpokeRef.current = true;
+      return;
+    }
+    // loading/paused keep the mic muted — nothing to hand back yet
+    if (live.phase !== 'idle' || !freeSpokeMsgRef.current) return;
+    // idle after a start attempt: natural end or user stop (freeSpokeRef
+    // true), or playback never got going (TTS failure) — either way the
+    // cycle is over, the mic goes back
+    freeMicGiveBack();
+  }, [freeCycle, speech.phase]);
 
   useEffect(() => {
     if (!holding) return;
@@ -1045,49 +1126,6 @@ export default function SessionView({
     </button>
   );
 
-  /** One-tap bug report: package the error + context into a fresh session
-   *  and let an agent fix it (user req: next to dismiss). */
-  async function sendErrorToAgent() {
-    if (reportingRef.current) return;
-    reportingRef.current = true;
-    const report = [
-      'A frontend error occurred in the voice PWA. Find the root cause in',
-      '~/Work/bifrost/pwa, fix it, and verify with `cd pwa && npx playwright test`.',
-      '',
-      `error: ${error}`,
-      `page: ${location.pathname}${location.search}`,
-      `happened in session: ${slug}`,
-      `time: ${new Date().toISOString()}`,
-      `ua: ${navigator.userAgent}`,
-      '',
-      'recent diagnostics (last events):',
-      diagDump().split('\n').slice(-12).join('\n'),
-    ].join('\n');
-    setError('sending bug report…');
-    try {
-      const cr = await fetch('/api/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: `fix ${slug} ${new Date().toLocaleTimeString()}` }),
-      });
-      const s = await cr.json();
-      if (!s.id) throw new Error(s.error || 'session create failed');
-      const pr = await fetch(`/api/session/${slugify(s.title)}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: report, async: true }),
-        signal: AbortSignal.timeout(30_000),
-      });
-      if (!pr.ok) throw new Error(`prompt failed (${pr.status})`);
-      setError('');
-      router.push(`/session/${slugify(s.title)}?id=${s.id}`);
-    } catch (e) {
-      setError(`bug report failed: ${e instanceof Error ? e.message : e}`);
-    } finally {
-      reportingRef.current = false;
-    }
-  }
-
   return (
     <main className="mx-auto flex h-dvh max-w-md flex-col overflow-hidden px-3">
       {/* header — the slug is the way into session settings (name / model /
@@ -1176,17 +1214,7 @@ export default function SessionView({
         </div>
       )}
 
-      {error && (
-        <div className="mb-2 rounded border border-[var(--oz-danger)]/60 px-3 py-2 text-xs text-[var(--oz-danger)]">
-          {error}{' '}
-          <button onClick={() => void sendErrorToAgent()} className="underline">
-            fix this
-          </button>{' '}
-          <button onClick={() => setError('')} className="underline">
-            dismiss
-          </button>
-        </div>
-      )}
+      {error && <ErrorBox error={error} onDismiss={() => setError('')} slug={slug} />}
 
       {/* transcript */}
       <div
@@ -1581,11 +1609,18 @@ export default function SessionView({
           <span
             role="status"
             data-testid="free-phase"
-            className="text-[var(--oz-success)]"
+            data-cycle={freeCycle}
+            className={`${
+              freeCycle === 'processing' ? 'animate-pulse text-[var(--oz-active)]' : 'text-[var(--oz-success)]'
+            }`}
           >
             {voiceState !== 'ready'
               ? '● hands-free — connecting…'
-              : '● hands-free — say “over” to send · “over and out” to end'}
+              : freeCycle === 'processing'
+                ? speech.phase === 'idle'
+                  ? '● working on it — mic paused…'
+                  : '● speaking — mic returns when it ends'
+                : '● hands-free — say “over” to send · “over and out” to end'}
           </span>
         </div>
       )}

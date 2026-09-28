@@ -434,6 +434,15 @@ export default function SessionView({
     });
   }, [params]);
 
+  // PC tab shows which session you're in: "Bifrost - <slug>"; leaving the
+  // session view (unmount) restores the plain title
+  useEffect(() => {
+    document.title = slug ? `Bifrost - ${slug}` : 'Bifrost';
+    return () => {
+      document.title = 'Bifrost';
+    };
+  }, [slug]);
+
   // deep link from global search: /session/<slug>?q=… opens the search
   // overlay pre-filled; once transcripts load the jump effect lands on the
   // newest match (jumpNewestRef)

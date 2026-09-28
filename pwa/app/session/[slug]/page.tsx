@@ -13,8 +13,9 @@ import { useRouter } from 'next/navigation';
 import { Room, RoomEvent, Track, createAudioAnalyser } from 'livekit-client';
 import Link from 'next/link';
 import { PixelIcon } from '@/components/pixel-icon';
-import { type Msg, SessionMessage } from '@/components/session-message';
+import { type Msg, SessionMessage, userProse } from '@/components/session-message';
 import { MessageHistory } from '@/components/message-history';
+import { useSwipeX } from '@/lib/use-swipe-x';
 import { ErrorBox } from '@/components/app/error-box';
 import {
   getSpeech,
@@ -293,6 +294,87 @@ export default function SessionView({
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, 96)}px`;
   }
+
+  // --- composer history recall (req: ArrowUp/Down on PC, slide on the
+  // textarea on phone — right = past messages, left = back toward the
+  // draft; past the newest = back to "no message" i.e. the live draft) ---
+  // the history is the session's own user messages (typed + voice), so it
+  // survives reloads; file fences are stripped via userProse
+  const sentHistory = useMemo(
+    () =>
+      msgs
+        .filter((m) => m.role === 'user')
+        .map((m) => userProse(m.text))
+        .filter((t) => t.trim() && t !== '(📎 attachment)'),
+    [msgs]
+  );
+  // null = live draft; 0..n-1 = index into sentHistory (0 = oldest)
+  const [histPos, setHistPos] = useState<number | null>(null);
+  const histPosRef = useRef<number | null>(null);
+  const draftRef = useRef('');
+
+  /** Put the recalled text in the composer: state + caret at end + autogrow. */
+  function setRecalled(text: string) {
+    setInput(text);
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (!el) return;
+      el.setSelectionRange(el.value.length, el.value.length);
+      autogrow(el);
+    });
+  }
+
+  function recall(dir: 'older' | 'newer') {
+    const hist = sentHistory;
+    if (!hist.length) return;
+    if (dir === 'older') {
+      if (histPosRef.current === null) {
+        draftRef.current = input; // park the live draft
+        histPosRef.current = hist.length - 1; // newest sent message
+      } else {
+        histPosRef.current = Math.max(0, histPosRef.current - 1);
+      }
+      histPosRef.current = Math.max(0, histPosRef.current);
+      setHistPos(histPosRef.current);
+      setRecalled(hist[histPosRef.current]);
+    } else {
+      if (histPosRef.current === null) return; // already live — nothing newer
+      if (histPosRef.current >= hist.length - 1) {
+        // past the newest → back to the live draft ("no message")
+        histPosRef.current = null;
+        setHistPos(null);
+        setRecalled(draftRef.current);
+        draftRef.current = '';
+        return;
+      }
+      histPosRef.current += 1;
+      setHistPos(histPosRef.current);
+      setRecalled(hist[histPosRef.current]);
+    }
+  }
+
+  /** Manual edit while browsing history → that text is the live draft now. */
+  function liveEdit(text: string) {
+    if (histPosRef.current !== null) {
+      histPosRef.current = null;
+      setHistPos(null);
+      draftRef.current = '';
+    }
+    setInput(text);
+  }
+
+  const histChip =
+    histPos !== null && sentHistory.length > 0
+      ? `history ${histPos + 1}/${sentHistory.length} · ↓ back to draft`
+      : '';
+  // phone: slide on the textarea itself (touch only — a mouse-drag there
+  // must stay text selection; PC uses the arrow keys)
+  const taSwipeRef = useSwipeX<HTMLTextAreaElement>({
+    threshold: 56,
+    touchOnly: true,
+    onCommit: recall,
+  });
+
   const scrollRef = useRef<HTMLDivElement>(null);
   // auto-scroll only while the user is parked at (or near) the bottom;
   // scrolling up to read history must not be fought by the poller
@@ -304,6 +386,11 @@ export default function SessionView({
       echoesRef.current = [];
       seenRef.current = 0;
       setLimit(60);
+      // composer recall resets with the session: no history position, no
+      // parked draft leaking across sessions
+      histPosRef.current = null;
+      setHistPos(null);
+      draftRef.current = '';
       // fresh view: the previous session's run tracking must not leak in —
       // the first poll below may restore busy if a run is live here
       setBusy(false);
@@ -1060,6 +1147,10 @@ export default function SessionView({
     const text = input.trim();
     if (!text && attachments.length === 0) return;
     setInput('');
+    // sent → composer history position back to live, parked draft dropped
+    histPosRef.current = null;
+    setHistPos(null);
+    draftRef.current = '';
     try {
       localStorage.removeItem('oz-draft:' + slug);
     } catch {
@@ -1480,7 +1571,16 @@ export default function SessionView({
         </div>
       ) : (
         /* text input — always available */
-        <div className="flex items-end gap-2 border-t border-[var(--oz-border)] py-3">
+        <div className="relative flex items-end gap-2 border-t border-[var(--oz-border)] py-3">
+          {/* composer history indicator — only while browsing sent messages */}
+          {histChip && (
+            <div
+              data-testid="hist-chip"
+              className="pointer-events-none absolute -top-1 left-12 -translate-y-full rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] px-1.5 py-0.5 text-[10px] text-[var(--oz-dim)] tabular-nums"
+            >
+              {histChip}
+            </div>
+          )}
           {/* single paper-clip button — opens the phone's photo/camera picker
             (accept=image/*); files ride along when picked from there */}
           <button
@@ -1547,11 +1647,15 @@ export default function SessionView({
             </div>
           ) : (
             <textarea
-              ref={inputRef}
+              ref={(el) => {
+                inputRef.current = el;
+                taSwipeRef(el);
+              }}
               value={input}
               rows={1}
               onChange={(e) => {
-                setInput(e.target.value);
+                // manual edit ends history browsing — this is the draft now
+                liveEdit(e.target.value);
                 try {
                   if (slug) localStorage.setItem('oz-draft:' + slug, e.target.value);
                 } catch {
@@ -1563,6 +1667,23 @@ export default function SessionView({
                 if (e.key === 'Enter' && !e.shiftKey && !e.altKey) {
                   e.preventDefault();
                   sendText();
+                } else if (e.key === 'ArrowUp' && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
+                  // shell-style recall: caret on the first line → step back
+                  // through the user's own sent messages
+                  const el = e.currentTarget;
+                  const onFirstLine = !el.value.slice(0, el.selectionStart ?? 0).includes('\n');
+                  if (onFirstLine && sentHistory.length > 0) {
+                    e.preventDefault();
+                    recall('older');
+                  }
+                } else if (e.key === 'ArrowDown' && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
+                  // forward again; past the newest restores the parked draft
+                  const el = e.currentTarget;
+                  const onLastLine = !el.value.slice(el.selectionEnd ?? el.value.length).includes('\n');
+                  if (onLastLine && histPosRef.current !== null) {
+                    e.preventDefault();
+                    recall('newer');
+                  }
                 }
               }}
               placeholder="message…"

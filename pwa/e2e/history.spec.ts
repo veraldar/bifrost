@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type CDPSession, type Page } from '@playwright/test';
 
 /** Swipe message-history browser: swipe → on a message steps into the past,
  *  ← back toward the present, past the newest closes ("back to no message").
@@ -63,6 +63,23 @@ test('history: swipe → opens the past, ← returns, past newest closes', async
   await page.screenshot({ path: '../artifacts/e2e-history-closed.png' });
 });
 
+/** Real touch events through the browser's gesture pipeline (CDP), with the
+ *  slight vertical drift a real finger has. */
+async function swipeTouch(page: Page, cdp: CDPSession, sel: string, dx: number) {
+  const b = (await page.locator(sel).first().boundingBox())!;
+  const x0 = b.x + b.width / 2;
+  const y0 = b.y + b.height / 2;
+  const dispatch = (
+    type: 'touchStart' | 'touchMove' | 'touchEnd',
+    touchPoints: { x: number; y: number }[]
+  ) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints });
+  await dispatch('touchStart', [{ x: x0, y: y0 }]);
+  for (let s = 1; s <= 6; s++) {
+    await dispatch('touchMove', [{ x: x0 + (dx * s) / 6, y: y0 + s }]);
+  }
+  await dispatch('touchEnd', []);
+}
+
 /** The 2026-09-28 phone bug: pointer-only swipe handling died on touch
  *  because the browser claimed drift-y gestures for scrolling (pointercancel
  *  before commit). This drives REAL touch events through the browser's
@@ -78,37 +95,64 @@ test('history touch: swipe with drift works through the real touch pipeline', as
   });
   const page = await ctx.newPage();
   const cdp = await ctx.newCDPSession(page);
-  const dispatch = (
-    type: 'touchStart' | 'touchMove' | 'touchEnd',
-    touchPoints: { x: number; y: number }[]
-  ) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints });
-
-  // finger-like swipe: horizontal dominant, ~6px vertical drift
-  async function swipeTouch(sel: string, dx: number) {
-    const b = (await page.locator(sel).first().boundingBox())!;
-    const x0 = b.x + b.width / 2;
-    const y0 = b.y + b.height / 2;
-    await dispatch('touchStart', [{ x: x0, y: y0 }]);
-    for (let s = 1; s <= 6; s++) {
-      await dispatch('touchMove', [{ x: x0 + (dx * s) / 6, y: y0 + s }]);
-    }
-    await dispatch('touchEnd', []);
-  }
 
   await page.goto(`/session/${NAME}?id=${sessionId}`);
   await expect(page.locator('[data-mi="1"]')).toBeVisible();
 
   // swipe RIGHT on the newest message → the past one opens
-  await swipeTouch('[data-mi="1"]', 140);
+  await swipeTouch(page, cdp, '[data-mi="1"]', 140);
   const dialog = page.getByRole('dialog', { name: 'message history' });
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText('1 / 2');
 
   // swipe LEFT twice inside the viewer → newest → past it closes
-  await swipeTouch('[data-testid="hist-card"]', -140);
+  await swipeTouch(page, cdp, '[data-testid="hist-card"]', -140);
   await expect(dialog).toContainText('2 / 2');
-  await swipeTouch('[data-testid="hist-card"]', -140);
+  await swipeTouch(page, cdp, '[data-testid="hist-card"]', -140);
   await expect(dialog).toHaveCount(0);
+  await ctx.close();
+});
+
+/** Composer history recall (req 09-28): ArrowUp on the PC steps back through
+ *  the user's own sent messages, ArrowDown returns (past the newest = back
+ *  to the live draft); on the phone the same walk lives on the textarea —
+ *  slide right = past, slide left = back. */
+test('input recall: ArrowUp/Down on the textarea, slide on touch', async ({ browser }) => {
+  test.skip(!sessionId, 'no session from the mouse test');
+  const ctx = await browser.newContext({
+    hasTouch: true,
+    viewport: { width: 360, height: 780 },
+  });
+  const page = await ctx.newPage();
+  const cdp = await ctx.newCDPSession(page);
+  await page.goto(`/session/${NAME}?id=${sessionId}`);
+  const ta = page.getByPlaceholder('message…');
+  await expect(ta).toBeVisible();
+
+  // ArrowUp recalls the (single) sent message; a second Up stays at oldest
+  await ta.click();
+  await page.keyboard.press('ArrowUp');
+  await expect(ta).toHaveValue('Reply with exactly: pong');
+  await expect(page.getByTestId('hist-chip')).toContainText('history 1/1');
+  await page.keyboard.press('ArrowUp');
+  await expect(ta).toHaveValue('Reply with exactly: pong');
+  // ArrowDown past the newest → back to the live (empty) draft
+  await page.keyboard.press('ArrowDown');
+  await expect(ta).toHaveValue('');
+  await expect(page.getByTestId('hist-chip')).toHaveCount(0);
+
+  // a live draft is parked while browsing and restored on the way back
+  await ta.fill('draft xyz');
+  await page.keyboard.press('ArrowUp');
+  await expect(ta).toHaveValue('Reply with exactly: pong');
+  await page.keyboard.press('ArrowDown');
+  await expect(ta).toHaveValue('draft xyz');
+
+  // phone: slide RIGHT on the textarea → past message; slide LEFT → draft
+  await swipeTouch(page, cdp, 'textarea[placeholder="message…"]', 90);
+  await expect(ta).toHaveValue('Reply with exactly: pong');
+  await swipeTouch(page, cdp, 'textarea[placeholder="message…"]', -90);
+  await expect(ta).toHaveValue('draft xyz');
   await ctx.close();
 });
 

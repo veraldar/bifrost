@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /** Horizontal swipe detection that wins the race against native scrolling.
  *
@@ -20,13 +20,18 @@ export function useSwipeX<T extends HTMLElement = HTMLElement>(opts: {
   onCommit: (dir: 'older' | 'newer') => void;
   /** return true to not start a swipe from this target (e.g. a lightbox) */
   ignoreStart?: (target: EventTarget | null) => boolean;
+  /** touch gestures only — skip the mouse/pointer path (a mouse-drag must
+   *  stay text selection on inputs; PC recall uses arrow keys there) */
+  touchOnly?: boolean;
 }) {
   const optsRef = useRef(opts);
   optsRef.current = opts;
-  const elRef = useRef<T | null>(null);
+  // callback ref (not a ref object): elements swap at runtime — the composer
+  // textarea remounts when the PTT pill takes over — so listeners must
+  // re-attach on every mount, not just the first
+  const [el, setEl] = useState<T | null>(null);
 
   useEffect(() => {
-    const el = elRef.current;
     if (!el) return;
     // gesture scratch: on + origin + decision ('' undecided, 'h' ours, 'v' scroll's)
     const g = { on: false, x0: 0, y0: 0, mode: '' as '' | 'h' | 'v' };
@@ -78,6 +83,7 @@ export function useSwipeX<T extends HTMLElement = HTMLElement>(opts: {
       if (t) end(t.clientX);
     };
     const onMouseDown = (e: PointerEvent) => {
+      if (optsRef.current.touchOnly) return;
       if (e.pointerType !== 'mouse' || !e.isPrimary) return;
       if (optsRef.current.ignoreStart?.(e.target)) return;
       g.on = true;
@@ -111,8 +117,8 @@ export function useSwipeX<T extends HTMLElement = HTMLElement>(opts: {
       el.removeEventListener('pointerup', onMouseUp);
       el.removeEventListener('pointercancel', reset);
     };
-  }, []);
+  }, [el]);
 
-  return elRef;
+  return setEl;
 }
 

@@ -37,6 +37,16 @@ function fileChunks(text: string): { kind: 'prose' | 'file'; name?: string; body
   return out;
 }
 
+/** What the user actually typed in a sent message — attached-file fences
+ *  stripped (composer history recall). Empty for attachment-only sends. */
+export function userProse(text: string): string {
+  return fileChunks(text)
+    .filter((c) => c.kind === 'prose')
+    .map((c) => c.body)
+    .join('\n')
+    .trim();
+}
+
 function fmtTime(t: number): string {
   if (!t) return '';
   return new Date(t).toLocaleString(undefined, {

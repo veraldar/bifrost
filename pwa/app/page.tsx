@@ -182,27 +182,35 @@ export default function SessionsPage() {
   const [gq, setGq] = useState('');
   const [gHits, setGHits] = useState<GHit[] | null>(null);
   const [gBusy, setGBusy] = useState(false);
-  const gInFlight = useRef(false);
+  // one live search at a time: a newer keystroke ABORTS the in-flight query
+  // instead of being dropped — the old guard swallowed everything typed while
+  // a slow (50-session fan-out) search ran, leaving results for "y" showing
+  // under an input that said "yggdrasil"
+  const gAbort = useRef<AbortController | null>(null);
+  const gqRef = useRef('');
 
   useEffect(() => {
     const q = gq.trim();
+    gqRef.current = q;
     if (!gOpen || !q) {
       setGHits(null);
       return;
     }
     const t = setTimeout(() => {
-      if (gInFlight.current) return;
-      gInFlight.current = true;
+      gAbort.current?.abort();
+      const ctrl = new AbortController();
+      gAbort.current = ctrl;
       setGBusy(true);
-      fetch(`/api/search?q=${encodeURIComponent(q)}`, {
-        signal: AbortSignal.timeout(15_000),
-      })
+      fetch(`/api/search?q=${encodeURIComponent(q)}`, { signal: ctrl.signal })
         .then((r) => r.json())
-        .then((d) => setGHits(d.sessions || []))
-        .catch(() => setGHits([]))
+        .then((d) => {
+          if (gqRef.current === q) setGHits(d.sessions || []);
+        })
+        .catch(() => {
+          if (!ctrl.signal.aborted && gqRef.current === q) setGHits([]);
+        })
         .finally(() => {
-          gInFlight.current = false;
-          setGBusy(false);
+          if (gAbort.current === ctrl) setGBusy(false);
         });
     }, 350);
     return () => clearTimeout(t);
@@ -344,7 +352,7 @@ export default function SessionsPage() {
       <div aria-hidden="true" className="oz-ygg-bg" />
       <main className="relative z-[1] mx-auto flex min-h-dvh max-w-md flex-col px-3 pb-6">
         <header className="mt-4 mb-2 flex items-center justify-between rounded-lg border border-[var(--oz-border)] bg-[var(--oz-surface)] px-4 py-3">
-          <Link href="/theme" className="flex items-center gap-2.5" aria-label="theme">
+          <Link href="/settings" className="flex items-center gap-2.5" aria-label="settings">
             <svg
               viewBox="0 0 16 16"
               width="18"

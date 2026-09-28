@@ -16,6 +16,13 @@ async function bustListCache(request: APIRequestContext) {
   if (s.id) await request.delete(`/api/session/${s.id}`);
 }
 
+test.afterAll(async ({ request }) => {
+  // runs even when the test above fails — a failed assertion must never
+  // leak seeded sessions into the user's list (that happened once)
+  if (childId) await request.delete(`/api/session/${childId}`);
+  if (parentId) await request.delete(`/api/session/${parentId}`);
+});
+
 test('sub-sessions nest under their parent behind the subs pill', async ({ page, request }) => {
   const p = (await (
     await request.post(`${OC}/session`, { data: { title: `${TAG}-parent` } })
@@ -48,9 +55,4 @@ test('sub-sessions nest under their parent behind the subs pill', async ({ page,
   // tapping the child row opens the child session, not the parent
   await childRow.click();
   await expect(page).toHaveURL(new RegExp(`id=${childId}`));
-});
-
-test('cleanup: delete seeded parent + child', async ({ request }) => {
-  if (childId) await request.delete(`/api/session/${childId}`);
-  if (parentId) await request.delete(`/api/session/${parentId}`);
 });

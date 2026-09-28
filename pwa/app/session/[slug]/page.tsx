@@ -1612,16 +1612,18 @@ export default function SessionView({
         </div>
       ) : (
         /* text input — always available */
-        <div className="relative flex items-end gap-2 border-t border-[var(--oz-border)] py-3">
-          {/* composer history indicator — only while browsing sent messages */}
+        <>
+          {/* composer history indicator — in flow (a floating chip overlapped
+              the listen button at the transcript's bottom edge) */}
           {histChip && (
             <div
               data-testid="hist-chip"
-              className="pointer-events-none absolute -top-1 left-12 -translate-y-full rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] px-1.5 py-0.5 text-[10px] text-[var(--oz-dim)] tabular-nums"
+              className="pb-0.5 text-[10px] text-[var(--oz-dim)] tabular-nums"
             >
               {histChip}
             </div>
           )}
+          <div className="flex items-end gap-2 border-t border-[var(--oz-border)] py-3">
           {/* single paper-clip button — opens the phone's photo/camera picker
             (accept=image/*); files ride along when picked from there */}
           <button
@@ -1778,7 +1780,8 @@ export default function SessionView({
               <PixelIcon name="mic" size={16} />
             </button>
           )}
-        </div>
+          </div>
+        </>
       )}
 
       {mode === 'free' && (

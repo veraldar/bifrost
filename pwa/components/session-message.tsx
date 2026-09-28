@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Streamdown } from 'streamdown';
 import { Marked } from '@/components/marked';
 import { useSwipeX } from '@/lib/use-swipe-x';
@@ -20,6 +20,100 @@ function htmlBlocks(text: string): string[] {
   let m: RegExpExecArray | null;
   while ((m = re.exec(text))) out.push(m[1]);
   return out;
+}
+
+/** Artifact references the chat renders as rich inline viewers. Images stay
+ *  with Streamdown's markdown images; ```html fences have their own iframe
+ *  path. Everything else the agent drops into artifacts/ must arrive through
+ *  the chat — the user is on the phone and cannot open paths. */
+const VIEWER_KIND: Record<string, 'html' | 'md' | 'text' | 'pdf' | 'audio'> = {
+  html: 'html',
+  md: 'md',
+  txt: 'text', json: 'text', csv: 'text', log: 'text', xml: 'text',
+  yaml: 'text', yml: 'text', toml: 'text', ini: 'text', conf: 'text',
+  css: 'text', js: 'text', mjs: 'text', ts: 'text', tsx: 'text', jsx: 'text',
+  py: 'text', sh: 'text', rb: 'text', go: 'text', rs: 'text', java: 'text',
+  c: 'text', h: 'text', cpp: 'text', diff: 'text', patch: 'text',
+  pdf: 'pdf',
+  wav: 'audio', mp3: 'audio',
+};
+
+function artifactRefs(text: string): { src: string; kind: string }[] {
+  const out: { src: string; kind: string }[] = [];
+  const seen = new Set<string>();
+  const re = /\/api\/artifact\/([a-zA-Z0-9][a-zA-Z0-9._-]*)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    const ext = (m[1].match(/\.([a-z0-9]+)$/i)?.[1] || '').toLowerCase();
+    const kind = VIEWER_KIND[ext];
+    if (kind && !seen.has(m[0])) {
+      seen.add(m[0]);
+      out.push({ src: m[0], kind });
+    }
+  }
+  return out;
+}
+
+/** Inline viewer for one artifact reference. md/text are fetched and shown
+ *  (md via markdown); html/audio/pdf get native-ish embeds. Silent while the
+ *  file is missing (agent may still be writing it mid-stream). */
+function ArtifactView({ src, kind }: { src: string; kind: string }) {
+  const name = src.split('/').pop() || src;
+  const [text, setText] = useState<string | null>(null);
+  const needsText = kind === 'md' || kind === 'text';
+  useEffect(() => {
+    if (!needsText) return;
+    let live = true;
+    fetch(src)
+      .then((r) => (r.ok ? r.text() : Promise.reject(new Error(String(r.status)))))
+      .then((t) => live && setText(t))
+      .catch(() => live && setText(null));
+    return () => {
+      live = false;
+    };
+  }, [src, needsText]);
+
+  if (kind === 'html') {
+    return (
+      <iframe
+        sandbox=""
+        src={src}
+        title={name}
+        className="mt-1 h-64 w-full rounded border border-[var(--oz-border)] bg-white"
+      />
+    );
+  }
+  if (kind === 'audio') {
+    return <audio controls src={src} className="mt-1 w-full" preload="none" />;
+  }
+  if (kind === 'pdf') {
+    return (
+      <a
+        href={src}
+        target="_blank"
+        rel="noreferrer"
+        className="mt-1 flex w-fit items-center gap-1 rounded border border-[var(--oz-border)] px-2 py-1 text-xs text-[var(--oz-active)]"
+      >
+        📄 {name} — tap to view
+      </a>
+    );
+  }
+  if (text === null) return null;
+  const body = text.length > 20000 ? `${text.slice(0, 20000)}…` : text;
+  return (
+    <div className="mt-1 rounded border border-[var(--oz-border)] px-2 py-1">
+      <div className="text-[10px] text-[var(--oz-dim)]">📎 {name}</div>
+      {kind === 'md' ? (
+        <div className="max-h-96 overflow-auto">
+          <Streamdown>{body}</Streamdown>
+        </div>
+      ) : (
+        <pre className="mt-1 max-h-64 overflow-auto text-[10px] whitespace-pre-wrap text-[var(--oz-dim)]">
+          {body}
+        </pre>
+      )}
+    </div>
+  );
 }
 
 /** Split a user message into prose and attached-file segments (proxy fences files). */
@@ -162,6 +256,11 @@ export function SessionMessage({
           )}
         </div>
       ))}
+
+      {/* artifact files the agent linked — every file type arrives through
+          the chat (html frame, rendered md, text, pdf card, audio player) */}
+      {!isUser &&
+        artifactRefs(m.text).map((a) => <ArtifactView key={a.src} src={a.src} kind={a.kind} />)}
 
       {m.images?.map((src, j) =>
         src ? (

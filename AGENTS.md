@@ -22,14 +22,20 @@ This box runs everything. Mac Studio serves speech models (MLX Qwen3-ASR/TTS) on
 - Proceed autonomously; verify with evidence; contact user only when stuck or looping.
 - No commits unless asked. Secrets stay out of git.
 
-## Showing artifacts to the phone
-The user often reads replies on the phone PWA. Make answers visual:
-- To show a picture (png/jpg/webp/svg/gif): save it to `artifacts/<name>.<ext>` in this
-  repo root, then reference it in your reply as a markdown image:
-  `![description](/api/artifact/<name>.<ext>)` — it renders inline in the chat.
-- To show a UI/mockup/page: paste it as a fenced ```html block — the phone renders it
-  inline in a sandboxed frame automatically.
-- Never point the phone at LAN IPs/ports; only `/api/artifact/...` links are reachable.
+## Delivering files to the user — through the chat, never paths
+The user is on the phone. They cannot open local paths, files on this box, or
+LAN links. If it is not in the chat, they did not receive it — "it's at
+/home/..." or "check the repo" is never an answer. Deliver every file in the
+reply itself: save it to `artifacts/<name>.<ext>` in this repo root, then
+reference it as `/api/artifact/<name>.<ext>`. Everything renders inline:
+- Images (png/jpg/webp/svg/gif): markdown image `![description](/api/artifact/<name>.<ext>)`.
+- HTML page/mockup: fenced ```html block, or save `.html` and link it — renders
+  as a sandboxed frame.
+- Markdown/text/code/config (md, txt, json, csv, log, yaml, py, ts, …): plain
+  markdown link `[name](/api/artifact/<name>.<ext>)` — renders inline, md
+  formatted. Write the file FIRST, then link it.
+- PDF: plain markdown link → tap-to-view card. Audio (wav/mp3): inline player.
+- Never point the phone at LAN IPs/ports — only `/api/artifact/...` is reachable.
 
 ## Parallel sessions (avoid overlap)
 Before working: `git log --oneline -8` + read `docs/claims.md`. Working on something

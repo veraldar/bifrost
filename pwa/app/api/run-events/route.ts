@@ -29,8 +29,8 @@ export async function GET(req: Request) {
           /* client vanished */
         }
       };
-      const off = onRunDone((doneSid) => {
-        if (doneSid === sid) push('data: done\n\n');
+      const off = onRunDone((doneSid, reason) => {
+        if (doneSid === sid) push(`data: ${reason}\n\n`);
       });
       const hb = setInterval(() => push(': hb\n\n'), 25_000);
       req.signal.addEventListener('abort', () => {

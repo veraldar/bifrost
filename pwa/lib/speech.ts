@@ -114,7 +114,6 @@ function onPieceEnded(el: HTMLAudioElement): void {
   if (el !== els![activeEl]) return; // idle twin ended prematurely — ignore
   const nextIdx = curIdx + 1;
   if (nextIdx < pieces.length) {
-    const twinHadNext = !!els![1 - activeEl].src;
     activeEl = 1 - activeEl;
     const el2 = els![activeEl];
     el2.playbackRate = state.rate;
@@ -123,13 +122,11 @@ function onPieceEnded(el: HTMLAudioElement): void {
     }
     curIdx = nextIdx;
     tick();
-    // refill the idle twin with the piece after the next
-    if (pieces[curIdx + 1] && !els![1 - activeEl].src) {
+    // refill the idle twin with the piece after the next — UNCONDITIONALLY:
+    // the twin still holds its previous piece's src, and playing it again is
+    // what made audio restart from the beginning at the 20s boundary
+    if (pieces[curIdx + 1]) {
       els![1 - activeEl].src = pieces[curIdx + 1].url;
-    }
-    if (!twinHadNext) {
-      // the swap element had no preloaded src — playPiece path filled it,
-      // nothing more to do here
     }
   } else if (streamDone) {
     // user paused right at the natural end → keep the deck open, paused

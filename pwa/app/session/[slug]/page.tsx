@@ -1020,6 +1020,9 @@ export default function SessionView({
   const freeWaitSinceRef = useRef(0); // Date.now() when "over" committed
   const freeSpokeMsgRef = useRef(0); // time of the message we auto-started
   const freeSpokeRef = useRef(false); // real playback happened (phase=playing)
+  const runIdleRef = useRef(false); // session.idle nudge seen — run fully over
+  const escapeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [idleTick, setIdleTick] = useState(0); // re-runs the speak effect on idle
   function freeMicGiveBack() {
     freeSpokeRef.current = false;
     freeSpokeMsgRef.current = 0;
@@ -1031,10 +1034,32 @@ export default function SessionView({
       freeWaitSinceRef.current = Date.now();
       freeSpokeMsgRef.current = 0;
       freeSpokeRef.current = false;
+      runIdleRef.current = false;
+      // dead-SSE escape: if the run-end (session.idle) nudge never arrives,
+      // the mic must not stay muted forever — give it back unspeaked; the
+      // reply still lands as text in the transcript
+      escapeTimerRef.current = setTimeout(() => {
+        escapeTimerRef.current = null;
+        if (!freeSpokeMsgRef.current) {
+          diagEvent('voice', 'hands-free: no run-end signal in 20s — mic back unspeaked');
+          freeMicGiveBack();
+        }
+      }, 20_000);
     }
+    return () => {
+      if (escapeTimerRef.current) {
+        clearTimeout(escapeTimerRef.current);
+        escapeTimerRef.current = null;
+      }
+    };
   }, [freeCycle]);
   useEffect(() => {
     if (freeCycle !== 'processing') return;
+    // opencode completes one assistant message PER STEP: a mid-run step is a
+    // "completed" message, and speaking it restarts the deck when the next
+    // step lands 10-20s later (req 09-28: audio restarted from the start).
+    // Speak only once the run is fully over (session.idle nudge).
+    if (!runIdleRef.current) return;
     const a = lastAssistant;
     if (!a || a.time <= freeWaitSinceRef.current) return;
     // the reply streams: opencode creates the assistant message the moment
@@ -1052,7 +1077,7 @@ export default function SessionView({
     }
     return;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [freeCycle, lastAssistant, slug]);
+  }, [freeCycle, lastAssistant, slug, idleTick]);
   useEffect(() => {
     if (freeCycle !== 'processing') return;
     // LIVE store read, not the render snapshot: startSpeech() sets phase to
@@ -1080,7 +1105,14 @@ export default function SessionView({
   useEffect(() => {
     if (freeCycle !== 'processing' || !slug) return;
     const es = new EventSource(`/api/run-events?slug=${encodeURIComponent(slug)}`);
-    es.onmessage = () => {
+    es.onmessage = (ev) => {
+      // 'idle' = session.idle = the whole run (every step) is over — the only
+      // signal that may trigger the auto-listen; 'step' = one step message
+      // completed mid-run, refresh-only
+      if (ev.data === 'idle') {
+        runIdleRef.current = true;
+        setIdleTick((t) => t + 1);
+      }
       void loadMsgsRef.current();
     };
     return () => es.close();

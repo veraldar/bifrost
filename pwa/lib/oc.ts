@@ -10,7 +10,9 @@ export async function ocFetch(path: string, init?: RequestInit) {
   });
   console.log(`[oc] ${init?.method || 'GET'} ${path} → ${r.status} ${Date.now() - t0}ms`);
   if (!r.ok) throw new Error(`opencode ${r.status} on ${path}`);
-  return r.json();
+  // 204s (v2 switch endpoints) have no body — null, not a JSON parse error
+  const text = await r.text();
+  return text ? JSON.parse(text) : null;
 }
 
 /** Accepts a real session id (sess_*) or a room slug (title with dashes). */

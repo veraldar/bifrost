@@ -46,10 +46,16 @@ veraldaar…). Recurring themes inside a cluster = emerging roles (frontend / ba
 deploy / marketing split out of the veraldaar cluster, e.g.). The dreamer writes
 *observations*, not structure: "cluster X, N sessions, themes Y, proposes agent Z."
 
-**Crystallize** — a cluster becomes a declared opencode agent only above thresholds
+**Crystallize** — a cluster becomes a declared agent only above thresholds
 (see Governance). The dreamer writes the agent config (markdown: prompt + scoped dir
 + memory slice) and reports it in the morning digest. Veto = delete the config; the
 ledger remembers and does not re-propose unmodified.
+
+Axes stay separate: opencode's built-in agents (build/plan) are **work modes** — how
+a session behaves. Crystallized agents are **domain identities** — what a session is
+about. Domain agents are delivered as subagents + memory slices attached by routing,
+never as replacements for the primary work-mode axis; a crystallized agent must work
+in both build and plan mode, not fork it.
 
 **Prune** — clusters dormant for ~a month demote back to graph notes. Sleep doesn't
 only consolidate; it prunes. Agent explosion (100 agents after two months) is the

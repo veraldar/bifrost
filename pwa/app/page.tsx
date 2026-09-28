@@ -192,7 +192,8 @@ export default function SessionsPage() {
   useEffect(() => {
     const q = gq.trim();
     gqRef.current = q;
-    if (!gOpen || !q) {
+    // 1-char queries scan every session for noise — don't fire them
+    if (!gOpen || q.length < 2) {
       setGHits(null);
       return;
     }
@@ -368,7 +369,7 @@ export default function SessionsPage() {
           </Link>
           <button
             onClick={load}
-            className="rounded-md border border-[var(--oz-border)] px-3 py-1.5 text-xs text-[var(--oz-dim)] hover:text-white"
+            className="rounded-md border border-[var(--oz-border)] px-3 py-1.5 text-xs text-[var(--oz-dim)] hover:text-[var(--oz-text)]"
           >
             {loading ? '···' : 'refresh'}
           </button>
@@ -532,7 +533,7 @@ export default function SessionsPage() {
                   >
                     <div className="flex items-center gap-1.5">
                       {s.pending && <span className="oz-busy text-[var(--oz-active)]">●</span>}
-                      {!s.pending && openQ && <span className="text-white">○</span>}
+                      {!s.pending && openQ && <span className="text-[var(--oz-text)]">○</span>}
                       {!s.pending && unread && !openQ && (
                         <span className="text-[var(--oz-active)]">●</span>
                       )}
@@ -553,7 +554,7 @@ export default function SessionsPage() {
                           }}
                           className={`shrink-0 rounded-full border px-2 text-[10px] leading-4 ${
                             subsOpen[s.id]
-                              ? 'border-white/30 text-white'
+                              ? 'border-[var(--oz-text)]/30 text-[var(--oz-text)]'
                               : anyKidLive
                                 ? 'text-[var(--oz-success)]'
                                 : 'border-[var(--oz-border)] text-[var(--oz-dim)]'
@@ -573,7 +574,7 @@ export default function SessionsPage() {
                       </span>
                     </div>
                     <div
-                      className={`truncate text-xs ${unread ? 'text-white/80' : 'text-[var(--oz-dim)]'}`}
+                      className={`truncate text-xs ${unread ? 'text-[var(--oz-text)]/80' : 'text-[var(--oz-dim)]'}`}
                     >
                       {s.pending ? 'awaiting answer…' : s.preview || '\u00a0'}
                     </div>
@@ -601,7 +602,7 @@ export default function SessionsPage() {
                               {!k.pending && kUnread && (
                                 <span className="text-[10px] text-[var(--oz-active)]">●</span>
                               )}
-                              <div className="truncate text-xs text-white/85">
+                              <div className="truncate text-xs text-[var(--oz-text)]/85">
                                 {k.title || k.id}
                               </div>
                               <span className="ml-auto shrink-0 text-[10px] text-[var(--oz-dim)]">

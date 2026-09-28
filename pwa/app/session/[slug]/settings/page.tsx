@@ -7,8 +7,9 @@
  *  to the session update and model/agent to opencode's v2 switch endpoints —
  *  server-side per-session state, so text AND voice turns both use it. The
  *  current think level is whatever the session records; 'default' means no
- *  explicit level set. Reaching this page: tap the session name in the chat
- *  header; leaving: system back gesture. */
+ *  explicit level set. DELETE at the bottom removes the session (opencode
+ *  cascades sub-sessions) and returns to the list. Reaching this page: tap
+ *  the session name in the chat header; leaving: system back gesture. */
 
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -40,6 +41,9 @@ export default function SessionSettingsView() {
   const [filter, setFilter] = useState('');
   const [error, setError] = useState('');
   const [live, setLive] = useState(false);
+  // two-tap confirm: first tap arms, second deletes — no modal on mobile
+  const [armed, setArmed] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const title = info?.title || slug;
 
@@ -148,6 +152,47 @@ export default function SessionSettingsView() {
       setNameInput(d.title);
       // the URL IS the slug — follow the rename so sends/rooms keep matching
       router.replace(`/session/${slugify(d.title)}/settings`);
+    }
+  }
+
+  async function deleteSession() {
+    setDeleting(true);
+    try {
+      const r = await fetch(`/api/session/${slug}`, { method: 'DELETE' });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || `delete failed (${r.status})`);
+      try {
+        localStorage.removeItem('oz-draft:' + slug);
+      } catch {
+        /* private mode */
+      }
+      // prune the deleted family from the list seed so the home page renders
+      // clean on arrival instead of flashing the dead row until its poll
+      try {
+        const arr = JSON.parse(sessionStorage.getItem('oz-sessions') || '[]');
+        const doomed = new Set<string>(info?.id ? [info.id] : []);
+        let grew = true;
+        while (grew) {
+          grew = false;
+          for (const s of arr) {
+            if (s.parentId && doomed.has(s.parentId) && !doomed.has(s.id)) {
+              doomed.add(s.id);
+              grew = true;
+            }
+          }
+        }
+        sessionStorage.setItem(
+          'oz-sessions',
+          JSON.stringify(arr.filter((s: { id: string }) => !doomed.has(s.id)))
+        );
+      } catch {
+        /* no seed — the list fetches fresh anyway */
+      }
+      router.push('/');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setDeleting(false);
+      setArmed(false);
     }
   }
 
@@ -336,9 +381,31 @@ export default function SessionSettingsView() {
           </div>
         </section>
 
-        <p className="px-1 pb-6 text-[10.5px] leading-relaxed text-[var(--oz-dim)]">
+        <p className="px-1 pb-3 text-[10.5px] leading-relaxed text-[var(--oz-dim)]">
           changes apply from the next message in this session
         </p>
+
+        {/* DELETE — two taps; sub-sessions cascade server-side, then back to
+            the list (which no longer shows the deleted row) */}
+        <section className="mb-6 rounded-2xl border border-[var(--oz-danger)]/40 bg-[var(--oz-surface)] p-3.5">
+          <h2 className="border-b border-[var(--oz-border)]/40 pb-2.5 px-0.5 text-[10.5px] font-bold uppercase tracking-[0.18em] text-[var(--oz-text)]">
+            session
+          </h2>
+          <button
+            disabled={deleting}
+            onClick={() => (armed ? void deleteSession() : setArmed(true))}
+            className={`mt-3 w-full rounded-lg border px-3 py-2 font-mono text-[13px] ${
+              armed
+                ? 'border-[var(--oz-danger)] bg-[var(--oz-danger)]/15 text-[var(--oz-danger)]'
+                : 'border-[var(--oz-border)] text-[var(--oz-dim)]'
+            } disabled:opacity-50`}
+          >
+            {deleting ? 'deleting…' : armed ? 'tap again to delete' : 'delete session'}
+          </button>
+          <p className="mt-2 text-[10.5px] leading-relaxed text-[var(--oz-dim)]">
+            {armed ? 'this cannot be undone — sub-sessions go too' : 'removes the session and its sub-sessions'}
+          </p>
+        </section>
       </div>
     </main>
   );

@@ -8,7 +8,7 @@ import { bustCache } from '@/lib/oc-cache';
 import { buildParts, forward, runEnded } from '@/lib/oc-forward';
 import { isRunLive, liveSince, runEndedAt } from '@/lib/oc-live';
 import { enqueue, queuedItems } from '@/lib/oc-queue';
-import { bustTranscript } from '@/lib/oc-transcript';
+import { bustSearchResults, bustTranscript } from '@/lib/oc-transcript';
 import { ensureWatchdog } from '@/lib/oc-watchdog';
 import { PENDING_TTL_MS } from '@/lib/pending-ttl';
 
@@ -146,6 +146,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         console.log(`[queue] enqueue ${sid} (depth ${queuedItems(sid).length})`);
         bustCache();
         bustTranscript(sid);
+        bustSearchResults();
         return NextResponse.json({ queued: true });
       }
       // fire-and-forget: reply lands via transcript polling. The POST only
@@ -154,6 +155,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       forward(sid, id, body);
       bustCache();
       bustTranscript(sid);
+      bustSearchResults();
       return NextResponse.json({ queued: true });
     }
 
@@ -163,6 +165,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     });
     bustCache();
     bustTranscript(sid);
+    bustSearchResults();
     const out = (reply.parts || [])
       .filter((p: any) => p.type === 'text')
       .map((p: any) => p.text || '')

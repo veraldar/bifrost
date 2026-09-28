@@ -1,23 +1,17 @@
-/** Tiny 60s cache of full transcripts, keyed by opencode session id —
- *  global search fans out over every session per query; without this each
- *  keystroke would re-fetch every transcript from opencode. */
+/** Sticky per-session transcript cache — entries live until the session's
+ *  `updated` stamp moves (or a send busts them), so repeat global searches
+ *  are pure in-memory scans instead of a 50-session opencode fan-out.
+ *  Each message also stores a one-time lowercased copy for search. */
 import { ocFetch } from '@/lib/oc';
 
-export type TMsg = { role: string; text: string; time: number };
+export type TMsg = { role: string; text: string; time: number; low: string };
 
-const CACHE_MS = 60_000;
 const MAX_SESSIONS = 100;
-const cache = new Map<string, { at: number; msgs: TMsg[] }>();
+const cache = new Map<string, { updated: number; msgs: TMsg[] }>();
 
-export function getTranscript(sid: string): TMsg[] | null {
+export async function loadTranscript(sid: string, updated = 0): Promise<TMsg[]> {
   const c = cache.get(sid);
-  if (c && Date.now() - c.at < CACHE_MS) return c.msgs;
-  return null;
-}
-
-export async function loadTranscript(sid: string): Promise<TMsg[]> {
-  const cached = getTranscript(sid);
-  if (cached) return cached;
+  if (c && c.updated === updated) return c.msgs;
   const raw = (await ocFetch(`/session/${sid}/message`)) as Array<{
     role?: string;
     info?: { role?: string; time?: { created?: number } };
@@ -32,18 +26,40 @@ export async function loadTranscript(sid: string): Promise<TMsg[]> {
         .join('\n')
         .trim(),
       time: m.info?.time?.created || 0,
+      low: '',
     }))
     .filter((m) => m.text);
+  for (const m of msgs) m.low = m.text.toLowerCase();
   if (cache.size >= MAX_SESSIONS) {
     // drop the oldest entry — crude but keeps long-lived proxies bounded
-    const oldest = [...cache.entries()].sort((a, b) => a[1].at - b[1].at)[0];
+    const oldest = [...cache.entries()].sort((a, b) => a[1].updated - b[1].updated)[0];
     if (oldest) cache.delete(oldest[0]);
   }
-  cache.set(sid, { at: Date.now(), msgs });
+  cache.set(sid, { updated, msgs });
   return msgs;
 }
 
 export function bustTranscript(sid?: string) {
   if (sid) cache.delete(sid);
   else cache.clear();
+}
+
+/** 15s memo of search responses — typing a word fires y → yg → ygg… queries;
+ *  retries and re-focuses must not re-scan. */
+const RES_TTL = 15_000;
+const resCache = new Map<string, { at: number; data: unknown }>();
+
+export function getSearchResult(q: string): unknown | null {
+  const c = resCache.get(q);
+  if (c && Date.now() - c.at < RES_TTL) return c.data;
+  return null;
+}
+
+export function setSearchResult(q: string, data: unknown) {
+  if (resCache.size >= 50) resCache.clear();
+  resCache.set(q, { at: Date.now(), data });
+}
+
+export function bustSearchResults() {
+  resCache.clear();
 }

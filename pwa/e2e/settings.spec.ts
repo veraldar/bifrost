@@ -97,3 +97,22 @@ test('model picker: filter + apply persists; models without think levels say so'
   // glm-5.2 has no derived think models → honest empty state
   await expect(page.getByText('no think levels configured for this model')).toBeVisible();
 });
+
+test('delete: two taps from settings removes the session and returns to the list', async ({
+  page,
+  request,
+}) => {
+  const dr = await request.post('/api/session', { data: { name: `${BASE_NAME}-del` } });
+  const delId = (await dr.json()).id;
+  expect(delId).toBeTruthy();
+  await page.goto(`/session/${BASE_NAME}-del/settings`);
+  // first tap only arms — the session must still exist
+  await page.getByRole('button', { name: 'delete session' }).click();
+  await expect(page.getByRole('button', { name: 'tap again to delete' })).toBeVisible();
+  expect((await (await request.get(`/api/session/${delId}`)).json()).id).toBe(delId);
+  // second tap deletes → back on the session list, row gone
+  await page.getByRole('button', { name: 'tap again to delete' }).click();
+  await expect(page).toHaveURL(/\/(\?|$)/);
+  const list = await (await request.get('/api/session')).json();
+  expect(list.some((s: { id: string }) => s.id === delId)).toBeFalsy();
+});

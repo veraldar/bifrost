@@ -94,7 +94,7 @@ export async function notifyReply(slug: string): Promise<void> {
   const options: NotificationOptions & { data: { slug: string } } = {
     body: `reply ready — ${slug}`,
     tag: `oz-${slug}`,
-    icon: '/lk-logo-dark.svg',
+    icon: '/favicon.ico',
     data: { slug },
   };
   try {

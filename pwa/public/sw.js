@@ -16,7 +16,7 @@ self.addEventListener('push', (e) => {
     self.registration.showNotification('opencode', {
       body: data.body || 'reply ready',
       tag: data.tag || 'oz-reply',
-      icon: '/lk-logo-dark.svg',
+      icon: '/favicon.ico',
       data: { slug: data.slug },
     })
   );

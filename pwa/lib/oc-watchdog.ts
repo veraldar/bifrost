@@ -127,10 +127,16 @@ function connect() {
           const m = /"sessionID":"(ses_[A-Za-z0-9]+)"/.exec(block);
           if (m) {
             lastEvent.set(m[1], Date.now());
-            // completion signal for the run-events fanout: a run ends with
-            // session.idle, or a final message.updated carrying a set
-            // time.completed (epoch ms) — either means "the reply is fully in"
-            if (/session\.idle|"completed":\s*1\d{12}/.test(block)) emitRunDone(m[1]);
+            // completion signal for the run-events fanout. session.idle is
+            // the WHOLE run finishing (all steps) — the hands-free
+            // auto-listen may only speak on it. A message.updated with a set
+            // time.completed also fires at EVERY step end of a multi-step
+            // run: that is a 'step' refresh signal, never a speak trigger
+            // (req 09-28: speaking per step restarted the audio mid-answer).
+            const idle = /session\.idle/.test(block);
+            if (idle || /"completed":\s*1\d{12}/.test(block)) {
+              emitRunDone(m[1], idle ? 'idle' : 'step');
+            }
           }
         }
       });

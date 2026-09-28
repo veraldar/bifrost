@@ -57,6 +57,10 @@ Checklist = board. A phase done = all boxes checked.
 - [ ] LiveKit on €3 OVH VPS (only `LIVEKIT_URL` + DNS/TLS change)
 - [ ] One-button onboarding: VPS `bootstrap.sh` + QR pairing — spec draft at
   `docs/spec-onboard.md` (under review)
+- [ ] Connectors — multi-harness: per-session/global harness choice
+  (opencode | claude-code | copilot), spec at `docs/spec-connectors.md`
+  (phased: interface refactor → global+per-session UI → claude-code →
+  copilot → voice)
 - [ ] Multi-user / public mode, SIP, video
 - [ ] Dreaming — nightly memory consolidation + self-organizing agents, spec only
   (`docs/spec-dream.md`), starts at roadmap D1 after v1.0

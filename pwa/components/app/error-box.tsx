@@ -3,10 +3,10 @@
 /** The one error surface, used by every page (user req: same mechanism
  *  everywhere): the message, "fix this" and "dismiss". "fix this" packages
  *  error + page + session + diagnostics into a fresh opencode fix session
- *  that runs with the SAME agent/model/think level as the session that hit
- *  the error. The session presents the fix for validation first; only after
- *  the user validates does it ship: commit + push to GitHub, or — without
- *  push access — a GitHub issue proposal for the dev team. */
+ *  started with the same agent/model/think level as the session that hit the
+ *  error. The prompt hands the agent the context plus a SUGGESTED flow —
+ *  validate with the user, then commit+push to GitHub, or a GitHub issue
+ *  proposal without push access — the agent stays in charge of the details. */
 
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -44,8 +44,9 @@ export function ErrorBox({
             .catch(() => null)
         : null;
       const report = [
-        'A frontend error occurred in the voice PWA. Find the root cause in',
-        '~/Work/bifrost/pwa, fix it, and verify with `cd pwa && npx playwright test`.',
+        'A frontend error occurred in the voice PWA — context below. You are in',
+        'charge of this fix session; the workflow after the context is a suggestion,',
+        'adapt it if your judgment says otherwise.',
         '',
         `error: ${error}`,
         `page: ${location.pathname}${location.search}`,
@@ -58,22 +59,20 @@ export function ErrorBox({
         '',
         ...(cfg?.agent || cfg?.model
           ? [
-              'This fix session already runs with the same agent/model/think level',
-              'as the session that hit the error — keep using them.',
+              'This fix session was started with the same agent/model/think level as',
+              'the session that hit the error — keeping them is suggested.',
               '',
             ]
           : []),
-        'When the fix passes the tests, STOP and present it for my validation:',
-        '- the root cause, what you changed, the diff, and the test evidence.',
-        '- do NOT commit, push, or file anything before I validate it.',
-        'After I validate it:',
-        '- stage ONLY the files you changed (parallel sessions may hold unrelated',
-        '  dirty files — check docs/claims.md and git status first), commit with a',
-        '  req-linked message, and push to GitHub.',
-        '- if push fails because you lack access/credentials, propose the fix as a',
-        '  new GitHub issue instead (`gh issue create` in ~/Work/bifrost) with the',
-        '  error, root cause, patch and test evidence, so the dev team can land it.',
-        '- only if neither push nor gh works, report the patch back in this session.',
+        'Suggested flow: find the root cause in ~/Work/bifrost/pwa, fix it, and',
+        'verify with `cd pwa && npx playwright test`. Then present the root cause,',
+        'the diff and the test evidence here, and let the user validate before any',
+        'commit. Once validated: stage only the files you changed (parallel',
+        'sessions may hold unrelated dirty files — docs/claims.md + git status',
+        'tell you), commit with a req-linked message, push to GitHub. If push',
+        "isn't accessible, propose the fix as a GitHub issue (`gh issue create` in",
+        '~/Work/bifrost) with the error, root cause, patch and test evidence, so',
+        'the dev team can land it.',
       ].join('\n');
       const name = `fix ${slug || location.pathname} ${new Date().toLocaleTimeString()}`;
       const cr = await fetch('/api/session', {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useTheme } from 'next-themes';
+import { VERSION } from '@/lib/version';
 import Link from 'next/link';
 import { PixelIcon } from '@/components/pixel-icon';
 
@@ -27,7 +28,7 @@ export default function ThemePage() {
       <div className="card rounded-lg border border-[var(--oz-border)] bg-[var(--oz-surface)] px-4 py-3 mb-4">
         <div className="text-base font-bold tracking-[0.1em] uppercase">Theme</div>
         <div className="text-[10px] text-[var(--oz-dim)] mt-0.5">
-          bifrost 0.1.0 · charte: veraldar-theme · 10 tokens
+          bifrost {VERSION} · charte: veraldar-theme · 10 tokens
         </div>
         <div className="text-xs mt-2">
           current: <span className="text-[var(--oz-info)]">{theme}</span>

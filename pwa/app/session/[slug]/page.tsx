@@ -975,6 +975,21 @@ export default function SessionView({
     freeMicGiveBack();
   }, [freeCycle, speech.phase]);
 
+  // while waiting for a reply, the run-completion nudge replaces the poll
+  // lag: the proxy's opencode SSE sees the finished run server-side and
+  // this channel refreshes the transcript immediately (auto-listen fires
+  // ~instantly instead of up to one poll interval late)
+  const loadMsgsRef = useRef(loadMsgs);
+  loadMsgsRef.current = loadMsgs;
+  useEffect(() => {
+    if (freeCycle !== 'processing' || !slug) return;
+    const es = new EventSource(`/api/run-events?slug=${encodeURIComponent(slug)}`);
+    es.onmessage = () => {
+      void loadMsgsRef.current();
+    };
+    return () => es.close();
+  }, [freeCycle, slug]);
+
   useEffect(() => {
     if (!holding) return;
     setPttSecs(0);

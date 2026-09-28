@@ -21,6 +21,7 @@ import { get } from 'node:http';
 import { OC, ocFetch } from './oc';
 import { liveSids, liveSince } from './oc-live';
 import { runEnded } from './oc-forward';
+import { emitRunDone } from './run-events';
 
 /** 10min, not less: opencode emits NO events during a long silent tool call
  *  (verified: `sleep 45` shows quiet growing to ~30s+), so renders/builds
@@ -124,7 +125,13 @@ function connect() {
           // regex the raw block instead of JSON.parse: version-proof against
           // event envelope changes, and cheap at stream volume
           const m = /"sessionID":"(ses_[A-Za-z0-9]+)"/.exec(block);
-          if (m) lastEvent.set(m[1], Date.now());
+          if (m) {
+            lastEvent.set(m[1], Date.now());
+            // completion signal for the run-events fanout: a run ends with
+            // session.idle, or a final message.updated carrying a set
+            // time.completed (epoch ms) — either means "the reply is fully in"
+            if (/session\.idle|"completed":\s*1\d{12}/.test(block)) emitRunDone(m[1]);
+          }
         }
       });
       res.on('end', () => fail(new Error('stream ended')));
@@ -140,9 +147,14 @@ function connect() {
   req.on('error', fail);
 }
 
-/** Idempotent: starts the SSE listener + stall scanner once per process.
- *  Called from the messages route (every send/poll re-arms it). */
+/** Idempotent ACROSS route module graphs: Next 15 bundles each handler
+ *  export as its own module graph, so the module-level `started` flag alone
+ *  would let GET + POST + SSE routes each run a private watchdog (duplicate
+ *  streams, double aborts). The cross-graph flag lives on globalThis. */
 export function ensureWatchdog() {
+  const g = globalThis as unknown as { __ozWatchdogArmed?: boolean };
+  if (g.__ozWatchdogArmed) return;
+  g.__ozWatchdogArmed = true;
   if (started) return;
   started = true;
   void diag(`watchdog armed (stall limit ${STALL_MS / 1000}s, opencode ${OC})`);

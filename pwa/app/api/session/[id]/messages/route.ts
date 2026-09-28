@@ -125,9 +125,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
-    ensureWatchdog(); // POST-only: Next 15 bundles each handler export as its
-    // own module graph — arming in GET too would run two watchdogs. The GET
-    // path's zombie heal already covers restart orphans on the read side.
+    ensureWatchdog(); // global-guarded across module graphs (oc-watchdog)
     const { id } = await ctx.params;
     const sid = await resolveId(id);
     const body = await req.json();

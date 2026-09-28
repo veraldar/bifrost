@@ -139,5 +139,10 @@ also scheduled daily via a systemd timer).
 
 ## License
 
-PWA derives from [livekit-examples/agent-starter-react](https://github.com/livekit-examples/agent-starter-react)
+Bifrost is [AGPL-3.0](LICENSE) — copyleft including network use: modified
+versions offered as a service must make their source available. Talking to
+bifrost over its API does not make your app a derivative; interop stays free.
+
+Attributions: PWA derives from
+[livekit-examples/agent-starter-react](https://github.com/livekit-examples/agent-starter-react)
 (Apache-2.0). Icons: [pixelarticons](https://github.com/halfmage/pixelarticons) (MIT).

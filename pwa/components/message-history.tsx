@@ -1,15 +1,17 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PixelIcon } from '@/components/pixel-icon';
 import { type Msg, SessionMessage } from '@/components/session-message';
+import { useSwipeX } from '@/lib/use-swipe-x';
 
-const STEP_PX = 72;
+const STEP_PX = 64;
 
 /** Full-screen message history browser, one message at a time. Swipe
  *  left→right steps into the past, right→left back toward the present, and
  *  swiping left past the newest message closes ("back to no message").
- *  Vertical scrolls inside a tall message still work natively (pan-y). */
+ *  Vertical scrolls inside a tall message still work (the swipe hook only
+ *  claims horizontal-dominant gestures). */
 export function MessageHistory({
   msgs,
   index,
@@ -24,12 +26,18 @@ export function MessageHistory({
   const i = Math.min(Math.max(index, 0), msgs.length - 1);
   const m = msgs[i];
   const [dx, setDx] = useState(0);
-  const [dragging, setDragging] = useState(false);
-  const x0 = useRef(0);
-  const y0 = useRef(0);
-  // null = still deciding; once true the drag is ours (horizontal), once
-  // false the browser owns it (vertical scroll) and we never step in
-  const horiz = useRef<boolean | null>(null);
+  const atStart = i === 0;
+  const atEnd = i === msgs.length - 1;
+  const cardRef = useSwipeX<HTMLDivElement>({
+    threshold: STEP_PX,
+    onMove: (d) => setDx(d ?? 0),
+    onCommit: (dir) => {
+      if (dir === 'older') {
+        if (!atStart) onIndex(i - 1);
+      } else if (atEnd) onClose();
+      else onIndex(i + 1);
+    },
+  });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -40,31 +48,10 @@ export function MessageHistory({
   }, [onClose]);
 
   if (!m) return null;
-  const atStart = i === 0;
-  const atEnd = i === msgs.length - 1;
-  // over-drag resistance: 3:1 rubber-band where there is no next message
-  const peek = (d: number) => (d > 0 && atStart ? d / 3 : d);
-  const hint = !dragging
-    ? ''
-    : dx > 8
-      ? atStart
-        ? '· start of session'
-        : '· ← older'
-      : dx < -8
-        ? atEnd
-          ? '· release to close'
-          : '· newer →'
-        : '';
-
-  const commit = () => {
-    if (dx > STEP_PX && !atStart) onIndex(i - 1);
-    else if (dx < -STEP_PX) {
-      if (atEnd) onClose();
-      else onIndex(i + 1);
-    }
-    setDx(0);
-    setDragging(false);
-  };
+  // rubber-band where there is no next message: 3:1 over-drag resistance
+  const shown = dx > 0 && atStart ? dx / 3 : dx;
+  const hint =
+    dx > 8 ? (atStart ? '· start of session' : '· ← older') : dx < -8 ? (atEnd ? '· release to close' : '· newer →') : '';
 
   return (
     <div
@@ -84,34 +71,11 @@ export function MessageHistory({
         </button>
       </div>
       <div
+        ref={cardRef}
         data-testid="hist-card"
-        onPointerDown={(e) => {
-          if (!e.isPrimary) return;
-          x0.current = e.clientX;
-          y0.current = e.clientY;
-          horiz.current = null;
-          setDragging(true);
-          e.currentTarget.setPointerCapture(e.pointerId);
-        }}
-        onPointerMove={(e) => {
-          if (!dragging || horiz.current === false) return;
-          const mx = e.clientX - x0.current;
-          const my = e.clientY - y0.current;
-          if (horiz.current === null) {
-            if (Math.abs(mx) < 8 && Math.abs(my) < 8) return;
-            horiz.current = Math.abs(mx) > Math.abs(my);
-            if (!horiz.current) return;
-          }
-          setDx(peek(mx));
-        }}
-        onPointerUp={commit}
-        onPointerCancel={() => {
-          setDx(0);
-          setDragging(false);
-        }}
         style={{
-          transform: `translateX(${dx}px)`,
-          transition: dragging ? 'none' : 'transform 160ms ease-out',
+          transform: `translateX(${shown}px)`,
+          transition: dx ? 'none' : 'transform 160ms ease-out',
           touchAction: 'pan-y',
         }}
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] p-3"

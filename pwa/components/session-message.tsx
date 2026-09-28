@@ -1,10 +1,18 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Streamdown } from 'streamdown';
 import { Marked } from '@/components/marked';
+import { useSwipeX } from '@/lib/use-swipe-x';
 
-export type Msg = { role: string; text: string; images: string[]; time: number; queued?: boolean };
+export type Msg = {
+  role: string;
+  text: string;
+  images: string[];
+  time: number;
+  queued?: boolean;
+  done?: boolean; // assistant: run completed (hands-free auto-listen gate)
+};
 
 function htmlBlocks(text: string): string[] {
   const out: string[] = [];
@@ -39,8 +47,8 @@ function fmtTime(t: number): string {
   });
 }
 
-/** Committed horizontal swipe distance to open the history browser. */
-const SWIPE_PX = 48;
+/** Committed horizontal swipe on a message opens the history browser; the
+ *  threshold itself lives in useSwipeX (48px default). */
 
 export function SessionMessage({
   m,
@@ -69,40 +77,19 @@ export function SessionMessage({
   const isUser = m.role === 'user';
   const htmls = isUser ? [] : htmlBlocks(m.text);
   const stamp = fmtTime(m.time);
-  // swipe intent: x/y origin + null (undecided) → true (horizontal, ours)
-  // or false (vertical, native scroll wins)
-  const swipe = useRef<{ x: number; y: number; horiz: boolean | null } | null>(null);
+  // horizontal swipe on the message → history browser (touch-safe: the hook
+  // preventDefaults native scroll before it claims the gesture)
+  const swipeRef = useSwipeX<HTMLDivElement>({
+    onCommit: (dir) => {
+      if (onOpenHistory && mi !== undefined) onOpenHistory(mi, dir);
+    },
+    ignoreStart: (t) => !!(t instanceof HTMLElement && t.closest('[data-lightbox]')),
+  });
 
   return (
     <div
+      ref={swipeRef}
       data-mi={mi}
-      onPointerDown={(e) => {
-        if (!e.isPrimary) return;
-        swipe.current = { x: e.clientX, y: e.clientY, horiz: null };
-      }}
-      onPointerMove={(e) => {
-        const s = swipe.current;
-        if (!s || s.horiz === false) return;
-        const dx = e.clientX - s.x;
-        const dy = e.clientY - s.y;
-        if (s.horiz === null) {
-          if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
-          s.horiz = Math.abs(dx) > Math.abs(dy);
-          if (!s.horiz) return;
-        }
-        e.preventDefault();
-      }}
-      onPointerUp={(e) => {
-        const s = swipe.current;
-        swipe.current = null;
-        if (!s?.horiz || !onOpenHistory || mi === undefined) return;
-        const dx = e.clientX - s.x;
-        if (Math.abs(dx) < SWIPE_PX) return;
-        onOpenHistory(mi, dx > 0 ? 'older' : 'newer');
-      }}
-      onPointerCancel={() => {
-        swipe.current = null;
-      }}
       style={{ touchAction: 'pan-y' }}
       className={`scroll-mt-24 text-sm leading-relaxed break-words ${
         hit
@@ -181,6 +168,7 @@ export function SessionMessage({
 
       {lightbox && (
         <div
+          data-lightbox
           onClick={() => setLightbox(null)}
           onPointerDown={(e) => e.stopPropagation()}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"

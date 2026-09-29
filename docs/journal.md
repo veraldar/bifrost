@@ -56,3 +56,15 @@ Append-only log. One line per decision or incident; newest first. Open decisions
   script, ran bootstrap, verified, reported verdict READY with honest skips.
   Container limit: docker-dependent layers (LiveKit/speaches/agent) need a
   real VM/VPS trial — the second-machine test.
+
+## 09-28 — open-question sweep (user directive: answer everything answerable, plan = solo-implementable)
+- **Tool permissions (OQ#1, open since 09-17)**: deny-by-default via opencode's
+  permission config + bifrost voice profile (reads allowed; write/edit/bash
+  denied in voice unless pre-confirmed in text; whitelist via BIFROST_TOOL_POLICY).
+- **Committed-turn chip**: answered by the hands-free phase line; re-open
+  criterion = hands-free pass shows confusion.
+- **Onboarding auth**: one-time token → signed HttpOnly cookie (90d); passkeys post-v1. Stage-B blocker cleared.
+- **Connectors OQs**: CLI-format spikes in-phase; sandbox temp-dir attachments; namespaced model ids; switch confirm dialog.
+- **Dreaming defaults**: ~/Work/memory, opencode-run dreamer, LLM-judged importance; build post-v1.
+- **Hands-free pass**: procedure written into plan.md (echo test at 50% volume, ~2.5s commit, latency feel, hf-restart double-speak check, mic release).
+- Remaining that only the USER can do: run the hands-free pass; provide LLM provider keys on new machines.

@@ -60,14 +60,14 @@ Un-attended upgrades stay off for LiveKit/opencode (breaking-change risk).
 
 ## Open questions
 
-| # | Question | Candidate answer |
-|---|----------|------------------|
-| 1 | PWA auth when public: cookie only, or passkeys/OIDC? | Start: one-time-token → signed cookie (HttpOnly, 90d). Passkeys later. |
-| 2 | Voice on a bare VPS: no Mac/MLX → CPU speaches fallback only. Acceptable quality/latency? | Ship speaches-CPU default; document Mac-LAN as the quality path. |
-| 3 | LiveKit needs a domain + ACME email — prompt-driven `onboard.env` or flags? | `onboard.env` file, script validates and prints what's missing. |
-| 4 | TURN credentials: static from .env or time-limited? | Time-limited (LiveKit auto-mints for its clients); static only as fallback. |
-| 5 | Multi-phone per install? | Just works (token minted per connect) — document, don't build. |
-| 6 | Cost floor: smallest VPS that fits LiveKit + Next + opencode + speaches-CPU? | Measure; expect 4 vCPU / 8GB. |
+All six DECIDED 09-28 (self-answered per prime directive; veto by saying so):
+
+1. **Auth**: one-time pairing token → signed HttpOnly cookie, 90d. Passkeys post-v1 if needed. (Blocks Stage B — unblocked.)
+2. **VPS voice**: speaches-CPU is the shipped default; Mac-LAN documented as the quality upgrade path.
+3. **Domain/ACME**: `onboard.env` file; bootstrap validates and prints exactly what's missing.
+4. **TURN**: time-limited (LiveKit auto-mints); static only as documented fallback.
+5. **Multi-phone**: works as-is (token per connect); document, don't build.
+6. **VPS floor**: measure during phase-2 dogfood; working assumption 4 vCPU / 8 GB.
 
 ## Phases (post-v1)
 

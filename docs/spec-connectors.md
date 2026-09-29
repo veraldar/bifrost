@@ -96,12 +96,7 @@ post-v1 (v1 plugins = manifest + skill/cli faces only).
 
 ## Open questions
 
-| # | Question | Candidate answer |
-|---|----------|------------------|
-| 1 | Copilot / Codex CLI headless streaming formats — stable enough to parse? | Spike in phase 4; fall back to pty scraping if needed |
-| 2 | Attachments on CLIs (images/files)? | Claude Code: file paths on disk — write sandbox temp dir, pass path |
-| 3 | Per-harness model naming collisions in the picker? | Namespaced ids (`opencode/…`, `claude/…`) |
-| 4 | Does harness switch need user confirmation (context loss)? | Yes — confirm dialog naming the harness being left |
+All four DECIDED 09-28: (1) CLI streaming = spike inside phase 3/4 respectively; pty scraping is the documented fallback. (2) CLI attachments = write to an instance sandbox temp dir, pass paths. (3) Model ids namespaced per harness (`opencode/…`, `claude/…`). (4) Harness switch = confirm dialog naming the harness being left (context loss is real).
 
 ## Concept — user-local plugins (raised 09-27, not scheduled)
 

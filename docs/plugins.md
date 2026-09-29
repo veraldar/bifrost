@@ -56,3 +56,23 @@ plugins/
 Plugin authors never write Rust. If the core is ever ported to a Rust daemon
 (`bifrostd` — an option, not a promise), plugins keep talking to the same
 contract over HTTP. Your skill/cli faces survive any core rewrite.
+
+## Recipe — a "workflow pack" (the better skill+cli+service ask)
+
+For turning a named flow (e.g. a git workflow) into a plugin, do NOT build a
+service layer or write Rust. A workflow pack is three small things:
+
+1. `SKILL.md` — the flow as agent-readable instructions (the brain): when
+   invoked, steps, guardrails, when to stop
+2. `cli/` — the deterministic steps as plain executables (the hands): the
+   agent calls them; they do one thing each, exit codes tell truth
+3. a **trigger line** — the heartbeat, no daemon: cron/alias that starts a
+   bifrost session pointed at the skill, e.g.
+   `0 9 * * 1 curl -XPOST $BIFROST/api/session -d '{"title":"weekly-flow","skill":"my-flow"}'`
+
+Worker behavior = skill + trigger. If a flow someday truly needs a
+long-running process, that's the reserved `service` face (post-v1) — and it
+still wouldn't be Rust.
+
+Worked example to copy: see `templates/plugin-workflow/` (added with the
+plugins loader, connectors phase 1+).

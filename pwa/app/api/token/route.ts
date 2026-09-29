@@ -50,11 +50,16 @@ export async function POST(req: Request) {
       ? RoomConfiguration.fromJson(body.room_config, { ignoreUnknownFields: true })
       : new RoomConfiguration();
 
-    // Room = session slug passed by the sessions shell.
-    const roomName =
-      String(body?.room || '')
-        .replace(/[^a-zA-Z0-9_-]/g, '')
-        .slice(0, 60) || `session_${Math.floor(Math.random() * 10_000)}`;
+  // Room = session slug passed by the sessions shell.
+  const rawRoom = String(body?.room || '');
+  console.log(`[token] raw room=${JSON.stringify(body?.room)} referer=${req.headers.get('referer')}`);
+  const roomName = rawRoom.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 60);
+  // a room-less mint used to fall back to `session_<random>` — the agent
+  // then spawned a phantom opencode session titled after it (2026-09-29
+  // session_6898 storm). Refuse instead: callers must name the room.
+  if (!roomName) {
+    return NextResponse.json({ error: 'room required' }, { status: 400 });
+  }
 
     // Stable identity per room so reconnects resume the same participant.
     const participantName = 'user';

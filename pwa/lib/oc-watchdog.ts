@@ -22,6 +22,7 @@ import { OC, ocFetch } from './oc';
 import { liveSids, liveSince } from './oc-live';
 import { runEnded } from './oc-forward';
 import { emitRunDone } from './run-events';
+import { bustCache } from './oc-cache';
 
 /** 10min, not less: opencode emits NO events during a long silent tool call
  *  (verified: `sleep 45` shows quiet growing to ~30s+), so renders/builds
@@ -127,6 +128,20 @@ function connect() {
           const m = /"sessionID":"(ses_[A-Za-z0-9]+)"/.exec(block);
           if (m) {
             lastEvent.set(m[1], Date.now());
+            // the home list shows the per-session working dot from a 60s
+            // server cache — but voice runs (agent → opencode directly) and
+            // external clients never touch the proxy's run tracker, so the
+            // dot lagged up to a minute behind a live run (live 2026-09-29:
+            // "new test" worked for minutes with a stale idle list). Any
+            // stream activity for a session invalidates the cache; the
+            // list's next poll (≤8s) recomputes fresh. Throttled: streams
+            // fire per token-delta batch — one bust per 5s is plenty.
+            const nowMs = Date.now();
+            const gb = globalThis as unknown as { __ozListBustAt?: number };
+            if (nowMs - (gb.__ozListBustAt || 0) > 5_000) {
+              gb.__ozListBustAt = nowMs;
+              bustCache();
+            }
             // completion signal for the run-events fanout. session.idle is
             // the WHOLE run finishing (all steps) — the hands-free
             // auto-listen may only speak on it. A message.updated with a set

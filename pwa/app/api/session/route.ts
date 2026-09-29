@@ -13,6 +13,7 @@ import { NextResponse } from 'next/server';
 import { bustCache, getCache, setCache } from '@/lib/oc-cache';
 import { isRunLive } from '@/lib/oc-live';
 import { PENDING_TTL_MS } from '@/lib/pending-ttl';
+import { ensureWatchdog } from '@/lib/oc-watchdog';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +38,10 @@ function textOf(parts: Array<{ type?: string; text?: string }> | undefined) {
 
 export async function GET() {
   try {
+    // arms the opencode event stream (idempotent, one per process): its
+    // busts keep this list's working dots live for voice runs, which never
+    // pass through this proxy's run tracker
+    ensureWatchdog();
     const cached = getCache();
     if (cached) return NextResponse.json(cached);
     const sessions = (await ocFetch('/session')) as Array<Record<string, any>>;

@@ -3,6 +3,14 @@
 Single source of truth for status and next work. Decisions & incidents: `journal.md`.
 Checklist = board. A phase done = all boxes checked.
 
+## Prime directive (spec.md — binds every decision below)
+
+Best human UX + best code for AI. Practical consequences: golden/contract
+tests land with connectors phase 1 (executable contracts agents can verify
+against); AGENTS.md map must be updated whenever structure moves; new
+features declare core-or-edge in their spec; UX gates (hands-free pass,
+pairing zero-typing) are release gates, not nice-to-haves.
+
 ## Invariants (must always hold — regression here is a bug)
 
 - [x] List sessions, select one, create, delete

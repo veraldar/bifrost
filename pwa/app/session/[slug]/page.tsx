@@ -688,6 +688,16 @@ export default function SessionView({
     };
   }, []);
 
+  // preconnect voice on page load: a PTT press must turn the mic on in
+  // ~200ms, but a fresh token+signal+agent join takes seconds on a laggy
+  // link — a hold shorter than the connect dropped the whole turn (live
+  // 20:44:39: ready and released in the same second, mic never enabled).
+  // The room connects with the mic off: no capture device is opened until
+  // a hold enables it, so the phone shows no mic-in-use while idle.
+  useEffect(() => {
+    void ensureVoice().catch(() => {});
+  }, []);
+
   useEffect(() => {
     modeRef.current = mode;
   }, [mode]);
@@ -818,18 +828,21 @@ export default function SessionView({
     await roomRef.current?.localParticipant.setMicrophoneEnabled(on);
   }
 
-  /** Full room teardown — device release, not just mute. A connected room
-   *  holds the capture device even with the track disabled, so the phone
-   *  keeps showing "mic in use" (req 09-29: 'mic on only on push to talk').
-   *  Text-mode PTT releases the room when the hold ends; ensureVoice()
-   *  reconnects lazily on the next hold. */
-  function releaseVoiceRoom(room: Room) {
-    if (roomRef.current === room) {
-      roomRef.current = null;
-      voicePromiseRef.current = null;
-      setVoiceState('off');
+  /** Text-mode PTT: release the CAPTURE DEVICE between holds. A muted track
+   *  still holds the mic hardware (phone shows 'mic in use' — req 09-29
+   *  'mic on only on push to talk'), and a full room teardown forces a
+   *  reconnect on the next press — slower than the hold on a laggy link.
+   *  So the room + agent stay warm; unpublishing stops the device, and the
+   *  next hold's setMicrophoneEnabled(true) re-acquires it (~200ms). */
+  function releaseMicDevice(room: Room) {
+    const pub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
+    if (pub?.track) {
+      try {
+        room.localParticipant.unpublishTrack(pub.track, true);
+      } catch {
+        /* track already gone */
+      }
     }
-    void room.disconnect().catch(() => {});
   }
 
   // radio "out": the agent committed the final turn — release mic + room
@@ -904,11 +917,10 @@ export default function SessionView({
       // lazily connect from any mode (first press pays the connect cost)
       const room = await ensureVoice();
       if (!pttWantRef.current) {
-        // finger lifted before the room was ready — don't leave a live room
-        // + hot mic behind: tear it down, the next press reconnects. NOTE:
-        // modeRef === 'text' is NORMAL here — the composer mic IS push to
-        // talk; only a pre-ready release kills the room
-        releaseVoiceRoom(room);
+        // finger lifted before the room was ready — mic was never enabled,
+        // so no capture device is open: keep the (preconnected) room warm
+        // for the next press. NOTE: modeRef === 'text' is NORMAL here — the
+        // composer mic IS push to talk
         setHolding(false);
         return;
       }
@@ -976,13 +988,9 @@ export default function SessionView({
       // released inside the delete zone — drop the buffered turn
       if (modeRef.current !== 'free') await mic(false);
       pttDiscardRpc();
-      // text mode: nothing was committed — release the room once the
-      // fire-and-forget abort RPC has had its grace window on the live room
-      if (modeRef.current !== 'free') {
-        setTimeout(() => {
-          if (!pttWantRef.current) releaseVoiceRoom(room);
-        }, 5_000);
-      }
+      // text mode: release the capture device (room stays warm for the
+      // next press; the abort RPC already went out over the live room)
+      if (modeRef.current !== 'free') releaseMicDevice(room);
       return;
     }
     if (modeRef.current !== 'free') await mic(false); // hands-free keeps listening
@@ -996,7 +1004,10 @@ export default function SessionView({
           destinationIdentity: agent.identity,
           method: 'commit_turn',
           payload: '{}',
-          responseTimeout: 10_000,
+          // agent worst case: 1.5s flush + 8s transcript wait — an RPC
+          // timeout here reads as "stale room" and drops a commit that
+          // would still have landed
+          responseTimeout: 14_000,
         });
         // agent answered but its session is dead (stale room) → reconnect
         if (res && res !== 'ok') throw new Error(res);
@@ -1022,10 +1033,10 @@ export default function SessionView({
       return;
     }
     // text mode: the turn is committed and the reply arrives over the
-    // session poller — the room's job is done. Release it for real so the
-    // phone's mic indicator goes OFF (muting alone keeps the capture device
-    // open); the next press reconnects fresh
-    if (modeRef.current !== 'free') releaseVoiceRoom(room);
+    // session poller — release the capture device for real (muting alone
+    // keeps it open; the phone kept showing mic-in-use). The room stays
+    // warm: the next press re-acquires the mic without a reconnect.
+    if (modeRef.current !== 'free') releaseMicDevice(room);
   }
 
   // live mic equalizer (PTT pill + hands-free strip) — see useMicLevels

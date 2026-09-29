@@ -276,13 +276,32 @@ async def entrypoint(ctx: JobContext) -> None:
             return "not-running"
         return "ok"
 
+    # The phone mutes its mic BEFORE asking for the commit (PTT release calls
+    # mic(false) first; hands-free mutes on the free_state RPC) — no frames
+    # flow after that, and the batch STT only ever POSTs on VAD END_OF_SPEECH,
+    # which needs trailing silence that will now never arrive. commit_user_turn
+    # then times out EMPTY and the whole hold is dropped (live 2026-09-29 room
+    # 'bug', repro'd in room 'voicerepro1': transcript only surfaced during
+    # teardown). Detaching the input flips commit_user_turn into its flush
+    # path: it injects stt_flush_duration of silence itself, the VAD closes
+    # the last segment, the batch POST fires, and the final lands within
+    # transcript_timeout. Re-attach immediately — the phone stays muted until
+    # its reply finishes, so no frames are lost in between. (Detach only gates
+    # frame forwarding in room_io/_input.py; the STT stream keeps its buffer.)
+    async def _commit_with_flush() -> None:
+        session.input.set_audio_enabled(False)
+        try:
+            await session.commit_user_turn(transcript_timeout=3.0, stt_flush_duration=1.5)
+        finally:
+            session.input.set_audio_enabled(True)
+
     async def _commit_turn_rpc(data) -> str:
         # the phone can call this while the session is already closing (stale
         # room, participant disconnect race) — raising here surfaces as a raw
         # RPC error/timeout on the phone; a "not-running" answer lets it
         # self-heal by reconnecting
         try:
-            await session.commit_user_turn()
+            await _commit_with_flush()
         except Exception as e:  # noqa: BLE001
             logger.warning("commit_turn on dead session: %s", e)
             return "not-running"
@@ -378,7 +397,7 @@ async def entrypoint(ctx: JobContext) -> None:
                 except Exception as e:  # noqa: BLE001
                     logger.warning("end_free rpc: %s", e)
             try:
-                await session.commit_user_turn()
+                await _commit_with_flush()
             except Exception as e:  # noqa: BLE001
                 logger.warning("keyword commit: %s", e)
             finally:

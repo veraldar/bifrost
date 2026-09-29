@@ -37,6 +37,7 @@ export default function SessionSettingsView() {
   const [nameInput, setNameInput] = useState(slug);
   const [providers, setProviders] = useState<ProviderRow[]>([]);
   const [agents, setAgents] = useState<string[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [pickOpen, setPickOpen] = useState(false);
   const [filter, setFilter] = useState('');
   const [error, setError] = useState('');
@@ -52,33 +53,43 @@ export default function SessionSettingsView() {
     setInfo(null);
     setNameInput(slug);
     setPickOpen(false);
+    setLoaded(false);
   }, [slug]);
 
   const load = useCallback(async () => {
     if (!slug) return;
-    try {
-      const [sr, mr, ar] = await Promise.all([
-        fetch(`/api/session/${slug}`, { cache: 'no-store' }),
-        fetch('/api/models'),
-        fetch('/api/agents'),
-      ]);
-      if (sr.ok) {
-        const s = await sr.json();
-        setInfo(s);
-        // fill the name field only while it's still pristine — the fetch
-        // must never clobber a value the user already started typing
-        setNameInput((prev) => (prev === slug ? s.title || slug : prev));
-      }
-      if (mr.ok) setProviders(await mr.json());
-      if (ar.ok) setAgents((await ar.json()).map((a: { name: string }) => a.name));
-    } catch {
-      /* transient — tiles render with what they have */
+    // independent settles, not Promise.all: one flaky fetch (phone on
+    // tailnet, opencode busy with concurrent runs — 2026-09-29 net-fail
+    // storm) must not blank the MODEL tile into 'tap to choose' when the
+    // session record itself is fine
+    const [sr, mr, ar] = await Promise.allSettled([
+      fetch(`/api/session/${slug}`, { cache: 'no-store' }),
+      fetch('/api/models'),
+      fetch('/api/agents'),
+    ]);
+    if (sr.status === 'fulfilled' && sr.value.ok) {
+      const s = await sr.value.json();
+      setInfo(s);
+      // fill the name field only while it's still pristine — the fetch
+      // must never clobber a value the user already started typing
+      setNameInput((prev) => (prev === slug ? s.title || slug : prev));
     }
+    if (mr.status === 'fulfilled' && mr.value.ok) setProviders(await mr.value.json());
+    if (ar.status === 'fulfilled' && ar.value.ok)
+      setAgents((await ar.value.json()).map((a: { name: string }) => a.name));
+    setLoaded(true);
   }, [slug]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  // a failed first load self-heals: keep retrying until data landed
+  useEffect(() => {
+    if (loaded) return;
+    const t = setInterval(() => void load(), 2000);
+    return () => clearInterval(t);
+  }, [loaded, load]);
 
   // busy dot — same live-run flag the chat header uses
   useEffect(() => {
@@ -246,7 +257,7 @@ export default function SessionSettingsView() {
             className="mt-3 flex w-full items-center justify-between gap-2 text-left"
           >
             <span className="truncate font-mono text-[13px] text-[var(--oz-success)]">
-              {model ? modelKey(model) : 'tap to choose'}
+              {model ? modelKey(model) : loaded ? 'tap to choose' : 'loading…'}
             </span>
             <span className="text-xs text-[var(--oz-dim)]">{pickOpen ? '▲' : '›'}</span>
           </button>

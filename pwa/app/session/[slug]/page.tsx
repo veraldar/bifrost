@@ -818,6 +818,20 @@ export default function SessionView({
     await roomRef.current?.localParticipant.setMicrophoneEnabled(on);
   }
 
+  /** Full room teardown — device release, not just mute. A connected room
+   *  holds the capture device even with the track disabled, so the phone
+   *  keeps showing "mic in use" (req 09-29: 'mic on only on push to talk').
+   *  Text-mode PTT releases the room when the hold ends; ensureVoice()
+   *  reconnects lazily on the next hold. */
+  function releaseVoiceRoom(room: Room) {
+    if (roomRef.current === room) {
+      roomRef.current = null;
+      voicePromiseRef.current = null;
+      setVoiceState('off');
+    }
+    void room.disconnect().catch(() => {});
+  }
+
   // radio "out": the agent committed the final turn — release mic + room
   // exactly like switchMode('text') does, but without its same-mode guard
   // (the RPC handler must work no matter what the closure saw)
@@ -894,11 +908,7 @@ export default function SessionView({
         // + hot mic behind: tear it down, the next press reconnects. NOTE:
         // modeRef === 'text' is NORMAL here — the composer mic IS push to
         // talk; only a pre-ready release kills the room
-        await room.localParticipant.setMicrophoneEnabled(false).catch(() => {});
-        if (roomRef.current === room) roomRef.current = null;
-        voicePromiseRef.current = null;
-        void room.disconnect().catch(() => {});
-        setVoiceState('off');
+        releaseVoiceRoom(room);
         setHolding(false);
         return;
       }
@@ -966,6 +976,13 @@ export default function SessionView({
       // released inside the delete zone — drop the buffered turn
       if (modeRef.current !== 'free') await mic(false);
       pttDiscardRpc();
+      // text mode: nothing was committed — release the room once the
+      // fire-and-forget abort RPC has had its grace window on the live room
+      if (modeRef.current !== 'free') {
+        setTimeout(() => {
+          if (!pttWantRef.current) releaseVoiceRoom(room);
+        }, 5_000);
+      }
       return;
     }
     if (modeRef.current !== 'free') await mic(false); // hands-free keeps listening
@@ -998,9 +1015,17 @@ export default function SessionView({
         setVoiceState('off');
         void room.disconnect();
       }
-      reconnectVoice();
+      // the fresh-room self-heal only matters while voice is still wanted;
+      // in text mode the next hold reconnects anyway — a reconnect here
+      // would re-open the mic device the release contract just closed
+      if (modeRef.current === 'free') reconnectVoice();
       return;
     }
+    // text mode: the turn is committed and the reply arrives over the
+    // session poller — the room's job is done. Release it for real so the
+    // phone's mic indicator goes OFF (muting alone keeps the capture device
+    // open); the next press reconnects fresh
+    if (modeRef.current !== 'free') releaseVoiceRoom(room);
   }
 
   // live mic equalizer (PTT pill + hands-free strip) — see useMicLevels

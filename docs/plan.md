@@ -30,14 +30,21 @@ Checklist = board. A phase done = all boxes checked.
 - [x] Repo: `veraldar/yggdrasil-bifrost`, private infra in gitignored `docs/local.md`
 - [x] e2e: Playwright suite (10 specs) against the live stack; env/test record auto-generated
 
-## Release staging (decided 09-27)
+## Release ladder (reconciled 09-27 after plan review)
 
-- **Stage A — enthusiast release (v0.4.0)**: terminal-comfortable users
-  (omarchy/Arch/docker crowd), with or without local models (CPU fallback is
-  the default path). Gates: hands-free human pass, queue-e2e assertion made
-  robust, known-limits block in release notes.
-- **Stage B — consumer release**: after onboarding phase 2 (/pair QR,
-  zero-typing), connectors phase 1–2, notification polish.
+- **v0.4.0 — enthusiast**: terminal users (omarchy/Arch/docker), with or
+  without local models. Gates: hands-free human pass (after hf-restart claim
+  closes), queue-e2e robustness (done), known-limits block in notes
+  (include hf-restart if open), "what you need" list (1 box, docker,
+  Node ≥22, LLM key, tailscale optional).
+- **v1.0 — consumer** (the consumer release IS v1.0): gates = onboarding
+  phase 2 (/pair QR, zero-typing; auth decision required), connectors
+  phase 1–3 (process driver as real contract evidence), notification polish
+  (Android battery docs).
+- **bifrostd (Rust core port)**: NOT a roadmap item — an option triggered by
+  evidence: contract survived connectors 1–3 unchanged + a concrete driver
+  (bootstrap simplicity / small-VPS memory / onboarding pain). If TS stays
+  adequate, defer indefinitely.
 
 ## Current — harden to v1.0
 

@@ -73,16 +73,26 @@ turns — no cross-harness history copy in v1).
 **"the session's active harness is the source of truth for its sessions and
 transcript; rooms map to sessions by slug."**
 
-## Phases
+## Phases (trimmed per plan review 09-27)
 
-1. **Refactor**: extract the connector interface, opencode as connector #1 —
-   no behavior change, full e2e suite green
-2. **Global default + per-session harness UI** (opencode only — plumbing
-   visible, one option)
-3. **Claude Code connector** (headless stream-json driver; auth = user's
-   claude login on the box)
-4. **Copilot + Codex connectors** (CLI format spikes first)
-5. **Voice across harnesses** + spec.md rule amendment landed with phase 1
+1. **Core-contract extraction** (fused with connectors phase 1): connector
+   interface + session registry + **golden/contract tests** ("zero behavior
+   change" = golden transcripts diff clean + full e2e green). Transcript
+   store / event fan-out / secrets config are extracted only as naturally
+   touched — a store rewrite here would break the gate. spec.md rule 3
+   amendment text is final now; applied to spec.md when this phase lands.
+2. **Global default harness UI** (opencode only). Per-session override moves
+   to phase 3 — it is where the stitching pain lives.
+3. **Claude Code connector** (process driver) + per-session override with a
+   "switched harness" marker (no transcript stitching in v1). This phase is
+   the real contract evidence and the precondition for any port decision.
+4. **Copilot + Codex** — deferred until claude-code proves the process
+   driver AND there is demand.
+5. **Voice across harnesses**.
+
+Cuts accepted: cross-harness transcript stitching (v1 = marker only);
+per-session override in phase 2; codex/copilot timing; plugin service face
+post-v1 (v1 plugins = manifest + skill/cli faces only).
 
 ## Open questions
 

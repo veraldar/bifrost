@@ -30,6 +30,15 @@ Checklist = board. A phase done = all boxes checked.
 - [x] Repo: `veraldar/yggdrasil-bifrost`, private infra in gitignored `docs/local.md`
 - [x] e2e: Playwright suite (10 specs) against the live stack; env/test record auto-generated
 
+## Release staging (decided 09-27)
+
+- **Stage A — enthusiast release (v0.4.0)**: terminal-comfortable users
+  (omarchy/Arch/docker crowd), with or without local models (CPU fallback is
+  the default path). Gates: hands-free human pass, queue-e2e assertion made
+  robust, known-limits block in release notes.
+- **Stage B — consumer release**: after onboarding phase 2 (/pair QR,
+  zero-typing), connectors phase 1–2, notification polish.
+
 ## Current — harden to v1.0
 
 - [ ] Phone e2e pass (user, on the phone): voice round-trip, busy→notify, mic

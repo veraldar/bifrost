@@ -67,7 +67,7 @@ test('attachments: image + file chips, remove, send via REST', async ({ page }) 
   await expect(page.getByText('📎 note.md')).toBeVisible({ timeout: 30_000 });
 });
 
-test('voice: PTT connects to LiveKit, keyboard mode releases the room', async ({ page }) => {
+test('voice: PTT connects to LiveKit, keyboard mode keeps the room warm', async ({ page }) => {
   await page.goto(`/session/${NAME}?id=${sessionId}`);
   let livekitWs = 0;
   const sockets: Array<{ isClosed(): boolean }> = [];
@@ -84,14 +84,17 @@ test('voice: PTT connects to LiveKit, keyboard mode releases the room', async ({
   // compact mic UI: no persistent banner — the opened socket above IS the
   // connect proof; the button just has to stay usable
   await expect(page.getByRole('button', { name: 'push to talk' })).toBeEnabled();
-  // keyboard mode must tear the room down (mic release fix)
+  // keyboard mode releases the mic CAPTURE DEVICE but keeps the room + agent
+  // warm: a teardown forced the next press to re-dispatch the voice agent and
+  // a hold shorter than that join dropped the whole turn (req 09-29). The
+  // LiveKit socket must therefore STAY open after the switch.
   await page.getByRole('button', { name: 'text mode' }).click();
   await expect
     .poll(() => sockets.filter((s) => s.isClosed()).length, {
-      timeout: 15_000,
-      message: 'LiveKit websocket still open after keyboard mode',
+      timeout: 5_000,
+      message: 'keyboard mode must keep the room warm (only the mic device is released)',
     })
-    .toBe(sockets.length);
+    .toBe(0);
 });
 
 test('hands-free mode arms without error', async ({ page }) => {

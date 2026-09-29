@@ -57,6 +57,21 @@ function fileToDataUrl(f: File): Promise<string> {
   });
 }
 
+/** The voice agent can lag the room join (fresh dispatch after a page
+ *  reload or a teardown): poll briefly instead of dropping the turn — a
+ *  commit fired while `remoteParticipants` is still empty reaches nobody
+ *  and the hold is lost silently (req 09-29 'switching from hand free to
+ *  keyboard and then using the push to talk is not working'). */
+async function agentInRoom(room: Room, ms: number) {
+  const deadline = Date.now() + ms;
+  for (;;) {
+    const agent = Array.from(room.remoteParticipants.values())[0];
+    if (agent) return agent;
+    if (Date.now() >= deadline) return null;
+    await new Promise((r) => setTimeout(r, 120));
+  }
+}
+
 /** Live mic equalizer — 5 voice-band bars (100Hz–2kHz) from the published
  *  mic track's FFT. Shared by the PTT hold pill and the hands-free strip;
  *  the track may not exist yet (dial still in progress), so poll for it and
@@ -237,6 +252,13 @@ export default function SessionView({
   // (a stable pre-send state from the previous run must not clear it).
   const runStateRef = useRef('');
   const runStreakRef = useRef(0);
+  // epoch ms of the last poll that actually returned data. The wedge guard
+  // acts on run-state + live flag — both of which FREEZE when polls fail
+  // (flaky tailnet link: diag 2026-09-29 22:07-22:12 shows GET /messages
+  // failing while the run was alive). Acting on frozen evidence auto-aborts
+  // healthy runs — "working in the list but nothing in the session" — so a
+  // wedge verdict now requires a successful poll within the last 15s.
+  const lastGoodPollRef = useRef(0);
   const totalRef = useRef(0);
   const runBaseTotalRef = useRef(0);
   // definitive "run in flight" from the proxy (its async POST resolves only
@@ -469,6 +491,7 @@ export default function SessionView({
           signal: AbortSignal.timeout(10_000),
         });
         if (r.ok) {
+          lastGoodPollRef.current = Date.now();
           const fresh: Msg[] = await r.json();
           const totalCount = Number(r.headers.get('X-Total-Count') || fresh.length);
           setTotal(totalCount);
@@ -657,13 +680,17 @@ export default function SessionView({
         if (document.hidden) void notifyReply(slug);
         return;
       }
-      // wedge guard: 30s busy, NO live run, and the LAST raw message is
-      // still the user's own prompt → the runner never picked the message
-      // up (hung earlier run, dead queue). Abort so the session un-wedges;
+      // wedge guard: 30s busy, NO live run, the LAST raw message is still
+      // the user's own prompt → the runner never picked the message up
+      // (hung earlier run, dead queue). Abort so the session un-wedges;
       // the prompt stays in the transcript, user can resend.
+      // Poll-freshness gate: a frozen |0|user from FAILED polls is not
+      // evidence (2026-09-29: flaky link froze the state, the guard
+      // aborted a healthy 5-minute run) — only abort on fresh proof.
       if (
         !wedgeFiredRef.current &&
         sec >= 30 &&
+        Date.now() - lastGoodPollRef.current < 15_000 &&
         !liveRef.current &&
         runStateRef.current.endsWith('|0|user')
       ) {
@@ -695,8 +722,44 @@ export default function SessionView({
   // The room connects with the mic off: no capture device is opened until
   // a hold enables it, so the phone shows no mic-in-use while idle.
   useEffect(() => {
-    void ensureVoice().catch(() => {});
-  }, []);
+    // runs when the slug lands (and on a slug change): preconnecting with an
+    // empty slug minted a random fallback room — see ensureVoice's guard
+    if (!slug) return;
+    void (async () => {
+      try {
+        await ensureVoice();
+        // restore hands-free across refresh (oz-mode written by switchMode/
+        // exitFree): voice ready → arm the mic. If the browser refuses a
+        // gesture-less mic (autoplay policy), fall back to keyboard loudly.
+        let wantFree = false;
+        try {
+          wantFree = localStorage.getItem('oz-mode') === 'free';
+        } catch {
+          /* private mode */
+        }
+        if (wantFree && modeRef.current === 'text' && !unmountedRef.current) {
+          try {
+            modeRef.current = 'free';
+            setMode('free');
+            setFreeCycle('listening');
+            await mic(true);
+            diagEvent('voice', 'hands-free restored after refresh');
+          } catch {
+            modeRef.current = 'text';
+            setMode('text');
+            try {
+              localStorage.setItem('oz-mode', 'text');
+            } catch {
+              /* private mode */
+            }
+            setError('hands-free needs one tap after a refresh — tap hands-free');
+          }
+        }
+      } catch {
+        /* preconnect failure — the first press surfaces it */
+      }
+    })();
+  }, [slug]);
 
   useEffect(() => {
     modeRef.current = mode;
@@ -718,6 +781,12 @@ export default function SessionView({
   async function ensureVoice(): Promise<Room> {
     if (roomRef.current && voiceState === 'ready') return roomRef.current;
     if (voicePromiseRef.current) return voicePromiseRef.current;
+    // params unwrap is async: on first mount slug is still '' — minting
+    // then would create a random fallback room in the token route (and the
+    // agent would spawn a phantom opencode session titled after it, live
+    // 2026-09-29: room "" → session_6898). No token until the slug lands;
+    // the preconnect effect re-runs on [slug].
+    if (!slug) throw new Error('voice: session slug not ready yet');
     setVoiceState('connecting');
     voicePromiseRef.current = connectVoice();
     return voicePromiseRef.current;
@@ -845,19 +914,23 @@ export default function SessionView({
     }
   }
 
-  // radio "out": the agent committed the final turn — release mic + room
-  // exactly like switchMode('text') does, but without its same-mode guard
-  // (the RPC handler must work no matter what the closure saw)
+  // radio "out": the agent committed the final turn — release the capture
+  // device exactly like switchMode('text'), but without its same-mode guard
+  // (the RPC handler must work no matter what the closure saw). The room and
+  // the agent in it stay warm: a PTT hold right after "over and out" must
+  // find the agent present, not race its re-dispatch (see switchMode).
   async function exitFree() {
     modeRef.current = 'text';
     setMode('text');
     setFreeCycle('listening');
+    try {
+      localStorage.setItem('oz-mode', 'text');
+    } catch {
+      /* private mode */
+    }
     const room = roomRef.current;
-    roomRef.current = null;
-    voicePromiseRef.current = null;
-    setVoiceState('off');
-    diagEvent('voice', 'released (over and out)');
-    await room?.disconnect();
+    if (room) releaseMicDevice(room);
+    diagEvent('voice', 'released (over and out) — mic device released, room stays warm');
   }
 
   async function switchMode(next: Mode) {
@@ -868,17 +941,27 @@ export default function SessionView({
     // asynchronously and the self-heal must already see the new mode, or it
     // reconnects a room the user just left (socket that never closes)
     modeRef.current = next;
+    // survive refresh: mode is component state, a reload silently dropped
+    // hands-free to keyboard (req 09-29 'it switching from hf to keyboard')
+    try {
+      localStorage.setItem('oz-mode', next);
+    } catch {
+      /* private mode — restore just won't happen */
+    }
     try {
       if (next === 'text') {
-        // mute is not enough: the room keeps the capture device open, so the
-        // phone still shows "mic in use". Release it for real — ensureVoice()
-        // reconnects lazily (fresh token) when a voice mode is picked again.
+        // Keyboard mode releases the CAPTURE DEVICE, not the room: tearing
+        // the room down here forced the next PTT press to re-dispatch the
+        // voice agent (~1-2s) — a hold shorter than that join delivered
+        // neither ptt_begin nor commit_turn (both are guarded on the agent
+        // being present) and the whole turn was dropped (req 09-29
+        // 'switching from hand free to keyboard and then using the push to
+        // talk is not working'). The unpublish closes the device (the phone
+        // mic-in-use indicator clears); room + agent stay warm so the next
+        // hold re-acquires the mic in ~200ms.
         const room = roomRef.current;
-        roomRef.current = null;
-        voicePromiseRef.current = null;
-        setVoiceState('off');
-        diagEvent('voice', 'released (keyboard mode)');
-        await room?.disconnect();
+        if (room) releaseMicDevice(room);
+        diagEvent('voice', 'keyboard mode — mic device released, room stays warm');
       } else {
         // hands-free: mic stays on, turns are keyword-driven — the agent
         // buffers everything until "over" / "over and out" (agent.py).
@@ -918,10 +1001,12 @@ export default function SessionView({
       const room = await ensureVoice();
       if (!pttWantRef.current) {
         // finger lifted before the room was ready — mic was never enabled,
-        // so no capture device is open: keep the (preconnected) room warm
-        // for the next press. NOTE: modeRef === 'text' is NORMAL here — the
-        // composer mic IS push to talk
+        // so nothing was captured: the spoken words are gone. Never silent
+        // again (req 09-29 'after refresh push to talk doesn't go through'):
+        // the user must know the press was pre-connect, not swallowed.
         setHolding(false);
+        diagEvent('ptt', 'lifted before the voice room was ready — turn not captured');
+        setError('was still connecting — hold the mic again');
         return;
       }
       // agent holds turns manual until release — a mid-sentence pause while
@@ -983,7 +1068,13 @@ export default function SessionView({
     setPttCancelArm(false);
     setHolding(false);
     const room = roomRef.current;
-    if (!room) return;
+    if (!room) {
+      // released while the room was still connecting (refresh + immediate
+      // press on a laggy link): nothing was captured — say so, don't swallow
+      diagEvent('ptt', 'released before the voice room existed — turn not captured');
+      setError('was still connecting — hold the mic again');
+      return;
+    }
     if (discard) {
       // released inside the delete zone — drop the buffered turn
       if (modeRef.current !== 'free') await mic(false);
@@ -998,20 +1089,31 @@ export default function SessionView({
     setBusy(true); // cleared when the run state settles (see poller)
     armRunWatch();
     try {
-      const agent = Array.from(room.remoteParticipants.values())[0];
-      if (agent) {
-        const res = await room.localParticipant.performRpc({
-          destinationIdentity: agent.identity,
-          method: 'commit_turn',
-          payload: '{}',
-          // agent worst case: 1.5s flush + 8s transcript wait — an RPC
-          // timeout here reads as "stale room" and drops a commit that
-          // would still have landed
-          responseTimeout: 14_000,
-        });
-        // agent answered but its session is dead (stale room) → reconnect
-        if (res && res !== 'ok') throw new Error(res);
+      // the agent may still be joining (press right after a page reload) —
+      // wait it out instead of dropping the commit into an empty room
+      const agent = await agentInRoom(room, 4_000);
+      if (pttWantRef.current) {
+        // a newer hold began while we waited — ITS release owns the commit
+        // now; flushing here would cut the new hold's audio mid-sentence
+        return;
       }
+      if (!agent) {
+        diagEvent('voice-fail', 'commit: no voice agent in the room after 4s');
+        setError('voice agent missing from the room — is lk-agent running? try again in a moment');
+        setBusy(false);
+        return;
+      }
+      const res = await room.localParticipant.performRpc({
+        destinationIdentity: agent.identity,
+        method: 'commit_turn',
+        payload: '{}',
+        // agent worst case: 1.5s flush + 8s transcript wait — an RPC
+        // timeout here reads as "stale room" and drops a commit that
+        // would still have landed
+        responseTimeout: 14_000,
+      });
+      // agent answered but its session is dead (stale room) → reconnect
+      if (res && res !== 'ok') throw new Error(res);
     } catch {
       // stale voice session (e.g. the agent's session closed earlier) — a
       // retry against the same room keeps failing, so drop it and reconnect

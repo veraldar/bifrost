@@ -1009,6 +1009,10 @@ export default function SessionView({
   // mutes the mic while the reply is generated + spoken ("processing"),
   // then the mic comes back ("listening") for the next turn
   const [freeCycle, setFreeCycle] = useState<'listening' | 'processing'>('listening');
+  // synchronous mirror: the escape timer's callback must see the CURRENT
+  // cycle, not the one the timeout was armed from (busyRef pattern)
+  const freeCycleRef = useRef(freeCycle);
+  freeCycleRef.current = freeCycle;
   const freeLevels = useMicLevels(mode === 'free' && voiceState === 'ready', roomRef);
 
   // auto-listen cycle: while waiting for the reply (free_state "processing"),
@@ -1021,6 +1025,8 @@ export default function SessionView({
   const freeSpokeMsgRef = useRef(0); // time of the message we auto-started
   const freeSpokeRef = useRef(false); // real playback happened (phase=playing)
   const runIdleRef = useRef(false); // session.idle nudge seen — run fully over
+  const escapedRef = useRef(false); // dead-stream escape fired this cycle
+  const resumeRef = useRef(false); // re-entering processing to speak a late reply
   const escapeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [idleTick, setIdleTick] = useState(0); // re-runs the speak effect on idle
   function freeMicGiveBack() {
@@ -1029,22 +1035,37 @@ export default function SessionView({
     setFreeCycle('listening');
     if (modeRef.current === 'free') void mic(true);
   }
+  // The mic is only given back unspeaked when the run-end channel is DEAD:
+  // any SSE traffic (heartbeat, step, idle) proves it alive and re-arms this
+  // timer. Real agent runs work 1-3 minutes (req 09-29: a flat 20s cap opened
+  // the mic mid-work on every multi-step run and the reply then never spoke
+  // itself), so silence alone is never evidence of a stuck run. A genuinely
+  // hung run is the stall watchdog's job (abort at 10min → session.idle).
+  function armFreeEscape(ms: number, why: string) {
+    if (escapeTimerRef.current) clearTimeout(escapeTimerRef.current);
+    escapeTimerRef.current = setTimeout(() => {
+      escapeTimerRef.current = null;
+      if (freeCycleRef.current !== 'processing' || freeSpokeMsgRef.current) return;
+      diagEvent('voice', `hands-free: ${why} — mic back unspeaked`);
+      escapedRef.current = true;
+      freeMicGiveBack();
+    }, ms);
+  }
   useEffect(() => {
     if (freeCycle === 'processing') {
-      freeWaitSinceRef.current = Date.now();
-      freeSpokeMsgRef.current = 0;
-      freeSpokeRef.current = false;
-      runIdleRef.current = false;
-      // dead-SSE escape: if the run-end (session.idle) nudge never arrives,
-      // the mic must not stay muted forever — give it back unspeaked; the
-      // reply still lands as text in the transcript
-      escapeTimerRef.current = setTimeout(() => {
-        escapeTimerRef.current = null;
-        if (!freeSpokeMsgRef.current) {
-          diagEvent('voice', 'hands-free: no run-end signal in 20s — mic back unspeaked');
-          freeMicGiveBack();
-        }
-      }, 20_000);
+      if (resumeRef.current) {
+        // late-idle resume: the "over" timestamp and the idle flag must
+        // survive, or the already-landed reply fails the speak gates below
+        resumeRef.current = false;
+      } else {
+        freeWaitSinceRef.current = Date.now();
+        freeSpokeMsgRef.current = 0;
+        freeSpokeRef.current = false;
+        runIdleRef.current = false;
+        escapedRef.current = false;
+      }
+      // heartbeat every 25s — 35s of nothing means the stream is truly gone
+      armFreeEscape(35_000, 'run-events stream dead 35s');
     }
     return () => {
       if (escapeTimerRef.current) {
@@ -1096,27 +1117,45 @@ export default function SessionView({
     freeMicGiveBack();
   }, [freeCycle, speech.phase]);
 
-  // while waiting for a reply, the run-completion nudge replaces the poll
-  // lag: the proxy's opencode SSE sees the finished run server-side and
-  // this channel refreshes the transcript immediately (auto-listen fires
-  // ~instantly instead of up to one poll interval late)
+  // run-completion channel, subscribed for the WHOLE hands-free session (not
+  // just while processing): 'idle' late — after the dead-stream escape already
+  // gave the mic back — must still arrive somewhere to trigger the recovery
+  // below. Heartbeats are liveness only; 'step' refreshes the transcript.
   const loadMsgsRef = useRef(loadMsgs);
   loadMsgsRef.current = loadMsgs;
   useEffect(() => {
-    if (freeCycle !== 'processing' || !slug) return;
+    if (mode !== 'free' || voiceState !== 'ready' || !slug) return;
     const es = new EventSource(`/api/run-events?slug=${encodeURIComponent(slug)}`);
     es.onmessage = (ev) => {
+      // any traffic proves the stream alive — re-arm the dead-stream escape
+      // (no-op while listening: the callback checks the cycle)
+      armFreeEscape(35_000, 'run-events stream dead 35s');
       // 'idle' = session.idle = the whole run (every step) is over — the only
       // signal that may trigger the auto-listen; 'step' = one step message
       // completed mid-run, refresh-only
       if (ev.data === 'idle') {
+        void loadMsgsRef.current(); // pull the completed reply instantly
         runIdleRef.current = true;
         setIdleTick((t) => t + 1);
+        // stuck-cycle escape: idle arrived but nothing may speak (reply never
+        // completes, or is older than this cycle) — 15s to start or mic goes
+        // back; a real speech start flips freeSpokeMsgRef and cancels it
+        armFreeEscape(15_000, 'idle seen but no speech started in 15s');
+        // the escape already fired (mic back unspeaked) and the reply
+        // finished anyway — re-enter the cycle to speak it. Mutes the mic
+        // for the playback (one voice path); the user's speech keeps
+        // buffering agent-side meanwhile (manual keyword turns), nothing lost
+        if (escapedRef.current && freeCycleRef.current === 'listening') {
+          escapedRef.current = false;
+          resumeRef.current = true;
+          setFreeCycle('processing');
+        }
+      } else if (ev.data === 'step') {
+        void loadMsgsRef.current();
       }
-      void loadMsgsRef.current();
     };
     return () => es.close();
-  }, [freeCycle, slug]);
+  }, [mode, voiceState, slug]);
 
   useEffect(() => {
     if (!holding) return;

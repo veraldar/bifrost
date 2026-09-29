@@ -32,7 +32,10 @@ export async function GET(req: Request) {
       const off = onRunDone((doneSid, reason) => {
         if (doneSid === sid) push(`data: ${reason}\n\n`);
       });
-      const hb = setInterval(() => push(': hb\n\n'), 25_000);
+      // heartbeat as a REAL message (comments are invisible to
+      // EventSource.onmessage): the hands-free page reads any traffic as
+      // proof the stream is alive and only escapes on true silence
+      const hb = setInterval(() => push('data: hb\n\n'), 25_000);
       req.signal.addEventListener('abort', () => {
         clearInterval(hb);
         off();

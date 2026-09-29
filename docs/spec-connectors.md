@@ -1,4 +1,4 @@
-# Spec — connectors (multi-harness: opencode, Claude Code, Copilot) — POST-V1
+# Spec — connectors (multi-harness: opencode, Claude Code, Codex, Copilot) — POST-V1
 
 Status: **specification only**. Raised 09-27 (user req). Lands as the
 "Connectors" phase after v1.0 closes.
@@ -6,7 +6,7 @@ Status: **specification only**. Raised 09-27 (user req). Lands as the
 ## Goal
 
 The coding-agent backend ("harness") becomes pluggable:
-- **globally**: bifrost has a default harness (opencode | claude-code | copilot)
+- **globally**: bifrost has a default harness (opencode | claude-code | codex | copilot)
 - **per session**: any session can override it
 The phone UX, voice, queue, and transcript flow stay identical regardless of
 harness. The user calls these "connectors"; in-repo: **harness connectors**.
@@ -81,14 +81,26 @@ transcript; rooms map to sessions by slug."**
    visible, one option)
 3. **Claude Code connector** (headless stream-json driver; auth = user's
    claude login on the box)
-4. **Copilot connector**
+4. **Copilot + Codex connectors** (CLI format spikes first)
 5. **Voice across harnesses** + spec.md rule amendment landed with phase 1
 
 ## Open questions
 
 | # | Question | Candidate answer |
 |---|----------|------------------|
-| 1 | Copilot CLI headless streaming format — stable enough to parse? | Spike in phase 4; fall back to pty scraping if needed |
+| 1 | Copilot / Codex CLI headless streaming formats — stable enough to parse? | Spike in phase 4; fall back to pty scraping if needed |
 | 2 | Attachments on CLIs (images/files)? | Claude Code: file paths on disk — write sandbox temp dir, pass path |
 | 3 | Per-harness model naming collisions in the picker? | Namespaced ids (`opencode/…`, `claude/…`) |
 | 4 | Does harness switch need user confirmation (context loss)? | Yes — confirm dialog naming the harness being left |
+
+## Concept — user-local plugins (raised 09-27, not scheduled)
+
+Users may want their own plugins that live only in **their** bifrost instance
+and never touch upstream. Concept:
+
+- a gitignored `plugins/` directory next to the repo config (survives updates;
+  bootstrap creates it empty), plus per-instance config keys
+- the proxy seam loads local plugins dynamically (route hooks or middleware
+  list) — same trust level as the seam itself
+- plugin = same contract as a connector OR a UI/route extension; exact shape
+  is an open decision — name reserved: **"local plugins"**

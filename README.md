@@ -29,6 +29,15 @@ that for you). Prefer manual setup? Keep reading.
 > `pwa/.env.example`). Text-mode needs `OPENCODE_URL` reachable from the
 > deployment — keep opencode private (Tailscale), it has shell access!
 
+## Using other AIs (Claude Code, Codex, …)
+
+bifrost drives **opencode** natively — sessions, voice, queue, transcript.
+Other AI CLIs are one sentence away, not one integration: from any session,
+just ask — *"ask claude to review this diff"* or *"have codex write tests
+for X"* — and the [delegate skill](skills/delegate/SKILL.md) runs them as
+sub-tools, relays their output into your transcript, and works by voice too.
+No config, no second login flow beyond the CLI's own auth.
+
 ## Architecture
 
 **Hardware** — 3 nodes, one Tailscale tailnet (no public exposure):

@@ -1762,7 +1762,7 @@ export default function SessionView({
           stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
           if (el.scrollTop <= 2) void loadOlder();
         }}
-        className="min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto overscroll-contain pb-2 pr-14"
+        className="min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto overscroll-contain pb-2"
       >
         {loadingOlder && (
           <div className="pt-1 text-center text-[10px] text-[var(--oz-dim)]">loading older…</div>

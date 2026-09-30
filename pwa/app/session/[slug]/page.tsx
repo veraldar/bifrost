@@ -1394,21 +1394,16 @@ export default function SessionView({
     markAsked(slug);
     void ensureNotifyPermission();
     // sending while busy = queue behind the current run (opencode serializes
-    // per session) — stopping is a separate, explicit action
-    if (!images.length && !files.length && roomRef.current && voiceState === 'ready') {
-      // voice context: through the room so the agent speaks the reply
-      // (attachments must take the REST path — the room only carries text)
-      setBusy(true);
-      armRunWatch();
-      addEcho(text);
-      try {
-        await roomRef.current.localParticipant.sendText(text, { topic: 'lk.chat' });
-      } catch (e) {
-        setError(`send failed: ${e}`);
-        setBusy(false);
-      }
-      return;
-    }
+    // per session) — stopping is a separate, explicit action.
+    // ALWAYS through the REST proxy — never via the room: the room carries
+    // the text only to a voice agent, and when the agent job has ended
+    // (human-left grace after any navigation, session close) sendText()
+    // publishes into an empty room — no error, no transcript entry, nothing:
+    // the message is gone while "working…" runs forever (live 09-30
+    // hf-improve: two sends, total=56 frozen, list never showed working).
+    // The agent's audio output is off anyway — the REST path lands the same
+    // reply in the transcript AND arms the proxy run tracker (list dot,
+    // live flag, wedge guard, busy clear).
     const willQueue = busyRef.current; // server will hold it in the proxy queue
     setBusy(true);
     armRunWatch();
@@ -1473,6 +1468,14 @@ export default function SessionView({
         responseTimeout: 14_000,
       });
       if (res && res !== 'ok') throw new Error(res);
+      // tap = "over" (req 09-30: 'should be the same behavior as if I say
+      // over'): the strip leaves listening — mic paused now, auto-speak on
+      // idle, mic back when the spoken reply ends or is stopped. The agent
+      // only sends free_state processing on the KEYWORD path; a tapped
+      // commit would otherwise leave the equalizer bouncing and the mic hot
+      // straight through the whole run, with the reply never spoken.
+      setFreeCycle('processing');
+      await mic(false);
     } catch {
       // same stale-room recovery as pttUp: drop OUR room, reconnect fresh
       setError('voice session stale — reconnecting…');

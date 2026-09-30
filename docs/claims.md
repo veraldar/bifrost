@@ -1,4 +1,5 @@
 # Active claims (session → scope/files). Delete your line when done.
+- [ ] send-lost: text sends via the LiveKit room die in agent-less rooms (message lost, working forever, list blind) — room-send branch removed, text always REST proxy; tap-to-send enters the over-cycle (processing + mic mute + auto-speak) — pwa/app/session/[slug]/page.tsx — req 09-30 'don't see my message' + the lost hands-free message content
 - [x] hf-restart: DONE — auto-listen speaks once on session.idle only (no per-step restart); mic escape now liveness-aware (any run-events traffic re-arms; only a dead stream gives the mic back; late idle re-enters + speaks; post-idle 15s stuck escape) — 1d34b63 — req 09-28 + 09-29; human pass pending (user testing)
 - [ ] onboard-p1: phase-1 onboarding — docs/spec-onboard.md rewrite, scripts/bootstrap.sh, docs/setup.md, scripts/bootstrap-test.sh (docs/ + scripts/ only; no pwa/agent/deploy behavior changes) — spec AC 09-26
 - [x] theme-wire: DONE — tokens.css + next-themes + /theme page + spec-driven backdrops (layout.tsx ThemeProvider commit rides with free-ui) — 09-27

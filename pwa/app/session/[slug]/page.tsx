@@ -2176,15 +2176,17 @@ export default function SessionView({
           {/* the exit — deliberately in the status line, NOT beside the strip:
               a thumb reaching the bars' right edge must never leave
               hands-free when it meant to send (req 09-30 live pass). Small
-              and dim, same place every time; "over and out" still works. */}
+              and same place every time; "over and out" still works. Red with
+              a filled square (req 09-30: 'red with red square in it') —
+              reads as stop, same shape/spot as the rest. */}
           <button
             data-testid="free-exit"
             aria-label="leave hands-free"
             onClick={toggleHandsFree}
-            className="flex flex-none items-center gap-1 self-center rounded border border-[var(--oz-border)] px-2 py-1 text-[10px] text-[var(--oz-dim)] active:bg-[var(--oz-surface-hover)]"
+            className="flex flex-none items-center gap-1.5 self-center rounded border border-[var(--oz-danger)]/60 px-2 py-1 text-[10px] text-[var(--oz-danger)] active:bg-[var(--oz-surface-hover)]"
             style={{ touchAction: 'manipulation' }}
           >
-            <PixelIcon name="mic" size={11} /> end
+            <span aria-hidden className="h-2 w-2 rounded-[1px] bg-[var(--oz-danger)]" /> end
           </button>
         </div>
       )}

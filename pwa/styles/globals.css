@@ -147,6 +147,14 @@
 .oz-busy { animation: oz-pulse 1.2s ease-in-out infinite; }
 .oz-ptt-hold { animation: oz-pulse 0.9s ease-in-out infinite; background: var(--oz-success) !important; color: #000 !important; }
 @keyframes oz-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+/* mid-right hands-free mic switch — live state: amber glow + expanding ring
+   (req 09-30: "amber means you are heard, dim means you are not") */
+.oz-free-live { box-shadow: 0 0 18px color-mix(in srgb, var(--oz-active) 35%, transparent); }
+.oz-free-live::before { content: ""; position: absolute; inset: -7px; border-radius: 9999px;
+  border: 2px solid color-mix(in srgb, var(--oz-active) 40%, transparent);
+  animation: oz-free-ring 1.6s ease-out infinite; }
+@keyframes oz-free-ring { 0% { transform: scale(.92); opacity: .8; } 100% { transform: scale(1.28); opacity: 0; } }
 /* undo-toast countdown bar — mirrors the 3s delete window in app/page.tsx */
 .oz-toast-bar { transform-origin: left; animation: oz-shrink 3s linear forwards; }
 @keyframes oz-shrink { from { transform: scaleX(1); } to { transform: scaleX(0); } }

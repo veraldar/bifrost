@@ -752,7 +752,7 @@ export default function SessionView({
             } catch {
               /* private mode */
             }
-            setError('hands-free needs one tap after a refresh — tap hands-free');
+            setError('hands-free needs one tap after a refresh — tap the mic button');
           }
         }
       } catch {
@@ -977,7 +977,7 @@ export default function SessionView({
           if (unmountedRef.current || modeRef.current !== 'free') return;
           if (roomRef.current === room && room.remoteParticipants.size === 0) {
             diagEvent('voice-fail', 'hands-free: no voice agent in the room after 10s');
-            setError('voice agent missing from the room — is lk-agent running? tap hands-free to retry');
+            setError('voice agent missing from the room — is lk-agent running? tap the mic button to retry');
           }
         }, 10_000);
       }
@@ -1436,22 +1436,61 @@ export default function SessionView({
     }
   }
 
-  const segBtn = (m: Mode, icon: 'keyboard' | 'mic' | 'infinity', label: string) => (
-    <button
-      aria-label={label}
-      onClick={() => switchMode(m)}
-      className={`flex-1 rounded px-2 py-1.5 text-xs ${
-        mode === m ? 'bg-[var(--oz-surface-hover)] text-[var(--oz-active)]' : 'text-[var(--oz-dim)]'
-      }`}
-    >
-      <span className="mx-auto block w-fit">
-        <PixelIcon name={icon} size={16} />
-      </span>
-    </button>
-  );
+  /** The one voice switch (req 09-30): the mid-right mic button. Tap enters
+   *  hands-free; tapping again leaves it — and anything buffered mid-speech
+   *  is discarded FIRST, so an exit never sends a half-said message. */
+  function toggleHandsFree() {
+    if (modeRef.current === 'free') {
+      pttDiscardRpc(); // clear_user_turn agent-side: the buffer dies here
+      void switchMode('text');
+    } else {
+      void switchMode('free');
+    }
+  }
+
+  /** Tap the live equalizer to commit the turn — the tap equivalent of
+   *  saying "over" (both stay: keyword OR tap, req 09-30). Reuses pttUp's
+   *  free-mode commit path minus the hold-specific state. */
+  async function commitFreeTurn() {
+    const room = roomRef.current;
+    if (!room || modeRef.current !== 'free') return;
+    if (freeCycleRef.current !== 'listening') return; // mid-cycle: agent owns the turn
+    stickRef.current = true;
+    setBusy(true); // cleared when the run state settles (see poller)
+    armRunWatch();
+    try {
+      const agent = await agentInRoom(room, 4_000);
+      if (!agent) {
+        diagEvent('voice-fail', 'tap-to-send: no voice agent in the room after 4s');
+        setError('voice agent missing from the room — is lk-agent running? try again in a moment');
+        setBusy(false);
+        return;
+      }
+      const res = await room.localParticipant.performRpc({
+        destinationIdentity: agent.identity,
+        method: 'commit_turn',
+        payload: '{}',
+        responseTimeout: 14_000,
+      });
+      if (res && res !== 'ok') throw new Error(res);
+    } catch {
+      // same stale-room recovery as pttUp: drop OUR room, reconnect fresh
+      setError('voice session stale — reconnecting…');
+      setBusy(false);
+      if (roomRef.current === room) {
+        roomRef.current = null;
+        voicePromiseRef.current = null;
+        setVoiceState('off');
+        void room.disconnect();
+      }
+      // the fresh-room self-heal only matters while voice is still wanted —
+      // an exit-to-keyboard during the wait must not re-open the mic device
+      if (modeRef.current === 'free') reconnectVoice();
+    }
+  }
 
   return (
-    <main className="mx-auto flex h-dvh max-w-md flex-col overflow-hidden px-3">
+    <main className="relative mx-auto flex h-dvh max-w-md flex-col overflow-hidden px-3">
       {/* header — the slug is the way into session settings (name / model /
           think / agent); busy dot stays pinned to the right of the name */}
       <header className="flex items-center justify-between gap-2 py-3">
@@ -1463,8 +1502,8 @@ export default function SessionView({
           {slug}
           {busy && <span className="oz-busy ml-2 text-[var(--oz-active)]">●</span>}
         </Link>
-        {/* search is not a mode — own button, visually split from the
-            keyboard/hands-free toggle (gap-2) */}
+        {/* search is not a mode — the keyboard/hands-free switch is GONE:
+            hands-free lives on the mid-right mic button (req 09-30) */}
         <div className="flex items-center gap-2">
           <button
             aria-label={searchOpen ? 'close search' : 'search transcript'}
@@ -1478,10 +1517,6 @@ export default function SessionView({
           >
             <PixelIcon name="search" size={16} />
           </button>
-          <div className="flex items-center gap-1 rounded border border-[var(--oz-border)] p-0.5">
-            {segBtn('text', 'keyboard', 'text mode')}
-            {segBtn('free', 'infinity', 'hands-free')}
-          </div>
         </div>
       </header>
 
@@ -1548,14 +1583,14 @@ export default function SessionView({
           stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
           if (el.scrollTop <= 2) void loadOlder();
         }}
-        className="min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto overscroll-contain pb-2"
+        className="min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto overscroll-contain pb-2 pr-14"
       >
         {loadingOlder && (
           <div className="pt-1 text-center text-[10px] text-[var(--oz-dim)]">loading older…</div>
         )}
         {msgs.length === 0 && (
           <div className="pt-10 text-center text-xs text-[var(--oz-dim)]">
-            empty session — type, hold the mic, or go hands-free
+            empty session — type, hold the mic, or tap the side mic for hands-free
           </div>
         )}
         {msgs.map((m, i) => (
@@ -1759,16 +1794,27 @@ export default function SessionView({
       {mode === 'free' ? (
         /* hands-free: the composer (attach / text input / push-to-talk) makes
            no sense while the mic is always hot — show the live speaking
-           equalizer + session timer instead */
+           equalizer + session timer instead. The equalizer is TAP-TO-SEND
+           (req 09-30): tapping it commits the buffered turn, same as saying
+           "over" — keyword and tap both stay. */
         <div className="flex items-center gap-3 border-t border-[var(--oz-border)] py-3">
-          <div
-            role="status"
-            aria-label={voiceState === 'ready' ? 'listening' : 'connecting'}
-            className={`flex min-w-0 flex-1 items-end justify-center gap-1 rounded border bg-[var(--oz-surface)] px-3 py-2 transition-colors ${voiceState === 'ready' ? 'border-[var(--oz-success)]/60' : 'border-[var(--oz-border)]'}`}
+          <button
+            data-testid="free-strip"
+            aria-label="send what you said"
+            onClick={() => void commitFreeTurn()}
+            className={`flex min-w-0 flex-1 items-end justify-center gap-1 rounded border bg-[var(--oz-surface)] px-3 py-2 transition-colors ${
+              voiceState === 'ready' && freeCycle === 'listening'
+                ? 'cursor-pointer border-[var(--oz-success)]/60 active:bg-[var(--oz-surface-hover)]'
+                : 'cursor-default border-[var(--oz-border)]'
+            }`}
           >
             {voiceState !== 'ready' ? (
               <span className="oz-ptt-hold flex-1 self-center text-center text-[11px] text-[var(--oz-dim)]">
                 connecting…
+              </span>
+            ) : freeCycle !== 'listening' ? (
+              <span className="flex-1 self-center text-center text-[11px] text-[var(--oz-dim)]">
+                working — mic paused
               </span>
             ) : (
               freeLevels.map((l, i) => (
@@ -1779,7 +1825,7 @@ export default function SessionView({
                 />
               ))
             )}
-          </div>
+          </button>
           <span
             aria-label="hands-free duration"
             className="self-center text-[11px] text-[var(--oz-dim)] tabular-nums"
@@ -1977,10 +2023,28 @@ export default function SessionView({
                 ? speech.phase === 'idle'
                   ? '● working on it — mic paused…'
                   : '● speaking — mic returns when it ends'
-                : '● hands-free — say “over” to send · “over and out” to end'}
+                : '● hands-free — say “over” or tap the bars to send · “over and out” to end'}
           </span>
         </div>
       )}
+
+      {/* the ONE voice switch (req 09-30): mid-right, vertically centered.
+          Amber + ring = hands-free live; dim = keyboard. Tapping it off
+          discards any mid-speech buffer (toggleHandsFree → ptt_abort). */}
+      <button
+        data-testid="mic-switch"
+        aria-label={mode === 'free' ? 'leave hands-free' : 'hands-free'}
+        aria-pressed={mode === 'free'}
+        onClick={toggleHandsFree}
+        className={`absolute right-3 top-1/2 z-40 flex h-14 w-14 -translate-y-1/2 items-center justify-center rounded-full border-2 transition-colors ${
+          mode === 'free'
+            ? 'oz-free-live border-[var(--oz-active)] bg-[var(--oz-active)]/15 text-[var(--oz-active)]'
+            : 'border-[var(--oz-border)] bg-[var(--oz-surface)] text-[var(--oz-dim)]'
+        } ${voiceState === 'connecting' && mode !== 'free' ? 'opacity-50' : ''}`}
+        style={{ touchAction: 'manipulation' }}
+      >
+        <PixelIcon name="mic" size={22} />
+      </button>
     </main>
   );
 }

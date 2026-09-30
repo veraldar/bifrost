@@ -87,8 +87,10 @@ test('voice: PTT connects to LiveKit, keyboard mode keeps the room warm', async 
   // keyboard mode releases the mic CAPTURE DEVICE but keeps the room + agent
   // warm: a teardown forced the next press to re-dispatch the voice agent and
   // a hold shorter than that join dropped the whole turn (req 09-29). The
-  // LiveKit socket must therefore STAY open after the switch.
-  await page.getByRole('button', { name: 'text mode' }).click();
+  // LiveKit socket must therefore STAY open after the switch. The only mode
+  // switch is the mid-right mic button (req 09-30): text → hands-free → text.
+  await page.getByRole('button', { name: 'hands-free', exact: true }).click();
+  await page.getByRole('button', { name: 'leave hands-free' }).click();
   await expect
     .poll(() => sockets.filter((s) => s.isClosed()).length, {
       timeout: 5_000,
@@ -99,11 +101,11 @@ test('voice: PTT connects to LiveKit, keyboard mode keeps the room warm', async 
 
 test('hands-free mode arms without error', async ({ page }) => {
   await page.goto(`/session/${NAME}?id=${sessionId}`);
-  await page.getByRole('button', { name: 'hands-free' }).click();
+  await page.getByRole('button', { name: 'hands-free', exact: true }).click();
   await expect(page.getByText(/hands-free/).first()).toBeVisible({
     timeout: 30_000,
   });
-  await page.getByRole('button', { name: 'text mode' }).click();
+  await page.getByRole('button', { name: 'leave hands-free' }).click();
   await expect(page.getByTestId('free-phase')).toHaveCount(0);
 });
 

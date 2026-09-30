@@ -46,9 +46,10 @@ pairing zero-typing) are release gates, not nice-to-haves.
   (include hf-restart if open), "what you need" list (1 box, docker,
   Node ≥22, LLM key, tailscale optional).
 - **v1.0 — consumer** (the consumer release IS v1.0): gates = onboarding
-  phase 2 (/pair QR, zero-typing; auth decision required), connectors
-  phase 1–3 (process driver as real contract evidence), notification polish
-  (Android battery docs).
+  phase 2 (/pair QR, zero-typing), notification polish (Android battery
+  docs). Connectors DEMOTED 09-28 to evidence-triggered (delegate skill is
+  the 80/20 — claude/codex reachable from any session as sub-tools); native
+  multi-harness revives only on demonstrated demand.
 - **bifrostd (Rust core port)**: NOT a roadmap item — an option triggered by
   evidence: contract survived connectors 1–3 unchanged + a concrete driver
   (bootstrap simplicity / small-VPS memory / onboarding pain). If TS stays
@@ -84,10 +85,10 @@ pairing zero-typing) are release gates, not nice-to-haves.
 - [ ] LiveKit on €3 OVH VPS (only `LIVEKIT_URL` + DNS/TLS change)
 - [ ] One-button onboarding: VPS `bootstrap.sh` + QR pairing — spec draft at
   `docs/spec-onboard.md` (under review)
-- [ ] Connectors — multi-harness: per-session/global harness choice
-  (opencode | claude-code | copilot), spec at `docs/spec-connectors.md`
-  (phased: interface refactor → global+per-session UI → claude-code →
-  copilot → voice)
+- [ ] Connectors — multi-harness: DEMOTED to evidence-triggered (09-28) —
+  `skills/delegate/SKILL.md` covers claude/codex as sub-tools today; native
+  integration waits for demonstrated demand. Spec kept at
+  `docs/spec-connectors.md`
 - [ ] Multi-user / public mode, SIP, video
 - [ ] Dreaming — nightly memory consolidation + self-organizing agents, spec only
   (`docs/spec-dream.md`), starts at roadmap D1 after v1.0

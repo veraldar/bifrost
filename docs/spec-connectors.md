@@ -1,7 +1,12 @@
 # Spec — connectors (multi-harness: opencode, Claude Code, Codex, Copilot) — POST-V1
 
-Status: **specification only**. Raised 09-27 (user req). Lands as the
-"Connectors" phase after v1.0 closes.
+Status: **specification only — DEMOTED to evidence-triggered** (09-28, user:
+"we should not overcomplicate things"). The 80/20 shipped instead:
+`skills/delegate/SKILL.md` — any session can already drive claude/codex as
+sub-tools via their CLIs (voice included, since the agent relays). Full
+native integration revives only when the delegate path's limits demonstrably
+annoy: no native abort/liveness of inner runs, context bloat from big
+outputs, demand for per-harness model pickers. Raised 09-27 (user req).
 
 ## Goal
 

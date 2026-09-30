@@ -66,7 +66,7 @@ test('search: hit ring, 1/2 counter, jump, Escape closes', async ({ page }) => {
 
 test('hands-free: keyword protocol status, no cancel button, screenshot', async ({ page }) => {
   await page.goto(`/session/${NAME}?id=${sessionId}`);
-  await page.getByRole('button', { name: 'hands-free' }).click();
+  await page.getByRole('button', { name: 'hands-free', exact: true }).click();
   const phase = page.getByTestId('free-phase');
   await expect(phase).toBeVisible({ timeout: 30_000 });
   // agent joined → ready: the keyword hint replaces "connecting…"
@@ -77,7 +77,7 @@ test('hands-free: keyword protocol status, no cancel button, screenshot', async 
   await page.screenshot({ path: '../artifacts/e2e-free-listening.png' });
   // leave hands-free quickly — the fake mic never says "over", so nothing
   // can commit, but short tests keep the shared server state clean
-  await page.getByRole('button', { name: 'text mode' }).click();
+  await page.getByRole('button', { name: 'leave hands-free' }).click();
 });
 
 test('cleanup: delete the states test session', async ({ request }) => {

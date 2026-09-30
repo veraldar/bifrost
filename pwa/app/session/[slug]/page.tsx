@@ -1995,18 +1995,9 @@ export default function SessionView({
           >
             {Math.floor(freeSecs / 60)}:{String(freeSecs % 60).padStart(2, '0')}
           </span>
-          {/* the SAME mic, same spot (req 09-30): lit = hands-free live.
-              Tap = leave (back to keyboard); hold = push-to-talk. */}
-          <button
-            {...micHoldHandlers}
-            data-testid="composer-mic"
-            aria-label="leave hands-free"
-            aria-pressed={true}
-            className="oz-free-live flex h-10 w-10 flex-none items-center justify-center self-center rounded border border-[var(--oz-active)] bg-[var(--oz-active)]/15 text-[var(--oz-active)] select-none"
-            style={{ touchAction: 'none' }}
-          >
-            <PixelIcon name="mic" size={16} />
-          </button>
+          {/* NO mic button beside the strip (req 09-30 live pass): a thumb
+              aiming at the bars' right edge hit it and left hands-free
+              instead of sending. Exit lives in the phase line above. */}
         </div>
       ) : (
         /* text input — always available */
@@ -2180,8 +2171,21 @@ export default function SessionView({
                 ? speech.phase === 'idle'
                   ? '● working on it — mic paused…'
                   : '● speaking — mic returns when it ends'
-                : '● hands-free — say “over” or tap the bars to send · “over and out” or tap the mic to end'}
+                : '● hands-free — say “over” or tap the bars to send'}
           </span>
+          {/* the exit — deliberately in the status line, NOT beside the strip:
+              a thumb reaching the bars' right edge must never leave
+              hands-free when it meant to send (req 09-30 live pass). Small
+              and dim, same place every time; "over and out" still works. */}
+          <button
+            data-testid="free-exit"
+            aria-label="leave hands-free"
+            onClick={toggleHandsFree}
+            className="flex flex-none items-center gap-1 self-center rounded border border-[var(--oz-border)] px-2 py-1 text-[10px] text-[var(--oz-dim)] active:bg-[var(--oz-surface-hover)]"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <PixelIcon name="mic" size={11} /> end
+          </button>
         </div>
       )}
 

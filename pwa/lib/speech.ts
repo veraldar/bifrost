@@ -57,6 +57,19 @@ export function subscribeSpeech(f: () => void): () => void {
 export function getSpeech(): SpeechState {
   return state;
 }
+/** SSR-safe snapshot — useSyncExternalStore needs a getServerSnapshot or the
+ *  server render of the session page throws (every direct URL load → 500). */
+const SERVER_SPEECH: SpeechState = {
+  phase: 'idle',
+  progress: 0,
+  positionSec: 0,
+  receivedSec: 0,
+  totalEstSec: 0,
+  rate: 1,
+};
+export function getSpeechServer(): SpeechState {
+  return SERVER_SPEECH;
+}
 
 let els: [HTMLAudioElement, HTMLAudioElement] | null = null;
 let activeEl = 0; // which element is (or will be) playing the current piece

@@ -61,6 +61,11 @@ export function getSpeech(): SpeechState {
 let els: [HTMLAudioElement, HTMLAudioElement] | null = null;
 let activeEl = 0; // which element is (or will be) playing the current piece
 let abort: AbortController | null = null;
+// first-audio watchdog: the Mac accepting the stream but never delivering
+// audio left the deck in 'synthesizing…' forever (live 09-30 session test-hf:
+// POST 200 in 443ms, zero bytes, no first-audio log) — and hands-free held
+// the mic hostage until the user fled the page
+let stallTimer: ReturnType<typeof setTimeout> | null = null;
 let gen = 0;
 let msgLang: 'fr' | 'en' = 'fr';
 let curSlug = '';
@@ -179,6 +184,10 @@ function playPiece(idx: number, offsetSec = 0): void {
       if (startedAt) {
         console.warn(`tts: first audio in ${Date.now() - startedAt}ms`);
         startedAt = 0;
+        if (stallTimer) {
+          clearTimeout(stallTimer);
+          stallTimer = null;
+        }
       }
     }
     if (pieces[idx + 1]) e1.src = pieces[idx + 1].url; // preload next
@@ -261,36 +270,45 @@ function positionSamples(): number {
 }
 
 async function run(text: string, myGen: number): Promise<void> {
-  const res = await fetch('/api/tts/stream', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, lang: msgLang }),
-    signal: abort!.signal,
-  });
-  if (!res.ok) throw new Error(`tts ${res.status}: ${(await res.text()).slice(0, 120)}`);
-  const reader = res.body!.getReader();
-  let carry = new Uint8Array(0);
-  while (true) {
-    const { done, value } = await reader.read();
-    if (gen !== myGen) return;
-    if (done) break;
-    const all = new Uint8Array(carry.length + value.length);
-    all.set(carry);
-    all.set(value, carry.length);
-    const usable = all.length - (all.length % 2);
-    carry = all.slice(usable);
-    const int16 = new Int16Array(all.buffer, 0, usable / 2);
-    if (int16.length) appendPcm(int16, myGen);
+  // any stream failure must land in stopSpeech, never strand 'loading':
+  // the route holds the connection up to 10 min, a mid-stream death
+  // otherwise looked exactly like the eternal "synthesizing…" of 09-30
+  try {
+    const res = await fetch('/api/tts/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, lang: msgLang }),
+      signal: abort!.signal,
+    });
+    if (!res.ok) throw new Error(`tts ${res.status}: ${(await res.text()).slice(0, 120)}`);
+    const reader = res.body!.getReader();
+    let carry = new Uint8Array(0);
+    while (true) {
+      const { done, value } = await reader.read();
+      if (gen !== myGen) return;
+      if (done) break;
+      const all = new Uint8Array(carry.length + value.length);
+      all.set(carry);
+      all.set(value, carry.length);
+      const usable = all.length - (all.length % 2);
+      carry = all.slice(usable);
+      const int16 = new Int16Array(all.buffer, 0, usable / 2);
+      if (int16.length) appendPcm(int16, myGen);
+    }
+    streamDone = true;
+    if (pendingLen > 0) {
+      const start = totalReceived - pendingLen;
+      enqueuePiece(start, pendingLen);
+      pendingFloat = null;
+      pendingLen = 0;
+    }
+    // if the last piece already ended while we were wrapping, finish now
+    if (curIdx >= pieces.length - 1) maybeFinish();
+  } catch (e) {
+    if (gen !== myGen) return; // superseded by a newer start / deliberate stop
+    console.warn(`tts stream failed: ${String(e)}`); // diag
+    stopSpeech();
   }
-  streamDone = true;
-  if (pendingLen > 0) {
-    const start = totalReceived - pendingLen;
-    enqueuePiece(start, pendingLen);
-    pendingFloat = null;
-    pendingLen = 0;
-  }
-  // if the last piece already ended while we were wrapping, finish now
-  if (curIdx >= pieces.length - 1) maybeFinish();
 }
 
 
@@ -356,6 +374,16 @@ export function startSpeech(text: string, slug = ''): void {
   set({ phase: 'loading', progress: 0, positionSec: 0, receivedSec: 0, totalEstSec });
   if (tickTimer) clearInterval(tickTimer);
   tickTimer = setInterval(() => tick(), 500); // drives position/progress UI
+  const myGen = gen; // run() captured the same value
+  if (stallTimer) clearTimeout(stallTimer);
+  stallTimer = setTimeout(() => {
+    stallTimer = null;
+    // startedAt is zeroed the moment audio actually plays — non-zero here
+    // means nothing ever arrived (seek-back-into-loading has audio already)
+    if (gen !== myGen || state.phase !== 'loading' || startedAt === 0) return;
+    console.warn(`tts: no first audio after ${Date.now() - startedAt}ms — giving up`); // diag
+    stopSpeech();
+  }, 20_000);
   void run(clean, gen);
 }
 
@@ -427,6 +455,10 @@ export function stopSpeech(): void {
   gen++;
   abort?.abort();
   abort = null;
+  if (stallTimer) {
+    clearTimeout(stallTimer);
+    stallTimer = null;
+  }
   if (els) {
     for (const el of els) {
       el.pause();

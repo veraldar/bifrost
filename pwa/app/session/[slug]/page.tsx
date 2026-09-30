@@ -1676,9 +1676,9 @@ export default function SessionView({
       )}
 
       {/* tts deck — speak the last reply. Toggle: start (idle) / ■ stop
-          (active, the only kill, above the deck). Loading = one big centered
-          animation inside the deck. */}
-      {speech.phase !== 'idle' && speech.phase !== 'loading' && (
+          (active — also during 'loading': a stalled synthesis must be
+          user-stoppable, the Mac once never delivered audio, req 09-30). */}
+      {speech.phase !== 'idle' && (
         <div className="flex justify-end pb-1.5">
           <button
             onClick={stopSpeech}

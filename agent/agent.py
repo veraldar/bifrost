@@ -235,7 +235,15 @@ async def entrypoint(ctx: JobContext) -> None:
     )
     await session.start(
         room=ctx.room,
-        room_input_options=RoomInputOptions(text_enabled=True),
+        # close_on_disconnect=False: the phone releases the room the moment a
+        # PTT commit resolves (mic contract — capture device must go dark on
+        # release), but the commit's flush → STT final → opencode handoff is
+        # still in flight then. The default close killed the session mid-air
+        # and dropped EVERY text-mode PTT turn (live 2026-09-29 room 'bug':
+        # "closing agent session due to participant disconnect" + "skipping
+        # user input, speech scheduling is paused" on each hold). We end the
+        # job ourselves on human-left with a commit grace window instead.
+        room_input_options=RoomInputOptions(text_enabled=True, close_on_disconnect=False),
         # the agent never speaks over the room: the phone speaks replies
         # itself through its own TTS (the "listen" voice) and drives the
         # mic on/off cycle — one voice path, no double synthesis
@@ -265,6 +273,40 @@ async def entrypoint(ctx: JobContext) -> None:
 
     session.on("close", _end_job_with_session)
 
+    # Commit grace: a PTT release disconnects the human BEFORE the commit's
+    # opencode handoff is done (flush silence 1.5s + slow STT final + POST).
+    # With close_on_disconnect=False the session survives; this task ends the
+    # job once the last commit has settled — and stays alive through
+    # back-to-back holds that race the tail.
+    commit_in_flight = False
+
+    async def _human_left_grace() -> None:
+        def _human_present() -> bool:
+            return human_identity in {p.identity for p in ctx.room.remote_participants.values()}
+
+        while True:
+            # a fast re-hold rejoins the same room while this tail is
+            # running — the job stays theirs until they leave for good
+            if _human_present():
+                await asyncio.sleep(0.5)
+                continue
+            waited = 0.0
+            while commit_in_flight and waited < 15.0:  # bounded: never pin the job
+                await asyncio.sleep(0.2)
+                waited += 0.2
+            await asyncio.sleep(4.0)  # tail: let the opencode POST land
+            if _human_present() or commit_in_flight:  # new hold raced in
+                continue
+            break
+        ctx.shutdown("session closed")
+
+    def _on_participant_disconnected(participant) -> None:
+        if participant.identity != human_identity:
+            return
+        asyncio.ensure_future(_human_left_grace())
+
+    ctx.room.on("participant_disconnected", _on_participant_disconnected)
+
     async def _ptt_begin_rpc(data) -> str:
         # a PTT hold must be ONE message: VAD endpointing would auto-commit
         # on every mid-sentence pause, flushing partial transcripts as
@@ -289,11 +331,20 @@ async def entrypoint(ctx: JobContext) -> None:
     # its reply finishes, so no frames are lost in between. (Detach only gates
     # frame forwarding in room_io/_input.py; the STT stream keeps its buffer.)
     async def _commit_with_flush() -> None:
+        # commit_in_flight gates the human-left grace task (it must not end
+        # the job while the handoff is still running)
+        nonlocal commit_in_flight
+        commit_in_flight = True
         session.input.set_audio_enabled(False)
         try:
-            await session.commit_user_turn(transcript_timeout=3.0, stt_flush_duration=1.5)
+            # transcript_timeout must cover the Mac Studio batch STT POST after
+            # the flush: the final landed ~4-5s after commit start (live
+            # 2026-09-29 room 'bug') — at 3.0 the commit gave up EMPTY, the
+            # late final hit the closed session and was skipped
+            await session.commit_user_turn(transcript_timeout=8.0, stt_flush_duration=1.5)
         finally:
             session.input.set_audio_enabled(True)
+            commit_in_flight = False
 
     async def _commit_turn_rpc(data) -> str:
         # the phone can call this while the session is already closing (stale

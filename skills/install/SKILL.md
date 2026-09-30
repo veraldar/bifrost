@@ -29,6 +29,23 @@ without it).
 emits no CSS on older Node: the site loads but renders completely unstyled.
 Check `node --version` first and install a current Node if older.
 
+## 1a. macOS installs — LiveKit must NOT run in Docker
+
+`network_mode: host` on macOS means the colima/Docker-Desktop **VM's** network,
+not the Mac's. TCP gets forwarded, but the UDP media range (50000–50100) does
+not: signal connects, then WebRTC media never establishes ("connecting…"
+forever, and even the on-box agent fails with `agent worker left the room`).
+This is the #1 macOS trap — check for it BEFORE the bootstrap:
+
+- Run LiveKit **natively**: `brew install livekit`, then a launchd unit
+  (`~/Library/LaunchAgents/com.opencode.livekit.plist`) running
+  `livekit-server --config deploy/livekit.yaml`, KeepAlive+RunAtLoad. Keep
+  speaches in Docker (it's TCP-only). Stop/skip the livekit compose service.
+- `rtc.ips.includes` in livekit.yaml must list the Mac's **tailscale IP**
+  (e.g. `100.x.y.z/32`) — that's what phones dial.
+- If ICE-TCP port 7881 is taken (colima's forwarder squats it), move
+  `rtc.tcp_port` to 7882.
+
 ## 2. Run the bootstrap
 
 ```bash
@@ -57,8 +74,48 @@ the bootstrap cannot mint).
 5. `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:7880/` → any HTTP code (LiveKit up)
 6. Full clean-room check (optional, heavy): `bash scripts/selfhost-check.sh`
 
+### 3a. Phone-path verify — mandatory, on-box probes all lie
+
+Every probe above runs on the box, where loopback works. The phone path can
+still be completely dead. If tailscale is on, ALSO check:
+
+1. `tailscale serve status` must show BOTH mounts:
+   `/ → http://127.0.0.1:8080` **and** `/livekit → http://127.0.0.1:7880`.
+   Missing `/livekit` → add:
+   `tailscale serve --bg --set-path=/livekit http://127.0.0.1:7880`
+2. `pwa/.env.local` `LIVEKIT_URL` must be
+   `wss://<host>.ts.net/livekit` — **never** `ws://127.0.0.1:7880` (the phone
+   would dial itself; and plain ws:// from an HTTPS page is blocked anyway).
+   `agent/.env` keeps the loopback URL — only the PWA needs the public one.
+3. Mint a token and check what the phone will receive:
+   `curl -s -X POST http://127.0.0.1:8080/api/token -H 'Content-Type: application/json' -d '{"room":"canary"}'`
+   → `serverUrl` must NOT contain `127.0.0.1`.
+4. Media ports are actually listening: `ss -uln | grep 50000` (Linux) or
+   `lsof -nP -iUDP:50000-50100` (macOS) — empty means no media path.
+5. **Canary from another tailnet node** (the decisive test): from any second
+   machine on the tailnet, mint a token via the served HTTPS URL, join with a
+   livekit client (publish a track), and confirm the agent joins the room
+   (`remote participants` contains `agent-*`) within ~10 s. If it hangs in
+   `room.connect()`, media is broken regardless of what on-box checks say.
+6. TTS deck: `curl -s -X POST http://127.0.0.1:8080/api/tts -H 'Content-Type: application/json' -d '{"text":"check"}'`
+   → must return WAV bytes (starts with `RIFF`), not hang.
+7. STT round-trip: synth a phrase via `POST $SPEACHES_URL/v1/audio/speech`,
+   feed the wav to `POST $SPEACHES_URL/v1/audio/transcriptions`, expect the
+   text back. A 404 here means the speech backend has no STT model (see traps).
+
 Theme note: three themes ship in-repo (`aether`, `terminus`, `drift`),
 picker at `/theme` — nothing external to install.
+
+### Symptom-indexed traps (all real incidents, 2026-09-29 Mac install)
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| PTT: "connecting…" never completes (signal OK, then silence) | LiveKit in Docker on macOS — UDP media range dies in the VM | §1a: native LiveKit + launchd |
+| PTT error `Unexpected end of JSON input` | `/api/token` 500 with empty body | check `pwa/app/api/token/route.ts` prod guard is gone; route must return JSON errors |
+| Token returns `"serverUrl": "ws://127.0.0.1:7880"` | re-install minted env with loopback; serve mount missing | §3a steps 1–2 |
+| Audio sent, no message lands in chat, agent log shows `('user','')` empty turn | STT backend 404s (speaches registry has no whisper STT) → empty transcript, bridge skips | point `agent/.env` SPEACHES_URL/STT_MODEL at a working backend (macOS: `deploy/mlx_wrapper.py`, Qwen3-ASR); verify via §3a step 7 |
+| "get to speak" stuck at `synthesizing…` | `pwa/.env.local` missing `SPEACHES_URL`/`TTS_MODEL` — deck's /api/tts hangs | add the TTS block to pwa/.env.local, restart PWA |
+| Speech service down after reboot | service run via nohup/screen instead of a supervisor | every long-running piece under launchd (macOS) / systemd (Linux) |
 
 ## 4. Report
 

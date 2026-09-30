@@ -1995,9 +1995,18 @@ export default function SessionView({
           >
             {Math.floor(freeSecs / 60)}:{String(freeSecs % 60).padStart(2, '0')}
           </span>
-          {/* NO mic button beside the strip (req 09-30 live pass): a thumb
-              aiming at the bars' right edge hit it and left hands-free
-              instead of sending. Exit lives in the phase line above. */}
+          {/* the exit — same slot, same size as text-mode's send/mic button
+              (req 09-30: 'same height/width as the send/mic btn same place').
+              Red with a filled square: reads as stop. */}
+          <button
+            data-testid="free-exit"
+            aria-label="leave hands-free"
+            onClick={toggleHandsFree}
+            className="flex flex-none items-center justify-center self-center rounded border border-[var(--oz-danger)]/60 px-3 py-2 text-[var(--oz-danger)] select-none active:bg-[var(--oz-surface-hover)]"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <span aria-hidden className="h-3.5 w-3.5 rounded-[2px] bg-[var(--oz-danger)]" />
+          </button>
         </div>
       ) : (
         /* text input — always available */
@@ -2173,21 +2182,6 @@ export default function SessionView({
                   : '● speaking — mic returns when it ends'
                 : '● hands-free — say “over” or tap the bars to send'}
           </span>
-          {/* the exit — deliberately in the status line, NOT beside the strip:
-              a thumb reaching the bars' right edge must never leave
-              hands-free when it meant to send (req 09-30 live pass). Small
-              and same place every time; "over and out" still works. Red with
-              a filled square (req 09-30: 'red with red square in it') —
-              reads as stop, same shape/spot as the rest. */}
-          <button
-            data-testid="free-exit"
-            aria-label="leave hands-free"
-            onClick={toggleHandsFree}
-            className="flex flex-none items-center gap-1.5 self-center rounded border border-[var(--oz-danger)]/60 px-2 py-1 text-[10px] text-[var(--oz-danger)] active:bg-[var(--oz-surface-hover)]"
-            style={{ touchAction: 'manipulation' }}
-          >
-            <span aria-hidden className="h-2 w-2 rounded-[1px] bg-[var(--oz-danger)]" /> end
-          </button>
         </div>
       )}
 

@@ -57,13 +57,12 @@ pairing zero-typing) are release gates, not nice-to-haves.
 
 ## Current — harden to v1.0
 
-- [ ] Phone e2e pass (user, on the phone) — hands-free procedure (decided
-  09-28, replaces "feels natural"): 5-min hands-free conversation at speaker
-  volume 50% → (a) turn-taking commits within ~2.5s of each pause, (b) no
-  echo/feedback loop, (c) TTS intelligible, (d) round-trip feels < 2s,
-  (e) phase line shows sending→reply with no double-speak (hf-restart check),
-  (f) keyboard mode drops the OS mic indicator. PTT + scroll already
-  confirmed 09-26; waived for v0.1.0 (phase-log.md)
+(v0.4.0 = the enthusiast release, cut 09-30 — see Release ladder)
+
+- [x] Phone e2e pass (user, on the phone) — PASSED 09-30 in session test-hf:
+  hands-free "worked as good as it could" (user, after hf-restart +
+  ptt-flush + ptt-mic-release + ptt-mode-switch + send-lost + TTS-watchdog
+  fixes); PTT + scroll confirmed earlier; suite 30/30 same day
 - [x] Vercel deploy validated in isolated container (clean `npm ci && build`, smoke)
 - [x] Release v0.1.0 (tag + GitHub release) only after all boxes above — tagged
   and published 09-26 with the hands-free human pass explicitly waived

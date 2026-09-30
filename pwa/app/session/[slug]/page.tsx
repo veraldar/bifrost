@@ -19,6 +19,7 @@ import { useSwipeX } from '@/lib/use-swipe-x';
 import { ErrorBox } from '@/components/app/error-box';
 import {
   getSpeech,
+  getSpeechServer,
   pauseSpeech,
   rateSpeech,
   resumeSpeech,
@@ -159,7 +160,7 @@ export default function SessionView({
   const router = useRouter();
   const [slug, setSlug] = useState('');
   // tts deck store (speak-last-reply dock) + seek-bar drag state
-  const speech = useSyncExternalStore(subscribeSpeech, getSpeech);
+  const speech = useSyncExternalStore(subscribeSpeech, getSpeech, getSpeechServer);
   const [seekFrac, setSeekFrac] = useState<number | null>(null);
   const seekRef = useRef<HTMLDivElement>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -997,6 +998,9 @@ export default function SessionView({
         // fresh entry: the arrival cycle (req 09-30) must re-evaluate — a
         // stale flag from an exited session would block the next arm
         arrivedBusyRef.current = false;
+        // an in-session tap must not auto-play old replies (req 09-30 live
+        // pass: 'only when I enter, not if I am in it')
+        freeJustArmedRef.current = true;
         const room = await ensureVoice();
         await mic(true);
         // honesty check: hands-free renders "listening" from local mic levels
@@ -1214,6 +1218,10 @@ export default function SessionView({
   // on-open autoplay bookkeeping: the last reply we already ATTEMPTED to
   // auto-play on arrival (a TTS failure must not loop on every poll)
   const openPlayedRef = useRef(0);
+  // armed by a tap IN this session (switchMode 'free'), not by an arrival —
+  // auto-play of old replies is for ARRIVALS only (req 09-30 live pass:
+  // 'only when I enter, not if I am in it')
+  const freeJustArmedRef = useRef(false);
   const escapeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [idleTick, setIdleTick] = useState(0); // re-runs the speak effect on idle
   function freeMicGiveBack() {
@@ -1363,6 +1371,19 @@ export default function SessionView({
   //  · idle + everything heard → listening immediately, mic hot, talk away
   useEffect(() => {
     if (mode !== 'free' || voiceState !== 'ready' || freeCycle !== 'listening' || !slug) return;
+    if (freeJustArmedRef.current) {
+      // hands-free was just switched ON here — the user is about to talk,
+      // not catch up: never read an old reply now (mid-run the pause below
+      // still applies, and its RESULT still auto-speaks when it lands)
+      freeJustArmedRef.current = false;
+      if (!busy) {
+        const a = lastAssistant;
+        if (a && a.done !== false) {
+          openPlayedRef.current = Math.max(openPlayedRef.current, a.time);
+        }
+        return;
+      }
+    }
     if (busy) {
       // arrivals only: the user's own commits (over / tap / text send) run
       // their own cycle — and arrivedBusyRef keeps the busy ticks that

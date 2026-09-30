@@ -1462,6 +1462,14 @@ export default function SessionView({
     }
   }
 
+  /** The ONE stop (req 09-30 live pass): the deck's red ■ kills the speech
+   *  AND a working run behind it — audio ends, deck closes, the free cycle
+   *  hands the mic back, and the user can talk or leave hands-free. */
+  function stopSpeechAndWork() {
+    stopSpeech();
+    if (busyRef.current) void abortGeneration();
+  }
+
   async function addAttachments(files: FileList | null) {
     if (!files?.length) return;
     const picked = Array.from(files).slice(0, 4);
@@ -1792,14 +1800,17 @@ export default function SessionView({
             }}
           />
         ))}
-        {busy && (
+        {/* the abort chip only when NO deck is up (req 09-30 live pass): while
+            speech plays, the deck's red corner ■ already stops work + audio —
+            one stop, not two */}
+        {busy && speech.phase === 'idle' && (
           <div className="flex items-center gap-3 text-xs text-[var(--oz-active)]">
             <span className="oz-busy">● working… {busySecs}s</span>
             <button
               onClick={abortGeneration}
-              className="flex items-center gap-1 rounded border border-[var(--oz-danger)]/70 px-2.5 py-1 text-[var(--oz-danger)]"
+              className="flex items-center gap-1 rounded border border-[var(--oz-border)] px-2.5 py-1 text-[var(--oz-dim)]"
             >
-              <PixelIcon name="stop" size={12} /> stop
+              <PixelIcon name="stop" size={12} /> cancel
             </button>
           </div>
         )}
@@ -1859,22 +1870,21 @@ export default function SessionView({
         </div>
       )}
 
-      {/* tts deck — speak the last reply. Toggle: start (idle) / ■ stop
-          (active — also during 'loading': a stalled synthesis must be
-          user-stoppable, the Mac once never delivered audio, req 09-30). */}
-      {speech.phase !== 'idle' && (
-        <div className="flex justify-end pb-1.5">
-          <button
-            onClick={stopSpeech}
-            className="rounded border border-[var(--oz-danger)]/60 px-3 py-1.5 text-xs text-[var(--oz-danger)]"
-          >
-            ■ stop
-          </button>
-        </div>
-      )}
+      {/* the floating ■ stop is GONE (req 09-30 live pass): the deck's own
+          red corner button is the one stop — speech + working run together. */}
 
       {speech.phase === 'loading' && (
-        <div className="mb-2 rounded border border-[var(--oz-success)]/50 bg-[var(--oz-surface)]">
+        <div className="relative mb-2 rounded border border-[var(--oz-success)]/50 bg-[var(--oz-surface)]">
+          {/* a stalled synthesis must be user-stoppable (the Mac once never
+              delivered audio, req 09-30) — same one-stop corner button */}
+          <button
+            onClick={stopSpeechAndWork}
+            aria-label="stop"
+            className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-md border border-[var(--oz-danger)]/60 text-[var(--oz-danger)]"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <PixelIcon name="stop" size={14} />
+          </button>
           <div className="flex flex-col items-center gap-3 py-8">
             <div className="flex gap-2.5">
               <span className="oz-tts-dot" />
@@ -1887,8 +1897,19 @@ export default function SessionView({
       )}
 
       {(speech.phase === 'playing' || speech.phase === 'paused') && (
-        <div className="mb-2 rounded border border-[var(--oz-success)]/50 bg-[var(--oz-surface)] px-3 py-2.5 shadow-lg">
-          <div className="flex items-center gap-2">
+        <div className="relative mb-2 rounded border border-[var(--oz-success)]/50 bg-[var(--oz-surface)] px-3 py-2.5 shadow-lg">
+          {/* the ONE stop (req 09-30 live pass): red outline ■ in the corner —
+              stops the speech and a working run behind it in one tap; the mic
+              comes back and the user can talk or leave hands-free */}
+          <button
+            onClick={stopSpeechAndWork}
+            aria-label="stop speaking"
+            className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-md border border-[var(--oz-danger)]/60 text-[var(--oz-danger)]"
+            style={{ touchAction: 'manipulation' }}
+          >
+            <PixelIcon name="stop" size={14} />
+          </button>
+          <div className="flex items-center gap-2 pr-9">
             <span
               role="status"
               aria-label={speech.phase === 'paused' ? 'paused' : 'speaking'}
@@ -1950,10 +1971,10 @@ export default function SessionView({
           <div className="mt-2 flex items-center gap-2">
             <button
               onClick={() => (speech.phase === 'paused' ? resumeSpeech() : pauseSpeech())}
-              className="rounded border border-[var(--oz-success)]/60 bg-[var(--oz-success)]/10 px-4 py-1.5 text-sm text-[var(--oz-success)]"
+              className="flex items-center justify-center rounded border border-[var(--oz-success)]/60 bg-[var(--oz-success)]/10 px-4 py-1.5 text-sm text-[var(--oz-success)]"
               aria-label={speech.phase === 'paused' ? 'resume speech' : 'pause speech'}
             >
-              {speech.phase === 'paused' ? '▶' : '⏸'}
+              <PixelIcon name={speech.phase === 'paused' ? 'play' : 'pause'} size={14} />
             </button>
             <span className="flex-1" />
             <div className="flex overflow-hidden rounded border border-[var(--oz-success)]/50">
@@ -2016,18 +2037,21 @@ export default function SessionView({
           >
             {Math.floor(freeSecs / 60)}:{String(freeSecs % 60).padStart(2, '0')}
           </span>
-          {/* the exit — same slot, same size as text-mode's send/mic button
-              (req 09-30: 'same height/width as the send/mic btn same place').
-              Red with a filled square: reads as stop. */}
-          <button
-            data-testid="free-exit"
-            aria-label="leave hands-free"
-            onClick={toggleHandsFree}
-            className="flex flex-none items-center justify-center self-center rounded border border-[var(--oz-danger)]/60 px-3 py-2 text-[var(--oz-danger)] select-none active:bg-[var(--oz-surface-hover)]"
-            style={{ touchAction: 'manipulation' }}
-          >
-            <span aria-hidden className="h-3.5 w-3.5 rounded-[2px] bg-[var(--oz-danger)]" />
-          </button>
+          {/* the exit — only while LISTENING (req 09-30 live pass): mid-cycle
+              (working/speaking) the screen carries zero extra stops — the
+              deck's red ■ ends speech+work first, then this square is the
+              exit again. "over and out" exits from anywhere, as always. */}
+          {freeCycle === 'listening' && (
+            <button
+              data-testid="free-exit"
+              aria-label="leave hands-free"
+              onClick={toggleHandsFree}
+              className="flex flex-none items-center justify-center self-center rounded border border-[var(--oz-danger)]/60 px-3 py-2 text-[var(--oz-danger)] select-none active:bg-[var(--oz-surface-hover)]"
+              style={{ touchAction: 'manipulation' }}
+            >
+              <span aria-hidden className="h-3.5 w-3.5 rounded-[2px] bg-[var(--oz-danger)]" />
+            </button>
+          )}
         </div>
       ) : (
         /* text input — always available */

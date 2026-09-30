@@ -28,11 +28,12 @@ test('queue: mid-run send queues, stop advances to it', async ({ page }) => {
   await expect(page.getByText('● queued')).toBeVisible({ timeout: 15_000 });
   await page.screenshot({ path: '../artifacts/e2e-queued.png' });
 
-  // stop kills the current run; the proxy must forward B automatically.
+  // "cancel" kills the current run (renamed from 'stop' — req 09-30: stop
+  // means media now); the proxy must forward B automatically.
   // Model-agnostic: don't trust reply WORDING (post-abort models paraphrase
   // — seen live) — assert the mechanism: a second prompt exists and the
   // transcript ends with an assistant reply after it
-  await page.getByRole('button', { name: 'stop', exact: true }).click();
+  await page.getByRole('button', { name: 'cancel', exact: true }).click();
   const lastRole = () =>
     page.evaluate(() => {
       const msgs = [...document.querySelectorAll('[data-mi]')];

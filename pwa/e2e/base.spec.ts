@@ -77,7 +77,13 @@ test('voice: PTT connects to LiveKit, keyboard mode keeps the room warm', async 
       sockets.push(ws);
     }
   });
-  await page.getByRole('button', { name: 'push to talk' }).click();
+  // the mic is tap-to-toggle / hold-to-talk (req 09-30): a real PTT press is
+  // a HOLD — a click would now classify as a tap and toggle hands-free
+  const micBtn = page.getByRole('button', { name: 'push to talk' });
+  await micBtn.hover();
+  await page.mouse.down();
+  await page.waitForTimeout(450);
+  await page.mouse.up();
   await expect
     .poll(() => livekitWs, { timeout: 30_000, message: 'no LiveKit websocket opened' })
     .toBeGreaterThan(0);
@@ -88,8 +94,9 @@ test('voice: PTT connects to LiveKit, keyboard mode keeps the room warm', async 
   // warm: a teardown forced the next press to re-dispatch the voice agent and
   // a hold shorter than that join dropped the whole turn (req 09-29). The
   // LiveKit socket must therefore STAY open after the switch. The only mode
-  // switch is the mid-right mic button (req 09-30): text → hands-free → text.
-  await page.getByRole('button', { name: 'hands-free', exact: true }).click();
+  // switch is the composer mic (req 09-30): a TAP toggles hands-free —
+  // text → hands-free → text, the button never moves.
+  await micBtn.click();
   await page.getByRole('button', { name: 'leave hands-free' }).click();
   await expect
     .poll(() => sockets.filter((s) => s.isClosed()).length, {
@@ -101,7 +108,8 @@ test('voice: PTT connects to LiveKit, keyboard mode keeps the room warm', async 
 
 test('hands-free mode arms without error', async ({ page }) => {
   await page.goto(`/session/${NAME}?id=${sessionId}`);
-  await page.getByRole('button', { name: 'hands-free', exact: true }).click();
+  // tap the composer mic (req 09-30): the tap toggles hands-free on
+  await page.getByRole('button', { name: 'push to talk' }).click();
   await expect(page.getByText(/hands-free/).first()).toBeVisible({
     timeout: 30_000,
   });

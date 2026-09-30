@@ -31,6 +31,7 @@ import { diagEvent } from '@/lib/diag';
 import { clearAsked, ensureNotifyPermission, markAsked, notifyReply } from '@/lib/notify';
 import { PENDING_TTL_MS } from '@/lib/pending-ttl';
 import { markRead } from '@/lib/read';
+import { lastHeard, markHeard } from '@/lib/heard';
 
 type Mode = 'text' | 'free';
 type Attach =
@@ -677,6 +678,22 @@ export default function SessionView({
         busyBeatRef.current = 0;
         runStreakRef.current = 0;
         clearAsked(slug);
+        // arrival wait with no SSE idle in hand (subscribed late, run ended
+        // between polls): nudge the same speak path idle would have taken,
+        // or the mic stays paused forever (req 09-30)
+        if (
+          modeRef.current === 'free' &&
+          freeCycleRef.current === 'processing' &&
+          arrivedBusyRef.current &&
+          !freeSpokeMsgRef.current &&
+          !runIdleRef.current
+        ) {
+          arrivedBusyRef.current = false;
+          freeWaitSinceRef.current = 0;
+          runIdleRef.current = true;
+          setIdleTick((t) => t + 1);
+          armFreeEscape(15_000, 'arrival busy-clear: no speech started in 15s');
+        }
         if (document.hidden) void notifyReply(slug);
         return;
       }
@@ -709,6 +726,7 @@ export default function SessionView({
     return () => {
       unmountedRef.current = true;
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      clearHoldArm();
       roomRef.current?.disconnect();
       roomRef.current = null;
       stopSpeech(); // leaving the page kills the tts deck
@@ -744,13 +762,22 @@ export default function SessionView({
             setFreeCycle('listening');
             await mic(true);
             diagEvent('voice', 'hands-free restored after refresh');
-          } catch {
+          } catch (e) {
             modeRef.current = 'text';
             setMode('text');
-            try {
-              localStorage.setItem('oz-mode', 'text');
-            } catch {
-              /* private mode */
+            // a PERMISSION refusal is sticky — storing 'text' keeps every
+            // future navigation from fighting the browser. Anything else
+            // (transient voice failure, flaky link) keeps 'free' stored so
+            // the next session/refresh retries hands-free on its own
+            // (req 09-30: the mode must survive moving between sessions)
+            const denied =
+              e instanceof DOMException && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
+            if (denied) {
+              try {
+                localStorage.setItem('oz-mode', 'text');
+              } catch {
+                /* private mode */
+              }
             }
             setError('hands-free needs one tap after a refresh — tap the mic button');
           }
@@ -967,6 +994,9 @@ export default function SessionView({
         // buffers everything until "over" / "over and out" (agent.py).
         // PTT from the composer works in both modes (mic mutes on release).
         setFreeCycle('listening');
+        // fresh entry: the arrival cycle (req 09-30) must re-evaluate — a
+        // stale flag from an exited session would block the next arm
+        arrivedBusyRef.current = false;
         const room = await ensureVoice();
         await mic(true);
         // honesty check: hands-free renders "listening" from local mic levels
@@ -1036,6 +1066,18 @@ export default function SessionView({
   // React state settles, the release must see the same truth the move saw
   const pttCancelArmRef = useRef(false);
   const pttStartRef = useRef({ x: 0, y: 0 });
+  // tap-vs-hold (req 09-30): a quick press is the hands-free TOGGLE, a hold
+  // is push-to-talk. The PTT path (hold UI + mic enable) arms only after the
+  // press survives 250ms — a tap NEVER touches the capture device, so
+  // toggling can't churn the publisher transport (rapid enable/disable
+  // killed ICE in the live room 2026-09-30) and a tap can't buffer audio.
+  const holdArmRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function clearHoldArm() {
+    if (holdArmRef.current) {
+      clearTimeout(holdArmRef.current);
+      holdArmRef.current = null;
+    }
+  }
 
   function pttDiscardRpc() {
     const room = roomRef.current;
@@ -1165,6 +1207,13 @@ export default function SessionView({
   const runIdleRef = useRef(false); // session.idle nudge seen — run fully over
   const escapedRef = useRef(false); // dead-stream escape fired this cycle
   const resumeRef = useRef(false); // re-entering processing to speak a late reply
+  // arrival cycle (req 09-30): entered hands-free while the session was
+  // already working — mic stays paused until the run settles, then the reply
+  // auto-speaks via the normal idle path
+  const arrivedBusyRef = useRef(false);
+  // on-open autoplay bookkeeping: the last reply we already ATTEMPTED to
+  // auto-play on arrival (a TTS failure must not loop on every poll)
+  const openPlayedRef = useRef(0);
   const escapeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [idleTick, setIdleTick] = useState(0); // re-runs the speak effect on idle
   function freeMicGiveBack() {
@@ -1245,6 +1294,9 @@ export default function SessionView({
     const live = getSpeech();
     if (live.phase === 'playing') {
       freeSpokeRef.current = true;
+      // real audio went out — this reply counts as heard (req 09-30): a
+      // later arrival in this session must not auto-play it again
+      if (freeSpokeMsgRef.current) markHeard(slug, freeSpokeMsgRef.current);
       return;
     }
     // loading/paused keep the mic muted — nothing to hand back yet
@@ -1272,6 +1324,13 @@ export default function SessionView({
       // signal that may trigger the auto-listen; 'step' = one step message
       // completed mid-run, refresh-only
       if (ev.data === 'idle') {
+        // arrived mid-run (req 09-30): the reply may have completed before
+        // this cycle armed — the "not older than this cycle" gate would skip
+        // it forever, so an arrival wait speaks any completed reply
+        if (arrivedBusyRef.current) {
+          arrivedBusyRef.current = false;
+          freeWaitSinceRef.current = 0;
+        }
         void loadMsgsRef.current(); // pull the completed reply instantly
         runIdleRef.current = true;
         setIdleTick((t) => t + 1);
@@ -1294,6 +1353,45 @@ export default function SessionView({
     };
     return () => es.close();
   }, [mode, voiceState, slug]);
+
+  // on-arrival voice cycle (req 09-30): entering a session hands-free must
+  // match the room's reality BEFORE the mic goes hot —
+  //  · session working → 'processing' (mic paused) until the run settles,
+  //    then the reply auto-speaks (SSE idle above, or the busy-clear nudge)
+  //  · idle + unheard completed reply → auto-play it once, mic muted for the
+  //    playback like every other cycle
+  //  · idle + everything heard → listening immediately, mic hot, talk away
+  useEffect(() => {
+    if (mode !== 'free' || voiceState !== 'ready' || freeCycle !== 'listening' || !slug) return;
+    if (busy) {
+      // arrivals only: the user's own commits (over / tap / text send) run
+      // their own cycle — and arrivedBusyRef keeps the busy ticks that
+      // follow from re-arming anything
+      if (!arrivedBusyRef.current && freeCycleRef.current === 'listening') {
+        arrivedBusyRef.current = true;
+        void mic(false); // working — no talking into a run you didn't start
+        setFreeCycle('processing');
+        diagEvent('voice', 'arrived mid-run — mic paused until it settles');
+      }
+      return;
+    }
+    // stale sessionStorage paint must never speak: wait for the first real
+    // poll (a mid-run step message can sit completed in the cache)
+    if (!lastGoodPollRef.current) return;
+    const a = lastAssistant;
+    if (!a || a.done === false) return;
+    if (a.time <= openPlayedRef.current || a.time <= lastHeard(slug)) return;
+    openPlayedRef.current = a.time;
+    freeWaitSinceRef.current = 0; // the heard-watermark gates, not "over"
+    runIdleRef.current = true; // pretend the idle nudge arrived
+    resumeRef.current = true; // entering processing must not wipe the flags
+    void mic(false); // the playback holds the mic, same as every other cycle
+    setFreeCycle('processing');
+    setIdleTick((t) => t + 1);
+    armFreeEscape(15_000, 'on-open unheard reply: no speech started in 15s');
+    diagEvent('voice', 'on-open unheard reply — auto-play');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, voiceState, busy, freeCycle, lastAssistant, slug]);
 
   useEffect(() => {
     if (!holding) return;
@@ -1431,7 +1529,7 @@ export default function SessionView({
     }
   }
 
-  /** The one voice switch (req 09-30): the mid-right mic button. Tap enters
+  /** The voice toggle (req 09-30): a TAP on the composer mic. Enters
    *  hands-free; tapping again leaves it — and anything buffered mid-speech
    *  is discarded FIRST, so an exit never sends a half-said message. */
   function toggleHandsFree() {
@@ -1441,6 +1539,13 @@ export default function SessionView({
     } else {
       void switchMode('free');
     }
+  }
+
+  /** pointerup with the PTT path never armed (press released inside 250ms):
+   *  pure tap — toggle hands-free. No mic was touched, nothing to discard. */
+  function micTap() {
+    clearHoldArm();
+    toggleHandsFree();
   }
 
   /** Tap the live equalizer to commit the turn — the tap equivalent of
@@ -1492,6 +1597,55 @@ export default function SessionView({
     }
   }
 
+  // Shared pointer handlers for the mic button — ONE button, both modes
+  // (req 09-30): tap toggles hands-free, hold (+slide) is push-to-talk.
+  // It never moves: text mode renders it right of the input, free mode
+  // right of the strip — the exit is always where the entry was.
+  const micHoldHandlers = {
+    onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => {
+      e.preventDefault();
+      clearHoldArm();
+      pttStartRef.current = { x: e.clientX, y: e.clientY };
+      // PTT arms at 250ms — a shorter press is a tap (see micTap)
+      holdArmRef.current = setTimeout(() => {
+        holdArmRef.current = null;
+        void pttDown();
+      }, 250);
+    },
+    onPointerUp: () => {
+      // tap = the arm timer never fired → no PTT state exists at all
+      if (holdArmRef.current) micTap();
+      else void pttUp();
+    },
+    onPointerMove: (e: React.PointerEvent<HTMLButtonElement>) => {
+      if (!holding) return;
+      const dx = e.clientX - pttStartRef.current.x;
+      // slide left arms the delete zone; slide back right disarms
+      // (hysteresis so a shaky finger can't flicker the zone)
+      if (dx < -24 && !pttCancelArmRef.current) {
+        pttCancelArmRef.current = true;
+        setPttCancelArm(true);
+      } else if (dx > -8 && pttCancelArmRef.current) {
+        pttCancelArmRef.current = false;
+        setPttCancelArm(false);
+      }
+    },
+    onPointerLeave: () => {
+      // left before the arm threshold: that press is dead — a tap on the
+      // way out must not fire on a lost pointerup
+      if (holdArmRef.current) {
+        clearHoldArm();
+        return;
+      }
+      if (holding) pttCancel();
+    },
+    onPointerCancel: () => {
+      clearHoldArm();
+      if (holding) pttCancel();
+    },
+    onContextMenu: (e: React.MouseEvent<HTMLButtonElement>) => e.preventDefault(),
+  };
+
   return (
     <main className="relative mx-auto flex h-dvh max-w-md flex-col overflow-hidden px-3">
       {/* header — the slug is the way into session settings (name / model /
@@ -1506,7 +1660,8 @@ export default function SessionView({
           {busy && <span className="oz-busy ml-2 text-[var(--oz-active)]">●</span>}
         </Link>
         {/* search is not a mode — the keyboard/hands-free switch is GONE:
-            hands-free lives on the mid-right mic button (req 09-30) */}
+            hands-free lives on the composer mic — tap to toggle, hold to
+            talk (req 09-30) */}
         <div className="flex items-center gap-2">
           <button
             aria-label={searchOpen ? 'close search' : 'search transcript'}
@@ -1636,7 +1791,12 @@ export default function SessionView({
           msgs.length > 0 &&
           msgs[msgs.length - 1] === lastAssistant && (
             <button
-              onClick={() => startSpeech(lastAssistant.text, slug)}
+              onClick={() => {
+                // a deliberately played reply counts as heard (req 09-30):
+                // a later arrival must not auto-play it again
+                if (lastAssistant.time) markHeard(slug, lastAssistant.time);
+                startSpeech(lastAssistant.text, slug);
+              }}
               className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-[var(--oz-border)] px-3 py-1.5 text-xs text-[var(--oz-dim)]"
             >
               <PixelIcon name="volume" size={12} /> listen
@@ -1835,6 +1995,18 @@ export default function SessionView({
           >
             {Math.floor(freeSecs / 60)}:{String(freeSecs % 60).padStart(2, '0')}
           </span>
+          {/* the SAME mic, same spot (req 09-30): lit = hands-free live.
+              Tap = leave (back to keyboard); hold = push-to-talk. */}
+          <button
+            {...micHoldHandlers}
+            data-testid="composer-mic"
+            aria-label="leave hands-free"
+            aria-pressed={true}
+            className="oz-free-live flex h-10 w-10 flex-none items-center justify-center self-center rounded border border-[var(--oz-active)] bg-[var(--oz-active)]/15 text-[var(--oz-active)] select-none"
+            style={{ touchAction: 'none' }}
+          >
+            <PixelIcon name="mic" size={16} />
+          </button>
         </div>
       ) : (
         /* text input — always available */
@@ -1972,28 +2144,9 @@ export default function SessionView({
             </button>
           ) : (
             <button
+              {...micHoldHandlers}
+              data-testid="composer-mic"
               aria-label="push to talk"
-              onPointerDown={(e) => {
-                e.preventDefault();
-                pttDown(e);
-              }}
-              onPointerUp={() => pttUp()}
-              onPointerMove={(e) => {
-                if (!holding) return;
-                const dx = e.clientX - pttStartRef.current.x;
-                // slide left arms the delete zone; slide back right disarms
-                // (hysteresis so a shaky finger can't flicker the zone)
-                if (dx < -24 && !pttCancelArmRef.current) {
-                  pttCancelArmRef.current = true;
-                  setPttCancelArm(true);
-                } else if (dx > -8 && pttCancelArmRef.current) {
-                  pttCancelArmRef.current = false;
-                  setPttCancelArm(false);
-                }
-              }}
-              onPointerLeave={() => holding && pttCancel()}
-              onPointerCancel={() => holding && pttCancel()}
-              onContextMenu={(e) => e.preventDefault()}
               className={`rounded border px-3 py-2 text-sm select-none ${
                 holding
                   ? 'oz-ptt-hold border-[var(--oz-success)]'
@@ -2002,7 +2155,8 @@ export default function SessionView({
               style={{ touchAction: 'none' }}
             >
               {/* the mic button itself never changes — the recording pill is
-                what turns red when the delete zone is armed */}
+                what turns red when the delete zone is armed. A quick TAP is
+                the hands-free toggle (req 09-30), a hold talks. */}
               <PixelIcon name="mic" size={16} />
             </button>
           )}
@@ -2026,28 +2180,13 @@ export default function SessionView({
                 ? speech.phase === 'idle'
                   ? '● working on it — mic paused…'
                   : '● speaking — mic returns when it ends'
-                : '● hands-free — say “over” or tap the bars to send · “over and out” to end'}
+                : '● hands-free — say “over” or tap the bars to send · “over and out” or tap the mic to end'}
           </span>
         </div>
       )}
 
-      {/* the ONE voice switch (req 09-30): mid-right, vertically centered.
-          Amber + ring = hands-free live; dim = keyboard. Tapping it off
-          discards any mid-speech buffer (toggleHandsFree → ptt_abort). */}
-      <button
-        data-testid="mic-switch"
-        aria-label={mode === 'free' ? 'leave hands-free' : 'hands-free'}
-        aria-pressed={mode === 'free'}
-        onClick={toggleHandsFree}
-        className={`absolute right-3 top-1/2 z-40 flex h-14 w-14 -translate-y-1/2 items-center justify-center rounded-full border-2 transition-colors ${
-          mode === 'free'
-            ? 'oz-free-live border-[var(--oz-active)] bg-[var(--oz-active)]/15 text-[var(--oz-active)]'
-            : 'border-[var(--oz-border)] bg-[var(--oz-surface)] text-[var(--oz-dim)]'
-        } ${voiceState === 'connecting' && mode !== 'free' ? 'opacity-50' : ''}`}
-        style={{ touchAction: 'manipulation' }}
-      >
-        <PixelIcon name="mic" size={22} />
-      </button>
+      {/* the mid-right floating mic-switch is GONE (req 09-30): the composer
+          mic is the one voice control — tap toggles hands-free, hold talks. */}
     </main>
   );
 }

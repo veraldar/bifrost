@@ -66,7 +66,8 @@ test('search: hit ring, 1/2 counter, jump, Escape closes', async ({ page }) => {
 
 test('hands-free: keyword protocol status, no cancel button, screenshot', async ({ page }) => {
   await page.goto(`/session/${NAME}?id=${sessionId}`);
-  await page.getByRole('button', { name: 'hands-free', exact: true }).click();
+  // tap the composer mic (req 09-30): the tap toggles hands-free on
+  await page.getByRole('button', { name: 'push to talk' }).click();
   const phase = page.getByTestId('free-phase');
   await expect(phase).toBeVisible({ timeout: 30_000 });
   // agent joined → ready: the keyword hint replaces "connecting…"

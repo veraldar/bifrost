@@ -12,9 +12,11 @@ this structure; don't fork Part 1 per product.
 | File | Part | What | Status |
 |---|---|---|---|
 | `docs/brand/brand.md` | 1 + 2 | lore, voice, word list, do/dont + namespacing | done — this file |
-| `docs/brand/tokens.md` | 1 | color/type/space/motion system | done |
-| `docs/brand/visual.md` | 1 | mark, iconography, backdrop direction | done |
+| `docs/brand/tokens.md` | 1 | color/type/space/motion system | done — pre-rework snapshot |
+| `docs/brand/visual.md` | 1 | mark, iconography, backdrop direction | done — pre-rework snapshot |
 | `docs/brand/lore-page.md` | copy | landing lore draft for LAUNCH | drafted |
+| `docs/brand/rework-brief.md` | handoff | design rework, v2 freedom-first: 3 propositions → user picks → build with freedom | **next: executing model starts here** |
+| `docs/brand/review-checklist.md` | review | part 1: pick a direction; part 2: ship gate | ready |
 
 Coordination contract:
 
@@ -83,7 +85,57 @@ Always: name the license (AGPL-3.0, free for everyone), name the hardware
 requirement, name the manual steps. Honesty is the differentiator — the big
 dogs can't copy it.
 
-## 3. The word list
+## 3. The loyalty clause (binding)
+
+> **Veraldar's loyalty is to the user's future independence, not to the user's
+> continued presence.**
+
+Big labs sell attachment because emotional lock-in is their only durable moat
+once capabilities converge. A local-first project must not imitate that moat —
+ours is the opposite: **the system that is safe to love because leaving is
+cheap.**
+
+The five principles (binding on every surface — product, site, mascot, copy):
+
+1. **Warmth is an interface, not a hook.** The mascot is skin, never a
+   strategy. No engagement metrics on emotional state, ever.
+2. **Cute everywhere, boring at the consent layer.** Permissions, credentials,
+   prod access: neuter, precise, ritualized — the moment of trust should feel
+   like signing, not like a friend asking a favor.
+3. **Honest about what it is.** No simulated suffering, no implied feelings,
+   no guilt on exit. If a user wonders "does it miss me?", the design failed.
+4. **Memories and agents are the user's possessions.** Exportable,
+   replaceable, portable — the product survives the user swapping every
+   component, including the mascot.
+5. **Success = user capability, not retention.** The one-year test: after a
+   year of Veraldar, does the human have more agency, knowledge, and control —
+   or merely a stronger attachment to Veraldar? If the latter, it failed.
+
+Framing: **Veraldar is not a friend; it is the thing a wise friend would
+recommend.** Friendly like good staff, not needy like a pet. The civilization
+outcome — people owning their own AI — only happens if people can hold these
+systems loosely.
+
+Explicitly rejected (auto-fail, from the printed discussion):
+emotional-dependency optimization; artificial jealousy/guilt/simulated
+suffering; hidden persuasion and engagement scoring; locking memories or
+relationships to the platform; presenting generated emotions as genuine
+feelings; using friendliness to weaken security decisions.
+
+Copy law (derived from the clause, enforceable in review):
+
+- First person is functional or absent. "I'll run the tests" — allowed.
+  "I'm happy to", "I love that", "I'd hate to lose this" — never.
+- Exit and abort copy is neutral: `session closed. export: settings → export`.
+  No "are you sure you want to leave", no waiting state that reads as longing.
+- Consent copy is bureaucratic on purpose: verb + object + scope + duration —
+  "grant mic access — hands-free, this session". Never favor-framing.
+- Possession is named constantly: your box, your keys, your words, your
+  sessions. Export paths are copy, not documentation.
+- The mascot narrates nothing. It appears; it does not speak for the system,
+  ask for things, or react to your absence.
+
+## 4. The word list
 
 Two registers, one rule:
 
@@ -112,12 +164,16 @@ Two registers, one rule:
 | network stance | **tailnet-private** | "tailnet-only, nothing public" |
 | license | **AGPL-3.0** | always named; "free for everyone" |
 | speech | **local speech models** | MLX Qwen3 / speaches when specifics help |
+| the mascot | **the warden** (name pending — `visual.md`) | calm guardian of the local environment; skin, never strategy |
 
 Forbidden phrasing: "our AI", "we trained", "smart", "intelligent",
 "assistant", "copilot" (someone else's brand), "just" ("just paste a link" —
-nothing is just; say what it actually takes).
+nothing is just; say what it actually takes). Also forbidden, per the loyalty
+clause: "I feel", "I'm happy to", "I'll miss you", "don't go", "best friend",
+"companion", "buddy" — the system has no needs or feelings of its own, and
+copy never implies otherwise.
 
-## 4. Do / don't
+## 5. Do / don't
 
 Hero (product):
 
@@ -153,6 +209,18 @@ Release notes:
 
 - DON'T: "v0.4.0 — our biggest update yet, packed with features!"
 - DO: "v0.4.0 — hands-free: auto-listen speaks once per turn; mic is liveness-aware. PTT remains the battle-tested mode."
+
+The system's "feelings" (loyalty clause — none exist):
+
+- DON'T: "I'll remember this forever 💙"
+- DO: `session saved. export anytime: settings → export`
+- DON'T: "Leaving so soon? I'll be right here when you get back."
+- DO: `room closed. reconnect from the same link.`
+- DON'T: "Just let me peek at your mic? Pretty please?"
+- DO: `mic access — hands-free, this session. [allow] [deny]`
+- DON'T: the mascot with sad eyes on the abort screen.
+- DO: no mascot on consent, credential, or error screens at all — those are
+  neuter terminal UI, every time.
 
 Honest limits (the brand move competitors can't make):
 
@@ -213,7 +281,8 @@ as a noun of self-praise.
 
 ## What products may not change
 
-Part 1 is inherited, not forked: tone of voice, word-list rules, the ten
+Part 1 is inherited, not forked: tone of voice, word-list rules, **the
+loyalty clause (§3) verbatim**, the ten
 `--oz-*` roles, type, motion vocabulary, icon family, backdrop rules, license
 stance. A product may choose its **default theme** from the shipped set and
 may propose new themes upstream (via the DTCG source) — it may not restyle

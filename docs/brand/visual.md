@@ -36,6 +36,41 @@ direction:
   gradients anywhere in the brand), never a bridge illustration, never 3D,
   never a per-product reinterpretation of the tree.
 
+## The warden — the mascot (name pending)
+
+Direction (binding, from the loyalty clause in `brand.md` §3): the mascot
+reads as a **calm guardian of the user's local environment** — a watchman
+over Yggdrasil, not a companion inside it.
+
+- **Role, not personality.** Still posture, watchful, present at the edges —
+  idle screen, boot, ambient moments. It does not perform for attention: no
+  begging idle loops, no confetti, no reaction to your absence.
+- **Skin, never strategy.** It decorates surfaces; it never gates flows,
+  narrates states the system doesn't have, or appears where decisions are
+  made.
+- **Cute everywhere, boring at consent.** The warden is absent from
+  permission, credential, and prod screens — those are neuter terminal UI
+  (mono, hairlines, state colors, nothing else).
+- **States it may show:** only real system states, via the state-color law
+  (working = green pulse, heard = amber, idle = dim). Never invented
+  emotions — no sad, lonely, or excited mascot states. No simulated
+  suffering, ever.
+- **Replaceable by design.** The warden is a swappable skin; the product is
+  complete without it, and the copy says so. Memories and agents are
+  possessions (exportable, portable); so is the mascot.
+- **Pixel-vs-geometry rides the rework axis** (brief v2): if a pixel
+  direction wins, the warden is pixel; if geometry wins, line work. Prior
+  art: `artifacts/monster_*.png|.blend`, `artifacts/pixel-bot.svg` —
+  explorations only, none of them canon.
+
+Name candidates — pick one during the rework phase-1 review and write it here
+before any asset ships under it (same law as products):
+
+- **Heimdall** — the watchman who guards Bifröst; calm, hyper-aware, signals
+  only when it matters. Strong recognition; ties to product #1. (Recommended.)
+- **Landvættr** — the Norse guardian spirit of the local land; literally
+  "guardian of the local environment." Exact fit, obscure name.
+
 ## Iconography — pixelarticons base
 
 - **Base set: pixelarticons.** One family, one pixel grid. Never mix icon

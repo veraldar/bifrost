@@ -4,6 +4,17 @@ Status: **specification only**. Explicitly out of v1 scope (`spec.md` non-goals)
 Nothing here is built; this doc exists so the design survives until then.
 Raised 09-26 in conversation about opencode sessions, memory, and self-organizing agents.
 
+## Prime rule — serve the flow
+
+Sessions are the primary stream and stay the source of truth; the graph is an index
+over the flow, never a container the flow must pour into. A session never has to
+match the taxonomy: unmatched sessions start instantly and seed the next night.
+Routing is advisory — it attaches memory, it never gates passage. Dreaming runs
+off-path and additive; its only destructive act is bounded noise deletion. Success is
+velocity: the next session starts faster (re-establishing context trends to zero),
+tracked per week in the morning digest. If the graph is pretty but you still
+re-explain known things, dreaming has failed.
+
 ## Idea
 
 opencode records sessions but nothing ever reads them back as a whole — memory is

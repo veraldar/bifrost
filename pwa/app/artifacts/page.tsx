@@ -11,7 +11,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Streamdown } from 'streamdown';
 import { PixelIcon } from '@/components/pixel-icon';
 import type { ArtifactEntry } from '@/lib/artifacts';
@@ -73,8 +72,8 @@ function dayLabel(t: number): string {
 
 /** Full-page viewer for the non-html artifacts — rendering rules match the
  *  chat (session-message ArtifactView): md rendered, text fetched and
- *  capped, pdf a tap-out card, audio inline. Html goes to its own
- *  full-screen page (/artifacts/view/[name]) instead. */
+ *  capped, pdf a tap-out card, audio inline. Html goes straight to its
+ *  raw URL (/api/artifact/<name>) — browser renders it full screen. */
 function Viewer({ file }: { file: ArtifactEntry }) {
   const kind = kindOf(file.name);
   const src = `/api/artifact/${encodeURIComponent(file.name)}`;
@@ -157,7 +156,6 @@ function HtmlThumb({ name }: { name: string }) {
 }
 
 export default function ArtifactsPage() {
-  const router = useRouter();
   const [files, setFiles] = useState<ArtifactEntry[]>(() => {
     try {
       const raw = sessionStorage.getItem(CACHE_KEY);
@@ -214,17 +212,15 @@ export default function ArtifactsPage() {
   // localStorage, so a tick is all the render needs
   const [, setTick] = useState(0);
   const touch = useCallback(() => setTick((n) => n + 1), []);
-  // html goes full-screen on its own page — a thumbnail promises the whole
-  // design, not a letterboxed strip; everything else uses the in-page viewer
-  const openArtifact = useCallback(
-    (f: ArtifactEntry) => {
-      markSeen(f.name, f.mtime);
-      touch();
-      if (kindOf(f.name) === 'html') router.push(`/artifacts/view/${encodeURIComponent(f.name)}`);
-      else setOpen(f);
-    },
-    [router, touch]
-  );
+  // html goes to its raw URL — the browser IS the full-screen page; the
+  // in-page viewer only handles the kinds the browser wouldn't render well
+  const openArtifact = useCallback((f: ArtifactEntry) => {
+    markSeen(f.name, f.mtime);
+    touch();
+    if (kindOf(f.name) === 'html')
+      window.location.assign(`/api/artifact/${encodeURIComponent(f.name)}`);
+    else setOpen(f);
+  }, [touch]);
   const unread = countUnseen(files);
   const isHtml = (f: ArtifactEntry) => kindOf(f.name) === 'html';
   const rows = files.map((f) => ({ f, isUnread: f.mtime > lastSeen(f.name) }));
@@ -330,13 +326,13 @@ export default function ArtifactsPage() {
                     markSeen(f.name, f.mtime);
                     touch();
                     window.open(
-                      `/artifacts/view/${encodeURIComponent(f.name)}`,
+                      `/api/artifact/${encodeURIComponent(f.name)}`,
                       '_blank',
                       'noopener'
                     );
                   }}
                   aria-label={`open ${f.name} in new tab`}
-                  className="absolute right-1.5 top-1.5 z-10 rounded border border-[var(--oz-border)] bg-[var(--oz-surface)]/90 p-1 text-[var(--oz-dim)]"
+                  className="absolute right-1.5 top-1.5 z-10 rounded border border-[var(--oz-border)] bg-[var(--oz-surface)]/90 p-1 text-[var(--oz-text)]"
                 >
                   <PixelIcon name="external" size={12} />
                 </button>

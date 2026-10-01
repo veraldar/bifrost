@@ -101,15 +101,15 @@ test('html thumbnail opens full-screen view page', async ({ page }) => {
   // anchored: the card also has a sibling "open … in new tab" corner button
   const card = page.getByRole('button', { name: new RegExp(`^${hn}$`) });
   await expect(card).toBeVisible();
-  // tap → its own page, full-bleed sandboxed iframe; browser back returns
+  // tap → straight to the raw artifact URL, browser renders it full screen
   await card.click();
-  await expect(page).toHaveURL(new RegExp(`/artifacts/view/${hn}$`));
-  await expect(page.locator(`iframe[title="${hn}"]`)).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`/api/artifact/${hn}$`));
+  await expect(page.getByText('view page payload')).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(/\/artifacts$/);
 });
 
-test('card corner opens the view page in a new tab', async ({ page }) => {
+test('card corner opens the raw artifact in a new tab', async ({ page }) => {
   await page.goto('/artifacts');
   await mercyDone(page);
   const hn = `e2e-newtab-${Date.now().toString(36)}.html`;
@@ -119,8 +119,8 @@ test('card corner opens the view page in a new tab', async ({ page }) => {
   const corner = page.getByRole('button', { name: new RegExp(`open ${hn} in new tab`) });
   await expect(corner).toBeVisible();
   const [popup] = await Promise.all([page.waitForEvent('popup'), corner.click()]);
-  await expect(popup).toHaveURL(new RegExp(`/artifacts/view/${hn}$`));
-  await expect(popup.locator(`iframe[title="${hn}"]`)).toBeVisible();
+  await expect(popup).toHaveURL(new RegExp(`/api/artifact/${hn}$`));
+  await expect(popup.getByText('new tab payload')).toBeVisible();
   // the gallery page itself never navigated
   await expect(page).toHaveURL(/\/artifacts$/);
 });

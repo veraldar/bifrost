@@ -87,6 +87,10 @@ export async function GET() {
             // when the last visible message landed — the client compares it
             // against its local read marks to badge unread replies
             lastAt: last?.info?.time?.created || 0,
+            // how much transcript this session holds — surfaced on the
+            // delete-undo toast so a fat session announces itself while
+            // it can still be restored
+            msgs: msgs.length,
             // awaiting an answer: a run is live right now (definitive, tracked
             // in-flight by the proxy — survives restarts via disk), or the
             // transcript itself shows a run in flight AND it's fresh —
@@ -105,6 +109,7 @@ export async function GET() {
             lastRole: '',
             lastHasQ: false,
             lastAt: 0,
+            msgs: 0,
             pending: isRunLive(s.id),
           };
         }

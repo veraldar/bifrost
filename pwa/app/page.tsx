@@ -23,6 +23,7 @@ type Sess = {
   lastRole?: string;
   lastAt?: number;
   lastHasQ?: boolean;
+  msgs?: number;
   pending?: boolean;
 };
 
@@ -39,16 +40,19 @@ type GHit = {
 function SwipeRow({
   onOpen,
   onDelete,
+  compact,
   children,
 }: {
   onOpen: () => void;
   onDelete: () => void;
+  compact?: boolean;
   children: React.ReactNode;
 }) {
   const [dx, setDx] = useState(0);
   const [dragging, setDragging] = useState(false);
   const x0 = useRef(0);
   const moved = useRef(false);
+  const captured = useRef(false);
 
   return (
     <div className="relative overflow-hidden rounded">
@@ -63,25 +67,42 @@ function SwipeRow({
           if (!e.isPrimary) return;
           x0.current = e.clientX;
           moved.current = false;
+          captured.current = false;
           setDragging(true);
         }}
         onPointerMove={(e) => {
           if (!dragging) return;
           const d = Math.min(0, e.clientX - x0.current);
-          if (d < -6) moved.current = true;
+          if (d < -6) {
+            // capture only once horizontal drag intent is clear — a capture
+            // on pointerdown would retarget taps to the row and break inner
+            // click targets (the subs pill); once captured, the drag survives
+            // crossing the row/screen edge instead of dying in pointerleave
+            if (!captured.current) {
+              try {
+                e.currentTarget.setPointerCapture(e.pointerId);
+              } catch {
+                /* pointer may be gone — drag continues best-effort */
+              }
+              captured.current = true;
+            }
+            moved.current = true;
+          }
           setDx(Math.max(-96, d));
         }}
         onPointerUp={() => {
           setDragging(false);
+          captured.current = false;
           if (dx < -64) onDelete();
           else setDx(0);
         }}
         onPointerCancel={() => {
           setDragging(false);
+          captured.current = false;
           setDx(0);
         }}
         onPointerLeave={() => {
-          if (dragging) {
+          if (dragging && !captured.current) {
             setDragging(false);
             setDx(0);
           }
@@ -91,7 +112,9 @@ function SwipeRow({
           transition: dragging ? 'none' : 'transform 150ms ease-out',
           touchAction: 'pan-y',
         }}
-        className="oz-row relative w-full rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] px-3 py-2 text-left"
+        className={`oz-row relative w-full rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] text-left ${
+          compact ? 'px-3 py-1.5' : 'px-3 py-2'
+        }`}
       >
         {children}
       </button>
@@ -126,10 +149,18 @@ export default function SessionsPage() {
   const [loading, setLoading] = useState(true);
   const loadInFlightRef = useRef(false);
   // undo window: row (and its sub-tree) vanishes instantly, but the DELETE
-  // only fires when the 3s toast expires (or on unmount — entering a session
+  // only fires when the toast expires (or on unmount — entering a session
   // commits it). opencode cascades deletes server-side, so the family is
-  // stashed here to hide + restore atomically
-  const [toast, setToast] = useState<{ s: Sess; famCount: number; key: number } | null>(null);
+  // stashed here to hide + restore atomically. Mercy scales with content:
+  // a session holding ≥10 msgs gets 10s to be saved, not 3
+  const UNDO_MS = 3000;
+  const UNDO_MS_HEAVY = 10_000;
+  const [toast, setToast] = useState<{
+    s: Sess;
+    famCount: number;
+    win: number;
+    key: number;
+  } | null>(null);
   const pendingRef = useRef<{ s: Sess; fam: Sess[]; timer: ReturnType<typeof setTimeout> } | null>(
     null
   );
@@ -323,8 +354,11 @@ export default function SessionsPage() {
     }
     const famIds = new Set(fam.map((x) => x.id));
     setSessions((list) => list.filter((x) => x.id !== s.id && !famIds.has(x.id))); // optimistic
-    pendingRef.current = { s, fam, timer: setTimeout(commitPending, 3000) };
-    setToast({ s, famCount: fam.length, key: Date.now() });
+    const win = (s.msgs || 0) + fam.reduce((n, x) => n + (x.msgs || 0), 0) >= 10
+      ? UNDO_MS_HEAVY
+      : UNDO_MS;
+    pendingRef.current = { s, fam, timer: setTimeout(commitPending, win) };
+    setToast({ s, famCount: fam.length, win, key: Date.now() });
   }
 
   function undo() {
@@ -369,9 +403,23 @@ export default function SessionsPage() {
           </Link>
           <button
             onClick={load}
-            className="rounded-md border border-[var(--oz-border)] px-3 py-1.5 text-xs text-[var(--oz-dim)] hover:text-[var(--oz-text)]"
+            aria-label="refresh sessions"
+            className={`rounded-md border px-3 py-1.5 text-xs ${
+              loading
+                ? 'border-[var(--oz-success)] text-[var(--oz-success)]'
+                : 'border-[var(--oz-border)] text-[var(--oz-dim)] hover:text-[var(--oz-text)]'
+            }`}
           >
-            {loading ? '···' : 'refresh'}
+            {loading ? (
+              <span className="oz-eq" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+                <i />
+              </span>
+            ) : (
+              'refresh'
+            )}
           </button>
         </header>
 
@@ -586,12 +634,15 @@ export default function SessionsPage() {
                           k.lastRole === 'assistant' &&
                           (k.lastAt || 0) > lastRead(slugify(k.title || k.id));
                         return (
-                          <button
+                          // same swipe-left-to-delete as top-level rows — a
+                          // sub dies alone (no cascade: it has no sub-tree)
+                          <SwipeRow
                             key={k.id}
-                            onClick={() =>
+                            compact
+                            onOpen={() =>
                               router.push(`/session/${slugify(k.title || k.id)}?id=${k.id}`)
                             }
-                            className="oz-row w-full rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] px-3 py-1.5 text-left"
+                            onDelete={() => remove(k)}
                           >
                             <div className="flex items-baseline gap-1.5">
                               {k.pending && (
@@ -614,7 +665,7 @@ export default function SessionsPage() {
                                 {k.pending ? 'awaiting answer…' : k.preview}
                               </div>
                             )}
-                          </button>
+                          </SwipeRow>
                         );
                       })}
                     </div>
@@ -632,8 +683,11 @@ export default function SessionsPage() {
           key={toast.key}
           className="fixed inset-x-3 bottom-4 z-50 mx-auto flex max-w-md items-center gap-3 overflow-hidden rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] px-4 py-3 shadow-lg"
         >
+          {/* what you just killed — msg count makes a heavy delete visible
+              while the (longer) mercy window is still open */}
           <div className="min-w-0 flex-1 truncate text-xs text-[var(--oz-dim)]">
             deleted “{toast.s.title || toast.s.id}”
+            {(toast.s.msgs || 0) > 0 && ` · ${toast.s.msgs} msgs`}
             {toast.famCount > 0 &&
               ` + ${toast.famCount} sub${toast.famCount === 1 ? '' : 's'}`}
           </div>
@@ -644,7 +698,10 @@ export default function SessionsPage() {
             undo
           </button>
           <div className="absolute inset-x-0 bottom-0 h-0.5">
-            <div className="oz-toast-bar h-full bg-[var(--oz-success)]/70" />
+            <div
+              className="oz-toast-bar h-full bg-[var(--oz-success)]/70"
+              style={{ animationDuration: `${toast.win}ms` }}
+            />
           </div>
         </div>
       )}

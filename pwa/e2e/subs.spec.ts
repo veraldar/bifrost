@@ -5,8 +5,7 @@ import { type APIRequestContext, expect, test } from '@playwright/test';
 // opencode server and asserts only on the PWA's rendering of the pair.
 const OC = process.env.OPENCODE_URL || 'http://127.0.0.1:4096';
 const TAG = `e2e-subs-${Date.now().toString(36)}`;
-let parentId = '';
-let childId = '';
+const created: string[] = [];
 
 /** The proxy caches the enriched session list for 60s; only creates/deletes
  *  through it bust that cache. A throwaway round-trip forces a fresh list. */
@@ -17,22 +16,23 @@ async function bustListCache(request: APIRequestContext) {
 }
 
 test.afterAll(async ({ request }) => {
-  // runs even when the test above fails — a failed assertion must never
+  // runs even when a test above fails — a failed assertion must never
   // leak seeded sessions into the user's list (that happened once)
-  if (childId) await request.delete(`/api/session/${childId}`);
-  if (parentId) await request.delete(`/api/session/${parentId}`);
+  for (const id of created) await request.delete(`/api/session/${id}`);
 });
 
 test('sub-sessions nest under their parent behind the subs pill', async ({ page, request }) => {
   const p = (await (
     await request.post(`${OC}/session`, { data: { title: `${TAG}-parent` } })
   ).json()) as { id?: string };
-  parentId = p.id || '';
+  const parentId = p.id || '';
+  created.push(parentId);
   expect(parentId).toBeTruthy();
   const c = (await (
     await request.post(`${OC}/session`, { data: { title: `${TAG}-child`, parentID: parentId } })
   ).json()) as { id?: string };
-  childId = c.id || '';
+  const childId = c.id || '';
+  created.push(childId);
   expect(childId).toBeTruthy();
 
   await bustListCache(request);
@@ -55,4 +55,56 @@ test('sub-sessions nest under their parent behind the subs pill', async ({ page,
   // tapping the child row opens the child session, not the parent
   await childRow.click();
   await expect(page).toHaveURL(new RegExp(`id=${childId}`));
+});
+
+/** Swipe the child row left past the delete threshold (mouse drag). */
+async function swipeChildLeft(page: import('@playwright/test').Page, title: string) {
+  const childRow = page.locator('li', { hasText: title }).getByText(title);
+  const box = (await childRow.boundingBox())!;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(box.x + box.width - 10, y);
+  await page.mouse.down();
+  await page.mouse.move(box.x - 90, y, { steps: 6 });
+  await page.mouse.up();
+}
+
+test('sub-session swipes left to delete, with undo window', async ({ page, request }) => {
+  const p = (await (
+    await request.post(`${OC}/session`, { data: { title: `${TAG}-swipe-parent` } })
+  ).json()) as { id?: string };
+  const parentId = p.id || '';
+  created.push(parentId);
+  const c = (await (
+    await request.post(`${OC}/session`, {
+      data: { title: `${TAG}-swipe-child`, parentID: parentId },
+    })
+  ).json()) as { id?: string };
+  const childId = c.id || '';
+  created.push(childId);
+  expect(parentId).toBeTruthy();
+  expect(childId).toBeTruthy();
+
+  await bustListCache(request);
+  await page.goto('/');
+  const row = page.locator('li', { hasText: `${TAG}-swipe-parent` });
+  await row.getByRole('button', { name: '1 sub-session', exact: true }).click();
+
+  // swipe → optimistic vanish + undo toast (0 msgs → short 3s window)
+  await swipeChildLeft(page, `${TAG}-swipe-child`);
+  await expect(page.getByText(`deleted “${TAG}-swipe-child”`)).toBeVisible();
+  await expect(row.getByText(`${TAG}-swipe-child`)).toHaveCount(0);
+
+  // undo restores the child under its parent
+  await page.getByRole('button', { name: 'undo' }).click();
+  await expect(row.getByText(`${TAG}-swipe-child`)).toBeVisible();
+
+  // second swipe, no undo → window expires → the delete commits server-side
+  await swipeChildLeft(page, `${TAG}-swipe-child`);
+  await expect(page.getByText(`deleted “${TAG}-swipe-child”`)).toBeVisible();
+  await page.waitForTimeout(3500);
+  await bustListCache(request);
+  await page.reload();
+  const row2 = page.locator('li', { hasText: `${TAG}-swipe-parent` });
+  await expect(row2).toBeVisible(); // parent untouched
+  await expect(page.getByText(`${TAG}-swipe-child`)).toHaveCount(0); // child gone
 });

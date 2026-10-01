@@ -430,7 +430,7 @@ export default function SessionsPage() {
                   : 'border-[var(--oz-border)] text-[var(--oz-dim)] hover:text-[var(--oz-text)]'
               }`}
             >
-              <PixelIcon name="bell" size={15} />
+              <PixelIcon name="artifact" size={15} />
               {unseenArts > 0 && (
                 <span
                   data-testid="artifact-badge"

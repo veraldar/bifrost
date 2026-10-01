@@ -35,8 +35,9 @@ edge/*.log
 *.swp
 
 # agent-generated artifacts shown on the phone (served via /api/artifact)
-# curated shareable artifacts stay ignored EXCEPT the ones we ship:
-/artifacts/
+# curated shareable artifacts ship in the repo (note: /artifacts/* not /artifacts/
+# — git cannot re-include files under an ignored directory)
+/artifacts/*
 !/artifacts/architecture-connectors.html
 !/artifacts/artifacts-gallery-live.png
 

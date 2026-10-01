@@ -14,7 +14,8 @@
     "format:check": "prettier --check .",
     "shadcn:install": "pnpm dlx shadcn@latest add --yes @agents-ui/all && pnpm format",
     "verify": "bash scripts/record-env.sh --with-tests",
-    "env": "bash scripts/record-env.sh"
+    "env": "bash scripts/record-env.sh",
+    "prebuild": "bash ../scripts/sync-version.sh"
   },
   "dependencies": {
     "@livekit/components-react": "^2.9.24",

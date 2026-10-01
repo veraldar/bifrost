@@ -112,6 +112,19 @@ else
   else OK+=("pwa/.env.local (VAPID skipped — no npx)"); fi
 fi
 
+# ---- 2b. bundled skills → every opencode session on this box -----------------
+if have opencode || [[ -d "$HOME/.config/opencode" ]]; then
+  mkdir -p "$HOME/.config/opencode/skills"
+  for d in "$ROOT"/skills/*/; do
+    name="$(basename "$d")"
+    mkdir -p "$HOME/.config/opencode/skills/$name"
+    cp -f "$d/SKILL.md" "$HOME/.config/opencode/skills/$name/SKILL.md" 2>/dev/null \
+      && OK+=("skill: $name (installed global)") || SKIP+=("skill: $name (copy failed)")
+  done
+else
+  SKIP+=("bundled skills (no opencode config dir yet)")
+fi
+
 # ---- 3. opencode (install if asked to, start if not running) ----------------
 start_opencode() { # CLI shape differs across versions: try flags, then env
   nohup opencode serve --port 4096 --hostname 127.0.0.1 >/dev/null 2>&1 &

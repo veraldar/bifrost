@@ -22,11 +22,13 @@ export async function GET(req: Request, ctx: { params: Promise<{ name: string }>
     const file = path.join(ARTIFACTS_DIR, name);
     if (!(await stat(file)).isFile()) throw new Error('not a file');
     const data = await readFile(file);
-    // top-level navigation (address bar / new tab) of a text artifact:
-    // browsers paint raw text white — wrap it in the app's black so an
-    // opened md reads like bifrost. Chat fetches (sec-fetch-dest: empty)
-    // still get the raw bytes they .text()
-    if (type.startsWith('text/') && req.headers.get('sec-fetch-dest') === 'document') {
+    // top-level navigation (address bar / new tab) of a PLAIN-TEXT artifact
+    // (md, txt, code…): browsers paint raw text white — wrap it in the
+    // app's black so an opened md reads like bifrost. Html must NOT take
+    // this path — text/html navigations are the browser rendering the
+    // artifact itself. Chat fetches (sec-fetch-dest: empty) still get the
+    // raw bytes they .text()
+    if (type.startsWith('text/plain') && req.headers.get('sec-fetch-dest') === 'document') {
       const esc = data
         .toString('utf-8')
         .replace(/&/g, '&amp;')

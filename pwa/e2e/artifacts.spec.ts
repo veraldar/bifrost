@@ -141,6 +141,16 @@ test('md opened directly gets the black page, fetched stays raw', async ({ page,
   await expect(page.getByText('# black bg spec')).toBeVisible();
 });
 
+test('html navigations still RENDER — never escaped into the text wrapper', async ({ page }) => {
+  const hn = `e2e-htmlnav-${Date.now().toString(36)}.html`;
+  made.push(hn);
+  await writeFile(path.join(DIR, hn), '<h1>rendered payload</h1>');
+  await page.goto(`/api/artifact/${hn}`);
+  // a real <h1> element exists (browser rendered it), content-type html
+  await expect(page.locator('h1')).toHaveText('rendered payload');
+  await expect(page.locator('body')).not.toContainText('<h1>');
+});
+
 test('api: artifact list is newest-first, names stay sanitized', async ({ request }) => {
   const r = await request.get('/api/artifact');
   expect(r.ok()).toBeTruthy();

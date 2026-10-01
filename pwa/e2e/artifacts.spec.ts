@@ -91,6 +91,23 @@ test('mark all read clears every unseen', async ({ page }) => {
   await expect.poll(() => badgeCount(page), { timeout: 15_000 }).toBe(0);
 });
 
+test('html thumbnail opens full-screen view page', async ({ page }) => {
+  await page.goto('/artifacts');
+  await mercyDone(page);
+  const hn = `e2e-view-${Date.now().toString(36)}.html`;
+  made.push(hn);
+  await writeFile(path.join(DIR, hn), '<h1>view page payload</h1>');
+  await page.reload();
+  const card = page.getByRole('button', { name: new RegExp(hn) });
+  await expect(card).toBeVisible();
+  // tap → its own page, full-bleed sandboxed iframe, back chip
+  await card.click();
+  await expect(page).toHaveURL(new RegExp(`/artifacts/view/${hn}$`));
+  await expect(page.locator(`iframe[title="${hn}"]`)).toBeVisible();
+  await page.getByRole('button', { name: 'back to artifacts' }).click();
+  await expect(page).toHaveURL(/\/artifacts$/);
+});
+
 test('api: artifact list is newest-first, names stay sanitized', async ({ request }) => {
   const r = await request.get('/api/artifact');
   expect(r.ok()).toBeTruthy();

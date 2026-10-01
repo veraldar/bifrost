@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Streamdown } from 'streamdown';
 import { PixelIcon } from '@/components/pixel-icon';
 import type { ArtifactEntry } from '@/lib/artifacts';
@@ -70,9 +71,10 @@ function dayLabel(t: number): string {
   return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-/** Full-page viewer for one artifact — rendering rules match the chat
- *  (session-message ArtifactView): html sandboxed (no scripts), md
- *  rendered, text fetched and capped, pdf a tap-out card, audio inline. */
+/** Full-page viewer for the non-html artifacts — rendering rules match the
+ *  chat (session-message ArtifactView): md rendered, text fetched and
+ *  capped, pdf a tap-out card, audio inline. Html goes to its own
+ *  full-screen page (/artifacts/view/[name]) instead. */
 function Viewer({ file }: { file: ArtifactEntry }) {
   const kind = kindOf(file.name);
   const src = `/api/artifact/${encodeURIComponent(file.name)}`;
@@ -91,16 +93,6 @@ function Viewer({ file }: { file: ArtifactEntry }) {
     };
   }, [src, needsText]);
 
-  if (kind === 'html') {
-    return (
-      <iframe
-        sandbox=""
-        src={src}
-        title={file.name}
-        className="h-[calc(100dvh-8rem)] w-full rounded border border-[var(--oz-border)] bg-white"
-      />
-    );
-  }
   if (kind === 'image') {
     return (
       // eslint-disable-next-line @next/next/no-img-element
@@ -165,6 +157,7 @@ function HtmlThumb({ name }: { name: string }) {
 }
 
 export default function ArtifactsPage() {
+  const router = useRouter();
   const [files, setFiles] = useState<ArtifactEntry[]>(() => {
     try {
       const raw = sessionStorage.getItem(CACHE_KEY);
@@ -221,6 +214,17 @@ export default function ArtifactsPage() {
   // localStorage, so a tick is all the render needs
   const [, setTick] = useState(0);
   const touch = useCallback(() => setTick((n) => n + 1), []);
+  // html goes full-screen on its own page — a thumbnail promises the whole
+  // design, not a letterboxed strip; everything else uses the in-page viewer
+  const openArtifact = useCallback(
+    (f: ArtifactEntry) => {
+      markSeen(f.name, f.mtime);
+      touch();
+      if (kindOf(f.name) === 'html') router.push(`/artifacts/view/${encodeURIComponent(f.name)}`);
+      else setOpen(f);
+    },
+    [router, touch]
+  );
   const unread = countUnseen(files);
   const isHtml = (f: ArtifactEntry) => kindOf(f.name) === 'html';
   const rows = files.map((f) => ({ f, isUnread: f.mtime > lastSeen(f.name) }));
@@ -300,11 +304,7 @@ export default function ArtifactsPage() {
             {viewRows.map(({ f, isUnread }) => (
               <button
                 key={f.name}
-                onClick={() => {
-                  markSeen(f.name, f.mtime);
-                  touch();
-                  setOpen(f);
-                }}
+                onClick={() => openArtifact(f)}
                 aria-label={f.name}
                 className={`oz-row overflow-hidden rounded border bg-[var(--oz-surface)] text-left ${
                   isUnread ? 'border-[var(--oz-active)]/45' : 'border-[var(--oz-border)]'
@@ -344,11 +344,7 @@ export default function ArtifactsPage() {
                 out.push(
                   <li key={f.name}>
                     <button
-                      onClick={() => {
-                        markSeen(f.name, f.mtime);
-                        touch();
-                        setOpen(f);
-                      }}
+                      onClick={() => openArtifact(f)}
                       className={`oz-row flex w-full items-center gap-2.5 rounded border bg-[var(--oz-surface)] px-3 py-2.5 text-left text-sm ${
                         isUnread
                           ? 'border-[var(--oz-active)]/45'

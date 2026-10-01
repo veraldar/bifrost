@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { PixelIcon } from '@/components/pixel-icon';
 import { Marked } from '@/components/marked';
 import { askedSessions, clearAsked, notifyReply } from '@/lib/notify';
+import type { ArtifactEntry } from '@/lib/artifacts';
+import { countUnseen, seenInit } from '@/lib/artifact-read';
 import { lastRead, markRead } from '@/lib/read';
 import { slugify } from '@/lib/slug';
 
@@ -144,6 +146,9 @@ export default function SessionsPage() {
       return [];
     }
   });
+  // artifacts the agents left unseen — drives the header bell badge;
+  // counted on the same load/poll cycle as the session list
+  const [unseenArts, setUnseenArts] = useState(0);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(true);
@@ -254,6 +259,11 @@ export default function SessionsPage() {
     if (loadInFlightRef.current) return;
     loadInFlightRef.current = true;
     setLoading(true);
+    // artifact count rides along in parallel — its failure never touches
+    // the session list
+    const artsP = fetch('/api/artifact', { cache: 'no-store', signal: AbortSignal.timeout(10_000) })
+      .then((r) => r.json() as Promise<ArtifactEntry[]>)
+      .catch(() => null);
     try {
       const r = await fetch('/api/session', {
         cache: 'no-store',
@@ -294,6 +304,13 @@ export default function SessionsPage() {
     } finally {
       loadInFlightRef.current = false;
       setLoading(false);
+    }
+    // first run after this feature ships: everything already on disk counts
+    // as seen — a bell opening at "167" helps nobody
+    const arts = await artsP;
+    if (arts) {
+      seenInit(arts);
+      setUnseenArts(countUnseen(arts));
     }
   }, []);
 
@@ -401,26 +418,49 @@ export default function SessionsPage() {
             </svg>
             <h1 className="text-base font-bold tracking-[0.1em] uppercase">Bifrost</h1>
           </Link>
-          <button
-            onClick={load}
-            aria-label="refresh sessions"
-            className={`rounded-md border px-3 py-1.5 text-xs ${
-              loading
-                ? 'border-[var(--oz-success)] text-[var(--oz-success)]'
-                : 'border-[var(--oz-border)] text-[var(--oz-dim)] hover:text-[var(--oz-text)]'
-            }`}
-          >
-            {loading ? (
-              <span className="oz-eq" aria-hidden="true">
-                <i />
-                <i />
-                <i />
-                <i />
-              </span>
-            ) : (
-              'refresh'
-            )}
-          </button>
+          {/* artifact bell — joins refresh in the header; amber + count
+              while unseen artifacts wait in /artifacts */}
+          <div className="flex items-center gap-2">
+            <Link
+              href="/artifacts"
+              aria-label={`artifacts — ${unseenArts} unseen`}
+              className={`relative rounded-md border px-2.5 py-1.5 text-xs ${
+                unseenArts > 0
+                  ? 'border-[var(--oz-active)]/55 text-[var(--oz-active)]'
+                  : 'border-[var(--oz-border)] text-[var(--oz-dim)] hover:text-[var(--oz-text)]'
+              }`}
+            >
+              <PixelIcon name="bell" size={15} />
+              {unseenArts > 0 && (
+                <span
+                  data-testid="artifact-badge"
+                  className="absolute -right-2 -top-2 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[var(--oz-active)] px-1 text-[10px] font-bold text-[#1c1400]"
+                >
+                  {unseenArts}
+                </span>
+              )}
+            </Link>
+            <button
+              onClick={load}
+              aria-label="refresh sessions"
+              className={`rounded-md border px-3 py-1.5 text-xs ${
+                loading
+                  ? 'border-[var(--oz-success)] text-[var(--oz-success)]'
+                  : 'border-[var(--oz-border)] text-[var(--oz-dim)] hover:text-[var(--oz-text)]'
+              }`}
+            >
+              {loading ? (
+                <span className="oz-eq" aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
+                  <i />
+                </span>
+              ) : (
+                'refresh'
+              )}
+            </button>
+          </div>
         </header>
 
         <div className="mb-2 flex items-stretch gap-2">

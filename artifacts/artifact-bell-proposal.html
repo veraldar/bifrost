@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>bifrost — artifact bell + gallery, rev 2</title>
+<style>
+  :root {
+    --oz-bg: #080810; --oz-surface: #000000; --oz-surface-hover: #111111;
+    --oz-border: rgba(255,255,255,0.14); --oz-text: #ffffff; --oz-dim: #888888;
+    --oz-success: #4ade80; --oz-active: #fbbf24;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #04040a; color: var(--oz-text);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 24px 12px 48px; }
+  h2 { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--oz-dim); font-weight: normal; }
+  .note { max-width: 430px; font-size: 11px; line-height: 1.7; color: var(--oz-dim); }
+  .note b { color: var(--oz-text); font-weight: normal; }
+  .note code { color: var(--oz-active); }
+
+  .phone { width: 390px; max-width: 96vw; height: 720px; border: 1px solid var(--oz-border);
+    border-radius: 28px; background: var(--oz-bg); overflow: hidden; position: relative; }
+  .ygg { position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse 80% 40% at 50% -5%, rgba(120,110,255,.14), transparent 60%); }
+
+  /* home screen */
+  .home { position: absolute; inset: 0; padding: 14px 12px; overflow-y: auto;
+    transition: transform .25s ease, opacity .25s ease; }
+  .home.pushed { transform: translateX(-18%); opacity: .4; }
+
+  header.bar { display: flex; align-items: center; justify-content: space-between;
+    border: 1px solid var(--oz-border); background: var(--oz-surface);
+    border-radius: 10px; padding: 10px 14px; margin-bottom: 8px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase; }
+  .brand svg { stroke: var(--oz-text); }
+  .hdrbtns { display: flex; gap: 8px; align-items: center; }
+  .ref { border: 1px solid var(--oz-border); background: none; color: var(--oz-dim);
+    border-radius: 6px; padding: 6px 12px; font-size: 11px; font-family: inherit; }
+
+  /* the bell — joins refresh in the header */
+  .bell { position: relative; border: 1px solid var(--oz-border); background: none;
+    border-radius: 6px; width: 34px; height: 29px; display: flex; align-items: center;
+    justify-content: center; color: var(--oz-dim); cursor: pointer; }
+  .bell.has { color: var(--oz-active); border-color: rgba(251,191,36,.55); }
+  .badge { position: absolute; top: -8px; right: -8px; min-width: 17px; height: 17px;
+    border-radius: 9px; background: var(--oz-active); color: #1c1400; font-size: 10px;
+    font-weight: 700; display: flex; align-items: center; justify-content: center; padding: 0 5px; }
+  .badge.zero { display: none; }
+
+  .newrow { display: flex; gap: 8px; margin-bottom: 8px; }
+  .newbtn { flex: 1; display: flex; align-items: center; gap: 10px; border: 1px solid rgba(74,222,128,.6);
+    background: var(--oz-surface); border-radius: 8px; padding: 12px 14px; font-size: 13px; color: var(--oz-success); }
+  .searchbtn { display: flex; align-items: center; justify-content: center; border: 1px solid var(--oz-border);
+    background: var(--oz-surface); border-radius: 8px; padding: 0 14px; color: var(--oz-dim); }
+
+  .srow { border: 1px solid var(--oz-border); background: var(--oz-surface); border-radius: 8px;
+    padding: 9px 12px; margin-bottom: 5px; }
+  .srow .l1 { display: flex; align-items: baseline; gap: 6px; font-size: 13px; }
+  .srow .dot { color: var(--oz-active); font-size: 11px; }
+  .srow .title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .srow .time { margin-left: auto; flex-shrink: 0; font-size: 10px; color: var(--oz-dim); }
+  .srow .prev { font-size: 12px; color: var(--oz-dim); overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; margin-top: 2px; }
+
+  /* artifacts page — slides in over the home like every other nav */
+  .arts { position: absolute; inset: 0; padding: 14px 12px; overflow-y: auto;
+    background: var(--oz-bg); transform: translateX(100%); transition: transform .25s ease; }
+  .arts.open { transform: none; }
+  .arts header.bar .title { display: flex; align-items: center; gap: 10px; font-size: 15px;
+    font-weight: 700; letter-spacing: .1em; text-transform: uppercase; background: none;
+    border: none; color: var(--oz-text); cursor: pointer; font-family: inherit; }
+  .markall { font-size: 10px; color: var(--oz-dim); background: none; border: 1px solid var(--oz-border);
+    border-radius: 6px; padding: 5px 10px; cursor: pointer; letter-spacing: .06em; font-family: inherit; }
+  .markall:hover { color: var(--oz-text); }
+  .meta { font-size: 10px; color: var(--oz-dim); margin: 2px 2px 8px; letter-spacing: .04em; }
+  .day { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--oz-dim);
+    margin: 10px 2px 5px; }
+  .arow { display: flex; align-items: center; gap: 10px; border: 1px solid var(--oz-border);
+    background: var(--oz-surface); border-radius: 8px; padding: 10px 12px; margin-bottom: 5px;
+    cursor: pointer; text-align: left; width: 100%; color: var(--oz-text);
+    font-family: inherit; font-size: 13px; }
+  .arow.unread { border-color: rgba(251,191,36,.45); }
+  .arow .glyph { width: 20px; text-align: center; flex-shrink: 0; color: var(--oz-dim); font-size: 13px; }
+  .arow.unread .glyph { color: var(--oz-active); }
+  .arow .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .arow.unread .nm { font-weight: 700; }
+  .arow .st { margin-left: auto; flex-shrink: 0; font-size: 10px; color: var(--oz-dim); }
+  .arow .udot { flex-shrink: 0; width: 7px; height: 7px; border-radius: 50%; background: transparent; }
+  .arow.unread .udot { background: var(--oz-active); }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="ygg"></div>
+
+  <!-- ============ HOME — refresh + search stay, bell joins ============ -->
+  <div class="home" id="home">
+    <header class="bar">
+      <div class="brand">
+        <svg viewBox="0 0 16 16" width="18" height="18" fill="none" stroke-width="2">
+          <path d="M3 1v14M3 2l7 3-7 3M3 8l7 3-7 3"/>
+        </svg>
+        Bifrost
+      </div>
+      <div class="hdrbtns">
+        <button class="bell has" id="bell" aria-label="artifacts — 3 unseen">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+            <path d="M10 2h4v2h-4zM8 4h8v2H8zM6 6h12v2H6zM4 8h16v6H4zM4 14h16v2H4zM2 16h20v2H2zM9 19h2v2H9zM13 19h2v2h-2z"/>
+          </svg>
+          <span class="badge" id="badge">3</span>
+        </button>
+        <button class="ref">refresh</button>
+      </div>
+    </header>
+
+    <div class="newrow">
+      <div class="newbtn">＋ new session</div>
+      <div class="searchbtn">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+          <path d="M22 22h-2v-2h2v2zm-2-2h-2v-2h2v2zm-6-2H6v-2h8v2zm4 0h-2v-2h2v2zM6 16H4v-2h2v2zm10 0h-2v-2h2v2zM4 14H2V6h2v8zm14 0h-2V6h2v8zM6 6H4V4h2v2zm10 0h-2V4h2v2zm-2-2H6V2h8v2z"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="srow"><div class="l1"><span class="dot">●</span><span class="title">bifrost artifact gallery</span><span class="time">13:47</span></div><div class="prev">wrote the design proposal, mockup in…</div></div>
+    <div class="srow"><div class="l1"><span class="title" style="color:var(--oz-dim)">veraldar landing copy</span><span class="time">12:10</span></div><div class="prev">hero line v3: “cross between worlds…</div></div>
+    <div class="srow"><div class="l1"><span class="title" style="color:var(--oz-dim)">edge-spike</span><span class="time">Tue</span></div><div class="prev">round-trip verified 7/7, rtf 0.29…</div></div>
+    <div class="srow"><div class="l1"><span class="title" style="color:var(--oz-dim)">theme tokens</span><span class="time">Mon</span></div><div class="prev">tokens.css + next-themes wired…</div></div>
+  </div>
+
+  <!-- ============ TAP BELL → ARTIFACTS PAGE (new page, slides in) ============ -->
+  <div class="arts" id="arts">
+    <header class="bar">
+      <button class="title" id="back">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+          <path d="M20 11v2H4v-2zm-12 2v2H6v-2zm2 2v2H8v-2zm2 2v2h-2v-2zm-4-6V9H6v2z"/>
+        </svg>
+        artifacts
+      </button>
+      <button class="markall" id="markall">mark all read</button>
+    </header>
+    <div class="meta" id="meta">167 files · 3 unseen · tap to view, opening marks it seen</div>
+    <div id="list"></div>
+  </div>
+</div>
+
+<div class="note">
+  <h2 style="margin-bottom:8px">what’s on the artifacts page</h2>
+  <b>Header</b> — back arrow (home stays put underneath), title, <code>mark all read</code>. Below it a count line: <code>167 files · 3 unseen</code>.<br><br>
+  <b>The list</b> — every file the agents dropped in <code>artifacts/</code>, newest first, grouped by day (today / yesterday / dates). Each row: amber dot + bold name if unseen, type glyph (image / md / html / pdf / audio), then time · size — same row language as your session list.<br><br>
+  <b>Tap a row</b> → the artifact opens like it does in chat (image renders, html in the sandboxed frame, pdf/audio get their cards) and the row is marked seen — badge drops.<br><br>
+  <b>Home keeps everything</b> — refresh and search untouched, bell just joins the header. Count updates on the 8s background poll you already run. <i>Demo: tap the bell, then tap rows — the badge falls. Back via the arrow.</i>
+</div>
+
+<script>
+  const NOW = Date.now(), H = 3600e3;
+  const files = [
+    { n: "design-3-korn.html",       t: "HTML", at: NOW - 0.4*H },
+    { n: "review-checklist.md",      t: "MD",   at: NOW - 0.7*H },
+    { n: "rework-brief.md",          t: "MD",   at: NOW - 1.2*H },
+    { n: "design-2-sap-preview.png", t: "IMG",  at: NOW - 20*H },
+    { n: "tokens.md",                t: "MD",   at: NOW - 22*H },
+    { n: "veraldar-tree.png",        t: "IMG",  at: NOW - 27*H },
+    { n: "voix_dylan.wav",           t: "WAV",  at: NOW - 30*H },
+    { n: "wedge-fix.diff",           t: "DIFF", at: NOW - 50*H },
+    { n: "ygg-original.svg",         t: "SVG",  at: NOW - 74*H },
+  ];
+  const seen = new Set();
+  const glyph = { HTML:"▤", MD:"¶", IMG:"▣", WAV:"♪", DIFF:"±", SVG:"◈" };
+  const kb = ["14 kB","2 kB","3 kB","1.1 MB","1 kB","380 kB","210 kB","4 kB","9 kB"];
+  const fmt = at => { const d = new Date(at);
+    return d.toDateString() === new Date().toDateString()
+      ? d.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})
+      : d.toLocaleDateString([], {month:"short",day:"numeric"}); };
+
+  function render() {
+    const unread = files.filter(f => !seen.has(f.n));
+    const badge = document.getElementById("badge");
+    badge.textContent = unread.length;
+    badge.classList.toggle("zero", unread.length === 0);
+    document.getElementById("bell").classList.toggle("has", unread.length > 0);
+    document.getElementById("bell").setAttribute("aria-label", `artifacts — ${unread.length} unseen`);
+    document.getElementById("meta").textContent =
+      `${files.length} files · ${unread.length} unseen · tap to view, opening marks it seen`;
+    document.getElementById("markall").style.visibility = unread.length ? "visible" : "hidden";
+    let html = "", day = "";
+    for (const [i, f] of files.entries()) {
+      const d = new Date(f.at).toDateString();
+      if (d !== day) { day = d;
+        const lbl = d === new Date().toDateString() ? "today"
+          : d === new Date(NOW-86400e3).toDateString() ? "yesterday" : d.slice(4);
+        html += `<div class="day">${lbl}</div>`; }
+      const u = seen.has(f.n) ? "" : "unread";
+      html += `<button class="arow ${u}" data-n="${f.n}">
+        <span class="udot"></span><span class="glyph">${glyph[f.t]||"·"}</span>
+        <span class="nm">${f.n}</span><span class="st">${fmt(f.at)} · ${kb[i]}</span></button>`;
+    }
+    const list = document.getElementById("list");
+    list.innerHTML = html;
+    list.querySelectorAll(".arow").forEach(el => el.onclick = () => { seen.add(el.dataset.n); render(); });
+  }
+  document.getElementById("bell").onclick = () => {
+    document.getElementById("arts").classList.add("open");
+    document.getElementById("home").classList.add("pushed");
+  };
+  document.getElementById("back").onclick = () => {
+    document.getElementById("arts").classList.remove("open");
+    document.getElementById("home").classList.remove("pushed");
+  };
+  document.getElementById("markall").onclick = () => { files.forEach(f => seen.add(f.n)); render(); };
+  render();
+</script>
+</body>
+</html>

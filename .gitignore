@@ -35,7 +35,11 @@ edge/*.log
 *.swp
 
 # agent-generated artifacts shown on the phone (served via /api/artifact)
+# curated shareable artifacts stay ignored EXCEPT the ones we ship:
 /artifacts/
+!/artifacts/architecture-connectors.html
+!/artifacts/artifacts-gallery-live.png
+
 
 # playwright output at repo root (watchdog config)
 test-results/

@@ -2087,7 +2087,7 @@ export default function SessionView({
             ) : (
               <span className="oz-bars">
                 {freeLevels.map((l, i) => (
-                  <i key={i} style={{ height: `${Math.max(3, Math.round(l * 22))}px` }} />
+                  <i key={i} style={{ height: `${Math.min(22, Math.max(3, Math.round(l * 22)))}px` }} />
                 ))}
               </span>
             )}
@@ -2167,7 +2167,7 @@ export default function SessionView({
                     )}
                     <span className="oz-bars">
                       {pttLevels.map((l, i) => (
-                        <i key={i} style={{ height: `${Math.max(3, Math.round(l * 22))}px` }} />
+                        <i key={i} style={{ height: `${Math.min(22, Math.max(3, Math.round(l * 22)))}px` }} />
                       ))}
                     </span>
                   </>

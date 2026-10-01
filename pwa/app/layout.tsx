@@ -3,6 +3,7 @@ import localFont from 'next/font/local';
 import { ThemeProvider } from 'next-themes';
 import { DiagBoot } from '@/components/diag-boot';
 import { FreshReload } from '@/components/fresh-reload';
+import { ThemeColor } from '@/components/theme-color';
 import '@/styles/globals.css';
 
 const commitMono = localFont({
@@ -43,6 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           // suppressed for the swap frame
           disableTransitionOnChange
         >
+          <ThemeColor />
           <DiagBoot />
           <FreshReload />
           {children}

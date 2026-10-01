@@ -6,6 +6,7 @@ import { ocFetch } from './oc';
 import { bustCache } from './oc-cache';
 import { abortedAt, markRunEnd, markRunStart } from './oc-live';
 import { dequeue } from './oc-queue';
+import { emitRunError } from './run-events';
 import { pushRunDone } from './push';
 
 export type SendBody = {
@@ -81,7 +82,12 @@ export function forward(sid: string, slug: string, body: SendBody, isRetry = fal
         refire = true;
       }
     } catch (e) {
-      console.error(`[oc] async prompt failed: ${e}`);
+      // sid in the log: a bare "fetch failed" is unattributable when several
+      // sessions are failing at once (2026-09-30 diagnosis blocker)
+      console.error(`[oc] async prompt failed for ${sid}: ${e}`);
+      // the phone must not sit on "working…" for a prompt opencode rejected —
+      // surface it now (2026-09-30: a dead prompt held busy for 15 minutes)
+      emitRunError(sid, `the reply failed: ${String(e).slice(0, 120)}`);
     }
     if (refire) {
       forward(sid, slug, body, true); // the retry owns run-end + queue pickup

@@ -7,7 +7,7 @@
  * to one poll interval behind the completed reply).
  */
 import { resolveId } from '@/lib/oc';
-import { onRunDone } from '@/lib/run-events';
+import { onRunDone, onRunError } from '@/lib/run-events';
 import { ensureWatchdog } from '@/lib/oc-watchdog';
 
 export const dynamic = 'force-dynamic';
@@ -32,6 +32,15 @@ export async function GET(req: Request) {
       const off = onRunDone((doneSid, reason) => {
         if (doneSid === sid) push(`data: ${reason}\n\n`);
       });
+      // failures arrive with the same urgency as completions: a rejected
+      // prompt or a watchdog stall abort must reach the phone at once
+      // ("working…" held 15 min on 09-30 while the run was already dead)
+      const offErr = onRunError((errSid, message) => {
+        if (errSid === sid) {
+          // single line — SSE data frames cannot contain raw newlines
+          push(`data: error|${message.replace(/\s+/g, ' ')}\n\n`);
+        }
+      });
       // heartbeat as a REAL message (comments are invisible to
       // EventSource.onmessage): the hands-free page reads any traffic as
       // proof the stream is alive and only escapes on true silence
@@ -39,6 +48,7 @@ export async function GET(req: Request) {
       req.signal.addEventListener('abort', () => {
         clearInterval(hb);
         off();
+        offErr();
         try {
           controller.close();
         } catch {

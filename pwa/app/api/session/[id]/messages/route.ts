@@ -9,7 +9,7 @@ import { buildParts, forward, runEnded } from '@/lib/oc-forward';
 import { isRunLive, liveSince, runEndedAt } from '@/lib/oc-live';
 import { enqueue, queuedItems } from '@/lib/oc-queue';
 import { bustSearchResults, bustTranscript } from '@/lib/oc-transcript';
-import { ensureWatchdog } from '@/lib/oc-watchdog';
+import { ensureWatchdog, lastEventAt } from '@/lib/oc-watchdog';
 import { PENDING_TTL_MS } from '@/lib/pending-ttl';
 
 export const dynamic = 'force-dynamic';
@@ -22,6 +22,7 @@ type SendBody = {
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
+    ensureWatchdog(); // the event stream must be up for X-Run-Last-Event to mean anything
     const { id } = await ctx.params;
     const sid = await resolveId(id);
     const msgs = await ocFetch(`/session/${sid}/message`);
@@ -115,6 +116,10 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
         // epoch ms the last run finished — an authoritative "the run you are
         // waiting on is over" even when opencode leaves completed=0 behind
         'X-Run-Ended': String(runEndedAt(sid) || 0),
+        // epoch ms of the last opencode stream event — the client's wedge
+        // escape keys off this: a busy session with NO events and NO live
+        // prompt is a corpse, whatever role the last message claims
+        'X-Run-Last-Event': String(lastEventAt(sid) || 0),
         'Cache-Control': 'no-store',
       },
     });

@@ -36,3 +36,6 @@ edge/*.log
 
 # agent-generated artifacts shown on the phone (served via /api/artifact)
 /artifacts/
+
+# playwright output at repo root (watchdog config)
+test-results/

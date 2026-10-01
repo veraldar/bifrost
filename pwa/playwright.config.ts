@@ -2,6 +2,9 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
+  // watchdog-zombie needs a server with OC_STALL_MS=20s (own config +
+  // webServer) — against this (production-stall) server it would just time out
+  testIgnore: /watchdog-zombie\.spec\.ts/,
   timeout: 120_000,
   expect: { timeout: 20_000 },
   workers: 1, // sessions are shared server state — never parallel

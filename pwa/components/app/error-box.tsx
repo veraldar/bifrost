@@ -2,11 +2,15 @@
 
 /** The one error surface, used by every page (user req: same mechanism
  *  everywhere): the message, "fix this" and "dismiss". "fix this" packages
- *  error + page + session + diagnostics into a fresh opencode fix session
- *  started with the same agent/model/think level as the session that hit the
- *  error. The prompt hands the agent the context plus a SUGGESTED flow —
- *  validate with the user, then commit+push to GitHub, or a GitHub issue
- *  proposal without push access — the agent stays in charge of the details. */
+ *  error + page + parent-session identity + diagnostics into a fresh opencode
+ *  fix session started with the same agent/model/think level as the session
+ *  that hit the error. The commit verdict is agent-to-agent (user req 10-01:
+ *  the user pressed "fix this" and moved on — they can't rule on a diff): the
+ *  fix session asks the PARENT session once, via a blocking opencode API
+ *  call, and only an explicit APPROVE commits or pushes. Loop-guards keep
+ *  that from becoming a spawn/validate token spiral (user req 10-01): one
+ *  ask max, anything-but-APPROVE leaves the patch uncommitted, and a fix
+ *  session never validates another fix session. */
 
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -14,6 +18,8 @@ import { slugify } from '@/lib/slug';
 import { diagDump } from '@/lib/diag';
 
 type FixCfg = {
+  id?: string;
+  title?: string;
   agent?: string | null;
   model?: { providerID: string; modelID: string; variant: string | null } | null;
 };
@@ -50,7 +56,13 @@ export function ErrorBox({
         '',
         `error: ${error}`,
         `page: ${location.pathname}${location.search}`,
-        ...(slug ? [`happened in session: ${slug}`] : []),
+        ...(slug
+          ? [
+              `parent session (the one the error happened in): slug ${slug}, title`,
+              `"${cfg?.title || slug}"${cfg?.id ? `, opencode id ${cfg.id}` : ''}.`,
+              'It knows what it was doing when the error hit — it rules on your fix.',
+            ]
+          : []),
         `time: ${new Date().toISOString()}`,
         `ua: ${navigator.userAgent}`,
         '',
@@ -65,14 +77,47 @@ export function ErrorBox({
             ]
           : []),
         'Suggested flow: find the root cause in ~/Work/bifrost/pwa, fix it, and',
-        'verify with `cd pwa && npx playwright test`. Then present the root cause,',
-        'the diff and the test evidence here, and let the user validate before any',
-        'commit. Once validated: stage only the files you changed (parallel',
-        'sessions may hold unrelated dirty files — docs/claims.md + git status',
-        'tell you), commit with a req-linked message, push to GitHub. If push',
-        "isn't accessible, propose the fix as a GitHub issue (`gh issue create` in",
-        '~/Work/bifrost) with the error, root cause, patch and test evidence, so',
-        'the dev team can land it.',
+        'verify with `cd pwa && npx playwright test`. Then get the commit decision',
+        'from the PARENT session, agent to agent. The user is NOT part of this:',
+        "they pressed 'fix this' and moved on — never wait on them, never ask",
+        'them to review a diff.',
+        ...(cfg?.id
+          ? [
+              '',
+              'Ask the parent with ONE blocking call — it returns the parent\'s reply:',
+              `  curl -s --max-time 600 -X POST http://127.0.0.1:4096/session/${cfg.id}/message \\`,
+              "    -H 'Content-Type: application/json' \\",
+              '    -d \'{"parts":[{"type":"text","text":"<root cause + summary of the',
+              '    diff + test evidence +: Reply APPROVE or REJECT with a one-line',
+              "    reason. Do not edit code, do not spawn fix sessions.'\">}]}'",
+            ]
+          : []),
+        '',
+        'Hard loop-guards — breaking these burns tokens in a spawn/validate spiral:',
+        '- Ask the parent AT MOST ONCE. One message in, one verdict out.',
+        '- Only an explicit APPROVE commits or pushes. REJECT, a vague reply, a',
+        '  timeout or an error all mean the same thing: do NOT commit, do NOT',
+        '  re-ask, do NOT spawn anything — leave the patch uncommitted (git diff',
+        '  is the record) and write up root cause + patch + evidence here.',
+        ...(cfg?.title
+          ? [
+              `- If the parent's title starts with 'fix' it is itself a spawned fix`,
+              '  session: never ask it to validate — stop at the uncommitted patch',
+              '  and report.',
+            ]
+          : []),
+        ...(cfg?.id
+          ? []
+          : [
+              '- No parent session is known: leave the fix uncommitted and report',
+              '  it here — never commit without a ruling.',
+            ]),
+        '- On APPROVE: stage only the files you changed (parallel sessions may',
+        '  hold unrelated dirty files — docs/claims.md + git status tell you),',
+        '  commit with a req-linked message, push to GitHub. If push fails,',
+        '  propose the fix as a GitHub issue (`gh issue create` in',
+        '~/Work/bifrost) with the error, root cause, patch and test evidence,',
+        'so the dev team can land it.',
       ].join('\n');
       const name = `fix ${slug || location.pathname} ${new Date().toLocaleTimeString()}`;
       const cr = await fetch('/api/session', {

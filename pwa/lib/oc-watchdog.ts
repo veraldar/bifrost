@@ -21,7 +21,7 @@ import { get } from 'node:http';
 import { OC, ocFetch } from './oc';
 import { liveSids, liveSince } from './oc-live';
 import { runEnded } from './oc-forward';
-import { emitRunDone } from './run-events';
+import { emitRunDone, emitRunError } from './run-events';
 import { bustCache } from './oc-cache';
 
 /** 10min, not less: opencode emits NO events during a long silent tool call
@@ -31,8 +31,27 @@ import { bustCache } from './oc-cache';
 const STALL_MS = Number(process.env.OC_STALL_MS) || 10 * 60_000;
 const SCAN_MS = 30_000;
 const DIR = path.join(process.cwd(), '.diag');
+// Watchdog-graph start (≈ proxy boot). Runs known only through opencode's
+// own busy map (agent/voice initiated — the proxy tracker never sees them)
+// have no start timestamp, so their quiet clock measures from here: one full
+// stall window of grace after boot before any verdict on an unknown run.
+const bootedAt = Date.now();
+// sid → epoch ms of the last stall abort. opencode's /session/status busy
+// flag is STICKY after a hung run (verified 10-01: ses_f269378… still busy
+// since 09-29, zero events for 2 days) — without this guard every 30s scan
+// would re-abort the same dead session forever and re-push the phone error.
+// A NEW stall re-arms: fresh stream evidence (lastEvent) after the abort
+// clears the block.
+const lastStallAbort = new Map<string, number>();
 
-const lastEvent = new Map<string, number>(); // sid → epoch ms of last SSE event
+// sid → epoch ms of last SSE event. On globalThis: Next 15 gives each route
+// its own module graph, and the messages route reads this as X-Run-Last-Event
+// — the client's wedge escape must see the SAME quiet evidence the scan uses.
+const gW = globalThis as unknown as { __ozLastEvent?: Map<string, number> };
+const lastEvent: Map<string, number> = (gW.__ozLastEvent ??= new Map());
+/** Epoch ms of the last opencode stream event for a session (0 = none seen).
+ *  Covers proxy AND agent runs — the stream sees everything opencode does. */
+export const lastEventAt = (sid: string) => lastEvent.get(sid) || 0;
 let started = false;
 let connected = false;
 let downSince = 0;
@@ -52,48 +71,91 @@ async function diag(msg: string) {
   }
 }
 
+/** Abort one wedged run and do the end-of-run bookkeeping that its owner
+ *  can no longer do. Shared by both scan sources (proxy-tracked and
+ *  opencode-busy) so neither can double-abort the same stall. */
+async function stallAbort(sid: string, quietS: number, why: string) {
+  void diag(`STALL ${sid}: no events for ${quietS}s (${why}) — aborting wedged run`);
+  // the phone learns immediately instead of waiting for its poll heuristics
+  // to notice (2026-09-30: a dead run masked as |0|assistant for 15 min)
+  emitRunError(sid, `run stalled — no activity for ${quietS}s, auto-stopped`);
+  try {
+    await ocFetch(`/session/${sid}/abort`, {
+      method: 'POST',
+      signal: AbortSignal.timeout(10_000),
+    });
+    // only a DELIVERED abort blocks re-aborts — a failed one retries next
+    // scan (opencode half-down must not disarm the remedy)
+    lastStallAbort.set(sid, Date.now());
+  } catch (e) {
+    void diag(`abort fetch failed for ${sid}: ${e}`);
+  }
+  // the in-flight forward()'s .finally normally does end-of-run bookkeeping
+  // on abort; if the owning fetch is gone (restart orphan) nothing will —
+  // clean up ourselves after a grace wait (slug fallback: push target is
+  // wrong on this path, but a restart-orphaned run has no listener anyway)
+  setTimeout(() => {
+    if (liveSince(sid)) {
+      void diag(`run ${sid} still flagged live after abort — orphaned entry, cleaning up`);
+      runEnded(sid, sid);
+    }
+  }, 10_000);
+}
+
 async function stallScan() {
-  const sids = liveSids();
-  if (!sids.length) return;
+  // stream outage: no verdicts possible — one warning per outage, then
+  // reconnect logic owns it
+  const tracked = liveSids();
   if (!connected) {
-    // stream outage: no verdicts possible — one warning per outage, then
-    // reconnect logic owns it
-    if (!warnedDown && downSince && Date.now() - downSince > 60_000) {
+    if (!warnedDown && downSince && tracked.length && Date.now() - downSince > 60_000) {
       warnedDown = true;
       void diag(
-        `stream down ${Math.round((Date.now() - downSince) / 1000)}s with live runs: ${sids.join(' ')} — aborts paused`
+        `stream down ${Math.round((Date.now() - downSince) / 1000)}s with live runs: ${tracked.join(' ')} — aborts paused`
       );
     }
     return;
   }
+  // opencode's own busy map is the SECOND scan source: it reports every run
+  // IT is still working on — including agent/voice turns posted straight to
+  // opencode, which the proxy run tracker never sees. 2026-10-01 15:17 "no
+  // reply": an agent run hung 09-30 21:08 with zero stream events; blocked
+  // the session for 18h; both later prompts (11:34 proxy, 15:14 agent)
+  // serialized behind the zombie and were silently swallowed. liveSids()
+  // alone is blind to exactly that shape. A failed status fetch just
+  // degrades this cycle to tracked runs only.
+  let busy: Record<string, unknown> = {};
+  try {
+    busy = (await ocFetch('/session/status')) as Record<string, unknown>;
+  } catch {
+    busy = {};
+  }
+  const all = new Set([...tracked, ...Object.keys(busy)]);
   const now = Date.now();
-  for (const sid of sids) {
+  for (const sid of all) {
+    const isTracked = tracked.includes(sid);
     const runStart = liveSince(sid) || 0;
     const lastEv = lastEvent.get(sid) || 0;
-    const quietFor = now - Math.max(lastEv, runStart);
-    void diag(
-      `scan ${sid} live ${Math.round((now - runStart) / 1000)}s, quiet ${Math.round(quietFor / 1000)}s (stall limit ${STALL_MS / 1000}s)`
-    );
-    if (quietFor <= STALL_MS) continue;
-    void diag(`STALL ${sid}: no events for ${Math.round(quietFor / 1000)}s — aborting wedged run`);
-    try {
-      await ocFetch(`/session/${sid}/abort`, {
-        method: 'POST',
-        signal: AbortSignal.timeout(10_000),
-      });
-    } catch (e) {
-      void diag(`abort fetch failed for ${sid}: ${e}`);
+    const quietFor = now - Math.max(lastEv, runStart || bootedAt);
+    // sticky-busy guard FIRST: a session already stall-aborted stays silent
+    // (no log, no abort) until fresh stream evidence arrives — a new run
+    // that hangs again re-arms it
+    if ((lastStallAbort.get(sid) || 0) >= Math.max(lastEv, 1)) continue;
+    // tracked runs: full per-scan trail (existing behavior). Status-only
+    // runs: log from half-stall on — sticky-busy zombies would otherwise
+    // spam one line every 30s for days
+    if (isTracked || quietFor > STALL_MS / 2) {
+      void diag(
+        `scan ${sid}${isTracked ? '' : ' (opencode-busy, untracked)'} live ` +
+          `${Math.round((now - (runStart || bootedAt)) / 1000)}s, quiet ` +
+          `${Math.round(quietFor / 1000)}s (stall limit ${STALL_MS / 1000}s)`
+      );
     }
-    // the in-flight forward()'s .finally normally does end-of-run bookkeeping
-    // on abort; if the owning fetch is gone (restart orphan) nothing will —
-    // clean up ourselves after a grace wait (slug fallback: push target is
-    // wrong on this path, but a restart-orphaned run has no listener anyway)
-    setTimeout(() => {
-      if (liveSince(sid)) {
-        void diag(`run ${sid} still flagged live after abort — orphaned entry, cleaning up`);
-        runEnded(sid, sid);
-      }
-    }, 10_000);
+    if (quietFor <= STALL_MS) continue;
+    await stallAbort(
+      sid,
+      Math.round(quietFor / 1000),
+      isTracked ? 'tracked run' : 'opencode-busy, untracked (agent/voice run)'
+    );
   }
 }
 

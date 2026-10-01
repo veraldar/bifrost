@@ -273,6 +273,13 @@ export default function SessionView({
   // re-arming on every tick while one is already being watched
   const busyRef = useRef(false);
   busyRef.current = busy;
+  // epoch ms of the last opencode stream event for this session (poll header
+  // X-Run-Last-Event) — the wedge escape's liveness evidence
+  const runLastEventRef = useRef(0);
+  // mirror for the always-on run-events SSE: its handlers read the CURRENT
+  // mode/room state without re-subscribing on every hands-free toggle
+  const voiceStateRef = useRef<'off' | 'connecting' | 'ready'>('off');
+  voiceStateRef.current = voiceState;
   // arms ONE busy-restoration check on entering a session: navigating away
   // and back (or a reload) must re-show the working indicator
   const autoArmRef = useRef('');
@@ -502,6 +509,7 @@ export default function SessionView({
           liveRef.current = r.headers.get('X-Run-Live') === '1';
           const liveSinceMs = Number(r.headers.get('X-Run-Live-Since') || 0);
           runEndedRef.current = Number(r.headers.get('X-Run-Ended') || 0);
+          runLastEventRef.current = Number(r.headers.get('X-Run-Last-Event') || 0);
           // "id|completed|lastRole" — completed=0 while a step runs or the
           // last raw message is the user's own prompt
           const [, done] = st.split('|');
@@ -644,6 +652,12 @@ export default function SessionView({
   useEffect(() => {
     if (!busy) return;
     wedgeFiredRef.current = false;
+    // escape window for the event-quiet corpse guard below. Default 5 min —
+    // well over the longest silent-but-alive tool call (`sleep 45` measured
+    // ~50s quiet) and 3x faster than the 09-30 incident's effective 15 min.
+    // The `stall` URL param shrinks it for the e2e regression only.
+    const stallMs =
+      Number(new URLSearchParams(window.location.search).get('stall') || 0) * 1000 || 300_000;
     // elapsed derives from busyStartRef (true run start — survives refresh)
     const t = setInterval(() => {
       const sec = Math.max(0, Math.round((Date.now() - busyStartRef.current) / 1000));
@@ -716,6 +730,33 @@ export default function SessionView({
         diagEvent('busy', `wedge ${slug} after ${sec}s (auto-abort)`);
         setError('no reply — the run seemed stuck, auto-stopped. Send again.');
         setBusy(false); // the aborted prompt never completes on its own
+        void fetch(`/api/session/${slug}/abort`, { method: 'POST' }).catch(() => {});
+      }
+      // corpse escape: busy, NO live prompt, and NO opencode stream event for
+      // the whole stall window → the run is dead whatever the last message
+      // claims. The |0|user guard above is blind to a run that died AFTER
+      // creating its assistant placeholder: the un-completed |0|assistant
+      // state then masks the corpse ("thinking model") — 2026-09-30 it held
+      // "working…" for 15 minutes. Stream quiet is the tell: a working run
+      // emits events (deltas, tool parts, steps); the server watchdog's
+      // /event stream sees every run, proxy- or agent-driven, and this guard
+      // reads its clock via X-Run-Last-Event. live=1 is exempt on purpose —
+      // a healthy run owns the proxy prompt flag even while silent (long
+      // builds emit nothing); those belong to the server's 10-min stall
+      // watchdog, which now also pushes an error here when it aborts.
+      if (
+        !wedgeFiredRef.current &&
+        Date.now() - lastGoodPollRef.current < 15_000 &&
+        !liveRef.current &&
+        Date.now() - Math.max(runLastEventRef.current, busyStartRef.current) >= stallMs
+      ) {
+        wedgeFiredRef.current = true;
+        diagEvent(
+          'busy',
+          `wedge ${slug} after ${sec}s (event-quiet ≥${Math.round(stallMs / 1000)}s, auto-abort)`
+        );
+        setError('no reply — the run seemed stuck, auto-stopped. Send again.');
+        setBusy(false);
         void fetch(`/api/session/${slug}/abort`, { method: 'POST' }).catch(() => {});
       }
     }, 1000);
@@ -1315,19 +1356,38 @@ export default function SessionView({
     freeMicGiveBack();
   }, [freeCycle, speech.phase]);
 
-  // run-completion channel, subscribed for the WHOLE hands-free session (not
-  // just while processing): 'idle' late — after the dead-stream escape already
-  // gave the mic back — must still arrive somewhere to trigger the recovery
-  // below. Heartbeats are liveness only; 'step' refreshes the transcript.
+  // run-completion + failure channel, subscribed for the WHOLE session in
+  // every mode (not just hands-free): 'idle' late — after the dead-stream
+  // escape already gave the mic back — must still arrive somewhere to trigger
+  // the recovery below, and 'error|…' (rejected prompt, watchdog stall abort)
+  // must end the "working…" wait the second it happens. Heartbeats are
+  // liveness only; 'step' refreshes the transcript.
   const loadMsgsRef = useRef(loadMsgs);
   loadMsgsRef.current = loadMsgs;
+  const armFreeEscapeRef = useRef(armFreeEscape);
+  armFreeEscapeRef.current = armFreeEscape;
   useEffect(() => {
-    if (mode !== 'free' || voiceState !== 'ready' || !slug) return;
+    if (!slug) return;
     const es = new EventSource(`/api/run-events?slug=${encodeURIComponent(slug)}`);
     es.onmessage = (ev) => {
+      // failure channel: a dead run must never hold "working…" while the
+      // server already knows (2026-09-30: 15 minutes of held busy state)
+      if (ev.data.startsWith('error|')) {
+        const msg = ev.data.slice('error|'.length);
+        diagEvent('busy', `run-error ${slug}: ${msg}`);
+        if (busyRef.current) {
+          wedgeFiredRef.current = true;
+          setError(`no reply — ${msg}. Send again.`);
+          setBusy(false);
+        }
+        return;
+      }
+      // hands-free voice-cycle logic needs the room live; the error channel
+      // above is the only part text mode consumes
+      if (modeRef.current !== 'free' || voiceStateRef.current !== 'ready') return;
       // any traffic proves the stream alive — re-arm the dead-stream escape
       // (no-op while listening: the callback checks the cycle)
-      armFreeEscape(35_000, 'run-events stream dead 35s');
+      armFreeEscapeRef.current(35_000, 'run-events stream dead 35s');
       // 'idle' = session.idle = the whole run (every step) is over — the only
       // signal that may trigger the auto-listen; 'step' = one step message
       // completed mid-run, refresh-only
@@ -1345,7 +1405,7 @@ export default function SessionView({
         // stuck-cycle escape: idle arrived but nothing may speak (reply never
         // completes, or is older than this cycle) — 15s to start or mic goes
         // back; a real speech start flips freeSpokeMsgRef and cancels it
-        armFreeEscape(15_000, 'idle seen but no speech started in 15s');
+        armFreeEscapeRef.current(15_000, 'idle seen but no speech started in 15s');
         // the escape already fired (mic back unspeaked) and the reply
         // finished anyway — re-enter the cycle to speak it. Mutes the mic
         // for the playback (one voice path); the user's speech keeps
@@ -1360,7 +1420,7 @@ export default function SessionView({
       }
     };
     return () => es.close();
-  }, [mode, voiceState, slug]);
+  }, [slug]);
 
   // on-arrival voice cycle (req 09-30): entering a session hands-free must
   // match the room's reality BEFORE the mic goes hot —

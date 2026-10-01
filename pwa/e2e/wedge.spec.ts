@@ -11,6 +11,7 @@ import { expect, test } from '@playwright/test';
 const NAME = `e2e-wedge-${Date.now().toString(36)}`;
 const OC = 'http://127.0.0.1:4096';
 let sessionId = '';
+let corpseId = '';
 
 test('stacked prompt behind a live run must not wedge-abort', async ({ page, request }) => {
   await page.goto('/');
@@ -54,7 +55,62 @@ test('stacked prompt behind a live run must not wedge-abort', async ({ page, req
   await expect(page.getByText('no reply — the run seemed stuck')).toHaveCount(0);
 });
 
+test('dead run masked by an un-completed step must event-quiet wedge', async ({
+  page,
+  request,
+}) => {
+  // 2026-09-30 "no reply — the run seemed stuck" took 15 minutes to surface:
+  // a run died right after creating its assistant placeholder, and the stuck
+  // |0|assistant state read as "thinking model" — the |0|user wedge guard
+  // above can't see that shape. Liveness evidence is the opencode event
+  // stream (X-Run-Last-Event): busy + no live prompt + no stream events for
+  // the stall window = corpse. ?stall=15 shrinks the 5-minute production
+  // window for the test; sleep 25 keeps the step un-completed well past it.
+  await page.goto('/');
+  await page.getByRole('button', { name: 'new session' }).click();
+  await page.getByPlaceholder('session name…').fill(`${NAME}-corpse`);
+  await page.getByRole('button', { name: 'create & open' }).click();
+  await expect(page).toHaveURL(new RegExp(`/session/${NAME}-corpse`));
+  corpseId = new URL(page.url()).searchParams.get('id') || '';
+  expect(corpseId).toBeTruthy();
+
+  // agent-style: straight to opencode, NOT awaited — the POST resolves only
+  // when the whole run finishes, and the poll must watch the |0|assistant
+  // window while sleep holds it (proxy live flag stays 0: exactly the shape
+  // the 09-30 incident presented)
+  void fetch(`${OC}/session/${corpseId}/message`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      parts: [{ type: 'text', text: 'Run exactly this bash command: sleep 25. Then reply: C-done' }],
+    }),
+  });
+  await expect
+    .poll(
+      async () => {
+        const r = await request.get(`/api/session/${corpseId}/messages?limit=10`);
+        return r.headers()['x-run-state'] || '';
+      },
+      { timeout: 30_000, message: 'step never started (no |0|assistant state)' }
+    )
+    .toMatch(/\|0\|assistant$/);
+
+  // entering mid-run arms busy from the streaming step — the sleep emits no
+  // stream events, so quiet grows from ~arm time while |0|assistant masks it
+  await page.goto(`/session/${NAME}-corpse?id=${corpseId}&stall=15`);
+  await expect(page.getByText(/working… \d+s/)).toBeVisible({ timeout: 30_000 });
+
+  // the corpse escape must abort + surface the error while sleep still holds
+  await expect(page.getByText('no reply — the run seemed stuck')).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(page.getByText(/working… \d+s/)).toHaveCount(0);
+  // the prompt stays in the transcript — the user can resend
+  await expect(page.getByText(/sleep 25/)).toBeVisible();
+});
+
 test('cleanup: delete the wedge test session', async ({ request }) => {
-  test.skip(!sessionId, 'nothing to clean');
-  expect((await request.delete(`/api/session/${sessionId}`)).ok()).toBeTruthy();
+  test.skip(!sessionId && !corpseId, 'nothing to clean');
+  if (sessionId) expect((await request.delete(`/api/session/${sessionId}`)).ok()).toBeTruthy();
+  if (corpseId) expect((await request.delete(`/api/session/${corpseId}`)).ok()).toBeTruthy();
 });

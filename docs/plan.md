@@ -47,7 +47,13 @@ pairing zero-typing) are release gates, not nice-to-haves.
   Node ≥22, LLM key, tailscale optional).
 - **v1.0 — consumer** (the consumer release IS v1.0): gates = onboarding
   phase 2 (/pair QR, zero-typing), notification polish (Android battery
-  docs). Connectors DEMOTED 09-28 to evidence-triggered (delegate skill is
+  docs), android-lab green (consumer flow proven in software).
+  **Consumer decision tree (09-30)**: Tier 1 zero-hardware = Vercel PWA +
+  LiveKit Cloud + API LLM/voice (5-minute start, voice identity in cloud);
+  Tier 2 sovereign = PUSHED — own box + own models + Tailscale (voice stays
+  home). Wizard asks one identity question: "where should your voice live —
+  your hardware (recommended) or a cloud API?" LLM stays provider-agnostic
+  (US/Chinese/French/open — user req: identity choice is the message). Connectors DEMOTED 09-28 to evidence-triggered (delegate skill is
   the 80/20 — claude/codex reachable from any session as sub-tools); native
   multi-harness revives only on demonstrated demand.
 - **bifrostd (Rust core port)**: NOT a roadmap item — an option triggered by

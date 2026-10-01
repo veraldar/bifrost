@@ -38,6 +38,13 @@ for X"* — and the [delegate skill](skills/delegate/SKILL.md) runs them as
 sub-tools, relays their output into your transcript, and works by voice too.
 No config, no second login flow beyond the CLI's own auth.
 
+## Your voice, your identity
+
+Bifrost is built to run speech **on your own hardware** — your voice never
+has to leave your machines. That's the setup we push. But you choose: local
+models (CPU or MLX), or any cloud API for LLM and voice — American, Chinese,
+European, open weights. The AI is yours to pick; the identity stays yours.
+
 ## Architecture
 
 **Hardware** — 3 nodes, one Tailscale tailnet (no public exposure):

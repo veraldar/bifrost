@@ -24,6 +24,11 @@ pwa/playwright-report/
 # python
 __pycache__/
 *.pyc
+edge/.venv/
+
+# edge spike: model weights stay out of git (edge/get_models.sh re-fetches)
+edge/models/
+edge/*.log
 
 # OS / editor
 .DS_Store

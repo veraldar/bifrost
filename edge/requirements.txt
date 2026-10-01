@@ -1,0 +1,6 @@
+sherpa-onnx>=1.10.30
+fastapi>=0.115
+uvicorn>=0.30
+numpy
+python-multipart
+requests

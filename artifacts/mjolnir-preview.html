@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Mjölnir — pixel artifact glyph</title>
+<style>
+  body { background: #080810; color: #fff; font-family: ui-monospace, Menlo, monospace;
+    display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 40px 12px; }
+  h2 { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: #888; font-weight: normal; }
+  .row { display: flex; gap: 28px; align-items: flex-end; }
+  svg { image-rendering: pixelated; }
+  .cell { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .cell span { font-size: 10px; color: #888; }
+  .amber { color: #fbbf24; }
+</style>
+</head>
+<body>
+  <h2>Mjölnir — header glyph, pixel art</h2>
+  <div class="row">
+    <div class="cell"><svg class="amber" viewBox="0 0 24 24" width="120" height="120" fill="currentColor"><path d="M8 3h8v1H8zM5 4h14v2H5zM5 7h14v2H5zM3 9h18v2H3zM10 11h4v2h-4zM11 13h2v6h-2zM9 19h6v2H9z"/></svg><span>120px</span></div>
+    <div class="cell"><svg class="amber" viewBox="0 0 24 24" width="60" height="60" fill="currentColor"><path d="M8 3h8v1H8zM5 4h14v2H5zM5 7h14v2H5zM3 9h18v2H3zM10 11h4v2h-4zM11 13h2v6h-2zM9 19h6v2H9z"/></svg><span>60px</span></div>
+    <div class="cell"><svg class="amber" viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M8 3h8v1H8zM5 4h14v2H5zM5 7h14v2H5zM3 9h18v2H3zM10 11h4v2h-4zM11 13h2v6h-2zM9 19h6v2H9z"/></svg><span>15px — actual header size</span></div>
+  </div>
+  <p style="max-width:420px;font-size:11px;line-height:1.7;color:#888;text-align:center">
+    Flared strike faces (bottom row of the head), engraved band across the head,
+    handle with pommel — Thor's hammer, drawn on the same 24×24 grid as the
+    pixelarticons set.
+  </p>
+</body>
+</html>

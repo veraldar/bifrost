@@ -12,11 +12,11 @@ const ICONS: Record<string, string[]> = {
   infinity: [
     'M8 18H4V16H8V18ZM20 18H16V16H20V18ZM4 16H2V14H4V16ZM10 16H8V14H10V16ZM16 16H14V14H16V16ZM22 16H20V14H22V16ZM2 14H0V10H2V14ZM14 14H12V12H14V14ZM24 14H22V10H24V14ZM12 12H10V10H12V12ZM4 10H2V8H4V10ZM10 10H8V8H10V10ZM16 10H14V8H16V10ZM22 10H20V8H22V10ZM8 8H4V6H8V8ZM20 8H16V6H20V8Z',
   ],
-  // pixelarticons #file-text (MIT) — the artifacts glyph: a document the
-  // agents made, not a bell (fetched from the upstream set)
+  // hand-pixeled Mjölnir — Thor's hammer, the Nordic artifact: flared
+  // strike faces, engraved band across the head, handled pommel (not from
+  // the upstream set — the set has no Norse glyphs)
   artifact: [
-    'M6 4H4v16h2zm10-2H6v2h10zm4 4h-2v14h2zm-2 14H6v2h12zM16 4h2v2h-2zm-4 0h2v6h-2z',
-    'M12 8h6v2h-6zm-4 8h8v2H8zm0-4h8v2H8zm0-4h2v2H8z',
+    'M8 3h8v1H8zM5 4h14v2H5zM5 7h14v2H5zM3 9h18v2H3zM10 11h4v2h-4zM11 13h2v6h-2zM9 19h6v2H9z',
   ],
   external: [
     'M11 5H5v2h6V5ZM5 7H3v12h2V7Zm12 12H5v2h12v-2Zm2-6h-2v6h2v-6Zm-8 0H9v2h2v-2Zm2-2h-2v2h2v-2Zm2-2h-2v2h2V9Zm2-2h-2v2h2V7Zm2-2h-2v2h2V5Zm2-2h-2v8h2V3Z',

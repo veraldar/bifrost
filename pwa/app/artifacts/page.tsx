@@ -120,7 +120,8 @@ function Viewer({ file }: { file: ArtifactEntry }) {
   if (text === null) return <div className="text-xs text-[var(--oz-dim)]">loading…</div>;
   const body = text.length > 20000 ? `${text.slice(0, 20000)}…` : text;
   return (
-    <div className="max-h-[calc(100dvh-10rem)] overflow-auto rounded border border-[var(--oz-border)] px-2 py-1">
+    // solid black — the yggdrasil backdrop must not show through readable text
+    <div className="max-h-[calc(100dvh-10rem)] overflow-auto rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] px-2 py-1">
       {kind === 'md' ? (
         <div className="text-sm">
           <Streamdown>{body}</Streamdown>

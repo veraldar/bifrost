@@ -32,7 +32,7 @@ test('text round-trip: prompt → busy → assistant reply → busy clears', asy
   await expect(page.getByText('(you)').first()).toBeVisible();
   // agent replies (real opencode run — generous window)
   await expect(page.getByText('pong')).toBeVisible({ timeout: 90_000 });
-  await expect(page.getByText('(assistant')).toBeVisible();
+  await expect(page.getByText('(agent')).toBeVisible();
   // busy indicator must be gone (run settled, not merely first step)
   await expect(page.getByText('working…')).toHaveCount(0);
 });
@@ -64,7 +64,10 @@ test('attachments: image + file chips, remove, send via REST', async ({ page }) 
   await page.getByRole('button', { name: 'remove dot.png' }).click();
   await expect(page.getByText('dot.png')).toHaveCount(0);
   await page.getByRole('button', { name: 'send', exact: true }).click();
-  await expect(page.getByText('📎 note.md')).toBeVisible({ timeout: 30_000 });
+  // the sent file lands in the transcript as its own collapsible chunk
+  await expect(page.locator('[data-mi] summary', { hasText: 'note.md' })).toBeVisible({
+    timeout: 30_000,
+  });
 });
 
 test('voice: PTT connects to LiveKit, keyboard mode keeps the room warm', async ({ page }) => {

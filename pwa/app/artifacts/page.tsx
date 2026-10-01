@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Streamdown } from 'streamdown';
-import { PixelIcon } from '@/components/pixel-icon';
+import { LineIcon } from '@/components/line-icon';
 import type { ArtifactEntry } from '@/lib/artifacts';
 import { countUnseen, lastSeen, markAllSeen, markSeen, seenInit } from '@/lib/artifact-read';
 
@@ -98,7 +98,7 @@ function Viewer({ file }: { file: ArtifactEntry }) {
       <img
         src={src}
         alt={file.name}
-        className="max-h-[calc(100dvh-10rem)] w-full rounded border border-[var(--oz-border)] object-contain"
+        className="max-h-[calc(100dvh-10rem)] w-full border border-[var(--oz-border)] object-contain"
       />
     );
   }
@@ -111,16 +111,17 @@ function Viewer({ file }: { file: ArtifactEntry }) {
         href={src}
         target="_blank"
         rel="noreferrer"
-        className="flex w-fit items-center gap-1 rounded border border-[var(--oz-border)] px-2 py-1 text-xs text-[var(--oz-active)]"
+        className="oz-chip text-[var(--oz-info)]"
       >
-        ▦ {file.name} — tap to view
+        <LineIcon name="artifact" size={13} />
+        {file.name} — tap to view
       </a>
     );
   }
   if (text === null) return <div className="text-xs text-[var(--oz-dim)]">loading…</div>;
   const body = text.length > 20000 ? `${text.slice(0, 20000)}…` : text;
   return (
-    <div className="max-h-[calc(100dvh-10rem)] overflow-auto rounded border border-[var(--oz-border)] px-2 py-1">
+    <div className="oz-box max-h-[calc(100dvh-10rem)] overflow-auto px-2 py-1">
       {kind === 'md' ? (
         <div className="text-sm">
           <Streamdown>{body}</Streamdown>
@@ -231,166 +232,131 @@ export default function ArtifactsPage() {
       : 'no artifacts yet — agents drop files here and they show up in chat';
 
   return (
-    <>
-      <div aria-hidden="true" className="oz-ygg-bg" />
-      <main className="relative z-[1] mx-auto flex min-h-dvh max-w-md flex-col px-3 pb-6">
-        <header className="mt-4 mb-2 flex items-center justify-between rounded-lg border border-[var(--oz-border)] bg-[var(--oz-surface)] px-3 py-2.5">
-          <Link href="/" className="flex items-center gap-2" aria-label="back to sessions">
-            <PixelIcon name="arrow-left" size={14} />
-            <h1 className="text-base font-bold uppercase tracking-[0.1em]">artifacts</h1>
-          </Link>
-          {unread > 0 && (
-            <button
-              onClick={() => {
-                markAllSeen(files);
-                touch();
-              }}
-              className="rounded border border-[var(--oz-border)] px-2.5 py-1.5 text-[10px] text-[var(--oz-dim)] hover:text-[var(--oz-text)]"
-            >
-              mark all read
-            </button>
-          )}
-        </header>
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col px-3 pb-6">
+      <header className="oz-head">
+        <Link href="/" className="flex items-center gap-2.5" aria-label="back to sessions">
+          <span className="oz-k sm">
+            <LineIcon name="back" size={13} />
+          </span>
+          <h1 className="text-[13px]">artifacts</h1>
+        </Link>
+        {unread > 0 && (
+          <button
+            onClick={() => {
+              markAllSeen(files);
+              touch();
+            }}
+            className="oz-k sm"
+          >
+            mark all read
+          </button>
+        )}
+      </header>
 
-        <div className="mb-1.5 flex items-center gap-1.5">
+      <div className="mb-2 flex items-center gap-2">
+        <div className="oz-tabs" role="group" aria-label="filter">
           {(['html', 'all'] as const).map((f) => {
-            const active = filter === f;
             const n = f === 'html' ? countUnseen(files.filter(isHtml)) : countUnseen(files);
             return (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                aria-pressed={active}
-                className={`rounded border bg-[var(--oz-surface)] px-3 py-1.5 text-xs ${
-                  active
-                    ? 'border-[var(--oz-active)]/55 text-[var(--oz-active)]'
-                    : 'border-[var(--oz-border)] text-[var(--oz-dim)] hover:text-[var(--oz-text)]'
-                }`}
-              >
+              <button key={f} onClick={() => setFilter(f)} aria-pressed={filter === f}>
                 {f}
-                {n > 0 && (
-                  <span className="text-[10px] text-[var(--oz-active)]">{' '}{n}</span>
-                )}
+                {n > 0 && <span className="font-bold text-[var(--oz-text)]"> {n}</span>}
               </button>
             );
           })}
-          <span className="ml-auto text-[10px] text-[var(--oz-dim)]">
-            {viewRows.length} shown · {unread} unseen
-          </span>
         </div>
+        <span className="ml-auto text-[10px] text-[var(--oz-dim)]">
+          {viewRows.length} shown · {unread} unseen
+        </span>
+      </div>
 
-        {open ? (
-          <div className="flex flex-col gap-2">
-            <button
-              onClick={() => setOpen(null)}
-              className="flex w-fit items-center gap-1.5 rounded border border-[var(--oz-border)] px-2.5 py-1.5 text-xs text-[var(--oz-dim)]"
-            >
-              <PixelIcon name="arrow-left" size={10} /> back to list
-            </button>
-            <div className="truncate px-1 text-xs text-[var(--oz-dim)]">
-              {open.name} · {fmtTime(open.mtime)} · {fmtSize(open.size)}
-            </div>
-            <Viewer file={open} />
+      {open ? (
+        <div className="flex flex-col gap-2">
+          <button onClick={() => setOpen(null)} className="oz-k sm w-fit">
+            <LineIcon name="back" size={11} /> back to list
+          </button>
+          <div className="truncate px-0.5 text-xs text-[var(--oz-dim)]">
+            {open.name} · {fmtTime(open.mtime)} · {fmtSize(open.size)}
           </div>
-        ) : viewRows.length === 0 ? (
-          <div className="pt-6 text-center text-xs text-[var(--oz-dim)]">{emptyMsg}</div>
-        ) : filter === 'html' ? (
-          /* thumbnail cards — the design mockups speak for themselves */
-          <div className="grid grid-cols-2 gap-2" data-testid="artifact-grid">
-            {viewRows.map(({ f, isUnread }) => (
-              <div key={f.name} className="relative">
-                <button
-                  onClick={() => openArtifact(f)}
-                  aria-label={f.name}
-                  className={`oz-row w-full overflow-hidden rounded border bg-[var(--oz-surface)] text-left ${
-                    isUnread ? 'border-[var(--oz-active)]/45' : 'border-[var(--oz-border)]'
-                  }`}
-                >
-                  <HtmlThumb name={f.name} />
-                  <div className="flex items-center gap-1.5 px-2 py-1.5">
-                    <span
-                      className="h-[7px] w-[7px] shrink-0 rounded-full"
-                      style={{ background: isUnread ? 'var(--oz-active)' : 'transparent' }}
-                    />
-                    <span
-                      className={`truncate text-xs ${isUnread ? 'font-bold' : 'text-[var(--oz-text)]/80'}`}
-                    >
-                      {f.name}
+          <Viewer file={open} />
+        </div>
+      ) : viewRows.length === 0 ? (
+        <div className="pt-6 text-center text-xs text-[var(--oz-dim)]">{emptyMsg}</div>
+      ) : filter === 'html' ? (
+        /* thumbnail cards — the design mockups speak for themselves.
+           unseen = weight + a text-colored dot, same law as the session list */
+        <div className="grid grid-cols-2 gap-1.5" data-testid="artifact-grid">
+          {viewRows.map(({ f, isUnread }) => (
+            <div key={f.name} className="relative">
+              <button
+                onClick={() => openArtifact(f)}
+                aria-label={f.name}
+                className="oz-row overflow-hidden p-0"
+              >
+                <HtmlThumb name={f.name} />
+                <div className="flex items-center gap-1.5 border-t border-[var(--oz-border)] px-2 py-1.5">
+                  {isUnread && (
+                    <span className="text-[9px]" aria-label="unseen">
+                      ●
                     </span>
-                  </div>
-                </button>
-                {/* both entries possible: tap = here, corner = new tab. Sibling
-                    overlay — nested buttons are invalid and break the tap */}
-                <button
-                  onClick={() => {
-                    markSeen(f.name, f.mtime);
-                    touch();
-                    window.open(
-                      `/api/artifact/${encodeURIComponent(f.name)}`,
-                      '_blank',
-                      'noopener'
-                    );
-                  }}
-                  aria-label={`open ${f.name} in new tab`}
-                  className="absolute right-1.5 top-1.5 z-10 rounded border border-[var(--oz-border)] bg-[var(--oz-surface)]/90 p-1 text-[var(--oz-text)]"
-                >
-                  <PixelIcon name="external" size={12} />
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <ul className="flex flex-col gap-1" data-testid="artifact-list">
-            {(() => {
-              const out: React.ReactNode[] = [];
-              let day = '';
-              viewRows.forEach(({ f, isUnread }, i) => {
-                const d = dayLabel(f.mtime);
-                if (d !== day) {
-                  day = d;
-                  out.push(
-                    <li
-                      key={`day-${i}`}
-                      className="mb-0.5 mt-2.5 px-0.5 text-[10px] uppercase tracking-[0.14em] text-[var(--oz-dim)] first:mt-0.5"
-                    >
-                      {d}
-                    </li>
-                  );
-                }
+                  )}
+                  <span className={`truncate text-xs ${isUnread ? 'font-bold' : 'opacity-80'}`}>
+                    {f.name}
+                  </span>
+                </div>
+              </button>
+              {/* both entries possible: tap = here, corner = new tab. Sibling
+                  overlay — nested buttons are invalid and break the tap */}
+              <button
+                onClick={() => {
+                  markSeen(f.name, f.mtime);
+                  touch();
+                  window.open(`/api/artifact/${encodeURIComponent(f.name)}`, '_blank', 'noopener');
+                }}
+                aria-label={`open ${f.name} in new tab`}
+                className="oz-k sm absolute top-1.5 right-1.5 z-10 text-[var(--oz-text)]"
+              >
+                <LineIcon name="external" size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <ul className="flex flex-col gap-1" data-testid="artifact-list">
+          {(() => {
+            const out: React.ReactNode[] = [];
+            let day = '';
+            viewRows.forEach(({ f, isUnread }, i) => {
+              const d = dayLabel(f.mtime);
+              if (d !== day) {
+                day = d;
                 out.push(
-                  <li key={f.name}>
-                    <button
-                      onClick={() => openArtifact(f)}
-                      className={`oz-row flex w-full items-center gap-2.5 rounded border bg-[var(--oz-surface)] px-3 py-2.5 text-left text-sm ${
-                        isUnread
-                          ? 'border-[var(--oz-active)]/45'
-                          : 'border-[var(--oz-border)] text-[var(--oz-text)]/80'
-                      }`}
-                    >
-                      <span
-                        className="h-[7px] w-[7px] shrink-0 rounded-full"
-                        style={{ background: isUnread ? 'var(--oz-active)' : 'transparent' }}
-                      />
-                      <span
-                        className={`w-5 shrink-0 text-center ${
-                          isUnread ? 'text-[var(--oz-active)]' : 'text-[var(--oz-dim)]'
-                        }`}
-                      >
-                        {glyphOf(f.name)}
-                      </span>
-                      <span className={`truncate ${isUnread ? 'font-bold' : ''}`}>{f.name}</span>
-                      <span className="ml-auto shrink-0 text-[10px] text-[var(--oz-dim)]">
-                        {fmtTime(f.mtime)} · {fmtSize(f.size)}
-                      </span>
-                    </button>
+                  <li key={`day-${i}`} className="oz-hd mt-3 mb-0.5 px-0.5 first:mt-0.5">
+                    {d}
                   </li>
                 );
-              });
-              return out;
-            })()}
-          </ul>
-        )}
-      </main>
-    </>
+              }
+              out.push(
+                <li key={f.name}>
+                  <button onClick={() => openArtifact(f)} className={`oz-row ${isUnread ? 'unread' : ''}`}>
+                    <div className="oz-r1">
+                      <span className="w-4 shrink-0 text-center text-[var(--oz-dim)]" aria-hidden="true">
+                        {glyphOf(f.name)}
+                      </span>
+                      {isUnread && <span aria-label="unseen">●</span>}
+                      <span className={`t ${isUnread ? '' : 'opacity-80'}`}>{f.name}</span>
+                      <time>
+                        {fmtTime(f.mtime)} · {fmtSize(f.size)}
+                      </time>
+                    </div>
+                  </button>
+                </li>
+              );
+            });
+            return out;
+          })()}
+        </ul>
+      )}
+    </main>
   );
 }

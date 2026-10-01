@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PixelIcon } from '@/components/pixel-icon';
+import { LineIcon } from '@/components/line-icon';
+import { BAND_VIEWBOX, YggTree } from '@/components/ygg';
 import { Marked } from '@/components/marked';
 import { askedSessions, clearAsked, notifyReply } from '@/lib/notify';
 import type { ArtifactEntry } from '@/lib/artifacts';
@@ -43,11 +44,13 @@ function SwipeRow({
   onOpen,
   onDelete,
   compact,
+  unread,
   children,
 }: {
   onOpen: () => void;
   onDelete: () => void;
   compact?: boolean;
+  unread?: boolean;
   children: React.ReactNode;
 }) {
   const [dx, setDx] = useState(0);
@@ -57,9 +60,9 @@ function SwipeRow({
   const captured = useRef(false);
 
   return (
-    <div className="relative overflow-hidden rounded">
-      <div className="absolute inset-y-0 right-0 flex w-24 items-center justify-center rounded bg-[var(--oz-danger)]/80 text-white">
-        <PixelIcon name="trash" size={16} />
+    <div className="oz-sw">
+      <div className="oz-zone" aria-hidden="true">
+        delete
       </div>
       <button
         onClick={() => {
@@ -114,9 +117,7 @@ function SwipeRow({
           transition: dragging ? 'none' : 'transform 150ms ease-out',
           touchAction: 'pan-y',
         }}
-        className={`oz-row relative w-full rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] text-left ${
-          compact ? 'px-3 py-1.5' : 'px-3 py-2'
-        }`}
+        className={`oz-row ${compact ? 'compact' : ''} ${unread ? 'unread' : ''}`}
       >
         {children}
       </button>
@@ -399,43 +400,27 @@ export default function SessionsPage() {
     []
   );
 
+  // the band walks only while something is true: any run (sub-runs too)
+  const working = sessions.filter((s) => s.pending).length;
+
   return (
     <>
-      <div aria-hidden="true" className="oz-ygg-bg" />
-      <main className="relative z-[1] mx-auto flex min-h-dvh max-w-md flex-col px-3 pb-6">
-        <header className="mt-4 mb-2 flex items-center justify-between rounded-lg border border-[var(--oz-border)] bg-[var(--oz-surface)] px-4 py-3">
-          <Link href="/settings" className="flex items-center gap-2.5" aria-label="settings">
-            <svg
-              viewBox="0 0 16 16"
-              width="18"
-              height="18"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              aria-hidden="true"
-            >
-              <path d="M3 1v14M3 2l7 3-7 3M3 8l7 3-7 3" />
-            </svg>
-            <h1 className="text-base font-bold tracking-[0.1em] uppercase">Bifrost</h1>
+      <main className="relative mx-auto flex min-h-dvh max-w-md flex-col px-3 pb-6">
+        {/* the wordmark alone, full caps, no sign before it — it is the way
+            into settings; the artifact runestone counts what you haven't seen */}
+        <header className="oz-head">
+          <Link href="/settings" className="oz-brand" aria-label="BIFROST — settings">
+            <h1 className="oz-brand">BIFROST</h1>
           </Link>
-          {/* artifact bell — joins refresh in the header; amber + count
-              while unseen artifacts wait in /artifacts */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <Link
               href="/artifacts"
               aria-label={`artifacts — ${unseenArts} unseen`}
-              className={`relative rounded-md border px-2.5 py-1.5 text-xs ${
-                unseenArts > 0
-                  ? 'border-[var(--oz-active)]/55 text-[var(--oz-active)]'
-                  : 'border-[var(--oz-border)] text-[var(--oz-dim)] hover:text-[var(--oz-text)]'
-              }`}
+              className={`oz-k sm ${unseenArts > 0 ? 'text-[var(--oz-text)]' : ''}`}
             >
-              <PixelIcon name="artifact" size={15} />
+              <LineIcon name="artifact" size={15} />
               {unseenArts > 0 && (
-                <span
-                  data-testid="artifact-badge"
-                  className="absolute -right-2 -top-2 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[var(--oz-active)] px-1 text-[10px] font-bold text-[#1c1400]"
-                >
+                <span data-testid="artifact-badge" className="oz-badge">
                   {unseenArts}
                 </span>
               )}
@@ -443,75 +428,69 @@ export default function SessionsPage() {
             <button
               onClick={load}
               aria-label="refresh sessions"
-              className={`rounded-md border px-3 py-1.5 text-xs ${
-                loading
-                  ? 'border-[var(--oz-success)] text-[var(--oz-success)]'
-                  : 'border-[var(--oz-border)] text-[var(--oz-dim)] hover:text-[var(--oz-text)]'
-              }`}
+              className={`oz-k sm ${loading ? 'ok' : ''}`}
             >
-              {loading ? (
-                <span className="oz-eq" aria-hidden="true">
-                  <i />
-                  <i />
-                  <i />
-                  <i />
-                </span>
-              ) : (
-                'refresh'
-              )}
+              {loading ? '…' : 'refresh'}
             </button>
           </div>
         </header>
 
-        <div className="mb-2 flex items-stretch gap-2">
+        {/* the tree, once, as a quiet band — one thought walks it at a time
+            while something works; it falls still when nothing does */}
+        <figure
+          className={`oz-band oz-ygg -mx-3 mb-2.5 ${working ? 'live' : ''}`}
+          aria-label={working ? `your box — ${working} working` : 'your box — nothing working'}
+        >
+          <YggTree viewBox={BAND_VIEWBOX} slice />
+          <figcaption className="oz-cap">
+            <i />
+            {working ? `${working} working` : 'all quiet'}
+          </figcaption>
+        </figure>
+
+        <div className="mb-2 flex items-stretch gap-1.5">
           <button
             onClick={() => setCreating(true)}
-            className="oz-row flex flex-1 items-center gap-2 rounded border border-[var(--oz-success)]/60 bg-[var(--oz-surface)] px-3 py-3 text-left text-sm text-[var(--oz-success)]"
+            className="oz-k ok h-11 flex-1 justify-start px-3 text-[13px]"
           >
-            <PixelIcon name="plus" size={14} /> new session
+            <LineIcon name="plus" size={14} /> new session
           </button>
           {!gOpen && (
             <button
               aria-label="search all sessions"
               onClick={() => setGOpen(true)}
-              className="oz-row flex items-center justify-center rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] px-3 text-[var(--oz-dim)]"
+              className="oz-k h-11 w-11"
             >
-              <PixelIcon name="search" size={14} />
+              <LineIcon name="search" size={14} />
             </button>
           )}
         </div>
 
         {creating && (
-          <div className="mb-2 rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] p-3">
+          <div className="oz-box mb-2 p-3">
             <input
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && create()}
               placeholder="session name…"
-              className="w-full bg-transparent pb-3 text-sm outline-none placeholder:text-[var(--oz-dim)]"
+              className="oz-field mb-2.5"
             />
-            <div className="flex gap-2 text-xs">
-              <button
-                onClick={create}
-                className="flex-1 rounded border border-[var(--oz-success)]/60 py-2 text-[var(--oz-success)]"
-              >
+            <div className="flex gap-1.5">
+              <button onClick={create} className="oz-k ok flex-1">
                 create & open
               </button>
-              <button
-                onClick={() => setCreating(false)}
-                className="rounded border border-[var(--oz-border)] px-4 py-2 text-[var(--oz-dim)]"
-              >
+              <button onClick={() => setCreating(false)} className="oz-k px-4">
                 cancel
               </button>
             </div>
           </div>
         )}
 
-        {/* global search — expands from the header icon into the query field */}
+        {/* global search — expands from the search key into the query field */}
         {gOpen && (
-          <div className="mb-2 flex items-center gap-2 rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] px-3 py-2">
-            <PixelIcon name="search" size={14} className="text-[var(--oz-dim)]" />
+          <div className="oz-box mb-2 flex items-center gap-2 px-3 py-2">
+            <LineIcon name="search" size={14} className="text-[var(--oz-dim)]" />
             <input
               autoFocus
               value={gq}
@@ -525,6 +504,7 @@ export default function SessionsPage() {
               }}
               placeholder="search all sessions…"
               className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--oz-dim)]"
+              style={{ caretColor: 'var(--oz-active)' }}
             />
             {gBusy && <span className="text-[10px] text-[var(--oz-dim)]">···</span>}
             <button
@@ -533,9 +513,9 @@ export default function SessionsPage() {
                 setGOpen(false);
                 setGq('');
               }}
-              className="text-[var(--oz-dim)]"
+              className="text-[var(--oz-dim)] hover:text-[var(--oz-text)]"
             >
-              <PixelIcon name="close" size={12} />
+              <LineIcon name="close" size={12} />
             </button>
           </div>
         )}
@@ -545,7 +525,7 @@ export default function SessionsPage() {
           gHits && gHits.length === 0 ? (
             <div className="pt-6 text-center text-xs text-[var(--oz-dim)]">no hits</div>
           ) : (
-            <ul className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-1">
               {(gHits || []).map((h) => (
                 <li key={h.id}>
                   <button
@@ -554,22 +534,17 @@ export default function SessionsPage() {
                         `/session/${slugify(h.title)}?id=${h.id}&q=${encodeURIComponent(gq.trim())}`
                       )
                     }
-                    className="oz-row w-full rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] px-3 py-2 text-left"
+                    className="oz-row"
                   >
-                    <div className="flex items-baseline gap-1.5">
-                      <div className="truncate text-sm">{h.title}</div>
-                      <span className="ml-auto shrink-0 text-[10px] text-[var(--oz-dim)]">
+                    <div className="oz-r1">
+                      <span className="t">{h.title}</span>
+                      <time>
                         {fmtListTime(h.lastHit)} · {h.hits} hit{h.hits === 1 ? '' : 's'}
-                      </span>
+                      </time>
                     </div>
                     {h.snippets.map((sn, i) => (
-                      <div
-                        key={i}
-                        className={`mt-0.5 truncate text-xs ${
-                          i === 0 ? 'text-[var(--oz-dim)]' : 'text-[var(--oz-dim)]/70'
-                        }`}
-                      >
-                        <span className="text-[10px]">({sn.role}) </span>
+                      <div key={i} className={`oz-r2 ${i === 0 ? '' : 'opacity-70'}`}>
+                        <span className="text-[10px]">({sn.role === 'assistant' ? 'agent' : sn.role}) </span>
                         <Marked text={sn.text} q={gq} />
                       </div>
                     ))}
@@ -588,12 +563,11 @@ export default function SessionsPage() {
               const unread =
                 s.lastRole === 'assistant' && (s.lastAt || 0) > lastRead(slugify(s.title || s.id));
               // last assistant message still asks something and no reply
-              // followed (lastRole is still 'assistant') → white outlined
-              // circle. Read or unread both count; it decays after 48h so
-              // dead questions don't glow forever, and it never reorders
-              // the list. lastHasQ is computed server-side on the FULL
-              // message text — the 80-char preview usually ends before the
-              // questions do
+              // followed (lastRole is still 'assistant') → outlined circle.
+              // Read or unread both count; it decays after 48h so dead
+              // questions don't linger forever, and it never reorders the
+              // list. lastHasQ is computed server-side on the FULL message
+              // text — the 80-char preview usually ends before the questions do
               const openQ =
                 s.lastRole === 'assistant' &&
                 !s.pending &&
@@ -616,21 +590,24 @@ export default function SessionsPage() {
               return (
                 <li key={s.id}>
                   <SwipeRow
+                    unread={unread}
                     onOpen={() => router.push(`/session/${slugify(s.title)}?id=${s.id}`)}
                     onDelete={() => remove(s)}
                   >
-                    <div className="flex items-center gap-1.5">
-                      {s.pending && <span className="oz-busy text-[var(--oz-active)]">●</span>}
-                      {!s.pending && openQ && <span className="text-[var(--oz-text)]">○</span>}
-                      {!s.pending && unread && !openQ && (
-                        <span className="text-[var(--oz-active)]">●</span>
+                    {/* state law: working is green and breathes, unread is
+                        weight + a text-colored dot, the open question rings ○ */}
+                    <div className="oz-r1">
+                      {s.pending && (
+                        <span className="oz-breathe text-[var(--oz-success)]" aria-label="working">
+                          ●
+                        </span>
                       )}
-                      <div className={`truncate text-sm ${unread ? 'font-bold' : ''}`}>
-                        {s.title || s.id}
-                      </div>
+                      {!s.pending && openQ && <span aria-label="open question">○</span>}
+                      {!s.pending && unread && !openQ && <span aria-label="unread">●</span>}
+                      <span className="t">{s.title || s.id}</span>
                       {kids.length > 0 && (
                         // tap target for the sub-tree only — the row itself
-                        // still opens the session; a live sub glows green so
+                        // still opens the session; a live sub shows green so
                         // activity is visible even while collapsed
                         <span
                           role="button"
@@ -640,35 +617,22 @@ export default function SessionsPage() {
                             e.stopPropagation();
                             toggleSubs(s.id);
                           }}
-                          className={`shrink-0 rounded-full border px-2 text-[10px] leading-4 ${
-                            subsOpen[s.id]
-                              ? 'border-[var(--oz-text)]/30 text-[var(--oz-text)]'
-                              : anyKidLive
-                                ? 'text-[var(--oz-success)]'
-                                : 'border-[var(--oz-border)] text-[var(--oz-dim)]'
+                          className={`oz-subs ${
+                            subsOpen[s.id] ? 'open' : anyKidLive ? 'live' : ''
                           }`}
-                          style={
-                            !subsOpen[s.id] && anyKidLive
-                              ? { borderColor: 'rgba(74,222,128,.5)' }
-                              : undefined
-                          }
                         >
                           {kids.length} sub{kids.length === 1 ? '' : 's'}
                           {anyKidLive && !subsOpen[s.id] ? ' ●' : ''}
                         </span>
                       )}
-                      <span className="ml-auto shrink-0 text-[10px] text-[var(--oz-dim)]">
-                        {fmtListTime(s.updated || s.lastAt)}
-                      </span>
+                      <time>{fmtListTime(s.updated || s.lastAt)}</time>
                     </div>
-                    <div
-                      className={`truncate text-xs ${unread ? 'text-[var(--oz-text)]/80' : 'text-[var(--oz-dim)]'}`}
-                    >
+                    <div className="oz-r2">
                       {s.pending ? 'awaiting answer…' : s.preview || '\u00a0'}
                     </div>
                   </SwipeRow>
                   {kids.length > 0 && subsOpen[s.id] && (
-                    <div className="ml-4 mt-1 flex flex-col gap-1 border-l-2 border-[var(--oz-border)] pl-2.5">
+                    <div className="oz-kids">
                       {kids.map((k) => {
                         const kUnread =
                           k.lastRole === 'assistant' &&
@@ -679,29 +643,31 @@ export default function SessionsPage() {
                           <SwipeRow
                             key={k.id}
                             compact
+                            unread={kUnread}
                             onOpen={() =>
                               router.push(`/session/${slugify(k.title || k.id)}?id=${k.id}`)
                             }
                             onDelete={() => remove(k)}
                           >
-                            <div className="flex items-baseline gap-1.5">
+                            <div className="oz-r1">
                               {k.pending && (
-                                <span className="oz-busy text-[10px] text-[var(--oz-active)]">
+                                <span
+                                  className="oz-breathe text-[10px] text-[var(--oz-success)]"
+                                  aria-label="working"
+                                >
                                   ●
                                 </span>
                               )}
                               {!k.pending && kUnread && (
-                                <span className="text-[10px] text-[var(--oz-active)]">●</span>
+                                <span className="text-[10px]" aria-label="unread">
+                                  ●
+                                </span>
                               )}
-                              <div className="truncate text-xs text-[var(--oz-text)]/85">
-                                {k.title || k.id}
-                              </div>
-                              <span className="ml-auto shrink-0 text-[10px] text-[var(--oz-dim)]">
-                                {fmtListTime(k.updated || k.lastAt)}
-                              </span>
+                              <span className="t opacity-85">{k.title || k.id}</span>
+                              <time>{fmtListTime(k.updated || k.lastAt)}</time>
                             </div>
                             {(k.pending ? 'awaiting answer…' : k.preview) && (
-                              <div className="truncate text-[10px] text-[var(--oz-dim)]">
+                              <div className="oz-r2">
                                 {k.pending ? 'awaiting answer…' : k.preview}
                               </div>
                             )}
@@ -717,32 +683,25 @@ export default function SessionsPage() {
         )}
       </main>
 
-      {/* undo toast — bar mirrors the 3s window; tap undo to restore the row */}
+      {/* undo toast — the bar is the mercy window; tap undo to restore the row */}
       {toast && (
         <div
           key={toast.key}
-          className="fixed inset-x-3 bottom-4 z-50 mx-auto flex max-w-md items-center gap-3 overflow-hidden rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] px-4 py-3 shadow-lg"
+          role="status"
+          className="oz-toast fixed inset-x-3 bottom-4 z-50 mx-auto max-w-md"
         >
-          {/* what you just killed — msg count makes a heavy delete visible
+          {/* what you just removed — msg count makes a heavy delete visible
               while the (longer) mercy window is still open */}
-          <div className="min-w-0 flex-1 truncate text-xs text-[var(--oz-dim)]">
+          <div className="msg">
             deleted “{toast.s.title || toast.s.id}”
             {(toast.s.msgs || 0) > 0 && ` · ${toast.s.msgs} msgs`}
             {toast.famCount > 0 &&
               ` + ${toast.famCount} sub${toast.famCount === 1 ? '' : 's'}`}
           </div>
-          <button
-            onClick={undo}
-            className="shrink-0 rounded border border-[var(--oz-success)]/60 px-3 py-1.5 text-xs text-[var(--oz-success)]"
-          >
+          <button onClick={undo} className="oz-k sm ok">
             undo
           </button>
-          <div className="absolute inset-x-0 bottom-0 h-0.5">
-            <div
-              className="oz-toast-bar h-full bg-[var(--oz-success)]/70"
-              style={{ animationDuration: `${toast.win}ms` }}
-            />
-          </div>
+          <span className="oz-toast-bar" style={{ animationDuration: `${toast.win}ms` }} />
         </div>
       )}
     </>

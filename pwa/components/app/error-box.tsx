@@ -158,7 +158,11 @@ export function ErrorBox({
   }
 
   return (
-    <div className="mb-2 rounded border border-[var(--oz-danger)]/60 px-3 py-2 text-xs text-[var(--oz-danger)]">
+    <div
+      role="alert"
+      className="mb-2 border px-3 py-2 text-xs text-[var(--oz-danger)]"
+      style={{ borderColor: 'color-mix(in srgb, var(--oz-danger) 60%, transparent)' }}
+    >
       {phase === 'sending'
         ? 'sending bug report…'
         : phase instanceof Error

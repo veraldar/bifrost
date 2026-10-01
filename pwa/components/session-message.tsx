@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Streamdown } from 'streamdown';
+import { LineIcon } from '@/components/line-icon';
 import { Marked } from '@/components/marked';
 import { useSwipeX } from '@/lib/use-swipe-x';
 
@@ -79,7 +80,7 @@ function ArtifactView({ src, kind }: { src: string; kind: string }) {
         sandbox=""
         src={src}
         title={name}
-        className="mt-1 h-64 w-full rounded border border-[var(--oz-border)] bg-white"
+        className="mt-1 h-64 w-full border border-[var(--oz-border)] bg-white"
       />
     );
   }
@@ -92,17 +93,21 @@ function ArtifactView({ src, kind }: { src: string; kind: string }) {
         href={src}
         target="_blank"
         rel="noreferrer"
-        className="mt-1 flex w-fit items-center gap-1 rounded border border-[var(--oz-border)] px-2 py-1 text-xs text-[var(--oz-active)]"
+        className="oz-chip mt-1 text-[var(--oz-info)]"
       >
-        📄 {name} — tap to view
+        <LineIcon name="artifact" size={13} />
+        {name} — tap to view
       </a>
     );
   }
   if (text === null) return null;
   const body = text.length > 20000 ? `${text.slice(0, 20000)}…` : text;
   return (
-    <div className="mt-1 rounded border border-[var(--oz-border)] px-2 py-1">
-      <div className="text-[10px] text-[var(--oz-dim)]">📎 {name}</div>
+    <div className="oz-box mt-1 px-2 py-1">
+      <div className="flex items-center gap-1.5 text-[10px] text-[var(--oz-dim)]">
+        <LineIcon name="attach" size={11} />
+        {name}
+      </div>
       {kind === 'md' ? (
         <div className="max-h-96 overflow-auto">
           <Streamdown>{body}</Streamdown>
@@ -195,18 +200,15 @@ export function SessionMessage({
       ref={swipeRef}
       data-mi={mi}
       style={{ touchAction: 'pan-y' }}
-      className={`scroll-mt-24 text-sm leading-relaxed break-words ${
-        hit
-          ? '-mx-2 rounded border border-[var(--oz-active)] bg-[var(--oz-active)]/10 px-2 py-1'
-          : ''
-      }`}
+      className={`scroll-mt-24 text-[13.5px] leading-relaxed break-words ${hit ? 'oz-hit' : ''}`}
     >
-      <div className="mb-0.5 flex items-baseline gap-2">
+      {/* "(you)" / "(agent)" — the word list says agent, not assistant */}
+      <div className="oz-who">
         <span className={isUser ? 'text-[var(--oz-success)]' : 'text-[var(--oz-dim)]'}>
-          ({isUser ? 'you' : m.role})
+          ({isUser ? 'you' : m.role === 'assistant' ? 'agent' : m.role})
         </span>
-        {stamp && <span className="text-[10px] text-[var(--oz-dim)]">{stamp}</span>}
-        {queued && <span className="oz-busy text-[10px] text-[var(--oz-active)]">● queued</span>}
+        {stamp && <time>{stamp}</time>}
+        {queued && <span className="oz-breathe text-[10px] text-[var(--oz-success)]">● queued</span>}
       </div>
       {isUser ? (
         fileChunks(m.text).map((c, i) =>
@@ -217,9 +219,12 @@ export function SessionMessage({
           ) : (
             <details
               key={i}
-              className="my-1 rounded border border-[var(--oz-border)] px-2 py-1 text-xs"
+              className="oz-box my-1 px-2 py-1 text-xs"
             >
-              <summary className="cursor-pointer text-[var(--oz-dim)]">📎 {c.name}</summary>
+              <summary className="flex cursor-pointer items-center gap-1.5 text-[var(--oz-dim)]">
+                <LineIcon name="attach" size={11} />
+                {c.name}
+              </summary>
               <pre className="mt-1 max-h-40 overflow-auto text-[10px] whitespace-pre-wrap text-[var(--oz-dim)]">
                 {c.body.slice(0, 4000)}
                 {c.body.length > 4000 ? '…' : ''}
@@ -237,7 +242,7 @@ export function SessionMessage({
         <div key={`h${i}`} className="mt-1">
           <button
             onClick={() => setRawIdx(rawIdx === i ? -1 : i)}
-            className="flex w-fit items-center gap-1 rounded border border-[var(--oz-border)] px-2 py-0.5 text-[10px] text-[var(--oz-dim)]"
+            className="oz-k sm"
           >
             {rawIdx === i ? 'show rendered' : 'show code'}
           </button>
@@ -251,7 +256,7 @@ export function SessionMessage({
               sandbox=""
               srcDoc={src}
               title={`html preview ${i + 1}`}
-              className="mt-1 h-64 w-full rounded border border-[var(--oz-border)] bg-white"
+              className="mt-1 h-64 w-full border border-[var(--oz-border)] bg-white"
             />
           )}
         </div>
@@ -269,7 +274,7 @@ export function SessionMessage({
             <img
               src={src}
               alt="attachment"
-              className="mt-1 max-h-48 rounded border border-[var(--oz-border)]"
+              className="mt-1 max-h-48 border border-[var(--oz-border)]"
             />
           </button>
         ) : null

@@ -1,7 +1,7 @@
 'use client';
 
-/** Session settings — NAME / MODEL / THINK / AGENT tiles over the yggdrasil
- *  backdrop (shared theme CSS: .oz + .oz-ygg-bg + oz tokens). Instant-apply:
+/** Session settings — name / model / think / agent blocks (shared theme
+ *  CSS: .oz-blk + oz tokens). Instant-apply:
  *  no save button, every control commits on tap/blur, like the header mode
  *  toggle. All writes go through PATCH /api/session/[id], which routes title
  *  to the session update and model/agent to opencode's v2 switch endpoints —
@@ -208,22 +208,22 @@ export default function SessionSettingsView() {
   }
 
   return (
-    <main className="oz">
-      <div className="oz-ygg-bg" />
-      <div className="relative z-10 mx-auto h-dvh max-w-md overflow-y-auto px-2.5">
-        {/* header — same shape as the chat header; no back chrome */}
-        <div className="flex items-center gap-2 py-3.5 text-sm">
-          <span className="truncate">{title}</span>
-          {live && <span className="oz-busy text-[11px] text-[var(--oz-active)]">●</span>}
-        </div>
+    <main className="mx-auto h-dvh max-w-md overflow-y-auto px-3">
+      {/* header — same shape as the chat header; no back chrome */}
+      <header className="oz-head justify-start text-[13px]">
+        <span className="truncate">{title}</span>
+        {live && (
+          <span className="oz-breathe text-[11px] text-[var(--oz-success)]" aria-label="working">
+            ●
+          </span>
+        )}
+      </header>
 
-        {error && <ErrorBox error={error} onDismiss={() => setError('')} slug={slug} />}
+      {error && <ErrorBox error={error} onDismiss={() => setError('')} slug={slug} />}
 
-        {/* NAME */}
-        <section className="mb-3 rounded-2xl border border-[var(--oz-border)]/70 bg-[var(--oz-surface)] p-3.5">
-          <h2 className="border-b border-[var(--oz-border)]/40 pb-2.5 px-0.5 text-[10.5px] font-bold uppercase tracking-[0.18em] text-[var(--oz-text)]">
-            name
-          </h2>
+      <section className="oz-blk">
+        <h2>name</h2>
+        <div>
           <input
             value={nameInput}
             onChange={(e) => setNameInput(e.target.value)}
@@ -235,189 +235,143 @@ export default function SessionSettingsView() {
               }
             }}
             aria-label="session name"
-            className="mt-3 w-full rounded-lg border border-[var(--oz-border)] bg-[var(--oz-bg)] px-3 py-2 font-mono text-[13px] text-[var(--oz-success)] outline-none placeholder:text-[var(--oz-dim)]"
-            style={{ caretColor: 'var(--oz-active)' }}
+            className="oz-field"
           />
-          <p className="mt-2 text-[10.5px] leading-relaxed text-[var(--oz-dim)]">
-            url + voice room follow the name
-          </p>
-        </section>
+        </div>
+        <p className="note">url + voice room follow the name</p>
+      </section>
 
-        {/* MODEL */}
-        <section className="mb-3 rounded-2xl border border-[var(--oz-border)]/70 bg-[var(--oz-surface)] p-3.5">
-          <h2 className="border-b border-[var(--oz-border)]/40 pb-2.5 px-0.5 text-[10.5px] font-bold uppercase tracking-[0.18em] text-[var(--oz-text)]">
-            model
-          </h2>
+      <section className="oz-blk">
+        <h2>model</h2>
+        <div>
           <button
             aria-expanded={pickOpen}
             onClick={() => {
               setPickOpen((o) => !o);
               setFilter('');
             }}
-            className="mt-3 flex w-full items-center justify-between gap-2 text-left"
+            className="oz-pick"
           >
-            <span className="truncate font-mono text-[13px] text-[var(--oz-success)]">
+            <span className="truncate">
               {model ? modelKey(model) : loaded ? 'tap to choose' : 'loading…'}
             </span>
-            <span className="text-xs text-[var(--oz-dim)]">{pickOpen ? '▲' : '›'}</span>
+            <span>{pickOpen ? '▲' : '›'}</span>
           </button>
-          {pickOpen && (
-            <div className="mt-2.5">
-              <input
-                autoFocus
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                placeholder="/ filter…"
-                aria-label="filter models"
-                className="w-full rounded-lg border border-[var(--oz-border)] bg-[var(--oz-bg)] px-3 py-2 font-mono text-xs text-[var(--oz-success)] outline-none placeholder:text-[var(--oz-dim)]"
-                style={{ caretColor: 'var(--oz-active)' }}
-              />
-              <ul className="mt-1.5 max-h-64 overflow-y-auto">
-                {modelList.map((m) => {
-                  const active = model && modelKey(model) === `${m.providerID}/${m.id}`;
-                  return (
-                    <li key={`${m.providerID}/${m.id}`}>
-                      <button
-                        onClick={() => {
-                          // keep the chosen think level only if the new model
-                          // has it too; otherwise fall to the model default
-                          const keep = model?.variant && m.variants.includes(model.variant);
-                          void patch({
-                            model: {
-                              providerID: m.providerID,
-                              modelID: m.id,
-                              variant: keep ? model!.variant : undefined,
-                            },
-                          });
-                          setPickOpen(false);
-                        }}
-                        className={`flex w-full items-center gap-2 border-b border-[var(--oz-border)]/25 px-1 py-2 text-left font-mono text-xs last:border-b-0 ${
-                          active ? 'text-[var(--oz-success)]' : 'text-[var(--oz-dim)]'
-                        }`}
-                      >
-                        <span className="truncate">
-                          {m.providerID}/{m.id}
-                        </span>
-                        {active && <span className="ml-auto text-[var(--oz-active)]">●</span>}
-                      </button>
-                    </li>
-                  );
-                })}
-                {!modelList.length && (
-                  <li className="px-1 py-2 text-[11px] text-[var(--oz-dim)]">no models</li>
-                )}
-              </ul>
-            </div>
-          )}
-        </section>
-
-        {/* THINK — the selected model's real levels; the session's current one
-            is highlighted, tapping it again falls back to the model default */}
-        <section className="mb-3 rounded-2xl border border-[var(--oz-border)]/70 bg-[var(--oz-surface)] p-3.5">
-          <h2 className="border-b border-[var(--oz-border)]/40 pb-2.5 px-0.5 text-[10.5px] font-bold uppercase tracking-[0.18em] text-[var(--oz-text)]">
-            think
-          </h2>
-          {model && model.variants.length ? (
-            <>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {model.variants.map((v) => (
-                  <button
-                    key={v}
-                    aria-pressed={shownVariant === v}
-                    onClick={() =>
-                      void patch({
-                        model: {
-                          providerID: model.providerID,
-                          modelID: model.modelID,
-                          variant: shownVariant === v ? undefined : v,
-                        },
-                      })
-                    }
-                    className={`rounded-md border px-2.5 py-1.5 font-mono text-[11px] tracking-wide ${
-                      shownVariant === v
-                        ? 'border-[var(--oz-success)]/45 text-[var(--oz-success)]'
-                        : 'border-[var(--oz-border)] text-[var(--oz-dim)]'
-                    }`}
-                    style={
-                      shownVariant === v
-                        ? {
-                            background:
-                              'color-mix(in srgb, var(--oz-success) 12%, var(--oz-surface))',
-                          }
-                        : undefined
-                    }
-                  >
-                    {v}
-                  </button>
-                ))}
-              </div>
-              <p className="mt-2 text-[10.5px] text-[var(--oz-dim)]">
-                current — {shownVariant || 'model default'}
-              </p>
-            </>
-          ) : (
-            <p className="mt-3 text-[10.5px] leading-relaxed text-[var(--oz-dim)]">
-              {model
-                ? 'no think levels configured for this model'
-                : 'pick a model to see its thinking levels'}
-            </p>
-          )}
-        </section>
-
-        {/* AGENT */}
-        <section className="mb-3 rounded-2xl border border-[var(--oz-border)]/70 bg-[var(--oz-surface)] p-3.5">
-          <h2 className="border-b border-[var(--oz-border)]/40 pb-2.5 px-0.5 text-[10.5px] font-bold uppercase tracking-[0.18em] text-[var(--oz-text)]">
-            agent
-          </h2>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {(agents.length ? agents : ['build', 'plan']).map((a) => (
-              <button
-                key={a}
-                aria-pressed={agent === a}
-                onClick={() => void patch({ agent: a })}
-                className={`rounded-md border px-2.5 py-1.5 font-mono text-[11px] tracking-wide ${
-                  agent === a
-                    ? 'border-[var(--oz-success)]/45 text-[var(--oz-success)]'
-                    : 'border-[var(--oz-border)] text-[var(--oz-dim)]'
-                }`}
-                style={
-                  agent === a
-                    ? { background: 'color-mix(in srgb, var(--oz-success) 12%, var(--oz-surface))' }
-                    : undefined
-                }
-              >
-                {a}
-              </button>
-            ))}
+        </div>
+        {pickOpen && (
+          <div className="pt-0">
+            <input
+              autoFocus
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="/ filter…"
+              aria-label="filter models"
+              className="oz-field h-9 text-xs"
+            />
+            <ul className="oz-mlist mt-1.5 max-h-64 overflow-y-auto">
+              {modelList.map((m) => {
+                const active = !!model && modelKey(model) === `${m.providerID}/${m.id}`;
+                return (
+                  <li key={`${m.providerID}/${m.id}`}>
+                    <button
+                      aria-pressed={active}
+                      onClick={() => {
+                        // keep the chosen think level only if the new model
+                        // has it too; otherwise fall to the model default
+                        const keep = model?.variant && m.variants.includes(model.variant);
+                        void patch({
+                          model: {
+                            providerID: m.providerID,
+                            modelID: m.id,
+                            variant: keep ? model!.variant : undefined,
+                          },
+                        });
+                        setPickOpen(false);
+                      }}
+                    >
+                      <span className="truncate">
+                        {m.providerID}/{m.id}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+              {!modelList.length && (
+                <li className="px-0.5 py-2 text-[11px] text-[var(--oz-dim)]">no models</li>
+              )}
+            </ul>
           </div>
-        </section>
+        )}
+      </section>
 
-        <p className="px-1 pb-3 text-[10.5px] leading-relaxed text-[var(--oz-dim)]">
-          changes apply from the next message in this session
-        </p>
+      {/* THINK — the selected model's real levels; the session's current one
+          is highlighted, tapping it again falls back to the model default */}
+      <section className="oz-blk">
+        <h2>think</h2>
+        {model && model.variants.length ? (
+          <>
+            <div className="oz-chips">
+              {model.variants.map((v) => (
+                <button
+                  key={v}
+                  aria-pressed={shownVariant === v}
+                  onClick={() =>
+                    void patch({
+                      model: {
+                        providerID: model.providerID,
+                        modelID: model.modelID,
+                        variant: shownVariant === v ? undefined : v,
+                      },
+                    })
+                  }
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+            <p className="note">current — {shownVariant || 'model default'}</p>
+          </>
+        ) : (
+          <p className="note pt-3!">
+            {model
+              ? 'no think levels configured for this model'
+              : 'pick a model to see its thinking levels'}
+          </p>
+        )}
+      </section>
 
-        {/* DELETE — two taps; sub-sessions cascade server-side, then back to
-            the list (which no longer shows the deleted row) */}
-        <section className="mb-6 rounded-2xl border border-[var(--oz-danger)]/40 bg-[var(--oz-surface)] p-3.5">
-          <h2 className="border-b border-[var(--oz-border)]/40 pb-2.5 px-0.5 text-[10.5px] font-bold uppercase tracking-[0.18em] text-[var(--oz-text)]">
-            session
-          </h2>
+      <section className="oz-blk">
+        <h2>agent</h2>
+        <div className="oz-chips">
+          {(agents.length ? agents : ['build', 'plan']).map((a) => (
+            <button key={a} aria-pressed={agent === a} onClick={() => void patch({ agent: a })}>
+              {a}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <p className="px-0.5 pb-2.5 text-[10.5px] leading-relaxed text-[var(--oz-dim)]">
+        changes apply from the next message in this session
+      </p>
+
+      {/* DELETE — two taps; sub-sessions cascade server-side, then back to
+          the list (which no longer shows the deleted row) */}
+      <section className="oz-blk danger mb-6">
+        <h2>session</h2>
+        <div>
           <button
             disabled={deleting}
             onClick={() => (armed ? void deleteSession() : setArmed(true))}
-            className={`mt-3 w-full rounded-lg border px-3 py-2 font-mono text-[13px] ${
-              armed
-                ? 'border-[var(--oz-danger)] bg-[var(--oz-danger)]/15 text-[var(--oz-danger)]'
-                : 'border-[var(--oz-border)] text-[var(--oz-dim)]'
-            } disabled:opacity-50`}
+            className={`oz-del ${armed ? 'armed' : ''}`}
           >
             {deleting ? 'deleting…' : armed ? 'tap again to delete' : 'delete session'}
           </button>
-          <p className="mt-2 text-[10.5px] leading-relaxed text-[var(--oz-dim)]">
-            {armed ? 'this cannot be undone — sub-sessions go too' : 'removes the session and its sub-sessions'}
-          </p>
-        </section>
-      </div>
+        </div>
+        <p className="note">
+          {armed ? 'this cannot be undone — sub-sessions go too' : 'removes the session and its sub-sessions'}
+        </p>
+      </section>
     </main>
   );
 }

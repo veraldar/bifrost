@@ -35,7 +35,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={commitMono.variable} suppressHydrationWarning>
       <body className="oz">
-        <ThemeProvider attribute="data-theme" themes={['aether', 'terminus', 'drift']} defaultTheme="aether">
+        <ThemeProvider
+          attribute="data-theme"
+          themes={['aether', 'terminus', 'drift']}
+          defaultTheme="aether"
+          // a world flip is one attribute, zero morph: transitions are
+          // suppressed for the swap frame
+          disableTransitionOnChange
+        >
           <DiagBoot />
           <FreshReload />
           {children}

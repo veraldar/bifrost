@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { PixelIcon } from '@/components/pixel-icon';
+import { LineIcon } from '@/components/line-icon';
 import { type Msg, SessionMessage } from '@/components/session-message';
 import { useSwipeX } from '@/lib/use-swipe-x';
 
@@ -60,14 +60,15 @@ export function MessageHistory({
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      className="fixed inset-0 z-50 flex flex-col bg-black/90 px-3 pt-2 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex flex-col px-3 pt-2"
+      style={{ background: 'color-mix(in srgb, var(--oz-bg) 94%, transparent)' }}
     >
       <div className="flex items-center justify-between pb-2 text-[11px] text-[var(--oz-dim)]">
         <span className="tabular-nums">
           {i + 1} / {msgs.length} {hint}
         </span>
-        <button aria-label="close history" onClick={onClose} className="p-1">
-          <PixelIcon name="close" size={14} />
+        <button aria-label="close history" onClick={onClose} className="oz-k sm">
+          <LineIcon name="close" size={13} />
         </button>
       </div>
       <div
@@ -78,7 +79,7 @@ export function MessageHistory({
           transition: dx ? 'none' : 'transform 160ms ease-out',
           touchAction: 'pan-y',
         }}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] p-3"
+        className="oz-box min-h-0 flex-1 overflow-y-auto overscroll-contain p-3"
       >
         <SessionMessage m={m} mi={i} />
       </div>

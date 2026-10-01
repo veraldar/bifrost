@@ -46,7 +46,7 @@ test('search: hit ring, 1/2 counter, jump, Escape closes', async ({ page }) => {
   const ringed = () =>
     page.evaluate(() =>
       [...document.querySelectorAll('[data-mi]')]
-        .filter((el) => /oz-active/.test(el.className))
+        .filter((el) => /\boz-hit\b/.test(el.className))
         .map((el) => el.getAttribute('data-mi'))
     );
   expect(await ringed()).toEqual(['0', '1']);

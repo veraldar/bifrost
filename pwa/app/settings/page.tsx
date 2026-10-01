@@ -1,87 +1,161 @@
 'use client';
 
-import { useTheme } from 'next-themes';
-import { VERSION } from '@/lib/version';
+/** /settings — about, world, yours. The world list is the theme switch:
+ *  each world is drawn with its own tree in its own palette (the button
+ *  carries data-theme, so tokens.css scopes the colors to it), the choice is
+ *  seen before it is made. Tapping applies at once via next-themes — one
+ *  data-theme attribute on <html>, transitions suppressed for the swap
+ *  frame — and that world's tree answers with one pulse up the trunk. */
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { PixelIcon } from '@/components/pixel-icon';
+import { useTheme } from 'next-themes';
+import { LineIcon } from '@/components/line-icon';
+import { YggTree } from '@/components/ygg';
+import { VERSION } from '@/lib/version';
 
-const THEMES = [
-  { id: 'aether', desc: 'deep-space terminal', bg: '/yggdrasil_final.svg' },
-  { id: 'terminus', desc: 'ash & ember', bg: '/backdrops/terminus.svg' },
-  { id: 'drift', desc: 'moonlit light', bg: '/backdrops/drift.svg' },
+const WORLDS = [
+  { id: 'aether', desc: 'deep-space terminal · plain hairlines' },
+  { id: 'terminus', desc: 'ash & ember · corner ticks' },
+  { id: 'drift', desc: 'moonlit light · dotted rules' },
 ];
+const SWATCHES = ['bg', 'text', 'success', 'active', 'danger', 'info'] as const;
 
-export default function ThemePage() {
+type MicPerm = 'granted' | 'denied' | 'prompt' | 'unknown';
+
+export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
+  // next-themes only knows the stored theme after mount — render no
+  // "current" marker on the server pass instead of a wrong one
+  const [mounted, setMounted] = useState(false);
+  // the world whose tree answers right now (+ a counter so a re-tap replays)
+  const [wake, setWake] = useState<{ id: string; n: number } | null>(null);
+  const [mic, setMic] = useState<MicPerm>('unknown');
+
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (!wake) return;
+    const t = setTimeout(() => setWake(null), 2500);
+    return () => clearTimeout(t);
+  }, [wake]);
+
+  // read-only: a page cannot revoke its own mic grant — the browser's site
+  // settings can, and the copy says so
+  useEffect(() => {
+    let st: PermissionStatus | null = null;
+    const sync = () => st && setMic(st.state as MicPerm);
+    navigator.permissions
+      ?.query({ name: 'microphone' as PermissionName })
+      .then((s) => {
+        st = s;
+        sync();
+        s.addEventListener('change', sync);
+      })
+      .catch(() => setMic('unknown'));
+    return () => st?.removeEventListener('change', sync);
+  }, []);
+
+  const current = mounted ? theme : undefined;
 
   return (
-    <>
-      <div aria-hidden="true" className="oz-ygg-bg" />
-      <main className="relative z-[1] mx-auto flex min-h-dvh max-w-md flex-col px-3 pb-6">
-      <header className="mt-4 mb-4 flex items-center gap-2">
-        <Link href="/" className="oz-row flex items-center gap-2 rounded-md border border-[var(--oz-border)] px-3 py-1.5 text-xs text-[var(--oz-dim)]">
-          <PixelIcon name="arrow-left" size={14} /> back
+    <main className="mx-auto flex min-h-dvh max-w-md flex-col px-3 pb-6">
+      <header className="oz-head justify-start gap-2.5">
+        <Link href="/" className="oz-k sm">
+          <LineIcon name="back" size={13} /> back
         </Link>
-        <span className="text-sm">settings</span>
+        <span className="text-[13px]">settings</span>
       </header>
 
-      <div className="card rounded-lg border border-[var(--oz-border)] bg-[var(--oz-surface)] px-4 py-3 mb-4">
-        <div className="text-base font-bold tracking-[0.1em] uppercase">Settings</div>
-        <div className="text-[10px] text-[var(--oz-dim)] mt-0.5">
-          bifrost {VERSION} · theme: veraldar-charté · aether / terminus / drift
-        </div>
-        <div className="text-xs mt-2">
-          current: <span className="text-[var(--oz-info)]">{theme}</span>
-        </div>
-      </div>
+      <section className="oz-blk">
+        <h2>about</h2>
+        <ul className="oz-kv">
+          <li>
+            <span>bifrost</span>
+            <span>{VERSION} · a Veraldar product.</span>
+            <span />
+          </li>
+          <li>
+            <span>license</span>
+            <span>AGPL-3.0</span>
+            <span />
+          </li>
+        </ul>
+        <p className="note">AGPL-3.0. Free for everyone. Your hardware, your words.</p>
+      </section>
 
-      <div className="slider flex gap-3 overflow-x-auto pb-4" style={{ scrollSnapType: 'x mandatory' }}>
-        {THEMES.map((t) => {
-          const cur = theme === t.id;
-          return (
-            <div
-              key={t.id}
-              className={`flex-none w-[82%] rounded-lg border bg-[var(--oz-surface)] p-4 ${cur ? 'border-[var(--oz-info)]' : 'border-[var(--oz-border)]'}`}
-              style={{ scrollSnapAlign: 'center' }}
+      <section className="oz-blk">
+        <h2>world</h2>
+        <div className="oz-worlds">
+          {WORLDS.map((w) => (
+            <button
+              key={w.id}
+              data-theme={w.id}
+              aria-pressed={current === w.id}
+              aria-label={`${w.id} — ${w.desc}`}
+              onClick={() => {
+                setTheme(w.id);
+                setWake((p) => ({ id: w.id, n: (p?.n || 0) + 1 }));
+              }}
+              className="oz-world"
             >
-              <div className="flex justify-between text-sm">
-                <span>{t.id}</span>
-                {cur && <span className="text-[10px] text-[var(--oz-dim)]">current</span>}
-              </div>
-              <div className="text-[10px] text-[var(--oz-dim)] mb-3">{t.desc}</div>
-              <div
-                className="h-24 mb-3 rounded border border-[var(--oz-border)] bg-[var(--oz-bg)] cursor-pointer"
-                style={{
-                  backgroundImage: `url(${t.bg})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                }}
-                onClick={() => setTheme(t.id)}
-                role="button"
-                aria-label={`apply ${t.id} theme`}
-                title="tap to apply"
-              />
-              <div className="grid grid-cols-5 gap-1 mb-3">
-                {(['bg', 'surface', 'surface-hover', 'text', 'dim', 'success', 'active', 'danger', 'info', 'border'] as const).map((r) => (
-                  <i key={r} className="h-4 border border-[var(--oz-border)]" style={{ background: `var(--oz-${r})` }} />
-                ))}
-              </div>
-              <button
-                onClick={() => setTheme(t.id)}
-                className={`w-full rounded-md border px-3 py-2 text-xs ${
-                  cur
-                    ? 'border-[var(--oz-info)] text-[var(--oz-info)]'
-                    : 'border-[var(--oz-border)] text-[var(--oz-text)]'
-                }`}
+              <span
+                key={wake?.id === w.id ? wake.n : 0}
+                className={`oz-ygg block ${wake?.id === w.id ? 'wake' : ''}`}
               >
-                {cur ? '✓ current' : 'use this'}
-              </button>
-            </div>
-          );
-        })}
-      </div>
-      <p className="text-center text-[10px] text-[var(--oz-dim)]">slide → tap a card to apply live</p>
-      </main>
-    </>
+                <YggTree />
+              </span>
+              <span>
+                <b>{w.id}</b>
+                <small>{w.desc}</small>
+                <span className="sw6">
+                  {SWATCHES.map((r) => (
+                    <i key={r} style={{ background: `var(--oz-${r})` }} />
+                  ))}
+                </span>
+                <span className="cur">current</span>
+              </span>
+            </button>
+          ))}
+        </div>
+        <p className="note">tap a world. it applies at once; its tree answers with one pulse.</p>
+      </section>
+
+      {/* possession, named as copy */}
+      <section className="oz-blk">
+        <h2>yours</h2>
+        <ul className="oz-kv">
+          <li>
+            <span>sessions</span>
+            <span>on your box, in opencode&apos;s store</span>
+            <span />
+          </li>
+          <li>
+            <span>speech</span>
+            <span>your models, on your network</span>
+            <span />
+          </li>
+          <li>
+            <span>audio</span>
+            <span>stays on your network</span>
+            <span />
+          </li>
+          <li>
+            <span>mic</span>
+            <span>
+              {mic === 'granted'
+                ? 'granted · this browser'
+                : mic === 'denied'
+                  ? 'denied · keyboard only'
+                  : mic === 'prompt'
+                    ? 'asked on first hold'
+                    : 'unknown'}
+            </span>
+            <span />
+          </li>
+        </ul>
+        <p className="note">mic access is the browser&apos;s to grant or revoke — site settings.</p>
+      </section>
+    </main>
   );
 }

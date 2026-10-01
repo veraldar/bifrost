@@ -5,7 +5,8 @@ import type { ReactNode } from 'react';
 export function Marked({
   text,
   q,
-  className = 'rounded bg-[var(--oz-active)]/20 px-0.5 text-[var(--oz-active)]',
+  // search hits are sky (info) — amber is reserved for heard
+  className = 'oz-mark',
 }: {
   text: string;
   q: string;

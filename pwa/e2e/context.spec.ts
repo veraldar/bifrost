@@ -19,7 +19,7 @@ test('fresh session answers with bifrost context', async ({ page }) => {
 
   // the assistant answer lands as a bubble (tool-only steps are hidden on
   // the phone now) — target the LAST one
-  const reply = page.getByText(/\(assistant/).last();
+  const reply = page.getByText(/\(agent/).last();
   await expect(reply).toBeVisible({ timeout: 90_000 });
   // only the ANSWER (not the prompt echo) contains the location → proves the
   // agent knew it without reading files first

@@ -12,7 +12,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { Room, RoomEvent, Track, createAudioAnalyser } from 'livekit-client';
 import Link from 'next/link';
-import { PixelIcon } from '@/components/pixel-icon';
+import { LineIcon, StopSquare } from '@/components/line-icon';
 import { type Msg, SessionMessage, userProse } from '@/components/session-message';
 import { MessageHistory } from '@/components/message-history';
 import { useSwipeX } from '@/lib/use-swipe-x';
@@ -39,7 +39,7 @@ type Attach =
   | { kind: 'image'; name: string; dataUrl: string }
   | { kind: 'file'; name: string; content: string };
 
-const PTT_BARS = 5;
+const PTT_BARS = 9;
 
 function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
   return Promise.race([
@@ -1735,41 +1735,85 @@ export default function SessionView({
     onContextMenu: (e: React.MouseEvent<HTMLButtonElement>) => e.preventDefault(),
   };
 
+  // ONE state token (cohesive-2 signal path): the rail, the glyph and the
+  // exact-words line all read this — color is never the only signal.
+  //   heard    amber — a held mic, or hands-free listening (you are heard)
+  //   speaking green breathes — the reply, out loud
+  //   working  one green signal glides — the box is on it
+  //   idle     dim, still — you are not heard
+  //   drop     red — release now deletes the hold
+  type VoiceTone = 'idle' | 'heard' | 'working' | 'speaking' | 'drop';
+  const [tone, words]: [VoiceTone, string] = holding
+    ? voiceState !== 'ready'
+      ? ['heard', 'connecting… keep holding']
+      : pttCancelArm
+        ? ['drop', 'release to delete · slide back to keep']
+        : ['heard', 'heard · release to send · slide left to delete']
+    : speech.phase !== 'idle'
+      ? [
+          'speaking',
+          speech.phase === 'loading'
+            ? 'synthesizing the reply…'
+            : mode === 'free'
+              ? 'speaking · mic returns when it ends'
+              : 'speaking · red ■ stops speech and work',
+        ]
+      : mode === 'free'
+        ? voiceState !== 'ready'
+          ? ['idle', 'hands-free · connecting…']
+          : freeCycle === 'processing'
+            ? ['working', 'working on it · mic paused']
+            : ['heard', 'hands-free · say “over” or tap the bars to send']
+        : busy
+          ? ['working', 'working on it · type to queue the next']
+          : ['idle', 'hold the mic to talk · tap it for hands-free'];
+  const GLYPH: Record<VoiceTone, string> = {
+    idle: '○',
+    heard: '◉',
+    working: '●',
+    speaking: '▸',
+    drop: '×',
+  };
+  const seekPos =
+    (seekFrac ?? Math.min(1, speech.positionSec / Math.max(speech.totalEstSec, 0.5))) * 100;
+  // the not-yet-synthesized tail of the reply, striped on the seek track
+  const readyPos = Math.min(100, (speech.receivedSec / Math.max(speech.totalEstSec, 0.5)) * 100);
+
   return (
     <main className="relative mx-auto flex h-dvh max-w-md flex-col overflow-hidden px-3">
       {/* header — the slug is the way into session settings (name / model /
-          think / agent); busy dot stays pinned to the right of the name */}
-      <header className="flex items-center justify-between gap-2 py-3">
+          think / agent); the working dot is green and breathes */}
+      <header className="oz-head">
         <Link
           href={`/session/${slug}/settings`}
           aria-label="session settings"
-          className="min-w-0 flex-1 truncate text-sm hover:opacity-80"
+          className="min-w-0 flex-1 truncate text-[13px] hover:opacity-80"
         >
           {slug}
-          {busy && <span className="oz-busy ml-2 text-[var(--oz-active)]">●</span>}
+          {busy && (
+            <span className="oz-breathe ml-2 text-[var(--oz-success)]" aria-label="working">
+              ●
+            </span>
+          )}
         </Link>
-        {/* search is not a mode — the keyboard/hands-free switch is GONE:
-            hands-free lives on the composer mic — tap to toggle, hold to
-            talk (req 09-30) */}
-        <div className="flex items-center gap-2">
-          <button
-            aria-label={searchOpen ? 'close search' : 'search transcript'}
-            aria-pressed={searchOpen}
-            onClick={() => setSearchOpen((o) => !o)}
-            className={`rounded border p-1.5 ${
-              searchOpen
-                ? 'border-[var(--oz-active)] text-[var(--oz-active)]'
-                : 'border-[var(--oz-border)] text-[var(--oz-dim)]'
-            }`}
-          >
-            <PixelIcon name="search" size={16} />
-          </button>
-        </div>
+        {/* search is not a mode — hands-free lives on the composer mic: tap
+            to toggle, hold to talk (req 09-30) */}
+        <button
+          aria-label={searchOpen ? 'close search' : 'search transcript'}
+          aria-pressed={searchOpen}
+          onClick={() => setSearchOpen((o) => !o)}
+          className={`oz-k sm ${searchOpen ? 'on' : ''}`}
+        >
+          <LineIcon name="search" size={14} />
+        </button>
       </header>
 
+      {/* the rail — the tree's signal, flattened to one trace */}
+      <div className="oz-rail -mx-3" data-s={tone} aria-hidden="true" />
+
       {searchOpen && (
-        <div className="mb-2 flex items-center gap-2 rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] px-2 py-1.5">
-          <PixelIcon name="search" size={14} className="text-[var(--oz-dim)]" />
+        <div className="oz-box mt-2 flex items-center gap-2 px-2 py-1.5">
+          <LineIcon name="search" size={14} className="text-[var(--oz-dim)]" />
           <input
             autoFocus
             value={query}
@@ -1788,9 +1832,10 @@ export default function SessionView({
             }}
             placeholder="search transcript…"
             className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--oz-dim)]"
+            style={{ caretColor: 'var(--oz-active)' }}
           />
           {query.trim() && (
-            <span className="text-[10px] text-[var(--oz-dim)] tabular-nums">
+            <span className="text-[10px] text-[var(--oz-info)] tabular-nums">
               {matches.length ? `${safeIdx + 1}/${matches.length}` : 'no hits'}
             </span>
           )}
@@ -1798,7 +1843,7 @@ export default function SessionView({
             aria-label="previous match"
             disabled={!matches.length}
             onClick={() => setMatchIdx(safeIdx - 1)}
-            className="text-[var(--oz-dim)] disabled:opacity-40"
+            className="px-1 text-[var(--oz-dim)] disabled:opacity-40"
           >
             ↑
           </button>
@@ -1806,21 +1851,25 @@ export default function SessionView({
             aria-label="next match"
             disabled={!matches.length}
             onClick={() => setMatchIdx(safeIdx + 1)}
-            className="text-[var(--oz-dim)] disabled:opacity-40"
+            className="px-1 text-[var(--oz-dim)] disabled:opacity-40"
           >
             ↓
           </button>
           <button
             aria-label="close search"
             onClick={() => setSearchOpen(false)}
-            className="text-[var(--oz-dim)]"
+            className="text-[var(--oz-dim)] hover:text-[var(--oz-text)]"
           >
-            <PixelIcon name="close" size={12} />
+            <LineIcon name="close" size={12} />
           </button>
         </div>
       )}
 
-      {error && <ErrorBox error={error} onDismiss={() => setError('')} slug={slug} />}
+      {error && (
+        <div className="mt-2">
+          <ErrorBox error={error} onDismiss={() => setError('')} slug={slug} />
+        </div>
+      )}
 
       {/* transcript */}
       <div
@@ -1830,14 +1879,14 @@ export default function SessionView({
           stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
           if (el.scrollTop <= 2) void loadOlder();
         }}
-        className="min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto overscroll-contain pb-2"
+        className="min-h-0 flex-1 space-y-3.5 overflow-x-hidden overflow-y-auto overscroll-contain pt-3.5 pb-2"
       >
         {loadingOlder && (
           <div className="pt-1 text-center text-[10px] text-[var(--oz-dim)]">loading older…</div>
         )}
         {msgs.length === 0 && (
           <div className="pt-10 text-center text-xs text-[var(--oz-dim)]">
-            empty session — type, hold the mic, or tap the side mic for hands-free
+            empty session — type, hold the mic to talk, or tap it for hands-free
           </div>
         )}
         {msgs.map((m, i) => (
@@ -1860,24 +1909,23 @@ export default function SessionView({
             }}
           />
         ))}
-        {/* the abort chip only when NO deck is up (req 09-30 live pass): while
+        {/* the cancel only when NO deck is up (req 09-30 live pass): while
             speech plays, the deck's red corner ■ already stops work + audio —
             one stop, not two */}
         {busy && speech.phase === 'idle' && (
-          <div className="flex items-center gap-3 text-xs text-[var(--oz-active)]">
-            <span className="oz-busy">● working… {busySecs}s</span>
-            <button
-              onClick={abortGeneration}
-              className="flex items-center gap-1 rounded border border-[var(--oz-border)] px-2.5 py-1 text-[var(--oz-dim)]"
-            >
-              <PixelIcon name="stop" size={12} /> cancel
+          <div className="oz-work oz-fade">
+            <span className="oz-breathe">
+              ● working… <span className="tabular-nums">{busySecs}s</span>
+            </span>
+            <button onClick={abortGeneration} className="oz-k sm">
+              <StopSquare size={8} /> cancel
             </button>
           </div>
         )}
 
         {/* listen chip — anchored to the last message, in the text flow.
-            Only when that message IS the assistant's (the chip plays it);
-            hidden while the deck is active (fixed deck owns the controls). */}
+            Only when that message IS the agent's (the chip plays it);
+            hidden while the deck is active (the deck owns the controls). */}
         {speech.phase === 'idle' &&
           lastAssistant &&
           msgs.length > 0 &&
@@ -1889,9 +1937,9 @@ export default function SessionView({
                 if (lastAssistant.time) markHeard(slug, lastAssistant.time);
                 startSpeech(lastAssistant.text, slug);
               }}
-              className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-[var(--oz-border)] px-3 py-1.5 text-xs text-[var(--oz-dim)]"
+              className="oz-chip"
             >
-              <PixelIcon name="volume" size={12} /> listen
+              <LineIcon name="volume" size={13} /> listen
             </button>
           )}
       </div>
@@ -1909,67 +1957,51 @@ export default function SessionView({
       {attachments.length > 0 && (
         <div className="flex flex-wrap gap-1 pb-1">
           {attachments.map((a, i) => (
-            <span
-              key={i}
-              className="flex items-center gap-1 rounded border border-[var(--oz-border)] px-2 py-1 text-xs"
-            >
+            <span key={i} className="oz-box flex items-center gap-1.5 px-2 py-1 text-xs">
               {a.kind === 'image' && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={a.dataUrl} alt="" className="h-6 w-6 rounded object-cover" />
+                <img src={a.dataUrl} alt="" className="h-6 w-6 object-cover" />
               )}
               <span className="max-w-28 truncate text-[var(--oz-dim)]">{a.name}</span>
               <button
                 aria-label={`remove ${a.name}`}
                 onClick={() => setAttachments((arr) => arr.filter((_, j) => j !== i))}
-                className="text-[var(--oz-dim)]"
+                className="text-[var(--oz-dim)] hover:text-[var(--oz-text)]"
               >
-                <PixelIcon name="close" size={10} />
+                <LineIcon name="close" size={10} />
               </button>
             </span>
           ))}
         </div>
       )}
 
-      {/* the floating ■ stop is GONE (req 09-30 live pass): the deck's own
-          red corner button is the one stop — speech + working run together. */}
-
       {speech.phase === 'loading' && (
-        <div className="relative mb-2 rounded border border-[var(--oz-success)]/50 bg-[var(--oz-surface)]">
+        <div className="oz-deck oz-tick oz-fade">
           {/* a stalled synthesis must be user-stoppable (the Mac once never
               delivered audio, req 09-30) — same one-stop corner button */}
-          <button
-            onClick={stopSpeechAndWork}
-            aria-label="stop"
-            className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-md border border-[var(--oz-danger)]/60 text-[var(--oz-danger)]"
-            style={{ touchAction: 'manipulation' }}
-          >
-            <PixelIcon name="stop" size={14} />
+          <button onClick={stopSpeechAndWork} aria-label="stop" className="oz-k sm red x">
+            <StopSquare size={10} />
           </button>
-          <div className="flex flex-col items-center gap-3 py-8">
-            <div className="flex gap-2.5">
-              <span className="oz-tts-dot" />
-              <span className="oz-tts-dot" style={{ animationDelay: '.18s' }} />
-              <span className="oz-tts-dot" style={{ animationDelay: '.36s' }} />
+          <div className="oz-synth">
+            <div className="oz-tdots">
+              <i />
+              <i />
+              <i />
             </div>
-            <div className="text-[11px] tracking-widest text-[var(--oz-dim)]">synthesizing…</div>
+            <div className="text-[11px] tracking-[0.12em] text-[var(--oz-dim)]">synthesizing…</div>
           </div>
         </div>
       )}
 
       {(speech.phase === 'playing' || speech.phase === 'paused') && (
-        <div className="relative mb-2 rounded border border-[var(--oz-success)]/50 bg-[var(--oz-surface)] px-3 py-2.5 shadow-lg">
-          {/* the ONE stop (req 09-30 live pass): red outline ■ in the corner —
-              stops the speech and a working run behind it in one tap; the mic
+        <div className={`oz-deck oz-tick ${speech.phase === 'paused' ? 'paused' : ''}`}>
+          {/* the ONE stop (req 09-30 live pass): red ■ in the corner — stops
+              the speech and a working run behind it in one tap; the mic
               comes back and the user can talk or leave hands-free */}
-          <button
-            onClick={stopSpeechAndWork}
-            aria-label="stop speaking"
-            className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-md border border-[var(--oz-danger)]/60 text-[var(--oz-danger)]"
-            style={{ touchAction: 'manipulation' }}
-          >
-            <PixelIcon name="stop" size={14} />
+          <button onClick={stopSpeechAndWork} aria-label="stop speaking" className="oz-k sm red x">
+            <StopSquare size={10} />
           </button>
-          <div className="flex items-center gap-2 pr-9">
+          <div className="oz-dk1">
             <span
               role="status"
               aria-label={speech.phase === 'paused' ? 'paused' : 'speaking'}
@@ -1981,18 +2013,12 @@ export default function SessionView({
               <i />
             </span>
             <div className="min-w-0 flex-1">
-              <div
-                className={`truncate text-[11px] ${
-                  speech.phase === 'paused' ? 'text-[var(--oz-dim)]' : 'text-[var(--oz-success)]'
-                }`}
-              >
+              <div className="l1">
                 {speech.phase === 'paused'
                   ? `paused · ${Math.round(speech.positionSec)}s / ${Math.round(speech.receivedSec)}s`
                   : `speaking · last reply · ${Math.round(speech.positionSec)}s / ~${Math.round(speech.totalEstSec)}s`}
               </div>
-              <div className="truncate text-[10px] text-[var(--oz-dim)]">
-                {Math.round(speech.receivedSec)}s synthesized
-              </div>
+              <div className="l2">{Math.round(speech.receivedSec)}s synthesized</div>
             </div>
           </div>
           {/* seek bar — drag anywhere: back/within-cache is instant, forward
@@ -2014,40 +2040,23 @@ export default function SessionView({
             onPointerCancel={() => setSeekFrac(null)}
           >
             <div className="oz-seek-track">
-              <div
-                className="oz-seek-fill"
-                style={{
-                  width: `${(seekFrac ?? Math.min(1, speech.positionSec / Math.max(speech.totalEstSec, 0.5))) * 100}%`,
-                }}
-              />
+              <div className="oz-seek-fill" style={{ width: `${seekPos}%` }} />
+              <div className="oz-seek-stripes" style={{ left: `${readyPos}%` }} />
             </div>
-            <div
-              className="oz-seek-thumb"
-              style={{
-                left: `${(seekFrac ?? Math.min(1, speech.positionSec / Math.max(speech.totalEstSec, 0.5))) * 100}%`,
-              }}
-            />
+            <div className="oz-seek-thumb" style={{ left: `${seekPos}%` }} />
           </div>
-          <div className="mt-2 flex items-center gap-2">
+          <div className="oz-dk3">
             <button
               onClick={() => (speech.phase === 'paused' ? resumeSpeech() : pauseSpeech())}
-              className="flex items-center justify-center rounded border border-[var(--oz-success)]/60 bg-[var(--oz-success)]/10 px-4 py-1.5 text-sm text-[var(--oz-success)]"
+              className="oz-k sm ok"
               aria-label={speech.phase === 'paused' ? 'resume speech' : 'pause speech'}
             >
-              <PixelIcon name={speech.phase === 'paused' ? 'play' : 'pause'} size={14} />
+              <LineIcon name={speech.phase === 'paused' ? 'play' : 'pause'} size={13} />
             </button>
             <span className="flex-1" />
-            <div className="flex overflow-hidden rounded border border-[var(--oz-success)]/50">
+            <div className="oz-rate">
               {[1, 1.5, 2].map((r) => (
-                <button
-                  key={r}
-                  onClick={() => rateSpeech(r)}
-                  className={`px-2.5 py-1.5 text-xs ${
-                    speech.rate === r
-                      ? 'bg-[var(--oz-success)]/15 text-[var(--oz-success)]'
-                      : 'text-[var(--oz-dim)]'
-                  }`}
-                >
+                <button key={r} aria-pressed={speech.rate === r} onClick={() => rateSpeech(r)}>
                   {r}x
                 </button>
               ))}
@@ -2058,43 +2067,32 @@ export default function SessionView({
 
       {mode === 'free' ? (
         /* hands-free: the composer (attach / text input / push-to-talk) makes
-           no sense while the mic is always hot — show the live speaking
-           equalizer + session timer instead. The equalizer is TAP-TO-SEND
-           (req 09-30): tapping it commits the buffered turn, same as saying
-           "over" — keyword and tap both stay. */
-        <div className="flex items-center gap-3 border-t border-[var(--oz-border)] py-3">
+           no sense while the mic is always hot — show the live equalizer +
+           session timer instead. The equalizer is TAP-TO-SEND (req 09-30):
+           tapping it commits the buffered turn, same as saying "over" —
+           keyword and tap both stay. Amber bars: you are heard. */
+        <div className="oz-dock -mx-3 px-3">
           <button
             data-testid="free-strip"
             aria-label="send what you said"
             onClick={() => void commitFreeTurn()}
-            className={`flex min-w-0 flex-1 items-end justify-center gap-1 rounded border bg-[var(--oz-surface)] px-3 py-2 transition-colors ${
-              voiceState === 'ready' && freeCycle === 'listening'
-                ? 'cursor-pointer border-[var(--oz-success)]/60 active:bg-[var(--oz-surface-hover)]'
-                : 'cursor-default border-[var(--oz-border)]'
+            className={`oz-pill strip ${
+              voiceState === 'ready' && freeCycle === 'listening' ? '' : 'wait'
             }`}
           >
             {voiceState !== 'ready' ? (
-              <span className="oz-ptt-hold flex-1 self-center text-center text-[11px] text-[var(--oz-dim)]">
-                connecting…
-              </span>
+              <span className="oz-breathe">connecting…</span>
             ) : freeCycle !== 'listening' ? (
-              <span className="flex-1 self-center text-center text-[11px] text-[var(--oz-dim)]">
-                working — mic paused
-              </span>
+              <span>working — mic paused</span>
             ) : (
-              freeLevels.map((l, i) => (
-                <span
-                  key={i}
-                  className="w-1.5 bg-[var(--oz-success)] transition-[height] duration-75"
-                  style={{ height: `${Math.max(3, Math.round(l * 22))}px` }}
-                />
-              ))
+              <span className="oz-bars">
+                {freeLevels.map((l, i) => (
+                  <i key={i} style={{ height: `${Math.max(3, Math.round(l * 22))}px` }} />
+                ))}
+              </span>
             )}
           </button>
-          <span
-            aria-label="hands-free duration"
-            className="self-center text-[11px] text-[var(--oz-dim)] tabular-nums"
-          >
+          <span aria-label="hands-free duration" className="oz-htime">
             {Math.floor(freeSecs / 60)}:{String(freeSecs % 60).padStart(2, '0')}
           </span>
           {/* the exit — only while LISTENING (req 09-30 live pass): mid-cycle
@@ -2106,10 +2104,9 @@ export default function SessionView({
               data-testid="free-exit"
               aria-label="leave hands-free"
               onClick={toggleHandsFree}
-              className="flex flex-none items-center justify-center self-center rounded border border-[var(--oz-danger)]/60 px-3 py-2 text-[var(--oz-danger)] select-none active:bg-[var(--oz-surface-hover)]"
-              style={{ touchAction: 'manipulation' }}
+              className="oz-k red"
             >
-              <span aria-hidden className="h-3.5 w-3.5 rounded-[2px] bg-[var(--oz-danger)]" />
+              <StopSquare size={12} />
             </button>
           )}
         </div>
@@ -2126,172 +2123,140 @@ export default function SessionView({
               {histChip}
             </div>
           )}
-          <div className="flex items-end gap-2 border-t border-[var(--oz-border)] py-3">
-          {/* single paper-clip button — opens the phone's photo/camera picker
-            (accept=image/*); files ride along when picked from there */}
-          <button
-            aria-label="attach"
-            onClick={() => photoInputRef.current?.click()}
-            className="rounded border border-[var(--oz-border)] px-2.5 py-2 text-[var(--oz-dim)]"
-          >
-            <PixelIcon name="attachment" size={16} />
-          </button>
-          <input
-            ref={photoInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            hidden
-            onChange={(e) => {
-              void addAttachments(e.target.files);
-              e.currentTarget.value = '';
-            }}
-          />
-          {holding ? (
-            <div
-              aria-label={voiceState === 'ready' ? 'listening' : 'connecting'}
-              role="status"
-              className={`flex min-w-0 flex-1 items-end justify-center gap-1 rounded border bg-[var(--oz-surface)] px-3 py-2 transition-colors ${
-                pttCancelArm
-                  ? 'border-[var(--oz-danger)] text-[var(--oz-danger)]'
-                  : voiceState === 'ready'
-                    ? 'border-[var(--oz-success)]/60'
-                    : 'border-[var(--oz-border)]'
-              }`}
+          <div className="oz-dock -mx-3 px-3">
+            {/* single paper-clip key — opens the phone's photo/camera picker
+                (accept=image/*); files ride along when picked from there */}
+            <button
+              aria-label="attach"
+              onClick={() => photoInputRef.current?.click()}
+              className="oz-k"
             >
-              {voiceState !== 'ready' ? (
-                // room still dialing in (first press pays the connect cost) —
-                // pulse until the equalizer can take over
-                <span className="oz-ptt-hold flex-1 self-center text-center text-[11px] text-[var(--oz-dim)]">
-                  connecting…
-                </span>
-              ) : (
-                <>
-                  {pttCancelArm ? (
-                    <span className="flex-1 self-center text-center text-[11px] tracking-widest uppercase">
-                      release to delete
-                    </span>
-                  ) : (
-                    <span
-                      aria-label="hold duration"
-                      className="mr-1 self-center text-[11px] text-[var(--oz-dim)] tabular-nums"
-                    >
-                      {Math.floor(pttSecs / 60)}:{String(pttSecs % 60).padStart(2, '0')}
-                    </span>
-                  )}
-                  {pttLevels.map((l, i) => (
-                    <span
-                      key={i}
-                      className={`w-1.5 transition-[height] duration-75 ${
-                        pttCancelArm ? 'bg-[var(--oz-danger)]' : 'bg-[var(--oz-success)]'
-                      }`}
-                      style={{ height: `${Math.max(3, Math.round(l * 22))}px` }}
-                    />
-                  ))}
-                </>
-              )}
-            </div>
-          ) : (
-            <textarea
-              ref={(el) => {
-                inputRef.current = el;
-                taSwipeRef(el);
-              }}
-              value={input}
-              rows={1}
+              <LineIcon name="attach" size={16} />
+            </button>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
               onChange={(e) => {
-                // manual edit ends history browsing — this is the draft now
-                liveEdit(e.target.value);
-                try {
-                  if (slug) localStorage.setItem('oz-draft:' + slug, e.target.value);
-                } catch {
-                  /* private mode */
-                }
-                autogrow(e.target);
+                void addAttachments(e.target.files);
+                e.currentTarget.value = '';
               }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey && !e.altKey) {
-                  e.preventDefault();
-                  sendText();
-                } else if (e.key === 'ArrowUp' && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
-                  // shell-style recall: caret on the first line → step back
-                  // through the user's own sent messages
-                  const el = e.currentTarget;
-                  const onFirstLine = !el.value.slice(0, el.selectionStart ?? 0).includes('\n');
-                  if (onFirstLine && sentHistory.length > 0) {
-                    e.preventDefault();
-                    recall('older');
-                  }
-                } else if (e.key === 'ArrowDown' && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
-                  // forward again; past the newest restores the parked draft
-                  const el = e.currentTarget;
-                  const onLastLine = !el.value.slice(el.selectionEnd ?? el.value.length).includes('\n');
-                  if (onLastLine && histPosRef.current !== null) {
-                    e.preventDefault();
-                    recall('newer');
-                  }
-                }
-              }}
-              placeholder="message…"
-              className="min-w-0 flex-1 resize-none rounded border border-[var(--oz-border)] bg-[var(--oz-surface)] px-3 py-2 text-sm leading-snug outline-none placeholder:text-[var(--oz-dim)]"
-              style={{ maxHeight: 96 }}
             />
-          )}
-          {/* discord-style rightmost button: mic (hold to talk) when empty,
-            send as soon as there's something to send */}
-          {input.trim() || attachments.length > 0 ? (
-            <button
-              onClick={sendText}
-              aria-label="send"
-              className="rounded border border-[var(--oz-success)]/60 px-3 py-2 text-sm text-[var(--oz-success)]"
-            >
-              <PixelIcon name="send" size={16} />
-            </button>
-          ) : (
-            <button
-              {...micHoldHandlers}
-              data-testid="composer-mic"
-              aria-label="push to talk"
-              className={`rounded border px-3 py-2 text-sm select-none ${
-                holding
-                  ? 'oz-ptt-hold border-[var(--oz-success)]'
-                  : 'border-[var(--oz-border)] text-[var(--oz-dim)]'
-              } ${voiceState === 'connecting' ? 'opacity-50' : ''}`}
-              style={{ touchAction: 'none' }}
-            >
-              {/* the mic button itself never changes — the recording pill is
-                what turns red when the delete zone is armed. A quick TAP is
-                the hands-free toggle (req 09-30), a hold talks. */}
-              <PixelIcon name="mic" size={16} />
-            </button>
-          )}
+            {holding ? (
+              <div
+                aria-label={voiceState === 'ready' ? 'listening' : 'connecting'}
+                role="status"
+                className={`oz-pill ${
+                  pttCancelArm ? 'drop' : voiceState === 'ready' ? '' : 'wait'
+                }`}
+              >
+                {voiceState !== 'ready' ? (
+                  // room still dialing in (first press pays the connect cost)
+                  // — breathe until the equalizer can take over
+                  <span className="oz-breathe">connecting…</span>
+                ) : (
+                  <>
+                    {pttCancelArm ? (
+                      <span className="tracking-[0.12em]">release to delete</span>
+                    ) : (
+                      <span aria-label="hold duration" className="tabular-nums">
+                        {Math.floor(pttSecs / 60)}:{String(pttSecs % 60).padStart(2, '0')}
+                      </span>
+                    )}
+                    <span className="oz-bars">
+                      {pttLevels.map((l, i) => (
+                        <i key={i} style={{ height: `${Math.max(3, Math.round(l * 22))}px` }} />
+                      ))}
+                    </span>
+                  </>
+                )}
+              </div>
+            ) : (
+              <textarea
+                ref={(el) => {
+                  inputRef.current = el;
+                  taSwipeRef(el);
+                }}
+                value={input}
+                rows={1}
+                onChange={(e) => {
+                  // manual edit ends history browsing — this is the draft now
+                  liveEdit(e.target.value);
+                  try {
+                    if (slug) localStorage.setItem('oz-draft:' + slug, e.target.value);
+                  } catch {
+                    /* private mode */
+                  }
+                  autogrow(e.target);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey && !e.altKey) {
+                    e.preventDefault();
+                    sendText();
+                  } else if (e.key === 'ArrowUp' && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
+                    // shell-style recall: caret on the first line → step back
+                    // through the user's own sent messages
+                    const el = e.currentTarget;
+                    const onFirstLine = !el.value.slice(0, el.selectionStart ?? 0).includes('\n');
+                    if (onFirstLine && sentHistory.length > 0) {
+                      e.preventDefault();
+                      recall('older');
+                    }
+                  } else if (e.key === 'ArrowDown' && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
+                    // forward again; past the newest restores the parked draft
+                    const el = e.currentTarget;
+                    const onLastLine = !el.value.slice(el.selectionEnd ?? el.value.length).includes('\n');
+                    if (onLastLine && histPosRef.current !== null) {
+                      e.preventDefault();
+                      recall('newer');
+                    }
+                  }
+                }}
+                placeholder="message…"
+                aria-label="message"
+                className="oz-ta"
+                style={{ maxHeight: 96 }}
+              />
+            )}
+            {/* discord-style rightmost key: mic (hold to talk) when empty,
+                send as soon as there's something to send */}
+            {input.trim() || attachments.length > 0 ? (
+              <button onClick={sendText} aria-label="send" className="oz-k ok">
+                <LineIcon name="send" size={16} />
+              </button>
+            ) : (
+              <button
+                {...micHoldHandlers}
+                data-testid="composer-mic"
+                aria-label="push to talk"
+                className={`oz-k mic ${holding ? `heard ${pttCancelArm ? 'drop' : ''}` : ''} ${
+                  voiceState === 'connecting' ? 'opacity-50' : ''
+                }`}
+              >
+                {/* a quick TAP is the hands-free toggle (req 09-30), a hold
+                    talks — the held mic glows amber: you are heard */}
+                <LineIcon name="mic" size={16} />
+              </button>
+            )}
           </div>
         </>
       )}
 
-      {mode === 'free' && (
-        <div className="flex items-center justify-center gap-3 py-3 text-xs">
-          <span
-            role="status"
-            data-testid="free-phase"
-            data-cycle={freeCycle}
-            className={`${
-              freeCycle === 'processing' ? 'animate-pulse text-[var(--oz-active)]' : 'text-[var(--oz-success)]'
-            }`}
-          >
-            {voiceState !== 'ready'
-              ? '● hands-free — connecting…'
-              : freeCycle === 'processing'
-                ? speech.phase === 'idle'
-                  ? '● working on it — mic paused…'
-                  : '● speaking — mic returns when it ends'
-                : '● hands-free — say “over” or tap the bars to send'}
-          </span>
-        </div>
-      )}
-
-      {/* the mid-right floating mic-switch is GONE (req 09-30): the composer
-          mic is the one voice control — tap toggles hands-free, hold talks. */}
+      {/* the exact-words line — glyph + sentence for every voice state. The
+          hands-free cycle is exposed for tests/diag as free-phase */}
+      <p
+        role="status"
+        className="oz-phase"
+        data-s={tone}
+        {...(mode === 'free' ? { 'data-testid': 'free-phase', 'data-cycle': freeCycle } : {})}
+      >
+        <span className="g" aria-hidden="true">
+          {GLYPH[tone]}
+        </span>
+        <span>{words}</span>
+      </p>
     </main>
   );
 }

@@ -42,7 +42,7 @@ test('queue: mid-run send queues, stop advances to it', async ({ page }) => {
       );
     });
   await expect
-    .poll(async () => (await lastRole()) === '(assistant)', { timeout: 90_000 })
+    .poll(async () => (await lastRole()) === '(agent)', { timeout: 90_000 })
     .toBe(true);
   await expect(page.getByText(/working… \d+s/)).toHaveCount(0);
 });

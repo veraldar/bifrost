@@ -130,70 +130,18 @@
    generated from veraldar-theme (W3C DTCG source)
    ============================================ */
 @import './tokens.css';
+@import './brand.css';
 
 .oz {
   background: var(--oz-bg);
   color: var(--oz-text);
-  font-family: var(--font-commit-mono), Consolas, "Courier New", monospace;
+  font-family: var(--font-commit-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
   min-height: 100dvh;
 }
 .oz * { color-scheme: dark; }
 [data-theme='drift'] .oz * { color-scheme: light; }
-[data-theme='terminus'] .oz-ygg-bg { background-image: url('/backdrops/terminus.svg'); }
-[data-theme='drift'] .oz-ygg-bg { background-image: url('/backdrops/drift.svg'); }
 .oz ::-webkit-scrollbar { width: 4px; }
-.oz ::-webkit-scrollbar-thumb { background: #333; }
-.oz-row:hover { background: var(--oz-surface-hover); }
-.oz-busy { animation: oz-pulse 1.2s ease-in-out infinite; }
-.oz-ptt-hold { animation: oz-pulse 0.9s ease-in-out infinite; background: var(--oz-success) !important; color: #000 !important; }
-@keyframes oz-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
-
-/* mid-right hands-free mic switch — live state: amber glow + expanding ring
-   (req 09-30: "amber means you are heard, dim means you are not") */
-.oz-free-live { box-shadow: 0 0 18px color-mix(in srgb, var(--oz-active) 35%, transparent); }
-.oz-free-live::before { content: ""; position: absolute; inset: -7px; border-radius: 9999px;
-  border: 2px solid color-mix(in srgb, var(--oz-active) 40%, transparent);
-  animation: oz-free-ring 1.6s ease-out infinite; }
-@keyframes oz-free-ring { 0% { transform: scale(.92); opacity: .8; } 100% { transform: scale(1.28); opacity: 0; } }
-/* undo-toast countdown bar — mirrors the 3s delete window in app/page.tsx */
-.oz-toast-bar { transform-origin: left; animation: oz-shrink 3s linear forwards; }
-@keyframes oz-shrink { from { transform: scaleX(1); } to { transform: scaleX(0); } }
-
-/* tts deck (session page speak dock) */
-.oz-eq { display: flex; align-items: flex-end; gap: 2px; height: 14px; }
-.oz-eq i { width: 3px; background: var(--oz-success); border-radius: 1px; animation: oz-eq .7s ease-in-out infinite; }
-.oz-eq i:nth-child(1) { height: 6px; }
-.oz-eq i:nth-child(2) { height: 12px; animation-delay: .15s; }
-.oz-eq i:nth-child(3) { height: 8px; animation-delay: .3s; }
-.oz-eq i:nth-child(4) { height: 13px; animation-delay: .45s; }
-.oz-eq-paused i { animation-play-state: paused; opacity: .4; }
-@keyframes oz-eq { 0%,100% { transform: scaleY(.4); } 50% { transform: scaleY(1); } }
-.oz-tts-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--oz-success); animation: oz-tts-dot 1.1s ease-in-out infinite; }
-@keyframes oz-tts-dot { 0%,100% { opacity: .15; transform: scale(.7); } 50% { opacity: 1; transform: scale(1); } }
-.oz-seek { position: relative; height: 18px; display: flex; align-items: center; margin-top: 8px; touch-action: none; }
-.oz-seek-track { position: relative; flex: 1; height: 4px; background: rgba(74,222,128,.18); border-radius: 3px; }
-.oz-seek-fill { position: absolute; top: 0; bottom: 0; left: 0; background: var(--oz-success); border-radius: 3px; }
-.oz-seek-stripes { position: absolute; top: 0; bottom: 0; right: 0; border-radius: 3px;
-  background: repeating-linear-gradient(45deg, rgba(74,222,128,.25) 0 4px, transparent 4px 8px); }
-.oz-seek-thumb { position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%;
-  background: var(--oz-success); transform: translate(-50%,-50%);
-  box-shadow: 0 0 0 3px rgba(74,222,128,.2); pointer-events: none; }
-
-/* Yggdrasil circuit-tree backdrop (reused from the viz app) — fixed, subtle,
-   sits under page content; pages opt in with <div class="oz-ygg-bg" /> */
-.oz-ygg-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image: url('/yggdrasil_final.svg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-/* inline code chips render light (bg-muted) — force dark text for contrast */
-.oz [data-streamdown='inline-code'] { color: #111 !important; }
+.oz ::-webkit-scrollbar-thumb { background: var(--oz-border); }
 
 /* wide content scrolls inside its block — never widens the chat (horizontal bug) */
 .oz pre { overflow-x: auto; max-width: 100%; }

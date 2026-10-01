@@ -302,25 +302,45 @@ export default function ArtifactsPage() {
           /* thumbnail cards — the design mockups speak for themselves */
           <div className="grid grid-cols-2 gap-2" data-testid="artifact-grid">
             {viewRows.map(({ f, isUnread }) => (
-              <button
-                key={f.name}
-                onClick={() => openArtifact(f)}
-                aria-label={f.name}
-                className={`oz-row overflow-hidden rounded border bg-[var(--oz-surface)] text-left ${
-                  isUnread ? 'border-[var(--oz-active)]/45' : 'border-[var(--oz-border)]'
-                }`}
-              >
-                <HtmlThumb name={f.name} />
-                <div className="flex items-center gap-1.5 px-2 py-1.5">
-                  <span
-                    className="h-[7px] w-[7px] shrink-0 rounded-full"
-                    style={{ background: isUnread ? 'var(--oz-active)' : 'transparent' }}
-                  />
-                  <span className={`truncate text-xs ${isUnread ? 'font-bold' : 'text-[var(--oz-text)]/80'}`}>
-                    {f.name}
-                  </span>
-                </div>
-              </button>
+              <div key={f.name} className="relative">
+                <button
+                  onClick={() => openArtifact(f)}
+                  aria-label={f.name}
+                  className={`oz-row w-full overflow-hidden rounded border bg-[var(--oz-surface)] text-left ${
+                    isUnread ? 'border-[var(--oz-active)]/45' : 'border-[var(--oz-border)]'
+                  }`}
+                >
+                  <HtmlThumb name={f.name} />
+                  <div className="flex items-center gap-1.5 px-2 py-1.5">
+                    <span
+                      className="h-[7px] w-[7px] shrink-0 rounded-full"
+                      style={{ background: isUnread ? 'var(--oz-active)' : 'transparent' }}
+                    />
+                    <span
+                      className={`truncate text-xs ${isUnread ? 'font-bold' : 'text-[var(--oz-text)]/80'}`}
+                    >
+                      {f.name}
+                    </span>
+                  </div>
+                </button>
+                {/* both entries possible: tap = here, corner = new tab. Sibling
+                    overlay — nested buttons are invalid and break the tap */}
+                <button
+                  onClick={() => {
+                    markSeen(f.name, f.mtime);
+                    touch();
+                    window.open(
+                      `/artifacts/view/${encodeURIComponent(f.name)}`,
+                      '_blank',
+                      'noopener'
+                    );
+                  }}
+                  aria-label={`open ${f.name} in new tab`}
+                  className="absolute right-1.5 top-1.5 z-10 rounded border border-[var(--oz-border)] bg-[var(--oz-surface)]/90 p-1 text-[var(--oz-dim)]"
+                >
+                  <PixelIcon name="external" size={12} />
+                </button>
+              </div>
             ))}
           </div>
         ) : (

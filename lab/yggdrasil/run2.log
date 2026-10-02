@@ -1,0 +1,27 @@
+Slice 2 is working: I ran the extended `./verify.sh` three times in a row and it printed **PASS** every time. All the slice-1 checks are still in it and still pass.
+
+**Abort:** `POST /session/:id/abort`, the same route opencode uses.
+- It returns `true` if a reply was being generated, `false` if the session was idle, and 404 if the session id is unknown.
+- In the test, the reply stream closed about 0.01s after the abort call, and the mock upstream logged that its connection was dropped, so the upstream request is really cancelled.
+- The text generated so far is saved as the assistant message, flagged `MessageAbortedError` the way opencode flags it. The test checks that the saved text exactly matches the pieces the client received, and that the session still works for the next message.
+
+**`GET /event`:** one stream that carries events for all sessions.
+- Each event uses opencode's `{type, properties}` format, and the first one is `server.connected`.
+- Event types are `session.created`, `message.updated`, `message.part.delta`, `message.completed`, `message.aborted` and `error`.
+- The test opens a separate listener before anything happens and checks that it receives all of them, with the right session ids.
+
+**Persistence:** each session is saved as its own JSON file under `YGG_DATA_DIR/session/` (default `./data`, which is now in `.gitignore`).
+- Files are rewritten safely on every change and loaded when the server starts.
+- The test restarts the server and checks that the history is byte-for-byte the same and that the next reply sees all 9 earlier messages.
+- I also added `GET /session` to list sessions.
+
+**Mock:** a message starting with `slow` now gets a long reply sent in small pieces 0.2s apart (about 10s total), which gives the abort test something to interrupt.
+
+Limitations, also written up in the slice-2 section of `ASSESSMENT.md`:
+- The event names and payloads are close to opencode's but not identical. For example, opencode uses `message.part.updated` and `session.idle`/`session.error`. Bifrost hasn't been run against this server yet.
+- If the client that posted a message disconnects, the reply keeps generating. Only an explicit abort stops it.
+- Every change rewrites the whole session file, and writes aren't forced to disk, so a crash right after a write could lose the last change.
+- Two messages sent to the same session at once aren't queued, and an abort only stops the newer one.
+- I only tested against the mock upstream, not a real provider.
+
+I also had to switch on the `sync` feature of `tokio-stream` in `Cargo.toml`. Nothing is committed yet; say if you want it committed. The empty `run2.log` file is untracked, and I left it alone.

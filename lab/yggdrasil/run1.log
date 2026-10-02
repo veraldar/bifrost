@@ -1,0 +1,21 @@
+Slice 1 is done and passing. The `yggdrasil` binary serves all three endpoints, and I ran the curls against a mock upstream I wrote.
+
+**What the test showed:** the script creates a session and sends two messages. Each message got back a stream of reply chunks followed by a final "done" event carrying the mock's full reply. A later GET returned all four messages in order (user, assistant, user, assistant), with the right text. An unknown session id gets a 404. The script printed PASS.
+
+**How it works:**
+- **`POST /session`** returns JSON with the session `id`.
+- **`GET /session/:id/message`** returns the session's messages, shaped like opencode's (each message has an `info` block and text `parts`).
+- **`POST /session/:id/message`** takes `{"parts":[{"type":"text","text":"..."}]}` and stores the user message. It then sends the whole conversation history upstream and streams the reply back as SSE:
+  - one `message.part.delta` event per chunk of text
+  - a `message.completed` event with the stored assistant message at the end
+  - an `error` event if the upstream call fails
+- **Environment variables:** `YGG_UPSTREAM_BASE_URL` (required, e.g. `https://api.openai.com/v1`), `YGG_UPSTREAM_API_KEY` (optional), `YGG_UPSTREAM_MODEL` (defaults to `gpt-4o-mini`), `YGG_LISTEN` (defaults to `127.0.0.1:4096`).
+
+**Files:** the server is `src/main.rs`, the mock upstream is `mock/mock_upstream.py`, and `verify.sh` reruns the whole test. The test uses port 14096 so it won't collide with opencode running on 4096.
+
+**Not covered yet:**
+- I haven't pointed Bifrost at this server. The event names and message format look like opencode's but aren't an exact match, so the client may need adjusting.
+- I only tested against the mock, never a real provider over HTTPS.
+- If the client disconnects partway through a reply, the upstream call still runs to the end and the reply is still saved.
+
+These are written up in `ASSESSMENT.md`. Nothing is committed yet. `launch.ts` and `run1.log` were already in the directory and I didn't touch them.

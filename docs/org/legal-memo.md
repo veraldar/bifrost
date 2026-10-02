@@ -12,7 +12,7 @@ without the mark were verified today against ige.ch (trademark fees) or are sett
 |---|---|
 | Token? | **No.** A buyable token is either an asset token (securities law, CHF 50k+ compliance) or a payment token (AMLA/KYC duty). Kills the brand. Sponsors/OpenCollective deliver the same "be part of it" with zero regulatory surface. Revisit only post-traction under the conditions in §1.4. |
 | Swiss company? | **Not yet, Verein when triggered.** Legal minimum 2 members (we want 3), no capital, statutes can be free, register entry optional, total cost CHF 0–3k one-off + ~CHF 200–500/yr. Trigger: money getting real or a counterparty needing formality (§6). |
-| GDPR? | **Tiny today.** Static site, no tracking, self-hosted fonts: privacy notice + short server-log retention ≈ done. Newsletter adds consent (double opt-in) + unsubscribe. Prefer self-hosted (listmonk) so data never leaves the box. |
+| GDPR? | **Tiny — and a feature.** Compliance subject: RGPD (EU) + revFADP (CH). Site: privacy page + mentions légales (host **Infomaniak, Switzerland** = data residency in an adequate country). No cookies/no trackers → **no consent banner, by design**. PWA: self-hosted single-user = user is controller of their own data → veraldar out of scope. Push consent = the browser's own permission prompt. Launch checklist in §3.7. |
 | OpenAI/Meta-style liability? | **Doesn't attach.** They train models on scraped data; we train nothing, host nothing public, touch no one's content (tailnet-private, user's own key, user's own box). AGPL no-warranty + no-sale + private network = the liability firewall. Keep the architecture as the legal strategy. |
 | Patents? | **No.** Software-as-such is unpatentable in CH/EU practice, useless defensively at our scale, and trade secrets contradict a public AGPL repo. Copyright is automatic and already handled by AGPL + DCO. **Trademark is the only filing worth money:** CH word marks for Veraldar + Bifrost ≈ **CHF 700 total** (verified fee schedule). |
 
@@ -106,41 +106,118 @@ answer starts from conditions, not vibes.
 
 ---
 
-## 3. GDPR (+ CH-FADP) for veraldar.org and comms
+## 3. RGPD (+ CH-revFADP) — veraldar.org and the PWA, concretely
 
-### 3.1 Applicability
-GDPR applies extraterritorially to a site "offering goods/services" to EU data subjects
-(Art. 3(2)) — a free download offered to Europeans qualifies. The **revDSG/FADP** (since
-01.09.2023) applies in CH regardless. Net: comply once, both regimes satisfied; they are
-near-equivalent at our scale (privacy notice, purpose limitation, minimization, security).
+Terminology for all comms: **RGPD** (Règlement Général sur la Protection des Données) is the
+French/European name for GDPR; Switzerland's equivalent is the **revFADP** (in force 01.09.2023).
+The obligations are near-equivalent at our scale: one compliance pass satisfies both.
+Two distinct compliance subjects — do not conflate them:
+- **veraldar.org** = the public org website (this is where RGPD duties for *the org* live);
+- **the bifrost PWA** = served by each user's own box, never by veraldar.org → different regime (§3.3).
 
-### 3.2 Static site (current state) — obligation ≈ zero, do it anyway at launch
-Processing that exists: **server access logs** (IP addresses) — personal data.
-Checklist (≈ one markdown page + one nginx/CDN setting):
-1. **Privacy notice** (Art. 13/14): who is responsible (name + contact — this is one of the
-   first things the Verein's existence fixes), what is processed (logs: IP, UA, timestamp;
-   purpose: security/abuse), legal basis (legitimate interest), retention (**short — 7–14 days
-   is defensible for pure security logs**), rights (access/deletion → an email address), host.
-2. **Minimize logs**: no full-IP retention, no fingerprinting, no analytics — current design
-   already has none. Keep it that way; every widget added re-opens the file.
-3. **No third-party requests**: fonts (Commit Mono) already self-hosted/inlined — good; the
-   German Google-Fonts rulings (2022, LG München) make dynamic third-party fonts a real
-   fine-and-damages vector. Never add a hosted font/CDN/YouTube embed.
-4. **No cookies** → no consent banner, ever, as long as nothing sets one.
-5. **Hosting**: self-hosting on the box (data stays in CH, tailnet edge) is the cleanest; a US
-   static host (GitHub Pages/Cloudflare) works via the EU–US Data Privacy Framework
-   **[TO-VERIFY: host's current DPF status]** — document choice in the notice.
-6. Records of processing (Art. 30): two lines. DPO: not required. DPIA: not required.
+### 3.1 Privacy policy + mentions légales (veraldar.org)
+One page can carry both (linked in the footer): RGPD Art. 13 information **and** the legal notice.
 
-### 3.3 Newsletter / comms
-- Legal basis: **consent**, evidenced by **double opt-in** (store: address, opt-in timestamp,
-  opt-in IP, wording version — that record is your entire compliance proof).
-- Every mail: real sender identity + one-click unsubscribe; honor it manually if needed.
-- **Prefer self-hosted listmonk on the box** (fits brand, zero processors, zero transfers);
-  a SaaS list provider needs a DPA (Art. 28) + transfer check — doable, just more paper.
-- The **first newsletter is a trigger** (§6 #3): notice + opt-in flow must exist before send #1.
-- Onward comms (support chat, community): the site notice covers collection; no monitoring of
-  user content, ever (also §4).
+**Mentions légales** (FR law habit; CH has the same duty as *Impressumspflicht*, UWG Art. 3 —
+every CH website offering services must name the operator):
+- **Editor/publisher (controller):** Veraldar — legal form per §2 (until the Verein exists: the
+  individual founder, name + address; after: "Veraldar, Verein nach Schweizer Recht, address").
+- **Contact:** an email that a human reads (e.g., hello@veraldar.org).
+- **Publication director / responsible:** same as editor (one-person show — say so).
+- **Host:** **Infomaniak (Switzerland)** — Infomaniak SA, Geneva **[TO-VERIFY: exact registered
+  address from the contract, e.g. Rue Eugène-Marziano 25, 1227 Les Acacias]**. Say it plainly:
+  host and datacenter location Switzerland.
+- **Identification:** no VAT number yet (donations-only, no commercial activity); add when one exists.
+
+**Data-residency angle (say it out loud — it is an asset):** Infomaniak hosts in **Swiss
+datacenters**; Switzerland is an **adequate** third country under GDPR (settled EU decision,
+reaffirmed after the revFADP). Result: no transfer saga, no standard contractual clauses needed
+— "your data stays in Switzerland" is both true and simple. Infomaniak itself markets
+RGPD-compliance/no-data-resale **[TO-VERIFY: confirm in the hosting contract — no-logs/no-resale
+clauses, and that only CH datacenters are used for our plan]**.
+
+**Privacy page content (RGPD Art. 13 checklist):** controller identity (→ mentions légales),
+data processed (§3.2), purposes (site security), legal basis (legitimate interest),
+retention (≤14 days for logs), recipients (none, beyond the host), transfers (none — CH hosting),
+rights (access/rectification/erasure → the contact email), right to lodge a complaint (CH FDPIC;
+EU users: their local authority), and that no cookies/tracking exist (→ §3.2).
+
+### 3.2 Cookies/consent — NO banner, stated as a design principle to defend
+The site ships **no cookies, no trackers, no analytics, no ads, no third-party requests**
+(fonts self-hosted/inlined, no CDN widgets). ePrivacy/RGPD consent duties only trigger when
+something is stored or read on the user's device beyond strictly necessary — we store nothing
+→ **no consent banner is required, and none will be shipped.**
+Defend this as a **design principle, not a gap**: every PR that adds a script, font, embed, or
+analytics tag to veraldar.org re-opens RGPD consent review and adds a banner — the rule is
+"if it needs a banner, it doesn't ship." Server logs (host-side, IP addresses) are RGPD
+personal data: keep retention short (≤14 days), purpose = security/abuse only, and cover them
+in the privacy page. That is the entire site compliance.
+
+### 3.3 PWA surface — what bifrost touches, and who is controller
+The PWA is **served by the user's own box** (their instance), not by veraldar.org. Data it touches:
+
+| Data item | Where it lives | Who is controller | RGPD reading |
+|---|---|---|---|
+| Push subscription endpoint (vendor URL + keys) | User's own instance DB | **The user** (their box) | Self-hosted single-user → household scope, out of the regulation's field |
+| Diagnostics: UA, screen, timezone, IP (`.diag` logs) | Local to the user's box | The user | Same — nothing is sent to veraldar (there is **no telemetry channel at all**) |
+| Service-worker / local caches | The user's device | The user | On-device data, not org processing |
+| Voice audio → STT/TTS | User's LAN (speech models on their machine) | The user | Never leaves the machine — no transfer exists to regulate |
+| LLM traffic | User's own key → provider of *their* choice | The user vis-à-vis that provider | veraldar is not a party; no processor role |
+
+**The compliance reading:** for a **self-hosted single-user instance**, the user is the
+controller of their own data (GDPR Art. 2(2)(c) household exemption, recital 18) — **veraldar
+the org processes nothing and is effectively out of scope**. This is only true because there
+is **no telemetry**: the moment any instance phones home (crash reports, analytics, version
+pings), veraldar becomes a controller for that data and the whole §3.7 checklist grows a
+PWA chapter. Keep "no telemetry" a **hard design principle** alongside "no cookies".
+**Public org site (veraldar.org)** never runs the PWA — its surface is §3.1–3.2 only.
+
+### 3.4 Push notifications — consent is already built in
+Web Push cannot exist without the **browser's own permission prompt** (explicit, informed,
+specific, refusable — exactly what RGPD Art. 4(11)/ePrivacy want from consent). Subscriptions
+are revocable in browser settings and by deleting the subscription on the instance. One policy
+line to state on the site and keep: **push is used only for the user's own instance events;
+veraldar sends no marketing push, ever.** Note for docs: iOS requires install-to-home-screen
+for PWA push (platform rule, not law).
+
+### 3.5 Accessibility — pointer (RGAA/WCAG)
+French-facing sites point at **RGAA** (Référentiel Général d'Amélioration de l'Accessibilité),
+which transposes **WCAG 2.1 level AA** (RGAA 4.1.x). Legal obligation in France binds public
+bodies and large companies (net revenue > €250M) with an accessibility declaration; for
+veraldar it is **voluntary good practice — adopt WCAG 2.1 AA as the target**, cheap for a
+text-first monospace site: semantic HTML, aria-labels, `prefers-reduced-motion` support,
+visible focus, AA contrast on primary text (current palette spot-checks pass on body/dim text
+**[spot-check again if colors change]**). Publish an accessibility statement when the site
+launches (one paragraph: target level, known gaps, contact).
+
+### 3.6 Marketing handoff — "RGPD-friendly by architecture" is a feature
+Hand this to comms/launch as a stated feature of veraldar.org + bifrost, not fine print:
+- **Positioning line:** *No accounts. No trackers. No cookies. Nothing to consent to — your
+  voice never leaves your machine.*
+- **Site facts list** (veraldar.org product card / footer, one line to add alongside the
+  existing "audio never leaves the LAN"): `privacy: no cookies, no analytics, no telemetry —
+  RGPD-friendly by architecture`.
+- **Why it lands in Europe:** post-Schrems banner fatigue is universal; "a tool with no consent
+  banner because there is nothing to consent to" is a differentiator AI products cannot copy
+  without re-architecting. Infomaniak CH hosting + tailnet-only PWA = the whole story is true,
+  verifiable from the public repo.
+- **Rule for comms:** never claim "anonymous" or "GDPR certified" (no such certification for
+  us); claim the architecture, which is checkable.
+
+### 3.7 Website-launch compliance checklist (veraldar.org)
+- [ ] **Privacy page** live (§3.1 content list; Art. 13 items; linked from footer).
+- [ ] **Mentions légales / Impressum** live: editor, contact, publication director, host
+      (Infomaniak SA, CH), registration identifiers when they exist.
+- [ ] **No-cookie declaration** (one line on the privacy page: "no cookies, no trackers, no
+      analytics — nothing is stored on your device") — and re-verify at launch: zero
+      `Set-Cookie`, zero third-party requests in the network tab.
+- [ ] **Host info** published (Infomaniak, Swiss datacenters) + contract checked for
+      no-resale/no-logs clauses **[TO-VERIFY]**.
+- [ ] Server-log retention configured ≤14 days.
+- [ ] Newsletter (if/when): double opt-in + proof record + unsubscribe + notice section —
+      before first send.
+- [ ] Accessibility statement (WCAG 2.1 AA target) published.
+- [ ] Contact address monitored (privacy/access/deletion requests are answered by a human).
 
 ---
 
@@ -212,7 +289,7 @@ The exposure those companies fight over comes from **training models on copyrigh
 |---|---|---|---|---|---|
 | 1 | First donation/sponsorship of any size | Turn on GitHub Sponsors / OpenCollective | 0 | ~5–10% of inflow **[TO-VERIFY]** | — (worth it from CHF 1) |
 | 2 | (a) inflow ≳ CHF 5–10k/yr, (b) an institution/counterparty needs a legal counterparty, (c) ≥2 external contributors demand governance voice, (d) trademark filings ready and need a holder | **Found Verein**: 3 members, statutes (liability + dissolution clauses), optional register entry | CHF 0–3k | CHF 200–500 + AGM | No real money, no counterparty, no contributors |
-| 3 | First newsletter send / first comms channel collecting emails | Privacy notice live + double opt-in + unsubscribe (listmonk on box) | ~0 | ~0 | Before that first send |
+| 3 | First newsletter send / first comms channel collecting emails | Website compliance checklist §3.7 (privacy page + mentions légales) + double opt-in + unsubscribe (listmonk on box) | ~0 | ~0 | Before that first send |
 | 4 | Anything becomes public & hosted by veraldar (public instance, hosted models, public content feeds) | Re-open §3/§4: platform duties, AI-Act re-check, maybe entity upgrade review | review | — | Anything in the current tailnet-only design |
 | 5 | A third party commercializes the names, or community confusion appears | CH trademark filings: Veraldar + Bifrost, 3 classes, e-file | CHF 700 | CHF 550/10y per mark | No users outside tailnet; do Swissreg search first |
 | 6 | Someone seriously proposes a token again | §1.4 gate: utility-only, live function, CH legal opinion, AMLA path — otherwise decline in writing | CHF 15–30k if pursued | KYC/SRO if payment-like | Any time before major traction; likely forever |
@@ -229,7 +306,10 @@ The exposure those companies fight over comes from **training models on copyrigh
 7. Swissreg/TMview conflict search: Veraldar, Bifrost.
 8. EUTM current fee schedule (EUIPO).
 9. URG TDM exception article number; UABI tax thresholds for ideal-purpose Vereine.
-10. Hosting provider DPF status (if not self-hosting the static site).
+10. Infomaniak contract: registered address for mentions légales, no-logs/no-resale clauses,
+    confirmation only-Swiss datacenters serve our plan.
+11. RGAA/WCAG target drift (WCAG 2.2 is out; RGAA updates follow it) — re-check before
+    publishing the accessibility statement.
 
 *Dormancy note: this memo stands until a §6 trigger fires or facts in §7 change materially.
 No action items are open today. — ORG session, 10-01.*

@@ -11,7 +11,7 @@ DRY=0; [[ "${1:-}" == "--dry-run" ]] && DRY=1
 if [[ ! -d deploy || ! -f pwa/package.json ]]; then
   DEST="${BIFROST_DIR:-$PWD/bifrost}"
   echo "[bootstrap] not inside the repo — cloning into $DEST"
-  git clone --depth 1 https://github.com/veraldar/yggdrasil-bifrost.git "$DEST" || exit 1
+  git clone --depth 1 --branch v0.6.0 https://github.com/veraldar/yggdrasil-bifrost.git "$DEST"  # pinned release tag (S2) || exit 1
   cd "$DEST" || exit 1
 fi
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"

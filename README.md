@@ -11,7 +11,7 @@ Open your coding agent (opencode, Claude Code, Codex, …) in an empty folder
 and give it this one line:
 
 ```
-https://raw.githubusercontent.com/veraldar/yggdrasil-bifrost/main/skills/install/SKILL.md set it up
+https://raw.githubusercontent.com/veraldar/yggdrasil-bifrost/v0.6.0/skills/install/SKILL.md set it up
 ```
 
 That's the whole instruction. The agent fetches the skill, clones this repo,

@@ -1,0 +1,6 @@
+[Unit]
+Description=bifrost box backup to Mac Studio (scripts/backup.sh)
+
+[Service]
+Type=oneshot
+ExecStart=%h/Work/bifrost/scripts/backup.sh

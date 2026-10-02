@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+# backup.sh — incremental backup of this box to the Mac Studio over SSH.
+#
+# Coverage (req 10-02): opencode sessions/store, ~/Work/bifrost (gitignored
+# secrets INCLUDED — .env files are the point), systemd user units, crontabs.
+# Excludes rebuildable bulk only: node_modules, .next, .venv, edge/models.
+#
+# Layout on the Mac: ~/Backups/omarchy/<YYYY-MM-DD>/{store,state,config,work,work-root,systemd-user,meta}
+# Incremental without --link-dest (Mac ships openrsync): each run hardlinks
+# the previous snapshot (cp -Rl) then rsync --delete into the copy — unchanged
+# files share inodes, changed files are replaced, deletions propagate.
+# Idempotent: same-day re-runs update today's snapshot in place.
+# Restore: see docs/backup.md.
+
+set -euo pipefail
+
+DEST_HOST="${BACKUP_DEST_HOST:-mac}"           # ssh alias, ~/.ssh/config
+DEST_DIR="${BACKUP_DEST_DIR:-Backups/omarchy}" # relative to remote $HOME
+KEEP="${BACKUP_KEEP:-14}"                      # snapshots to retain
+STAGE="$(mktemp -d /tmp/backup-stage.XXXXXX)"
+trap 'rm -rf "$STAGE"' EXIT
+
+log() { printf '[backup] %s\n' "$*"; }
+fail() { printf '[backup] FAIL: %s\n' "$*" >&2; exit 1; }
+
+# --- single-instance lock -----------------------------------------------------
+exec 9>/run/user/$(id -u)/backup-mac.lock
+flock -n 9 || fail "another backup is already running"
+
+SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=10)
+rsh() { ssh "${SSH_OPTS[@]}" "$DEST_HOST" "$@"; }
+
+rsh true || fail "cannot reach $DEST_HOST over ssh"
+RHOME="$(rsh 'echo $HOME')"
+RDEST="$RHOME/$DEST_DIR"
+STAMP="$(date +%F)"
+SNAP="$RDEST/$STAMP"
+RSYNC=(rsync -rlptD --delete --exclude=.DS_Store)
+
+# newest snapshot that is not today's → hardlink base
+PREV="$(rsh "ls -1d '$RDEST'/* 2>/dev/null | grep -v \"/$STAMP\$\" | sort | tail -1 || true")"
+
+log "destination: $DEST_HOST:$SNAP"
+if [ -n "$PREV" ]; then log "incremental base: ${PREV##*/}"; else log "incremental base: none (full copy)"; fi
+
+# --- consistent copy of the live opencode database ----------------------------
+OC_DB="$HOME/.local/share/opencode/opencode.db"
+if [ -f "$OC_DB" ]; then
+  sqlite3 "$OC_DB" ".backup '$STAGE/opencode.db'" || fail "sqlite .backup failed"
+  log "staged consistent opencode.db ($(du -h "$STAGE/opencode.db" | cut -f1))"
+fi
+
+# --- helpers -------------------------------------------------------------------
+seed_from_prev() { # seed_from_prev <subdir>  — hardlink-clone yesterday's copy
+  local sub="$1"
+  [ -n "$PREV" ] || return 0
+  rsh "cp -Rl '$PREV/$sub' '$SNAP/$sub' 2>/dev/null" || log "seed $sub: no base (full copy)"
+}
+
+push() { # push <local-src/> <remote-subdir> [excludes...]
+  local src="$1" sub="$2"; shift 2
+  local ex=() e
+  for e in "$@"; do ex+=(--exclude="$e"); done
+  seed_from_prev "$sub"
+  "${RSYNC[@]}" -e "ssh ${SSH_OPTS[*]}" "${ex[@]}" "$src" "$DEST_HOST:$SNAP/$sub/"
+}
+
+# --- the sets -------------------------------------------------------------------
+# 1) opencode sessions/store: data dir with the live db trio replaced by the
+#    staged consistent copy, plus state dir
+if [ -d "$HOME/.local/share/opencode" ]; then
+  push "$HOME/.local/share/opencode/" "store" \
+    opencode.db opencode.db-wal opencode.db-shm
+  [ -f "$STAGE/opencode.db" ] && \
+    "${RSYNC[@]}" -e "ssh ${SSH_OPTS[*]}" "$STAGE/opencode.db" "$DEST_HOST:$SNAP/store/opencode.db"
+fi
+[ -d "$HOME/.local/state/opencode" ] && push "$HOME/.local/state/opencode/" "state"
+
+# 2) opencode config (opencode.json, skills, tui.json; auth.json = tokens, wanted)
+[ -d "$HOME/.config/opencode" ] && push "$HOME/.config/opencode/" "config"
+
+# 3) ~/Work/bifrost — full tree INCLUDING gitignored secrets (.env*).
+#    Only rebuildable bulk is excluded.
+push "$HOME/Work/bifrost/" "work" \
+  node_modules/ .next/ .venv/ __pycache__/ edge/models/ \
+  test-results/ playwright-report/ .turbo/ *.pyc
+
+# 4) systemd user units (lk-*, opencode-serve, voxtype, timers)
+[ -d "$HOME/.config/systemd/user" ] && push "$HOME/.config/systemd/user/" "systemd-user" '.wants/'
+
+# 5) ~/Work top-level loose files (AGENTS.md stub is NOT in git — docs/local.md)
+mkdir -p "$STAGE/work-root"
+find "$HOME/Work" -maxdepth 1 -type f \( -name '*.md' -o -name 'opencode.json' \) \
+  -exec cp -p {} "$STAGE/work-root/" \; 2>/dev/null || true
+[ -n "$(ls -A "$STAGE/work-root" 2>/dev/null)" ] && push "$STAGE/work-root/" "work-root"
+
+# 6) meta: units/timers manifest + crontab dump
+{
+  echo "# backup manifest $(date -Is) host=$(hostname)"
+  echo
+  echo "## systemctl --user list-timers"
+  systemctl --user list-timers --all --no-pager || true
+  echo
+  echo "## systemctl --user list-units (service,timer)"
+  systemctl --user list-units --type=service,timer --all --no-pager || true
+  echo
+  echo "## crontab"
+  if command -v crontab >/dev/null 2>&1 && crontab -l > "$STAGE/crontab.$$" 2>/dev/null; then
+    cat "$STAGE/crontab.$$"; rm -f "$STAGE/crontab.$$"
+  else
+    echo "no user crontab (crontab not installed on this box; systemd timers are the scheduler)"
+  fi
+} > "$STAGE/manifest.txt"
+mkdir -p "$STAGE/meta" && mv "$STAGE/manifest.txt" "$STAGE/meta/"
+push "$STAGE/meta/" "meta"
+
+# --- prune old snapshots (BSD-safe) ---------------------------------------------
+rsh "cd '$RDEST' 2>/dev/null && ls -1d */ 2>/dev/null | sort | awk 'NR>$KEEP' | sed 's:/$::' | while read -r d; do rm -rf \"\$d\"; done" || true
+
+# --- verify + report --------------------------------------------------------------
+rsh "test -d '$SNAP/store' && test -f '$SNAP/work/bifrost/AGENTS.md' && test -f '$SNAP/meta/manifest.txt'" \
+  || fail "post-run verification failed on $DEST_HOST"
+log "verified snapshot contents:"
+rsh "ls -1 '$SNAP' | sed 's/^/  - /'"
+log "snapshot size: $(rsh "du -sh '$SNAP' | cut -f1")   all snapshots: $(rsh "du -sh '$RDEST' | cut -f1")"
+log "DONE"

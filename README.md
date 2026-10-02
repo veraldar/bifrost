@@ -11,7 +11,7 @@ Open your coding agent (opencode, Claude Code, Codex, …) in an empty folder
 and give it this one line:
 
 ```
-https://raw.githubusercontent.com/veraldar/yggdrasil-bifrost/v0.6.0/skills/install/SKILL.md set it up
+https://raw.githubusercontent.com/veraldar/bifrost/v0.6.0/skills/install/SKILL.md set it up
 ```
 
 That's the whole instruction. The agent fetches the skill, clones this repo,
@@ -110,7 +110,7 @@ Everything is systemd-managed on omarchy (`lk-pwa`, `lk-agent`,
 > Tailscale is the only network requirement (install it on box + phone).
 
 ```bash
-git clone https://github.com/veraldar/yggdrasil-bifrost.git && cd yggdrasil-bifrost
+git clone https://github.com/veraldar/bifrost.git && cd yggdrasil-bifrost
 scripts/selfhost-check.sh   # one-command check: can this box run the PWA? (clone→build→boot→probe)
 
 # 0. opencode itself (the coding agent this whole thing drives)

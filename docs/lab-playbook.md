@@ -40,3 +40,9 @@ yggdrasil = open-ended essence + spawned-and-abandoned + missing toolchain →
 - know each lab's current milestone + next prompt, always
 - a lab with no reply for one coordinator turn gets re-prompted; two turns
   gets its mission re-cut smaller
+
+## Fleet rule 10-01: BLOCKED = VISIBLE
+A session that cannot proceed because it needs the user (account access,
+physical presence, a decision) must post an artifact report or ask in-chat
+— and stay loud until answered. Going dormant silently is a failure mode
+(same class as stalling: absorbed blockers).

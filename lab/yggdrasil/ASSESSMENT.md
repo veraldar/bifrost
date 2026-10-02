@@ -165,3 +165,40 @@ Evidence: `/tmp/ygg-full2.log` (not kept). Rerun with `./run-e2e.sh --grep-inver
   is still consistent, because it is taken at start.
 - The mock's "reply:"/"sleep" heuristics are tuned to the suite's prompts. A real provider would
   only change timing.
+
+# Slice 4 — packaged for Omarchy/Arch
+
+**Status: green.** Everything is in `install/`: `install.sh`, `yggdrasil.service`, `yggdrasil.env.example`, `README.md`, `PKGBUILD`.
+
+## Verification (2026-10-02, this box)
+- **Clean-path install.** `BIN_DIR`, `XDG_CONFIG_HOME` and `XDG_DATA_HOME` pointed at `/tmp/ygg-clean`. Files landed exactly as the README table says: the env file is mode 600, the config and data dirs are 700, and the unit has absolute `ExecStart`/`EnvironmentFile`.
+  - I listed everything under `~/.config` and `~/.local` with an mtime newer than the pre-install timestamp. No yggdrasil files showed up in the real home.
+- **Release-tarball path.** `install/` plus a prebuilt binary, run under `env -i PATH=/usr/bin` with no cargo available: the install was green.
+- **Installed unit under the real `systemctl --user`.** The real user manager only reads `~/.config/systemd/user`, so I attached the throwaway unit with `systemctl --user --runtime link` (a tmpfs symlink in `/run/user/1000`, nothing in home) and ran `daemon-reload`.
+  - Mock upstream on :18181, service on :14100. The full round-trip worked: POST /session → POST message (SSE: 6 deltas + `message.completed`) → GET history `[user, assistant]`. The session JSON landed in the prefix data dir.
+  - `systemd-analyze --user verify` is clean for both the install.sh unit and the PKGBUILD unit.
+- **Idempotency.** I re-ran install.sh twice while the service was running:
+  - The env file and unit were byte-identical (sha1 check).
+  - The binary was reported `unchanged`.
+  - The service stayed active, with no "unit changed on disk" warning.
+  - The session survived a reinstall plus restart.
+- **Config error.** With an empty `YGG_UPSTREAM_BASE_URL` the service goes `failed` with status 2 and NRestarts=0, so there's no restart loop.
+- **PKGBUILD.** `makepkg -f` built cleanly in 67s. The package holds `/usr/bin/yggdrasil`, `/usr/lib/systemd/user/yggdrasil.service` (`%h` paths) and `/usr/share/doc/yggdrasil/{README.md,yggdrasil.env.example}`. I did not install it with pacman, because root on the real box is out of scope.
+- `./verify.sh` still passes after the one source change below.
+- **Teardown.** Unit unlinked, `daemon-reload`, prefix deleted.
+
+## Binary
+`[profile.release] strip = true` brings the release binary from 10.5 MB to **8.1 MB** (7.8 MiB), stripped. It links only glibc and libgcc_s (`ldd`), because TLS is rustls, so there's no OpenSSL dependency.
+
+## Judgment calls
+- **Default port 4100, not 4096.** On this very box opencode-serve holds 127.0.0.1:4096. Anyone trying yggdrasil will very likely still have opencode installed, and a silent collision means a bind failure or, worse, bifrost talking to the wrong server without anyone noticing. The cost is one explicit `OPENCODE_URL=` line, and the README and install.sh both print it. The binary's built-in default stays 4096 for drop-in use outside the unit.
+- **Build from source by default; no binary in git.** An 8 MB blob per commit bloats history, it's tied to one architecture, and it's unauditable. `Cargo.lock` plus `--locked` already makes the build reproducible. install.sh still prefers `./yggdrasil` next to the script, so a release tarball installs without cargo. `install/.gitignore` keeps that slot and makepkg output out of git.
+- **Moderate hardening.** The unit sets NoNewPrivileges, LockPersonality, RestrictRealtime, RestrictSUIDSGID, RestrictNamespaces, MemoryDenyWriteExecute, native syscall arch only, and UMask 0077. All of these work in an unprivileged user manager because they rely on seccomp or prctl, not mount namespaces.
+  - I left out ProtectSystem/ProtectHome/PrivateTmp. In user units they depend on unprivileged user namespaces, which some hardened kernels and distros disable, and then the unit fails to start, which breaks "it must just work".
+  - `systemd-analyze security` scores it 8.0 "EXPOSED". That's typical for user units; the real boundaries are the user account and the localhost bind.
+  - `RestartPreventExitStatus=2` turns a config error into a visible failed state instead of a restart loop.
+- **Env file is created once and never overwritten.** It holds the API key. The unit and binary are replaced only when their content changes (`cmp`), so a re-run is a no-op and doesn't need `daemon-reload`.
+- **install.sh does not start the service by default**, because it can't run without an upstream. `--now` enables and starts it, but only once a URL is set, and only when the unit dir is the one the user manager actually reads.
+- **PKGBUILD done** because it was cheap. It reuses the same unit template: `%h` specifiers for per-user config and data, and `Environment=YGG_DATA_DIR` as a default the env file can override. `!debug` keeps makepkg from emitting an empty -debug package, since the profile already strips the binary.
+- **One lab source change.** In `main.rs`, an *empty* `YGG_UPSTREAM_BASE_URL` now counts as unset. Before, the shipped template's `YGG_UPSTREAM_BASE_URL=` line started a healthy-looking server that failed on every message. Now it exits with status 2 and logs `YGG_UPSTREAM_BASE_URL is required`.
+- **README tells users to set `OPENCODE_URL` in both** `pwa/.env.local` and `agent/.env`. The voice agent reads it too (`agent/agent.py:30`), and missing that would leave voice on opencode.

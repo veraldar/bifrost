@@ -1,0 +1,40 @@
+# Arch-native alternative to install.sh. It builds from the crate one directory up (local source).
+#   cd install && makepkg -si
+# Then each user runs:
+#   install -Dm600 /usr/share/doc/yggdrasil/yggdrasil.env.example ~/.config/yggdrasil/yggdrasil.env
+#   $EDITOR ~/.config/yggdrasil/yggdrasil.env     # set YGG_UPSTREAM_BASE_URL
+#   systemctl --user enable --now yggdrasil
+pkgname=yggdrasil
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='opencode-compatible HTTP server for bifrost (OpenAI-compatible upstream)'
+arch=('x86_64' 'aarch64')
+license=('custom')
+depends=('gcc-libs' 'glibc')
+makedepends=('cargo')
+options=('!lto' '!debug')
+
+_crate() { cd "$startdir/.."; }
+
+prepare() {
+  _crate
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  _crate
+  export RUSTUP_TOOLCHAIN=stable CARGO_TARGET_DIR="$srcdir/target"
+  cargo build --frozen --release
+}
+
+package() {
+  install -Dm755 "$srcdir/target/release/yggdrasil" "$pkgdir/usr/bin/yggdrasil"
+  # Same unit as install.sh, but with system paths. Per-user config and data come from %h.
+  sed -e 's|@BIN@|/usr/bin/yggdrasil|' -e 's|@ENV@|%h/.config/yggdrasil/yggdrasil.env|' \
+      -e 's|^EnvironmentFile=|Environment=YGG_DATA_DIR=%h/.local/share/yggdrasil\nEnvironmentFile=|' \
+      "$startdir/yggdrasil.service" | install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/user/yggdrasil.service"
+  sed 's|^YGG_DATA_DIR=@DATA@|#YGG_DATA_DIR=   (default from the unit: ~/.local/share/yggdrasil)|' "$startdir/yggdrasil.env.example" \
+    | install -Dm644 /dev/stdin "$pkgdir/usr/share/doc/yggdrasil/yggdrasil.env.example"
+  install -Dm644 "$startdir/README.md" "$pkgdir/usr/share/doc/yggdrasil/README.md"
+}

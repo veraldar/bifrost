@@ -556,7 +556,7 @@ fn load_catalog(model: &str) -> Value {
 
 #[tokio::main]
 async fn main() {
-    let base_url = std::env::var("YGG_UPSTREAM_BASE_URL").unwrap_or_else(|_| {
+    let base_url = std::env::var("YGG_UPSTREAM_BASE_URL").ok().filter(|u| !u.is_empty()).unwrap_or_else(|| {
         eprintln!("YGG_UPSTREAM_BASE_URL is required");
         std::process::exit(2);
     });

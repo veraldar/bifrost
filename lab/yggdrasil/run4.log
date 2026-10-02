@@ -1,0 +1,32 @@
+Slice 4 is done and verified. Someone on a clean Omarchy/Arch machine can now install yggdrasil with one command: `install/install.sh`.
+
+**What's in `lab/yggdrasil/install/`**
+- **`install.sh`**: uses a prebuilt binary next to the script if one is there, otherwise runs `cargo build --release --locked`. It installs:
+  - the binary to `~/.local/bin`
+  - the systemd user unit to `~/.config/systemd/user`
+  - the env file to `~/.config/yggdrasil/yggdrasil.env` (created once and never overwritten, because it holds the API key)
+  - the session store to `~/.local/share/yggdrasil`
+
+  At the end it prints next steps: set the upstream, start the service, run a curl check, and set `OPENCODE_URL`. `--now` enables and starts the service, but only once an upstream URL is set.
+- **`yggdrasil.service`**: reads its settings from the env file, with moderate hardening that works in a normal user session.
+- **`yggdrasil.env.example`**: every YGG_* setting, explained inline.
+- **`README.md`**: written for a stranger: install, set the upstream, run, point bifrost at it, check with one curl, uninstall.
+- **`PKGBUILD`**: the optional Arch package; `makepkg` built it successfully.
+
+**Verification**
+- **Throwaway-folder install:** files landed exactly where the README says. Nothing appeared in the real home folder, and it also installed without cargo available.
+- **Running under the real `systemctl --user`:** a full curl round-trip (create session → send a message to a mock model → streamed reply → read history) worked. To let the real systemd see the test unit, I linked it with `systemctl --user --runtime link`, which only touches `/run/user`, not your home folder. It's removed now.
+- **Re-runs:** running the installer again while the service was up changed nothing and left it running. Saved sessions survived a reinstall plus restart.
+- **Bad config:** an empty upstream URL makes the service stop with an error instead of restarting over and over.
+- **Binary:** stripped, 10.5 MB → 8.1 MB. It needs only the standard system C libraries.
+- `./verify.sh` still passes.
+
+**Decisions** (the reasoning is in the slice-4 section of `ASSESSMENT.md`)
+- **Default port is 4100, not 4096.** opencode already holds 4096 on this machine, so using it would clash. The cost is one `OPENCODE_URL` line.
+- **That line goes in two places:** `pwa/.env.local` and `agent/.env`. The voice agent reads it too, so missing the second file would leave voice talking to opencode.
+- **No binary in git.** The installer builds from source by default.
+- **I made one change to yggdrasil's own code:** an empty upstream URL now counts as missing. Before, the template's blank line started a server that looked fine but failed on every message.
+
+Nothing is committed, following the project's "no commits unless asked" rule. The changes are `install/`, `Cargo.toml` (adds stripping), `src/main.rs` and `ASSESSMENT.md`. My entry in `docs/claims.md` is marked done.
+
+[yggdrasil install README](/api/artifact/yggdrasil-install-README.md)

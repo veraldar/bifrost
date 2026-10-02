@@ -1,0 +1,5 @@
+# makepkg output + optional prebuilt binary (release tarballs ship it; git does not)
+/src/
+/pkg/
+*.pkg.tar.*
+/yggdrasil

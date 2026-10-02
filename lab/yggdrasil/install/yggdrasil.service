@@ -1,0 +1,27 @@
+# yggdrasil — opencode-compatible HTTP server for bifrost (systemd user unit).
+# install.sh fills in @BIN@ and @ENV@ (absolute paths) and installs this to
+# ${XDG_CONFIG_HOME:-~/.config}/systemd/user/yggdrasil.service.
+[Unit]
+Description=yggdrasil — opencode-compatible server for bifrost
+
+[Service]
+Type=exec
+EnvironmentFile=@ENV@
+ExecStart=@BIN@
+Restart=on-failure
+RestartSec=2
+# A missing YGG_UPSTREAM_BASE_URL exits with code 2. Don't restart-loop on a config error.
+RestartPreventExitStatus=2
+
+# Hardening that works in a plain user manager: no namespaces or extra capabilities needed.
+NoNewPrivileges=yes
+LockPersonality=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+UMask=0077
+
+[Install]
+WantedBy=default.target

@@ -2,7 +2,7 @@
 /* retuned 2026-10-02 to "dialects" (themes-alt-2-opus, BRAND session, user pick):
    one state law, eight accents — own ground + per-world alive/heard dialects.
    upstream debt: fold into veraldar-theme sources on next regeneration. */
-[:root, [data-theme="aether"]] {
+:root, [data-theme="aether"] {
   --oz-bg: #07080e;
   --oz-surface: #0d0f18;
   --oz-surface-hover: #161a26;
@@ -14,7 +14,7 @@
   --oz-danger: #ec7c7c;
   --oz-info: #7ab4e6;
 }
-[[data-theme="terminus"]] {
+[data-theme="terminus"]] {
   --oz-bg: #1c1013;
   --oz-surface: #26161b;
   --oz-surface-hover: #321e24;
@@ -26,7 +26,7 @@
   --oz-danger: #e8667f;
   --oz-info: #a9a6e0;
 }
-[[data-theme="drift"]] {
+[data-theme="drift"]] {
   --oz-bg: #e6e0f6;
   --oz-surface: #f4f1fc;
   --oz-surface-hover: #ece6fa;
@@ -38,7 +38,7 @@
   --oz-danger: #a3354f;
   --oz-info: #3e56a0;
 }
-[[data-theme="divergence"]] {
+[data-theme="divergence"]] {
   --oz-bg: #071a33;
   --oz-surface: #0b2242;
   --oz-surface-hover: #112c52;
@@ -50,7 +50,7 @@
   --oz-danger: #f27f72;
   --oz-info: #62c2f2;
 }
-[[data-theme="transcendence"]] {
+[data-theme="transcendence"]] {
   --oz-bg: #170c2a;
   --oz-surface: #1f1236;
   --oz-surface-hover: #291844;
@@ -62,7 +62,7 @@
   --oz-danger: #f07499;
   --oz-info: #c4a0f4;
 }
-[[data-theme="control"]] {
+[data-theme="control"]] {
   --oz-bg: #1a1709;
   --oz-surface: #221e0f;
   --oz-surface-hover: #2c2715;
@@ -74,7 +74,7 @@
   --oz-danger: #e8705a;
   --oz-info: #a0b0c4;
 }
-[[data-theme="utopia"]] {
+[data-theme="utopia"]] {
   --oz-bg: #e9efd8;
   --oz-surface: #f6f8ee;
   --oz-surface-hover: #eef3e0;
@@ -86,7 +86,7 @@
   --oz-danger: #a63e2c;
   --oz-info: #2c6a86;
 }
-[[data-theme="stagnation"]] {
+[data-theme="stagnation"]] {
   --oz-bg: #1d2126;
   --oz-surface: #24292f;
   --oz-surface-hover: #2c3239;

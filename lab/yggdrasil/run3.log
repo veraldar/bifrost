@@ -1,0 +1,1 @@
+The last progress watcher has timed out. It was only showing test results as they came in, and the run it watched had already finished, so nothing changes. That run gave 36 passed and 1 failed (context, which needs a real model), and the results are in `lab/yggdrasil/ASSESSMENT.md`. No background jobs are left running.

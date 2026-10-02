@@ -2,6 +2,7 @@
 # Smoke test: mock upstream + yggdrasil + curls.
 # Slice 1: session create, message post (SSE), history, 404.
 # Slice 2: abort mid-stream, global GET /event, persistence across a restart.
+# Slice 3: opencode-shaped JSON post, title/parent, get/patch/delete, busy map, catalog.
 set -euo pipefail
 cd "$(dirname "$0")"
 source ~/.cargo/env
@@ -27,7 +28,7 @@ SID=$(curl -sf -X POST http://$YGG/session | python3 -c 'import sys,json;print(j
 echo "session: $SID"
 for msg in hello again; do
   echo "--- POST message: $msg"
-  OUT=$(curl -sfN -X POST http://$YGG/session/$SID/message -H 'content-type: application/json' \
+  OUT=$(curl -sfN -X POST http://$YGG/session/$SID/message -H 'content-type: application/json' -H 'accept: text/event-stream' \
     -d "{\"parts\":[{\"type\":\"text\",\"text\":\"$msg\"}]}")
   echo "$OUT"
   grep -q "MOCK-REPLY: you said '$msg'" <<<"$OUT" || { echo "FAIL: reply missing in SSE"; exit 1; }
@@ -48,7 +49,7 @@ echo "--- 404 check"
 
 echo "--- abort mid-stream"
 [ "$(curl -sf -X POST http://$YGG/session/$SID/abort)" = false ] || { echo "FAIL: idle abort should be false"; exit 1; }
-curl -sfN -X POST http://$YGG/session/$SID/message -H 'content-type: application/json' \
+curl -sfN -X POST http://$YGG/session/$SID/message -H 'content-type: application/json' -H 'accept: text/event-stream' \
   -d '{"parts":[{"type":"text","text":"slow please"}]}' >$TMP/slow.txt & SLOW=$!
 sleep 1.5   # mock emits a chunk every 0.2s; full reply takes ~10s
 T0=$(date +%s.%N)
@@ -77,7 +78,7 @@ assert "".join(deltas) == partial, ("".join(deltas), partial)
 print("partial kept:", repr(partial))
 PY
 # Session still usable after abort.
-OUT=$(curl -sfN -X POST http://$YGG/session/$SID/message -H 'content-type: application/json' \
+OUT=$(curl -sfN -X POST http://$YGG/session/$SID/message -H 'content-type: application/json' -H 'accept: text/event-stream' \
   -d '{"parts":[{"type":"text","text":"after"}]}')
 grep -q "MOCK-REPLY: you said 'after' (7 msgs)" <<<"$OUT" || { echo "FAIL: post-abort turn"; echo "$OUT"; exit 1; }
 
@@ -104,8 +105,40 @@ start_srv
 AFTER=$(curl -sf http://$YGG/session/$SID/message)
 [ "$BEFORE" = "$AFTER" ] || { echo "FAIL: history differs after restart"; echo "$AFTER"; exit 1; }
 curl -sf http://$YGG/session | grep -q "$SID" || { echo "FAIL: session missing from list"; exit 1; }
-OUT=$(curl -sfN -X POST http://$YGG/session/$SID/message -H 'content-type: application/json' \
+OUT=$(curl -sfN -X POST http://$YGG/session/$SID/message -H 'content-type: application/json' -H 'accept: text/event-stream' \
   -d '{"parts":[{"type":"text","text":"reborn"}]}')
 grep -q "MOCK-REPLY: you said 'reborn' (9 msgs)" <<<"$OUT" || { echo "FAIL: post-restart turn"; echo "$OUT"; exit 1; }
 echo "history ($(python3 -c 'import sys,json;print(len(json.loads(sys.argv[1])))' "$AFTER") msgs) survived restart"
+echo "--- slice 3: opencode surface"
+J=(-H 'content-type: application/json')
+S3=$(curl -sf -X POST http://$YGG/session "${J[@]}" -d '{"title":"s3-parent"}')
+P3=$(python3 -c 'import sys,json;d=json.loads(sys.argv[1]);assert d["title"]=="s3-parent",d;print(d["id"])' "$S3")
+C3=$(curl -sf -X POST http://$YGG/session "${J[@]}" -d "{\"title\":\"s3-child\",\"parentID\":\"$P3\"}")
+python3 -c 'import sys,json;d=json.loads(sys.argv[1]);assert d["parentID"]==sys.argv[2],d' "$C3" "$P3"
+# no Accept: event-stream → blocks, returns the completed assistant message as JSON
+REPLY=$(curl -sf -X POST http://$YGG/session/$P3/message "${J[@]}" -d '{"parts":[{"type":"text","text":"Reply with exactly: pong"}]}')
+python3 - "$REPLY" <<'PY2'
+import sys, json
+m = json.loads(sys.argv[1])
+assert m["info"]["role"] == "assistant" and m["info"]["time"]["completed"] > 0, m
+assert m["parts"][0]["text"] == "pong", m
+PY2
+# a live run shows in the busy map and as an un-completed assistant placeholder
+curl -sf -X POST http://$YGG/session/$P3/message "${J[@]}" -d '{"parts":[{"type":"text","text":"sleep 2 then reply: late"}]}' >$TMP/late.json & LATE=$!
+sleep 0.7
+curl -sf http://$YGG/session/status | grep -q "\"$P3\":{\"type\":\"busy\"}" || { echo "FAIL: busy map"; exit 1; }
+curl -sf http://$YGG/session/$P3/message | python3 -c 'import sys,json;m=json.load(sys.stdin)[-1]["info"];assert m["role"]=="assistant" and "completed" not in m["time"],m'
+wait $LATE; grep -q '"text":"late"' $TMP/late.json || { echo "FAIL: late reply"; cat $TMP/late.json; exit 1; }
+[ "$(curl -sf http://$YGG/session/status)" = "{}" ] || { echo "FAIL: busy map not cleared"; exit 1; }
+curl -sf -X PATCH http://$YGG/session/$P3 "${J[@]}" -d '{"title":"s3-renamed"}' | grep -q s3-renamed
+curl -sf http://$YGG/session/$P3 | grep -q s3-renamed || { echo "FAIL: rename"; exit 1; }
+curl -sf http://$YGG/config/providers | grep -q '"providers"' || { echo "FAIL: providers"; exit 1; }
+curl -sf http://$YGG/agent | grep -q '"build"' || { echo "FAIL: agents"; exit 1; }
+MID=$(curl -sf http://$YGG/config/providers | python3 -c 'import sys,json;p=json.load(sys.stdin)["providers"][0];print(p["id"]+" "+next(iter(p["models"])))')
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://$YGG/api/session/$P3/model "${J[@]}" -d "{\"model\":{\"providerID\":\"${MID% *}\",\"id\":\"${MID#* }\"}}")" = 204 ] || { echo "FAIL: model switch"; exit 1; }
+[ "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://$YGG/api/session/$P3/agent "${J[@]}" -d '{"agent":"plan"}')" = 204 ] || { echo "FAIL: agent switch"; exit 1; }
+curl -sf http://$YGG/session/$P3 | python3 -c 'import sys,json;d=json.load(sys.stdin);assert d["agent"]=="plan" and d["model"]["id"],d'
+[ "$(curl -sf -X DELETE http://$YGG/session/$P3)" = true ] || { echo "FAIL: delete"; exit 1; }
+[ "$(curl -s -o /dev/null -w '%{http_code}' http://$YGG/session/$P3)" = 404 ] || { echo "FAIL: deleted session still served"; exit 1; }
+echo "slice-3 surface ok"
 echo PASS

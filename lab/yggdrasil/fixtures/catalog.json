@@ -1,0 +1,31 @@
+{
+  "_comment": "Lab model/agent catalog for the bifrost e2e referee. Shape = opencode /config/providers + /agent. Model ids mirror the ones bifrost's settings spec exercises (think levels ride the <model>-think-<level> naming convention); utility agents + subagents are listed so the PWA's own filters are exercised. Every model routes to the single YGG_UPSTREAM_MODEL.",
+  "providers": [
+    {
+      "id": "zai-coding-plan",
+      "name": "Z.AI Coding Plan",
+      "models": {
+        "glm-5.2": { "id": "glm-5.2", "name": "GLM-5.2", "providerID": "zai-coding-plan" },
+        "glm-5.3-flash": { "id": "glm-5.3-flash", "name": "GLM-5.3-Flash", "providerID": "zai-coding-plan" },
+        "glm-5.3-flash-think-low": { "id": "glm-5.3-flash-think-low", "name": "GLM-5.3-Flash think low", "providerID": "zai-coding-plan" },
+        "glm-5.3-flash-think-high": { "id": "glm-5.3-flash-think-high", "name": "GLM-5.3-Flash think high", "providerID": "zai-coding-plan" },
+        "glm-5.3-flash-think-max": { "id": "glm-5.3-flash-think-max", "name": "GLM-5.3-Flash think max", "providerID": "zai-coding-plan" }
+      }
+    },
+    {
+      "id": "yggdrasil",
+      "name": "yggdrasil",
+      "models": { "mock": { "id": "mock", "name": "mock echo", "providerID": "yggdrasil" } }
+    }
+  ],
+  "default": { "zai-coding-plan": "glm-5.3-flash" },
+  "agents": [
+    { "name": "build", "mode": "primary", "description": "default agent" },
+    { "name": "plan", "mode": "primary", "description": "read-only planning" },
+    { "name": "general", "mode": "subagent", "description": "subagent" },
+    { "name": "explore", "mode": "subagent", "description": "subagent" },
+    { "name": "title", "mode": "primary", "description": "utility" },
+    { "name": "summary", "mode": "primary", "description": "utility" },
+    { "name": "compaction", "mode": "primary", "description": "utility" }
+  ]
+}

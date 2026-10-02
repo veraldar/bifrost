@@ -46,3 +46,17 @@ A session that cannot proceed because it needs the user (account access,
 physical presence, a decision) must post an artifact report or ask in-chat
 — and stay loud until answered. Going dormant silently is a failure mode
 (same class as stalling: absorbed blockers).
+
+## Creative (AGI-design) labs — the brief that worked (10-02, veraldar outcomes page)
+
+Design-by-checklist kills AGI craft. The winning shape, after an A/B:
+
+- FEED: brand palettes only (theme JSONs) + the live data contract (fetch shape,
+  provenance, fallback rule) + the story beats (chapters, their order, one line each).
+- DO NOT FEED: existing HTML, the old asset to "reuse", layout/animation/typography
+  rules, touch-target/tech checklists. Compliance eats taste.
+- Say "everything else is 100% yours — astonish" and mean it.
+- Two passes still fine: design free, then a data-spine pass — but never let the
+  data pass redesign.
+- Identical minimal briefs to 3 parallel labs → 3 genuinely different designs.
+  Prescriptive briefs to 3 labs → 3 near-identical ones.

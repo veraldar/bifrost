@@ -35,3 +35,66 @@
   --oz-danger: #c84058;
   --oz-info: #a82840;
 }
+/* five realm worlds added 2026-10-02 from docs/brand/realms.md (BRAND session).
+   upstream debt: mirror into the veraldar-theme/theme.json sources on next
+   regeneration — values below are the canonical proposal. */
+[data-theme="divergence"] {
+  --oz-bg: #060b14;
+  --oz-surface: #020a12;
+  --oz-surface-hover: #0c1622;
+  --oz-border: rgba(125,211,252,0.16);
+  --oz-text: #e6f4ff;
+  --oz-dim: #6b83a0;
+  --oz-success: #4ade80;
+  --oz-active: #fbbf24;
+  --oz-danger: #f87171;
+  --oz-info: #38bdf8;
+}
+[data-theme="transcendence"] {
+  --oz-bg: #0c0714;
+  --oz-surface: #120a1c;
+  --oz-surface-hover: #1a1026;
+  --oz-border: rgba(240,171,252,0.18);
+  --oz-text: #f6ecfd;
+  --oz-dim: #7d6b8f;
+  --oz-success: #5fd9a6;
+  --oz-active: #f2b858;
+  --oz-danger: #ef6482;
+  --oz-info: #c084fc;
+}
+[data-theme="control"] {
+  --oz-bg: #0f0d08;
+  --oz-surface: #15120a;
+  --oz-surface-hover: #1d1810;
+  --oz-border: rgba(251,191,36,0.20);
+  --oz-text: #f2ead6;
+  --oz-dim: #7d7460;
+  --oz-success: #7ad8a0;
+  --oz-active: #fbbf24;
+  --oz-danger: #e04848;
+  --oz-info: #9aa7b8;
+}
+[data-theme="utopia"] {
+  --oz-bg: #f0f7ee;
+  --oz-surface: #ffffff;
+  --oz-surface-hover: #e9f3e6;
+  --oz-border: rgba(20,48,28,0.18);
+  --oz-text: #12291a;
+  --oz-dim: #5d7264;
+  --oz-success: #2e7a4f;
+  --oz-active: #b9862e;
+  --oz-danger: #a82840;
+  --oz-info: #4a8a7a;
+}
+[data-theme="stagnation"] {
+  --oz-bg: #0d0f12;
+  --oz-surface: #121418;
+  --oz-surface-hover: #191c21;
+  --oz-border: rgba(148,163,184,0.16);
+  --oz-text: #d5dbe4;
+  --oz-dim: #64707e;
+  --oz-success: #6fa08a;
+  --oz-active: #d9a441;
+  --oz-danger: #c05568;
+  --oz-info: #8296ad;
+}

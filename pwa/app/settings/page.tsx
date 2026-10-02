@@ -18,6 +18,11 @@ const WORLDS = [
   { id: 'aether', desc: 'deep-space terminal · plain hairlines' },
   { id: 'terminus', desc: 'ash & ember · corner ticks' },
   { id: 'drift', desc: 'moonlit light · dotted rules' },
+  { id: 'divergence', desc: 'the fork · dashed rules' },
+  { id: 'transcendence', desc: 'the dissolve · double rules' },
+  { id: 'control', desc: 'the notary · corner ticks' },
+  { id: 'utopia', desc: 'the orchard · daylight paper' },
+  { id: 'stagnation', desc: 'the winter · bare grey' },
 ];
 const SWATCHES = ['bg', 'text', 'success', 'active', 'danger', 'info'] as const;
 

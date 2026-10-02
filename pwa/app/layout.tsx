@@ -38,7 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="oz">
         <ThemeProvider
           attribute="data-theme"
-          themes={['aether', 'terminus', 'drift']}
+          themes={['aether', 'terminus', 'drift', 'divergence', 'transcendence', 'control', 'utopia', 'stagnation']}
           defaultTheme="aether"
           // a world flip is one attribute, zero morph: transitions are
           // suppressed for the swap frame

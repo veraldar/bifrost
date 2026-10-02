@@ -9,6 +9,9 @@
 :root { --oz-rule: solid; --oz-tick: 0; }
 [data-theme='terminus'] { --oz-tick: 1; }
 [data-theme='drift'] { --oz-rule: dotted; }
+[data-theme='divergence'] { --oz-rule: dashed; }
+[data-theme='transcendence'] { --oz-rule: double; }
+[data-theme='control'] { --oz-tick: 1; }
 
 @layer components {
   /* ── motion vocabulary — slowed to breathing ── */
@@ -53,8 +56,8 @@
   .oz-k.heard.drop { color: var(--oz-danger); border-color: var(--oz-danger); box-shadow: none; }
   .oz-k.heard.drop::before { display: none; }
   .oz-badge {
-    position: absolute; top: -7px; right: -7px; min-width: 17px; height: 17px; padding: 0 4px;
-    background: var(--oz-text); color: var(--oz-bg); font-size: 10px; line-height: 17px; text-align: center; font-weight: 700;
+    background: transparent; color: var(--oz-text); font-size: 10px; line-height: 1; font-weight: 400;
+    font-variant-numeric: tabular-nums;
   }
   .oz-field {
     width: 100%; height: 38px; padding: 0 12px; border: 1px solid var(--oz-border); background: var(--oz-bg);
@@ -160,8 +163,9 @@
   .oz-chip:hover { color: var(--oz-text); }
   .oz-work { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--oz-success); }
   .oz [data-streamdown='inline-code'] {
-    font-size: 12.5px; padding: 0 4px; border: 1px solid var(--oz-border); background: var(--oz-surface);
-    color: var(--oz-text) !important; border-radius: 0;
+    font-size: 12.5px; padding: 0 4px; border: 1px solid var(--oz-border); border-radius: 0;
+    background: #ececec !important;
+    color: #111111 !important;
   }
 
   /* ── rail — the tree's signal, flattened to one trace; carries every voice state ── */

@@ -139,7 +139,7 @@
   min-height: 100dvh;
 }
 .oz * { color-scheme: dark; }
-[data-theme='drift'] .oz * { color-scheme: light; }
+[data-theme='drift'] .oz *, [data-theme='utopia'] .oz * { color-scheme: light; }
 .oz ::-webkit-scrollbar { width: 4px; }
 .oz ::-webkit-scrollbar-thumb { background: var(--oz-border); }
 

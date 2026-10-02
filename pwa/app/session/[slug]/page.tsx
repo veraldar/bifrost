@@ -577,10 +577,21 @@ export default function SessionView({
           ) {
             void notifyReply(slug);
           }
-          // keep optimistic echoes until the server transcript catches up
-          const echoes = echoesRef.current.filter(
-            (e) => !fresh.some((m) => m.role === 'user' && m.text === e.text)
-          );
+          // keep optimistic echoes until the server transcript catches up.
+          // Attachment-only sends echo '(📎 attachment)' while the server copy
+          // has empty text + the image part — match normalized text + images,
+          // or the echo never clears and the attachment renders twice
+          // (req 10-02 'attached the attachment only once, and I see it twice')
+          const echoes = echoesRef.current.filter((e) => {
+            const et = e.text === '(📎 attachment)' ? '' : e.text;
+            return !fresh.some(
+              (m) =>
+                m.role === 'user' &&
+                m.text === et &&
+                (m.images?.length || 0) === (e.images?.length || 0) &&
+                (e.images || []).every((img, i) => m.images?.[i] === img)
+            );
+          });
           setMsgs([...fresh, ...echoes]);
           try {
             if (JSON.stringify(fresh).length < 300_000) {

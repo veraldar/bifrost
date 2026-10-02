@@ -56,10 +56,13 @@ pairing zero-typing) are release gates, not nice-to-haves.
   (US/Chinese/French/open — user req: identity choice is the message). Connectors DEMOTED 09-28 to evidence-triggered (delegate skill is
   the 80/20 — claude/codex reachable from any session as sub-tools); native
   multi-harness revives only on demonstrated demand.
-- **bifrostd (Rust core port)**: NOT a roadmap item — an option triggered by
-  evidence: contract survived connectors 1–3 unchanged + a concrete driver
-  (bootstrap simplicity / small-VPS memory / onboarding pain). If TS stays
-  adequate, defer indefinitely.
+- **[LAB] yggdrasil**: TRIGGERED 10-01 (user) — Rust PoC of the opencode
+  core loop (REST surface bifrost uses, one provider bridge, bash+file
+  tools), one static binary, built via Claude Code delegation (Opus) as an
+  AGI-capability experiment. Session `yggdrasil lab`, deliverables in
+  lab/yggdrasil/ (binary + ASSESSMENT.md). Success = bifrost drives it via
+  OPENCODE_URL end-to-end. Zero product impact; this IS the evidence
+  generator the bifrostd option was waiting for.
 
 ## Current — harden to v1.0
 

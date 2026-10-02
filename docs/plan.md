@@ -56,6 +56,10 @@ pairing zero-typing) are release gates, not nice-to-haves.
   (US/Chinese/French/open — user req: identity choice is the message). Connectors DEMOTED 09-28 to evidence-triggered (delegate skill is
   the 80/20 — claude/codex reachable from any session as sub-tools); native
   multi-harness revives only on demonstrated demand.
+- **[LAB] hardwar**: TRIGGERED 10-01 (user) — AI self-implements a
+  predictive-prevention device: AI designs PCB in KiCad (via kicad-cli/MCP),
+  AI selects JLCPCB-stock components, AI writes firmware. Session `hardwar`,
+  M0 (kicad-cli) in progress; device definition proposals next, user picks.
 - **[LAB] yggdrasil**: TRIGGERED 10-01 (user) — Rust PoC of the opencode
   core loop (REST surface bifrost uses, one provider bridge, bash+file
   tools), one static binary, built via Claude Code delegation (Opus) as an

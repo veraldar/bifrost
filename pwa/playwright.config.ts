@@ -11,7 +11,10 @@ export default defineConfig({
   retries: 0,
   reporter: [['list']],
   use: {
-    baseURL: 'http://127.0.0.1:8080',
+    // default = the live referee (lk-pwa on 8080); a worktree lab overrides
+    // with its own server (E2E_BASE_URL=http://127.0.0.1:8090) to prove its
+    // own build, not the deployed one
+    baseURL: process.env.E2E_BASE_URL || 'http://127.0.0.1:8080',
     viewport: { width: 360, height: 780 }, // phone shape
     launchOptions: {
       args: [

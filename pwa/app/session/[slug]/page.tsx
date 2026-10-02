@@ -787,41 +787,72 @@ export default function SessionView({
     if (!slug) return;
     void (async () => {
       try {
+        // same-instance navigation (phone BACK between two sessions — Next
+        // does not remount a dynamic page on a param change): the joined
+        // room still belongs to the PREVIOUS session, and ensureVoice would
+        // happily return it (req 10-01 M0: hands-free stayed "on" while the
+        // mic listened to the WRONG session's room — speech landed in the
+        // session the user had left). Rebind: drop the stale room, join the
+        // room this page now shows. Runs in every mode: a keyboard user
+        // back-navigating must not PTT into the old session either.
+        const stale = roomRef.current;
+        if (stale && stale.name && stale.name !== slug) {
+          diagEvent('voice', `room rebind ${stale.name} → ${slug}`);
+          stale.removeAllListeners(RoomEvent.Disconnected); // a drop we chose — no self-heal
+          roomRef.current = null;
+          voicePromiseRef.current = null;
+          setVoiceState('off');
+          try {
+            stale.disconnect();
+          } catch {
+            /* room already gone */
+          }
+          // the new session is an ARRIVAL: its unheard reply may auto-play
+          // and a mid-run here re-pauses the mic — nothing carries over
+          // (req 09-30 arrival cycle). A's poll freshness must not vouch
+          // for B's sessionStorage paint, and a 'processing' cycle left
+          // over from A must not gate the arrival out with the mic muted.
+          arrivedBusyRef.current = false;
+          freeJustArmedRef.current = false;
+          lastGoodPollRef.current = 0;
+          freeSpokeRef.current = false;
+          freeSpokeMsgRef.current = 0;
+          setFreeCycle('listening');
+        }
         await ensureVoice();
-        // restore hands-free across refresh (oz-mode written by switchMode/
-        // exitFree): voice ready → arm the mic. If the browser refuses a
-        // gesture-less mic (autoplay policy), fall back to keyboard loudly.
+        // restore hands-free across navigation (oz-mode written by
+        // switchMode/exitFree): voice ready → arm the mic. If the browser
+        // refuses a gesture-less mic (autoplay policy), fall back to
+        // keyboard loudly.
         let wantFree = false;
         try {
           wantFree = localStorage.getItem('oz-mode') === 'free';
         } catch {
           /* private mode */
         }
-        if (wantFree && modeRef.current === 'text' && !unmountedRef.current) {
-          try {
-            modeRef.current = 'free';
-            setMode('free');
-            setFreeCycle('listening');
-            await mic(true);
-            diagEvent('voice', 'hands-free restored after refresh');
-          } catch (e) {
-            modeRef.current = 'text';
-            setMode('text');
-            // a PERMISSION refusal is sticky — storing 'text' keeps every
-            // future navigation from fighting the browser. Anything else
-            // (transient voice failure, flaky link) keeps 'free' stored so
-            // the next session/refresh retries hands-free on its own
-            // (req 09-30: the mode must survive moving between sessions)
-            const denied =
-              e instanceof DOMException && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
-            if (denied) {
-              try {
-                localStorage.setItem('oz-mode', 'text');
-              } catch {
-                /* private mode */
-              }
+        if (wantFree && !unmountedRef.current) {
+          if (modeRef.current === 'text') {
+            try {
+              modeRef.current = 'free';
+              setMode('free');
+              setFreeCycle('listening');
+              await mic(true);
+              diagEvent('voice', 'hands-free restored on arrival');
+            } catch (e) {
+              handsFreeRefused(e);
             }
-            setError('hands-free needs one tap after a refresh — tap the mic button');
+          } else if (roomRef.current?.name === slug) {
+            // arriving already hands-free (rebind above, or the state
+            // survived a same-instance navigation): the fresh room joined
+            // mic-muted — re-arm it. Arrival refs were reset, so the
+            // unheard-reply auto-play runs for THIS session (req 10-01:
+            // the listen/speak cycle must follow the user across sessions).
+            try {
+              await mic(true);
+              diagEvent('voice', `hands-free carried across navigation (${slug})`);
+            } catch (e) {
+              handsFreeRefused(e);
+            }
           }
         }
       } catch {
@@ -964,6 +995,27 @@ export default function SessionView({
 
   async function mic(on: boolean) {
     await roomRef.current?.localParticipant.setMicrophoneEnabled(on);
+  }
+
+  /** The browser refused the gesture-less mic re-arm on arrival (refresh or
+   *  cross-session navigation): fall back to keyboard loudly. A PERMISSION
+   *  refusal is sticky — storing 'text' keeps every future navigation from
+   *  fighting the browser. Anything else (transient voice failure, flaky
+   *  link) keeps 'free' stored so the next arrival retries hands-free on
+   *  its own (req 09-30, kept for req 10-01 persistence). */
+  function handsFreeRefused(e: unknown) {
+    modeRef.current = 'text';
+    setMode('text');
+    const denied =
+      e instanceof DOMException && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
+    if (denied) {
+      try {
+        localStorage.setItem('oz-mode', 'text');
+      } catch {
+        /* private mode */
+      }
+    }
+    setError('hands-free needs one tap — tap the mic button');
   }
 
   /** Text-mode PTT: release the CAPTURE DEVICE between holds. A muted track

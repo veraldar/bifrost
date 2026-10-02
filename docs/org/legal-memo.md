@@ -311,5 +311,42 @@ The exposure those companies fight over comes from **training models on copyrigh
 11. RGAA/WCAG target drift (WCAG 2.2 is out; RGAA updates follow it) — re-check before
     publishing the accessibility statement.
 
-*Dormancy note: this memo stands until a §6 trigger fires or facts in §7 change materially.
+## 8. Swiss-made label check (verified at swissmadesoftware.org, 10-01)
+
+**Official "swiss made software" label** (swiss made software GmbH — private label, membership
+required; unapproved logo use prohibited):
+1. **≥60% of production costs incurred in CH** (software ≈ professional salaries; apprentices
+   excluded);
+2. **most significant part of development in CH**;
+3. **company based in CH and registered in the commercial register** (legal basis MSchG/TmPA
+   Art. 48–48d, SR 232.11; false "Swiss-made" claims are punishable, Art. 61 ff).
+Costs: **Level 1 CHF 120/yr** (logo + directory), Level 2 CHF 550/yr, calendar-year membership,
+logo must backlink to swissmadesoftware.org; separate "swiss hosting" logo exists (CH data
+storage) and would fit veraldar.org-on-Infomaniak later.
+
+**Veraldar today:** substance passes (all development in CH, ~100% of costs in CH), but
+**criterion 3 fails** — no legal entity and no commercial-register entry yet → **the label may
+not be used today** (nor the logo, without membership). **After** the Verein exists (§2) with
+register entry, Veraldar qualifies on all three criteria; then join at Level 1 (CHF 120/yr)
+if the label is wanted. Note: the label speaks of a *company* in the register — a registered
+Verein should qualify **[TO-VERIFY: label operator accepts eingetragene Vereine]**.
+
+**Honest smaller claim, usable NOW:** *"Built in Switzerland"* / *"entwickelt in der Schweiz"* —
+a factual development-location statement. Requirements: it must simply be **true and not
+misleading** (MSchG Art. 48 ff, UWG Art. 3). It is: CH-resident developer, all dev on CH
+hardware. Rules for comms: no Swiss flag/coat-of-arms imagery (state-controlled symbols),
+no unqualified "Swiss made" or the label logo, no implying CH *hosting* of bifrost (users
+self-host anywhere — only veraldar.org itself is Infomaniak/CH). Recommended wording:
+**"built in Switzerland · hosted on Infomaniak, Swiss datacenters"** for the site, and simply
+"built in Switzerland" for bifrost.
+
+## 9. TO-VERIFY ledger additions from §8
+12. Does the label operator (swiss made software GmbH) accept a registered Verein
+    (eingetragener Verein) as member, given criterion "registered in the commercial register"?
+    Email contact@swissmadesoftware.org when §2 fires.
+13. MSchG/TmPA Art. 48–48d exact wording for services vs products (SwissnessOrd SR 941.301
+    interplay) — re-read before any stronger claim than "built in Switzerland".
+14. swiss hosting label criteria in full (for veraldar.org-on-Infomaniak, if ever wanted).
+
+*Dormancy note: this memo stands until a §6 trigger fires or facts in §7/§9 change materially.
 No action items are open today. — ORG session, 10-01.*

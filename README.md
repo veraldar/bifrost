@@ -153,6 +153,16 @@ See `docs/plan.md` — invariants, current phase, deferred work. `docs/environme
 records where the system is installed and every automated test run (`npm run verify`,
 also scheduled daily via a systemd timer).
 
+## Support
+
+Want to be part of the journey? Veraldar is free and stays free — but it
+isn't free to build.
+
+- GitHub Sponsors: `github.com/sponsors/veraldar` *(pending activation)*
+- OpenCollective: `opencode Collective pending — transparent public ledger`
+
+Every franc goes to hardware, hosting, and keeping the voice local.
+
 ## License
 
 Bifrost is [AGPL-3.0](LICENSE) — copyleft including network use: modified

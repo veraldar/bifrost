@@ -40,6 +40,7 @@ edge/*.log
 /artifacts/*
 !/artifacts/architecture-connectors.html
 !/artifacts/artifacts-gallery-live.png
+!/artifacts/user-checklist.html
 
 
 # playwright output at repo root (watchdog config)

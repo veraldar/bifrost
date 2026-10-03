@@ -175,7 +175,7 @@ fn node_a(mut a: Node, nonce: [u8; 16], deadline: Instant) -> Result<(), String>
     }
 }
 
-pub fn run() -> Result<(), String> {
+pub fn m0_test() -> Result<(), String> {
     // Key material: two node keypairs (never shared).
     let a_secret = StaticSecret::random_from_rng(OsRng);
     let b_secret = StaticSecret::random_from_rng(OsRng);
@@ -255,4 +255,9 @@ fn negative_test() -> Result<(), String> {
         }
         _ => Err("unexpected TunnResult for impostor init".into()),
     }
+}
+
+/// S2: config-driven mesh service — replaced in slice S2.
+pub fn service_test() -> Result<(), String> {
+    Err("S2 pending".into())
 }

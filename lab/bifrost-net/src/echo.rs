@@ -90,7 +90,7 @@ impl Peer {
     }
 }
 
-pub fn run() -> Result<(), String> {
+pub fn m0_test() -> Result<(), String> {
     str0m::crypto::from_feature_flags().install_process_default();
 
     let sock_l = UdpSocket::bind("127.0.0.1:0").map_err(|e| e.to_string())?;

@@ -1,23 +1,85 @@
-//! bifrost-net M0 — de-risk spike for the sovereign access point.
+//! bifrost-net — the sovereign access point spike.
 //!
-//! THE QUESTION: can a correctly-prompted AGI assemble tailscale+webrtc from
-//! PROVEN Rust crates (boringtun + str0m), one binary, country-pinned VPS?
-//! M0 proves the two critical seams, small:
-//!   1. mesh: two nodes connect privately via WireGuard protocol (boringtun)
-//!   2. echo: WebRTC media relays through a str0m middle peer
+//! ONE binary: private mesh (WireGuard protocol via boringtun) + WebRTC
+//! relay (str0m) + explicit config. Proven crates only, no hand-rolled crypto.
 //!
-//! NO hand-rolled crypto. Safety claim under test = auditable smallness +
-//! country-pinned hosting + self-hosted — NOT "safer than tailscale".
+//! Subcommands:
+//!   keygen              print a fresh private/public keypair
+//!   check -c CONFIG     validate config, print findings, exit 0/1
+//!   selftest m0|m1      run the verification suites (loopback)
+//!   serve -c CONFIG     run the node (mesh + webrtc in one process)
 
+mod config;
 mod echo;
+mod keys;
 mod mesh;
+mod relay;
+mod serve;
 
 fn main() {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let code = match args.first().map(String::as_str) {
+        Some("keygen") => cmd_keygen(),
+        Some("check") => cmd_check(&args[1..]),
+        Some("selftest") => cmd_selftest(&args[1..]),
+        Some("serve") => cmd_serve(&args[1..]),
+        _ => {
+            eprintln!(
+                "usage: bifrost-net keygen | check -c CONFIG | selftest m0|m1 | serve -c CONFIG"
+            );
+            2
+        }
+    };
+    std::process::exit(code);
+}
+
+fn cmd_keygen() -> i32 {
+    let (priv_b64, pub_b64) = keys::generate();
+    println!("private_key = \"{priv_b64}\"");
+    println!("public_key  = \"{pub_b64}\"   # give this to peers");
+    0
+}
+
+fn cmd_check(args: &[String]) -> i32 {
+    let Some(path) = config_arg(args) else {
+        eprintln!("check: missing -c CONFIG");
+        return 2;
+    };
+    match config::load(path).and_then(|l| {
+        let lines = l.config.check()?;
+        Ok((l, lines))
+    }) {
+        Ok((l, lines)) => {
+            println!("config {} — VALID", l.path);
+            for line in lines {
+                println!("  {line}");
+            }
+            0
+        }
+        Err(e) => {
+            println!("config {path} — INVALID: {e}");
+            1
+        }
+    }
+}
+
+fn cmd_selftest(args: &[String]) -> i32 {
+    match args.first().map(String::as_str) {
+        Some("m0") => selftest_m0(),
+        Some("m1") => selftest_m1(),
+        _ => {
+            eprintln!("selftest: suite must be m0 or m1");
+            2
+        }
+    }
+}
+
+fn selftest_m0() -> i32 {
     println!("bifrost-net M0 — boringtun mesh + str0m echo");
     let mut failed = false;
 
     print!("M0.1 mesh : ");
-    match mesh::run() {
+    match mesh::m0_test() {
         Ok(()) => println!("M0.1 PASS — two nodes connected privately (WireGuard protocol)"),
         Err(e) => {
             failed = true;
@@ -26,7 +88,7 @@ fn main() {
     }
 
     print!("M0.2 echo : ");
-    match echo::run() {
+    match echo::m0_test() {
         Ok(()) => println!("M0.2 PASS — WebRTC media relayed and byte-verified"),
         Err(e) => {
             failed = true;
@@ -35,7 +97,59 @@ fn main() {
     }
 
     if failed {
-        std::process::exit(1);
+        1
+    } else {
+        println!("M0 VERDICT: GREEN — both seams proven");
+        0
     }
-    println!("M0 VERDICT: GREEN — both seams proven");
+}
+
+fn selftest_m1() -> i32 {
+    println!("bifrost-net M1 — service meshes + relay under one binary");
+    let mut failed = false;
+
+    print!("M1.1 mesh service : ");
+    match mesh::service_test() {
+        Ok(()) => println!("M1.1 PASS — config-driven mesh, timers+rekey+stats verified"),
+        Err(e) => {
+            failed = true;
+            println!("M1.1 FAIL — {e}");
+        }
+    }
+
+    print!("M1.2 webrtc relay : ");
+    match relay::service_test() {
+        Ok(()) => println!("M1.2 PASS — signaling+media relay cross-forwarded byte-exact"),
+        Err(e) => {
+            failed = true;
+            println!("M1.2 FAIL — {e}");
+        }
+    }
+
+    if failed {
+        1
+    } else {
+        println!("M1 VERDICT: GREEN — full-build seams proven");
+        0
+    }
+}
+
+fn cmd_serve(args: &[String]) -> i32 {
+    let Some(path) = config_arg(args) else {
+        eprintln!("serve: missing -c CONFIG");
+        return 2;
+    };
+    match crate::serve::run(path) {
+        Ok(()) => 0,
+        Err(e) => {
+            eprintln!("serve: {e}");
+            1
+        }
+    }
+}
+
+fn config_arg(args: &[String]) -> Option<&str> {
+    args.windows(2)
+        .find(|w| w[0] == "-c" || w[0] == "--config")
+        .map(|w| w[1].as_str())
 }

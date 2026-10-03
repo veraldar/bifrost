@@ -1,0 +1,25 @@
+# bifrost-net example config — explicit, never auto-detected.
+# Generate a keypair: bifrost-net keygen
+
+[node]
+name = "bifrost-node"
+private_key = "REPLACE_WITH_bifrost-net_keygen_OUTPUT"
+
+# Private mesh: WireGuard protocol (boringtun), one UDP port.
+[mesh]
+listen = "0.0.0.0:51820"
+
+[[mesh.peers]]
+name = "omarchy"
+public_key = "REPLACE_WITH_PEER_PUBLIC_KEY"
+# endpoint = "100.104.229.17:51820"   # optional; responder nodes omit this
+allowed_ips = ["10.7.0.2/32"]
+
+# WebRTC relay: str0m. Signaling = HTTP POST /offer. Media = one UDP port.
+[webrtc]
+signaling = "0.0.0.0:17880"   # 7880 is LiveKit on this box
+media = "0.0.0.0:17881"
+# THE LIVEKIT SCAR (deploy/livekit.yaml): auto-detected ICE candidates were
+# docker bridges and the phone had NO media path. Pin the IPs peers actually
+# reach — empty list = loopback-only dev mode.
+candidates = []

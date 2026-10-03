@@ -7,7 +7,7 @@ cd "$(dirname "$0")"
 echo "== bifrost-net M0 =="
 cargo build --release
 
-OUT="$(./target/release/bifrost-net)"
+OUT="$(./target/release/bifrost-net selftest m0)"
 echo "$OUT"
 
 echo "$OUT" | grep -q "M0.1 PASS" || { echo "VERIFY: FAIL (mesh)"; exit 1; }

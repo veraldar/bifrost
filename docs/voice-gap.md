@@ -64,9 +64,15 @@ would enable it, cheapest first:
 
 ## State after this mission
 
-- Live production EN voice = `am_onyx` (pwa/.env.local, lk-pwa restarted,
-  e2e verified). User picks by ear; alternates are one env var + restart away:
-  `am_michael` / `bm_george` / `am_fenrir` / back to `af_heart`.
+- 10-03 r2 (user ear pass): user heard `am_onyx` live → wants FEMALE default.
+  Live production EN voice = `af_heart` again (env flip + lk-pwa restart,
+  e2e through :8080 measured F0 200.0 Hz; FR Elise 173.9 Hz unaffected;
+  am_onyx reference 89.9 Hz). Base-model fallback suspicion RULED OUT: the
+  phone's only TTS call is `/api/tts/stream` (lib/speech.ts:290); `/api/tts`
+  (base, deep male ref clone) has no client callers. Deep male stays one env
+  var + restart away (`TTS_VOICE_EN=am_onyx`); per-request voice switching
+  is future work.
 - Ear-pass clips: `artifacts/lab5-kokoro-{am_onyx,am_michael,bm_george,
-  am_fenrir,af_heart}.wav` + `lab5-e2e-onyx.wav` (the live switched voice).
-- Commits: 7c53e66 (M0 probe) · f798c8d (M1 switch + docs) · M2 = this file.
+  am_fenrir,af_heart}.wav` + `lab5-e2e-{female,fr,onyx-ref}.wav` (live takes).
+- Commits: 7c53e66 (M0 probe) · f798c8d (M1 switch + docs) · 1831f64 (M2 gap)
+  · r2 female revert (this file).

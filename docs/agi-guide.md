@@ -47,8 +47,10 @@ confidence, divergence = your judgment is needed there.
 1. **Goal, not blueprint.** Freedom is the measurement; blueprints are the ceiling.
 2. **Done must be verifiable.** "Working", "better", "robust" are not done.
    A command, a number, a test.
-3. **One checkpoint before the build.** "Show me your plan/usage model" —
-   the cheapest place to catch wrong thinking.
+3. **One checkpoint before the build — held by the coordinator.** "Show me
+   your plan/usage model" — the cheapest place to catch wrong thinking. The
+   USER never reviews this checkpoint: the main session reviews it on their
+   behalf, against their intentions.
 4. **Blocked = visible.** A session that needs you must ask, loudly. Silence
    is a failure state, not patience.
 5. **Active driver.** Check in every turn. A lab prompted once and abandoned

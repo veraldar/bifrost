@@ -55,3 +55,13 @@ v1.1+ architecture: spec name becomes "federation/peering", not "switcher".
 4. The story told everywhere — brand session weaving it into lore, website,
    and the narration for a future report/design/movie
 5. "What AI can simulate, AI can create." — manifesto line, brand book
+
+## The tree is the door (10-02, user)
+
+veraldar.org: the tree at the top, clickable — "hold to start" — runs the
+vocal onboarding (voice collects who they are + provider choice, hands the
+personalized install command/QR). PWA first-run: the tree fills the screen,
+alone; clicking it runs vocal onboarding and creates THE MAIN session
+(caps-tagged); afterwards the tree shrinks to its corner but stays the door
+— clicking it always opens main. One gesture on two surfaces: you knock on
+the tree, the bridge opens.

@@ -20,6 +20,7 @@ This box runs everything. Mac Studio serves speech models (MLX Qwen3-ASR/TTS) on
 
 ## Rules
 - Proceed autonomously; verify with evidence; contact user only when stuck or looping.
+- No execution without a checkable "done" (mockup, metric, or test). Can't state it? Build the spec first (candidate options, pick best by stated criteria — if the goal is the user's taste, cheap mockups + user pick). Any user correction on the same goal = escalate to a stronger model with a written brief (source-of-truth + locked decisions + referee + territory). User correction twice = stop entirely and re-scope with the user.
 - No commits unless asked. Secrets stay out of git.
 
 ## Delivering files to the user — through the chat, never paths
@@ -43,3 +44,10 @@ non-trivial? Claim it FIRST (one line: scope + files + session name), delete the
 when done. Commit small and often with req-linked messages — tests (cd pwa && npx
 playwright test) are the referee: run them before claiming done. Never edit a file
 another session holds a claim on unless merging deliberately.
+
+## Answer-first rule (fleet law, 10-02)
+When a turn dies on a question: propose the BEST ANSWER from known state and
+move on. Knowledge gaps = assume + state the assumption + continue. Only hard
+blockers (access, accounts, physical presence) pause work — and they go loud
+(BLOCKED=VISIBLE). Never stall on a question. Never die mid-turn silently:
+if revived after a dead turn, resume and report.

@@ -1,4 +1,4 @@
-//! YGGDRASIL slice 3: an opencode-compatible surface that bifrost's PWA proxy can
+//! YGGDRASIL (slices 1-6a): an opencode-compatible surface that bifrost's PWA proxy can
 //! drive unchanged. Sessions + message relay to an OpenAI-compatible chat endpoint;
 //! abort; global `/event` bus; on-disk store; per-session run serialization;
 //! session get/patch/delete, busy map, model/agent catalog + v2 switches.
@@ -12,6 +12,16 @@
 //!   YGG_CATALOG            JSON file `{providers:[...], agents:[...]}` served as
 //!                          `/config/providers` + `/agent` (default: one provider = the upstream model,
 //!                          agents build + plan)
+//!   YGG_PROJECT_DIR        slice 6a: where tools run / relative paths resolve (default: cwd)
+//!   YGG_MAX_STEPS          upstream calls per run before the loop gives up (default: 100)
+//!   YGG_BASH_TIMEOUT_MS    default bash tool timeout (default: 120000)
+//!   YGG_TOOLS              `0` = don't declare tools (plain relay, for tool-less upstreams)
+//!
+//! Slice 6a: each run is an agent loop — the upstream gets the tool set (`tools.rs`); its
+//! tool_calls are executed serially, fed back as `tool` messages, repeated until a reply
+//! with no tool calls. Every call is stored on the assistant message as an opencode
+//! `{"type":"tool", callID, tool, state:{status, input, output, ...}}` part and announced
+//! on `message.part.updated` (running, then completed|error).
 //!
 //! `POST /session/:id/message` answers like opencode (blocks, returns the final assistant
 //! message as JSON) unless the request sends `Accept: text/event-stream`, which gets the
@@ -22,7 +32,7 @@ use std::{
     convert::Infallible,
     path::PathBuf,
     sync::{Arc, Mutex},
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use axum::{
@@ -41,17 +51,24 @@ use serde_json::{Value, json};
 use tokio::sync::{Notify, broadcast, mpsc, oneshot};
 use tokio_stream::wrappers::{BroadcastStream, ReceiverStream};
 
+mod tools;
+
 struct Config {
     base_url: String,
     api_key: Option<String>,
     model: String,
     catalog: Value,
+    max_steps: usize,
+    tools_enabled: bool,
 }
 
 #[derive(Serialize, Deserialize)]
 struct Session {
     info: Value,
     messages: Vec<Value>,
+    /// Last `todowrite` list (opencode's `GET /session/:id/todo`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    todo: Vec<Value>,
 }
 
 #[derive(Clone)]
@@ -66,6 +83,7 @@ struct AppState {
     data_dir: Arc<PathBuf>,
     config: Arc<Config>,
     http: reqwest::Client,
+    tools: Arc<tools::ToolEnv>,
 }
 
 #[derive(Deserialize)]
@@ -213,7 +231,7 @@ async fn create_session(State(st): State<AppState>, body: Option<Json<Value>>) -
     if let Some(parent) = body["parentID"].as_str() {
         info["parentID"] = json!(parent);
     }
-    let session = Session { info: info.clone(), messages: Vec::new() };
+    let session = Session { info: info.clone(), messages: Vec::new(), todo: Vec::new() };
     {
         let mut sessions = st.sessions.lock().unwrap();
         persist(&st.data_dir, &id, &session);
@@ -264,6 +282,14 @@ async fn delete_session(State(st): State<AppState>, Path(id): Path<String>) -> R
     let _ = std::fs::remove_file(session_path(&st.data_dir, &id));
     publish(&st, "session.deleted", json!({ "info": s.info }));
     Json(true).into_response()
+}
+
+/// `GET /session/:id/todo` — the last `todowrite` list.
+async fn get_todo(State(st): State<AppState>, Path(id): Path<String>) -> Response {
+    match st.sessions.lock().unwrap().get(&id) {
+        Some(s) => Json(Value::Array(s.todo.clone())).into_response(),
+        None => not_found(&id),
+    }
 }
 
 /// `GET /session/status` — opencode's busy map: only sessions with a live run appear.
@@ -399,30 +425,146 @@ async fn post_message(
     }
 }
 
+/// Rebuilds the upstream conversation from stored messages. Assistant messages replay
+/// their steps: text, then the step's tool calls, then one `tool` message per result —
+/// a tool part closes a step, the next text part opens a new one. Unfinished tool parts
+/// (no result) are skipped: the upstream rejects a call without its result.
+fn upstream_history(messages: &[Value]) -> Vec<Value> {
+    fn flush(out: &mut Vec<Value>, text: &mut String, calls: &mut Vec<Value>, results: &mut Vec<Value>) {
+        if text.is_empty() && calls.is_empty() {
+            return;
+        }
+        let content = if text.is_empty() { Value::Null } else { json!(text) };
+        let mut a = json!({ "role": "assistant", "content": content });
+        if !calls.is_empty() {
+            a["tool_calls"] = json!(std::mem::take(calls));
+        }
+        out.push(a);
+        out.append(results);
+        text.clear();
+    }
+    let mut out = Vec::new();
+    for m in messages {
+        let role = m["info"]["role"].as_str().unwrap_or("user");
+        if role != "assistant" {
+            let text = message_text(m);
+            if !text.is_empty() {
+                out.push(json!({ "role": role, "content": text }));
+            }
+            continue;
+        }
+        let (mut text, mut calls, mut results) = (String::new(), Vec::new(), Vec::new());
+        for p in m["parts"].as_array().into_iter().flatten() {
+            match p["type"].as_str() {
+                Some("text") => {
+                    if !calls.is_empty() {
+                        flush(&mut out, &mut text, &mut calls, &mut results);
+                    }
+                    let t = p["text"].as_str().unwrap_or_default();
+                    if !text.is_empty() && !t.is_empty() {
+                        text.push('\n');
+                    }
+                    text.push_str(t);
+                }
+                Some("tool") => {
+                    let state = &p["state"];
+                    let status = state["status"].as_str().unwrap_or_default();
+                    if status != "completed" && status != "error" {
+                        continue;
+                    }
+                    calls.push(json!({ "id": p["callID"], "type": "function",
+                        "function": { "name": p["tool"], "arguments": state["input"].to_string() } }));
+                    results.push(json!({ "role": "tool", "tool_call_id": p["callID"], "content": tool_content(state) }));
+                }
+                _ => {}
+            }
+        }
+        flush(&mut out, &mut text, &mut calls, &mut results);
+    }
+    out
+}
+
+/// What the model sees for a finished tool part.
+fn tool_content(state: &Value) -> String {
+    let output = state["output"].as_str().unwrap_or_default();
+    if state["status"] == "error" { format!("Error: {output}") } else { output.to_string() }
+}
+
+#[derive(Default)]
+struct ToolCall {
+    id: String,
+    name: String,
+    arguments: String,
+}
+
+/// A run in progress: the assistant message being built (parts appended per step) and
+/// the current step's streamed text. Lives outside the loop future so an abort (which
+/// drops that future) keeps everything produced so far.
+struct Run {
+    msg: Value,
+    text: String,
+}
+
+impl Run {
+    fn push_part(&mut self, part: Value) -> usize {
+        let mut part = part;
+        part["id"] = json!(new_id("prt"));
+        part["messageID"] = self.msg["info"]["id"].clone();
+        part["sessionID"] = self.msg["info"]["sessionID"].clone();
+        let parts = self.msg["parts"].as_array_mut().unwrap();
+        parts.push(part);
+        parts.len() - 1
+    }
+
+    /// Lands the streamed text of the current step as a text part.
+    fn flush_text(&mut self) {
+        let text = std::mem::take(&mut self.text);
+        if !text.is_empty() {
+            self.push_part(text_part(&text));
+        }
+    }
+
+    /// Closes the message: pending text kept, interrupted tool calls marked as errors,
+    /// and at least one text part (the PWA reads the reply from text parts).
+    fn finish(&mut self, interrupted: &str) {
+        self.flush_text();
+        let now = now_ms();
+        let mut has_text = false;
+        for p in self.msg["parts"].as_array_mut().unwrap() {
+            has_text |= p["type"] == "text";
+            if p["type"] == "tool" && p["state"]["status"] == "running" {
+                p["state"]["status"] = json!("error");
+                p["state"]["error"] = json!(interrupted);
+                p["state"]["output"] = json!(interrupted);
+                p["state"]["time"]["end"] = json!(now);
+            }
+        }
+        if !has_text {
+            self.push_part(text_part(""));
+        }
+        self.msg["info"]["time"]["completed"] = json!(now);
+    }
+}
+
 /// One run, called with the session's run lock held: snapshot history, create the
-/// un-completed assistant placeholder, relay upstream (abortable), store the outcome,
-/// then `session.idle`. Returns the final assistant message (aborted ones included).
+/// un-completed assistant placeholder, run the agent loop (abortable), store the
+/// outcome, then `session.idle`. Returns the final assistant message (aborted ones included).
 async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<Value, String> {
-    let history: Option<Vec<Value>> = st.sessions.lock().unwrap().get(id).map(|s| {
-        s.messages
-            .iter()
-            .map(|m| (m["info"]["role"].clone(), message_text(m)))
-            .filter(|(_, text)| !text.is_empty())
-            .map(|(role, text)| json!({ "role": role, "content": text }))
-            .collect()
-    });
+    let history = st.sessions.lock().unwrap().get(id).map(|s| upstream_history(&s.messages));
     let Some(history) = history else { return Err(format!("session {id} not found")) };
 
     let cancel = Arc::new(Notify::new());
     st.running.lock().unwrap().insert(id.to_string(), cancel.clone());
     publish(st, "session.status", json!({ "sessionID": id, "status": { "type": "busy" } }));
-    let mut msg = make_message(id, "assistant", vec![text_part("")]);
-    replace_message(st, id, &msg);
-    publish(st, "message.updated", json!({ "info": msg["info"] }));
+    let placeholder = make_message(id, "assistant", vec![text_part("")]);
+    replace_message(st, id, &placeholder);
+    publish(st, "message.updated", json!({ "info": placeholder["info"] }));
 
-    let mut partial = String::new();
+    let mut msg = placeholder;
+    msg["parts"] = json!([]);
+    let mut run = Run { msg, text: String::new() };
     let outcome = {
-        let fut = relay(st, id, history, tx, &mut partial);
+        let fut = agent_loop(st, id, history, tx, &mut run);
         tokio::select! {
             r = fut => Some(r),
             _ = cancel.notified() => None,
@@ -435,50 +577,136 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<V
             running.remove(id);
         }
     }
-    msg["info"]["time"]["completed"] = json!(now_ms());
     let result = match outcome {
-        Some(Ok(reply)) => {
-            msg["parts"][0]["text"] = json!(reply);
-            replace_message(st, id, &msg);
-            publish(st, "message.updated", json!({ "info": msg["info"] }));
-            emit(st, tx, "message.completed", msg.clone()).await;
-            Ok(msg)
+        Some(Ok(())) => {
+            run.finish("interrupted");
+            replace_message(st, id, &run.msg);
+            publish(st, "message.updated", json!({ "info": run.msg["info"] }));
+            emit(st, tx, "message.completed", run.msg.clone()).await;
+            Ok(run.msg)
         }
         Some(Err(e)) => {
-            eprintln!("upstream error: {e}");
-            msg["parts"][0]["text"] = json!(partial);
-            msg["info"]["error"] = json!({ "name": "UnknownError", "data": { "message": e } });
-            replace_message(st, id, &msg);
+            eprintln!("run error: {e}");
+            run.finish(&e);
+            run.msg["info"]["error"] = json!({ "name": "UnknownError", "data": { "message": e } });
+            replace_message(st, id, &run.msg);
             emit(st, tx, "error", json!({ "sessionID": id, "error": e })).await;
             Err(e)
         }
         None => {
-            // Keep whatever was streamed, flagged the way opencode flags it.
-            msg["parts"][0]["text"] = json!(partial);
-            msg["info"]["error"] = json!({ "name": "MessageAbortedError", "data": { "message": "aborted" } });
-            replace_message(st, id, &msg);
-            publish(st, "message.updated", json!({ "info": msg["info"] }));
-            emit(st, tx, "message.aborted", msg.clone()).await;
-            Ok(msg)
+            // Keep whatever was streamed/executed, flagged the way opencode flags it.
+            run.finish("aborted");
+            run.msg["info"]["error"] = json!({ "name": "MessageAbortedError", "data": { "message": "aborted" } });
+            replace_message(st, id, &run.msg);
+            publish(st, "message.updated", json!({ "info": run.msg["info"] }));
+            emit(st, tx, "message.aborted", run.msg.clone()).await;
+            Ok(run.msg)
         }
     };
     publish(st, "session.idle", json!({ "sessionID": id }));
     result
 }
 
-/// Calls the upstream with `stream: true`, forwarding each content delta as an SSE
-/// event and accumulating it into `full` (so an abort can keep the partial text).
-/// Also accepts a non-streaming JSON reply.
+/// The agent loop: call upstream; no tool calls → done; else execute each call
+/// (serially, in order), append the results, call again. At most `max_steps` upstream
+/// calls per run — the cap turns a model that never stops calling tools into an error.
+async fn agent_loop(
+    st: &AppState,
+    id: &str,
+    mut convo: Vec<Value>,
+    tx: &mpsc::Sender<Event>,
+    run: &mut Run,
+) -> Result<(), String> {
+    let max = st.config.max_steps;
+    for _ in 0..max {
+        let calls = relay(st, id, &convo, tx, &mut run.text).await?;
+        let text = run.text.clone();
+        run.flush_text();
+        if calls.is_empty() {
+            return Ok(());
+        }
+        let calls: Vec<ToolCall> = calls
+            .into_iter()
+            .map(|mut c| {
+                if c.id.is_empty() {
+                    c.id = new_id("call");
+                }
+                c
+            })
+            .collect();
+        convo.push(json!({
+            "role": "assistant",
+            "content": if text.is_empty() { Value::Null } else { json!(text) },
+            "tool_calls": calls.iter().map(|c| json!({ "id": c.id, "type": "function",
+                "function": { "name": c.name, "arguments": c.arguments } })).collect::<Vec<_>>(),
+        }));
+        for call in calls {
+            let output = run_tool(st, id, tx, run, &call).await;
+            convo.push(json!({ "role": "tool", "tool_call_id": call.id, "content": output }));
+        }
+    }
+    Err(format!("agent loop hit the step cap ({max} upstream calls) without a final reply"))
+}
+
+/// Executes one call: stores a running tool part, emits `message.part.updated`, runs it,
+/// stores + emits the finished part, checkpoints the message to disk. Returns what the
+/// model gets back.
+async fn run_tool(st: &AppState, id: &str, tx: &mpsc::Sender<Event>, run: &mut Run, call: &ToolCall) -> String {
+    let args = if call.arguments.trim().is_empty() { "{}" } else { call.arguments.as_str() };
+    let parsed = serde_json::from_str::<Value>(args).map_err(|e| format!("invalid JSON arguments: {e}"));
+    let input = parsed.as_ref().ok().cloned().unwrap_or_else(|| json!({ "raw": call.arguments }));
+    let start = now_ms();
+    let idx = run.push_part(json!({
+        "type": "tool", "callID": call.id, "tool": call.name,
+        "state": { "status": "running", "input": input, "time": { "start": start } },
+    }));
+    let part = run.msg["parts"][idx].clone();
+    replace_message(st, id, &run.msg);
+    emit(st, tx, "message.part.updated", json!({ "sessionID": id, "part": part })).await;
+
+    let res = match parsed {
+        Ok(input) => tools::run(&st.tools, &call.name, &input).await,
+        Err(e) => tools::ToolResult { ok: false, title: call.name.clone(), output: e, metadata: json!({}) },
+    };
+    if call.name == "todowrite" && res.ok {
+        let todos = res.metadata["todos"].as_array().cloned().unwrap_or_default();
+        with_session(st, id, |s| s.todo = todos.clone());
+        publish(st, "todo.updated", json!({ "sessionID": id, "todos": todos }));
+    }
+    let state = &mut run.msg["parts"][idx]["state"];
+    state["status"] = json!(if res.ok { "completed" } else { "error" });
+    state["title"] = json!(res.title);
+    state["output"] = json!(res.output);
+    if !res.ok {
+        state["error"] = json!(res.output);
+    }
+    state["metadata"] = res.metadata;
+    state["time"]["end"] = json!(now_ms());
+    let content = tool_content(state);
+    let part = run.msg["parts"][idx].clone();
+    replace_message(st, id, &run.msg);
+    emit(st, tx, "message.part.updated", json!({ "sessionID": id, "part": part })).await;
+    content
+}
+
+/// One upstream call with `stream: true` (and the tool set): forwards each content delta
+/// as an SSE event, accumulating it into `full` (an abort keeps the partial text), and
+/// assembles streamed `tool_calls` fragments by index. Also accepts a non-streaming
+/// JSON reply.
 async fn relay(
     st: &AppState,
     session_id: &str,
-    history: Vec<Value>,
+    convo: &[Value],
     tx: &mpsc::Sender<Event>,
     full: &mut String,
-) -> Result<String, String> {
+) -> Result<Vec<ToolCall>, String> {
     let cfg = &st.config;
     let url = format!("{}/chat/completions", cfg.base_url.trim_end_matches('/'));
-    let mut req = st.http.post(&url).json(&json!({ "model": cfg.model, "messages": history, "stream": true }));
+    let mut body = json!({ "model": cfg.model, "messages": convo, "stream": true });
+    if cfg.tools_enabled {
+        body["tools"] = tools::schemas();
+    }
+    let mut req = st.http.post(&url).json(&body);
     if let Some(key) = &cfg.api_key {
         req = req.bearer_auth(key);
     }
@@ -489,6 +717,7 @@ async fn relay(
         return Err(format!("upstream {status}: {body}"));
     }
 
+    let mut calls: Vec<ToolCall> = Vec::new();
     let is_json = resp
         .headers()
         .get(reqwest::header::CONTENT_TYPE)
@@ -496,10 +725,18 @@ async fn relay(
         .is_some_and(|ct| ct.starts_with("application/json"));
     if is_json {
         let v: Value = resp.json().await.map_err(|e| format!("bad json: {e}"))?;
-        let text = v["choices"][0]["message"]["content"].as_str().unwrap_or_default();
+        let m = &v["choices"][0]["message"];
+        let text = m["content"].as_str().unwrap_or_default();
         full.push_str(text);
         send_delta(st, session_id, tx, text).await;
-        return Ok(full.clone());
+        for tc in m["tool_calls"].as_array().into_iter().flatten() {
+            calls.push(ToolCall {
+                id: tc["id"].as_str().unwrap_or_default().into(),
+                name: tc["function"]["name"].as_str().unwrap_or_default().into(),
+                arguments: tc["function"]["arguments"].as_str().unwrap_or_default().into(),
+            });
+        }
+        return Ok(calls);
     }
 
     let mut buf = String::new();
@@ -512,16 +749,33 @@ async fn relay(
             let Some(data) = line.trim().strip_prefix("data:") else { continue };
             let data = data.trim();
             if data == "[DONE]" {
-                return Ok(full.clone());
+                return Ok(calls);
             }
             let Ok(v) = serde_json::from_str::<Value>(data) else { continue };
-            if let Some(delta) = v["choices"][0]["delta"]["content"].as_str() {
-                full.push_str(delta);
-                send_delta(st, session_id, tx, delta).await;
+            let delta = &v["choices"][0]["delta"];
+            if let Some(text) = delta["content"].as_str() {
+                full.push_str(text);
+                send_delta(st, session_id, tx, text).await;
+            }
+            for tc in delta["tool_calls"].as_array().into_iter().flatten() {
+                let i = tc["index"].as_u64().unwrap_or(0) as usize;
+                if calls.len() <= i {
+                    calls.resize_with(i + 1, ToolCall::default);
+                }
+                let c = &mut calls[i];
+                if let Some(id) = tc["id"].as_str() {
+                    c.id = id.into();
+                }
+                if let Some(n) = tc["function"]["name"].as_str() {
+                    c.name.push_str(n);
+                }
+                if let Some(a) = tc["function"]["arguments"].as_str() {
+                    c.arguments.push_str(a);
+                }
             }
         }
     }
-    Ok(full.clone())
+    Ok(calls)
 }
 
 async fn send_delta(st: &AppState, session_id: &str, tx: &mpsc::Sender<Event>, text: &str) {
@@ -561,12 +815,38 @@ async fn main() {
         std::process::exit(2);
     });
     let model = std::env::var("YGG_UPSTREAM_MODEL").unwrap_or_else(|_| "gpt-4o-mini".into());
+    let env_num = |k: &str, default: u64| -> u64 {
+        match std::env::var(k) {
+            Ok(v) if !v.is_empty() => v.parse().unwrap_or_else(|_| {
+                eprintln!("{k}: not a number: {v}");
+                std::process::exit(2);
+            }),
+            _ => default,
+        }
+    };
     let config = Config {
         base_url,
         api_key: std::env::var("YGG_UPSTREAM_API_KEY").ok().filter(|k| !k.is_empty()),
         catalog: load_catalog(&model),
         model,
+        max_steps: env_num("YGG_MAX_STEPS", 100).max(1) as usize,
+        tools_enabled: std::env::var("YGG_TOOLS").map_or(true, |v| v != "0"),
     };
+    let project_dir = match std::env::var("YGG_PROJECT_DIR") {
+        Ok(d) if !d.is_empty() => PathBuf::from(d),
+        _ => std::env::current_dir().expect("cwd"),
+    };
+    let project_dir = project_dir.canonicalize().unwrap_or_else(|e| {
+        eprintln!("YGG_PROJECT_DIR {}: {e}", project_dir.display());
+        std::process::exit(2);
+    });
+    let http = reqwest::Client::new();
+    let tool_env = tools::ToolEnv {
+        project_dir,
+        bash_timeout: Duration::from_millis(env_num("YGG_BASH_TIMEOUT_MS", 120_000)),
+        http: http.clone(),
+    };
+    eprintln!("tools {} in {}", if config.tools_enabled { "on" } else { "off" }, tool_env.project_dir.display());
     let listen = std::env::var("YGG_LISTEN").unwrap_or_else(|_| "127.0.0.1:4096".into());
     let data_dir = PathBuf::from(std::env::var("YGG_DATA_DIR").unwrap_or_else(|_| "./data".into()));
     std::fs::create_dir_all(data_dir.join("session")).expect("create YGG_DATA_DIR");
@@ -580,7 +860,8 @@ async fn main() {
         bus: broadcast::channel(1024).0,
         data_dir: Arc::new(data_dir),
         config: Arc::new(config),
-        http: reqwest::Client::new(),
+        http,
+        tools: Arc::new(tool_env),
     };
     let app = Router::new()
         .route("/session", get(list_sessions).post(create_session))
@@ -588,6 +869,7 @@ async fn main() {
         .route("/session/{id}", get(get_session).patch(patch_session).delete(delete_session))
         .route("/session/{id}/message", get(list_messages).post(post_message))
         .route("/session/{id}/abort", post(abort_session))
+        .route("/session/{id}/todo", get(get_todo))
         .route("/api/session/{id}/model", post(switch_model))
         .route("/api/session/{id}/agent", post(switch_agent))
         .route("/config/providers", get(config_providers))

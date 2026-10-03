@@ -3,6 +3,8 @@
 # Slice 1: session create, message post (SSE), history, 404.
 # Slice 2: abort mid-stream, global GET /event, persistence across a restart.
 # Slice 3: opencode-shaped JSON post, title/parent, get/patch/delete, busy map, catalog.
+# Slice 6a: agent loop — bash/read/write/edit/glob/grep/todowrite round-trips, truncation,
+#   step cap, abort mid-tool. (Slice 4 = packaging, verified in ASSESSMENT.md; no slice 5 surface.)
 set -euo pipefail
 cd "$(dirname "$0")"
 source ~/.cargo/env
@@ -141,4 +143,135 @@ curl -sf http://$YGG/session/$P3 | python3 -c 'import sys,json;d=json.load(sys.s
 [ "$(curl -sf -X DELETE http://$YGG/session/$P3)" = true ] || { echo "FAIL: delete"; exit 1; }
 [ "$(curl -s -o /dev/null -w '%{http_code}' http://$YGG/session/$P3)" = 404 ] || { echo "FAIL: deleted session still served"; exit 1; }
 echo "slice-3 surface ok"
+
+echo "--- slice 6a: tools + agent loop"
+kill $SRV; wait $SRV 2>/dev/null || true; SRV=
+PROJ=$TMP/proj; mkdir -p $PROJ
+export YGG_PROJECT_DIR=$PROJ YGG_MAX_STEPS=4
+start_srv
+curl -sfN http://$YGG/event >$TMP/events6.txt & EV=$!
+sleep 0.3
+# post6 SID TEXT [outfile] — SSE post with a JSON-escaped text part
+post6() { curl -sN -X POST http://$YGG/session/$1/message "${J[@]}" -H 'accept: text/event-stream' \
+  -d "$(python3 -c 'import sys,json;print(json.dumps({"parts":[{"type":"text","text":sys.argv[1]}]}))' "$2")"; }
+S6=$(curl -sf -X POST http://$YGG/session | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
+
+echo "- bash round-trip"
+post6 $S6 'tool:[[["bash",{"command":"echo hi-from-bash > marker.txt; echo out-$((6*7)); echo oops >&2; pwd"}]]]' >$TMP/t1.txt
+[ "$(cat $PROJ/marker.txt)" = hi-from-bash ] || { echo "FAIL: bash did not run in project dir"; cat $TMP/t1.txt; exit 1; }
+python3 - "$TMP/t1.txt" "$(curl -sf http://$YGG/session/$S6/message)" "$PROJ" <<'PY6'
+import sys, json
+sse, msgs, proj = open(sys.argv[1]).read(), json.loads(sys.argv[2]), sys.argv[3]
+evs = [(b.split("\n")[0][7:], json.loads(b.split("\n", 1)[1][5:])) for b in sse.strip().split("\n\n") if b.startswith("event:")]
+kinds = [k for k, _ in evs]
+tool_evs = [e["part"]["state"]["status"] for k, e in evs if k == "message.part.updated"]
+assert tool_evs == ["running", "completed"], tool_evs
+text = "".join(e["text"] for k, e in evs if k == "message.part.delta")
+assert "TOOL-FINAL: out-42" in text and "[tools declared: 8]" in text, text
+assert kinds[-1] == "message.completed", kinds
+a = msgs[-1]
+assert a["info"]["role"] == "assistant" and a["info"]["time"]["completed"] and "error" not in a["info"], a["info"]
+types = [p["type"] for p in a["parts"]]
+assert types == ["text", "tool", "text"], types
+t = a["parts"][1]
+assert t["tool"] == "bash" and t["callID"] == "call_0_0" and t["state"]["status"] == "completed", t
+assert t["state"]["input"]["command"].startswith("echo hi-from-bash"), t
+out = t["state"]["output"]
+assert "out-42" in out and "oops" in out and proj in out and t["state"]["metadata"]["exit"] == 0, out
+assert a["parts"][2]["text"].startswith("TOOL-FINAL: out-42"), a["parts"][2]
+print("bash ran, tool part stored:", repr(out))
+PY6
+
+echo "- write / edit / read (+ failing edit, two calls in one step)"
+post6 $S6 'tool:[[["write",{"filePath":"sub/t.txt","content":"alpha\nbeta\nbeta2\n"}]],[["edit",{"filePath":"sub/t.txt","oldString":"beta\n","newString":"gamma\n"}],["edit",{"filePath":"sub/t.txt","oldString":"nope","newString":"x"}]],[["read",{"filePath":"'$PROJ'/sub/t.txt"}]]]' >$TMP/t2.txt
+[ "$(cat $PROJ/sub/t.txt)" = "$(printf 'alpha\ngamma\nbeta2')" ] || { echo "FAIL: write/edit"; cat $PROJ/sub/t.txt; exit 1; }
+python3 - "$(curl -sf http://$YGG/session/$S6/message)" <<'PY6'
+import sys, json
+a = json.loads(sys.argv[1])[-1]
+tools = [(p["tool"], p["state"]["status"]) for p in a["parts"] if p["type"] == "tool"]
+assert tools == [("write", "completed"), ("edit", "completed"), ("edit", "error"), ("read", "completed")], tools
+bad = [p for p in a["parts"] if p["type"] == "tool"][2]["state"]
+assert "not found" in bad["error"], bad
+final = a["parts"][-1]["text"]
+assert "     2\tgamma" in final, final
+# history replay: previous turn's 1 tool result + this turn's 4
+assert "[tool msgs in history: 5]" in final, final
+print("write/edit/read ok; failing edit fed back as error, loop continued")
+PY6
+
+echo "- glob / grep / todowrite / webfetch / bash truncation + timeout"
+post6 $S6 'tool:[[["glob",{"pattern":"**/*.txt"}],["grep",{"pattern":"gam+a","include":"*.txt"}],["todowrite",{"todos":[{"content":"ship 6a","status":"in_progress","priority":"high"},{"content":"6b roll-up","status":"pending"}]}],["bash",{"command":"seq 1 100000"}],["webfetch",{"url":"http://'$YGG'/session/'$S6'/todo"}],["bash",{"command":"sleep 5; echo late","timeout":300}]]]' >$TMP/t3.txt
+python3 - "$(curl -sf http://$YGG/session/$S6/message)" "$(curl -sf http://$YGG/session/$S6/todo)" "$PROJ" <<'PY6'
+import sys, json
+a, todo, proj = json.loads(sys.argv[1])[-1], json.loads(sys.argv[2]), sys.argv[3]
+parts = [p["state"] for p in a["parts"] if p["type"] == "tool"]
+timed_out = parts.pop()
+assert timed_out["status"] == "error" and "timed out after 300 ms" in timed_out["error"], timed_out
+t = {p["tool"]: p["state"] for p in a["parts"] if p["type"] == "tool" and p["state"] is not timed_out and p["state"]["status"] == "completed"}
+assert len(t) == 5 and len(parts) == 5, list(t)
+assert "ship 6a" in t["webfetch"]["output"] and t["webfetch"]["metadata"]["status"] == 200, t["webfetch"]
+assert f"{proj}/sub/t.txt" in t["glob"]["output"] and f"{proj}/marker.txt" in t["glob"]["output"], t["glob"]
+assert "t.txt:2:gamma" in t["grep"]["output"], t["grep"]
+assert [x["content"] for x in todo] == ["ship 6a", "6b roll-up"] and todo[0]["status"] == "in_progress", todo
+b = t["bash"]
+assert b["metadata"]["truncated"] and len(b["output"]) < 31000 and "truncated" in b["output"], len(b["output"])
+assert b["output"].startswith("1\n2\n") and b["output"].rstrip().endswith("100000"), b["output"][-40:]
+print("glob/grep/todo/webfetch ok, bash timeout -> error; 588KB bash output stored as", len(b["output"]), "chars (head+tail)")
+PY6
+python3 -c 'import sys;sys.exit(0 if open(sys.argv[1]).read().count("todo.updated") else 1)' $TMP/events6.txt \
+  || { echo "FAIL: no todo.updated on bus"; exit 1; }
+
+echo "- loop safety: model that never stops calling tools"
+S7=$(curl -sf -X POST http://$YGG/session | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
+timeout 20 bash -c "$(declare -f post6); J=(-H 'content-type: application/json'); YGG=$YGG post6 $S7 'tool:forever'" >$TMP/t4.txt \
+  || { echo "FAIL: forever loop hung"; exit 1; }
+grep -q '^event: error' $TMP/t4.txt || { echo "FAIL: no error event at cap"; tail -5 $TMP/t4.txt; exit 1; }
+grep -q 'step cap (4' $TMP/t4.txt || { echo "FAIL: error does not name the cap"; exit 1; }
+grep -q '^event: message.completed' $TMP/t4.txt && { echo "FAIL: completed despite cap"; exit 1; }
+[ "$(wc -l <$PROJ/loop.txt)" = 4 ] || { echo "FAIL: expected 4 tool runs, got $(wc -l <$PROJ/loop.txt)"; exit 1; }
+[ "$(curl -sf http://$YGG/session/status)" = "{}" ] || { echo "FAIL: session still busy after cap"; exit 1; }
+curl -sf http://$YGG/session/$S7/message | python3 -c '
+import sys,json; a=json.load(sys.stdin)[-1]
+assert "step cap" in a["info"]["error"]["data"]["message"] and a["info"]["time"]["completed"], a["info"]
+assert sum(p["type"]=="tool" for p in a["parts"]) == 4, a["parts"]'
+echo "capped at 4 steps with an error event, session idle"
+
+echo "- abort mid-tool kills the command"
+# Process hygiene: identify the tool's process group by the pid it writes itself — never by
+# pattern (a pgrep -f pattern also matches the shell running the check and can kill it).
+post6 $S7 'tool:[[["bash",{"command":"echo $$ > tool.pid; sleep 31.5; echo never > never.txt"}]]]' >$TMP/t5.txt & SLOW=$!
+for _ in $(seq 30); do [ -s $PROJ/tool.pid ] && break; sleep 0.1; done
+TPID=$(cat $PROJ/tool.pid 2>/dev/null) || { echo "FAIL: tool command not running"; exit 1; }
+[ "$TPID" != $$ ] && [ "$(ps -o pgid= -p $$ | tr -d ' ')" != "$TPID" ] || { echo "FAIL: tool shares our process group"; exit 1; }
+pgrep -g "$TPID" >/dev/null || { echo "FAIL: tool process group $TPID not running"; exit 1; }
+T0=$(date +%s.%N)
+[ "$(curl -sf -X POST http://$YGG/session/$S7/abort)" = true ] || { echo "FAIL: abort mid-tool"; exit 1; }
+wait $SLOW
+python3 -c "import sys;sys.exit(0 if $(date +%s.%N)-$T0 < 1.0 else 1)" || { echo "FAIL: abort not prompt"; exit 1; }
+sleep 0.3
+pgrep -g "$TPID" >/dev/null && { echo "FAIL: tool process group $TPID survived abort"; exit 1; }
+grep -q '^event: message.aborted' $TMP/t5.txt || { echo "FAIL: no message.aborted"; exit 1; }
+curl -sf http://$YGG/session/$S7/message | python3 -c '
+import sys,json; a=json.load(sys.stdin)[-1]
+assert a["info"]["error"]["name"] == "MessageAbortedError", a["info"]
+t=[p for p in a["parts"] if p["type"]=="tool"][-1]["state"]
+assert t["status"] == "error" and t["error"] == "aborted", t'
+[ -e $PROJ/never.txt ] && { echo "FAIL: aborted command completed"; exit 1; }
+echo "abort killed the bash process group, tool part marked aborted"
+
+echo "- tool trace on the global bus + survives restart"
+sleep 0.3; kill $EV; EV=
+python3 - "$TMP/events6.txt" <<'PY6'
+import sys, json
+evs = [json.loads(l[5:]) for l in open(sys.argv[1]).read().splitlines() if l.startswith("data:")]
+st = [(e["properties"]["part"]["tool"], e["properties"]["part"]["state"]["status"]) for e in evs if e["type"] == "message.part.updated"]
+assert ("bash", "running") in st and ("bash", "completed") in st and ("edit", "error") in st, st
+print(len(st), "message.part.updated events on /event")
+PY6
+BEFORE=$(curl -sf http://$YGG/session/$S6/message)
+kill $SRV; wait $SRV 2>/dev/null || true; SRV=
+start_srv
+[ "$BEFORE" = "$(curl -sf http://$YGG/session/$S6/message)" ] || { echo "FAIL: tool trace lost on restart"; exit 1; }
+curl -sf http://$YGG/session/$S6/todo | grep -q 'ship 6a' || { echo "FAIL: todo lost on restart"; exit 1; }
+echo "slice-6a tools ok"
 echo PASS

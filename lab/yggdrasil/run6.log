@@ -1,0 +1,28 @@
+Slice 6a is done: yggdrasil now runs tools in a loop instead of just passing text through, and `./verify.sh` passes, including all the slice 1–3 checks. One thing to know up front: the checks use a fake upstream, so it hasn't been run against a real model yet.
+
+**How it behaves now:** every message sends the model the 8 tools (`bash`, `read`, `write`, `edit`, `glob`, `grep`, `webfetch`, `todowrite`). When the model asks for tools, yggdrasil runs them one at a time, sends back the results, and repeats until the model gives a final reply.
+- **Stored trace:** every call is saved on the assistant message in opencode's format, so `GET /session/:id/message` shows the full trace. Later messages resend that trace to the model as history.
+- **Live events:** each tool sends `message.part.updated` when it starts and again when it finishes. `todowrite` also sends `todo.updated` and saves the list, which you can read at `GET /session/:id/todo`.
+- **Progress survives:** the message is saved to disk at every tool start and finish, so a long run shows up while it's still going.
+
+**What the new checks confirmed:**
+- A `bash` call really ran in the project dir, and its input, output and exit code were stored. The final text arrived on the stream.
+- `write` → `edit` → `read` on a temp file gave the right content. A failing `edit` was stored as an error and the loop carried on.
+- `glob`, `grep`, `todowrite` and `webfetch` all worked. A 588 KB output was cut to 30 KB, and a `bash` timeout came back as an error.
+- **Loop cap:** a model that never stops asking for tools stopped after exactly 4 steps (the test setting), with an error event and the session back to idle.
+- **Abort mid-tool:** the stream closed in under 1 s, the running command was actually killed, and its file was never written.
+- The trace and todo list came back unchanged after a restart. Tests used temp dirs only; `data/` was never touched.
+
+**Decisions I made** (all written up in the slice-6a section of `ASSESSMENT.md`):
+- **Cap:** 100 model calls per run by default (`YGG_MAX_STEPS`). Real usage averages about 6 per prompt with a long tail.
+- **Timeouts:** `bash` defaults to 2 min and allows up to 10 min per call. A timeout or abort kills the command and anything it started.
+- **Truncation:** each tool output is cut to 30,000 characters, keeping the beginning and the end, because errors usually sit at the end.
+- **Serial tools:** calls within a step run in order, because shell commands usually depend on each other.
+- **One message per run:** opencode writes one message per step, but I kept one per run so the PWA works unchanged.
+- **Security:** none of opencode's permission prompts, no limits on which paths or commands the model can use, and no network limits. It can read secrets stored in files. Only the upstream key is removed from the shell's environment. It's all deliberate and documented for a single-user box.
+
+**PWA test suite:** 35 passed, 2 failed, and neither is caused by this change. `context` is the same real-model gap as in slice 3. `theme` is a client-side colour check that fails because another session rebuilt the live PWA build today at 10:00 (expected `#100c14`, got `#1c1013`).
+
+I only changed files in `lab/yggdrasil/`: `src/main.rs`, a new `src/tools.rs`, `mock/mock_upstream.py`, `verify.sh`, `ASSESSMENT.md`, and `Cargo.toml`/`Cargo.lock` (new `libc` dependency). Nothing is committed yet; say if you want it committed.
+
+Next up is 6b (context roll-up), then 6c (reasoning passthrough).

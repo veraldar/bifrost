@@ -202,3 +202,77 @@ Evidence: `/tmp/ygg-full2.log` (not kept). Rerun with `./run-e2e.sh --grep-inver
 - **PKGBUILD done** because it was cheap. It reuses the same unit template: `%h` specifiers for per-user config and data, and `Environment=YGG_DATA_DIR` as a default the env file can override. `!debug` keeps makepkg from emitting an empty -debug package, since the profile already strips the binary.
 - **One lab source change.** In `main.rs`, an *empty* `YGG_UPSTREAM_BASE_URL` now counts as unset. Before, the shipped template's `YGG_UPSTREAM_BASE_URL=` line started a healthy-looking server that failed on every message. Now it exits with status 2 and logs `YGG_UPSTREAM_BASE_URL is required`.
 - **README tells users to set `OPENCODE_URL` in both** `pwa/.env.local` and `agent/.env`. The voice agent reads it too (`agent/agent.py:30`), and missing that would leave voice on opencode.
+
+# Slice 6a — tools + agent loop
+
+**Status: green.** `./verify.sh` → PASS: the slice 1-3 assertions plus a new slice-6a block. Slice 4 is packaging and has no runtime assertions. There's no slice-5 surface in verify.sh.
+
+The bifrost e2e referee (`./run-e2e.sh --grep-invert "voice|hands-free|LiveKit"`) gave **35 passed, 2 failed**. Neither failure is a yggdrasil regression:
+- `context` is the known real-model env-gap from slice 3.
+- `theme` is a client-only CSS check: it expects `#100c14` and the live `.next` build, rebuilt 10-03 10:00 by another session, renders `#1c1013`. That's product/spec drift and never touches the server.
+
+Code: `src/tools.rs` (new, the tool set) and `src/main.rs` (loop, relay, history replay, `GET /session/:id/todo`). New dependency: `libc`, used for the process-group kill.
+
+## Shape
+- **Loop.** Each run is a sequence of upstream calls. Every call carries `tools` (OpenAI function calling), and its streamed `delta.tool_calls` fragments are reassembled by `index`; the non-stream JSON `message.tool_calls` form is accepted too.
+  - If a step has no tool calls, the run is done.
+  - Otherwise the calls run, the step goes into the conversation as `{role:assistant, content, tool_calls}` followed by one `{role:tool, tool_call_id, content}` per result, and the loop calls upstream again.
+- **One assistant message per run.** opencode writes one message per step. I kept one message per run so the PWA's run model is unchanged (placeholder, `time.completed`, `message.completed`).
+  - Parts are appended in order: `text`, then `tool`…, then `text`.
+  - Empty text parts are dropped, but there's always at least one text part.
+  - Tool parts look like this: `{type:"tool", callID, tool, state:{status:"running"|"completed"|"error", input, output, error?, title, metadata, time:{start,end}}}`.
+- **Events.** `message.part.updated` `{sessionID, part}` fires on tool start (`running`) and again on finish (`completed`/`error`). It goes to both the global `/event` bus and the poster's SSE stream.
+  - `todowrite` also fires `todo.updated` `{sessionID, todos}` and stores the list on the session. It's persisted and served at `GET /session/:id/todo`.
+  - Text parts get no `part.updated`; deltas stay `message.part.delta`, exactly as before.
+- **Checkpoints.** The message is persisted to disk on every tool start and finish. A marathon run is visible on GET mid-run, and a crash loses at most the tool in flight.
+- **History replay.** Later turns rebuild the full trace from stored parts: a tool part closes a step, and the next text part opens a new one. Unfinished tool parts are skipped, because upstreams reject a call that has no result. Verify checks this directly: after two tool turns, the mock counts 5 `tool` messages in history.
+- **Concurrency: serial.** Calls within a step run in order. Edits that depend on each other stay correct, and the trace order equals the execution order. Parallel reads would be faster, but bash is 60% of the life and bash calls are usually order-dependent.
+
+## Judgment calls
+- **Step cap: `YGG_MAX_STEPS`, default 100 upstream calls per run.**
+  - The real data averages about 6.3 assistant steps per user prompt (8,546 / 1,346), with a long tail. 100 leaves room for long autonomous runs and still bounds a model that loops.
+  - At the cap the run ends as an error: an `error` event naming the cap, `info.error` set, `session.idle` published. Tools from the last step have already run.
+- **bash.**
+  - Runs as `bash -c` in `YGG_PROJECT_DIR` (default cwd, canonicalized; a bad dir exits 2), with stdin null.
+  - Output is stdout, then stderr, then `[exit code N]` when non-zero. A non-zero exit still counts as `completed`, as in opencode; the model reads the code. `metadata.exit` is set.
+  - Timeout is `YGG_BASH_TIMEOUT_MS`, default 120 s. A per-call `timeout` (ms) is allowed, capped at 10 min. On timeout the tool returns an **error** and the partial output is dropped.
+  - Each command gets its own process group. Timeout and **abort** SIGKILL the whole group (verify: `sleep` is gone after abort). After a normal exit the group is left alone, so intentional background jobs survive.
+  - `YGG_*` env vars, including the API key, are stripped from the shell's environment.
+- **Truncation.** At most **30,000 chars** per tool output (opencode's bash cap), keeping the **head and tail** with a `[... N bytes truncated ...]` marker. Build errors and test summaries live at the end.
+  - The stored part holds exactly what the model saw, so a 588 KB `seq` stays at about 30 KB in the session file and doesn't bloat the marathons. `metadata.truncated` is set.
+  - read: 2,000 lines by default, with `offset`/`limit`; lines are cut at 2,000 chars and numbered `%6d\t`. Files with NUL bytes in the first 8 KB are refused as binary.
+  - glob: 100 entries max.
+  - webfetch: 5 MB body cap, 30 s timeout by default (max 120 s). HTML is crudely stripped to text unless `format:"html"` is requested.
+- **glob/grep use ripgrep** (`rg`, as opencode does), so they're gitignore-aware and skip hidden files. If `rg` is missing, the tool returns an error rather than taking down the server.
+- **edit** is an exact string replace. Zero matches is an error; multiple matches are an error unless `replaceAll` is set; an empty `oldString` creates the file. A failed tool is fed back as `Error: …` and the loop continues (verify covers this).
+- **Bad tool-call JSON** becomes an error tool part, with the raw arguments kept as `input.raw`, and the error is fed back to the model.
+- `YGG_TOOLS=0` stops declaring tools, for upstreams that reject the `tools` param.
+
+## Security posture: deliberately not guarded
+This is a single-user box, the server is bound to localhost and the network is tailnet-only. The posture matches the user's own shell.
+- **No permission system.** opencode asks before risky bash/edit; yggdrasil never asks. That's out of scope by decision (LIFE.md: 13 `question` uses in 9 months, voice-first).
+- **No path sandbox.** Absolute paths and `..` work anywhere the user account can reach. The project dir is a default, not a jail.
+- **No command filtering**, no network egress limits for bash or webfetch, and no SSRF guard (webfetch can reach localhost/LAN).
+- **The model can read secrets** on disk (e.g. `yggdrasil.env`). Only the process env is scrubbed.
+- What *is* guarded is resources: timeouts, process-group kill, output caps, the step cap, and the webfetch body cap.
+
+## Verification (`verify.sh` slice-6a block)
+The server restarts with `YGG_PROJECT_DIR=$TMP/proj` and `YGG_MAX_STEPS=4`. All data lives in throwaway temp dirs; `data/` is never touched. The mock's new `tool:` mode replays scripted tool calls, splits the arguments across stream chunks, and streams `step k.` text before each step.
+1. **bash round-trip.** `marker.txt` really appears in the project dir. The SSE stream carries `message.part.updated` running→completed, then deltas with `TOOL-FINAL: out-42`, then `message.completed`. The stored parts are `[text, tool, text]`, with input, combined stdout+stderr, the cwd, and `exit:0`. The final text also proves all 8 tools were declared.
+2. **write → edit (plus a failing edit in the same step) → read on an absolute path.** The file content is right, the failing edit is stored as an `error` part and the loop continues, read output is numbered, and history replay is counted.
+3. **glob, grep, todowrite, webfetch, bash truncation and bash timeout.**
+   - glob, grep and todowrite all complete. `GET /todo` returns the list and `todo.updated` appears on the bus.
+   - webfetch reads yggdrasil's own `/todo`.
+   - `seq 1 100000` is cut to 30,036 chars, head and tail.
+   - A 300 ms timeout on `sleep 5` gives an error part.
+4. **Loop safety.** `tool:forever` (mock never stops) ends at exactly 4 tool runs (`loop.txt` has 4 lines). It gets an `error` event naming the cap, no `message.completed`, and the busy map is empty. A 20 s guard makes a hang fail the test.
+5. **Abort mid-tool.** Abort during `sleep 31.5` returns `true` and the stream closes in under 1 s. The tool's whole process group is gone, `never.txt` is never written, the tool part is `error:"aborted"`, and the message carries `MessageAbortedError`.
+   *Process hygiene (night M1):* the check identifies the tool by the pid it writes itself (`echo $$ > tool.pid`) and probes its process group with `pgrep -g`. It never matches by pattern. An earlier independent check used `pgrep -f 'sleep 31.5'`, which also matched the shell running the check, and the cleanup killed that shell.
+6. **Bus and persistence.** `/event` carried the tool trace, including `edit` `error`. The trace and the todo list come back byte-identical after a restart.
+
+## Not done (next slices)
+- Context roll-up (6b).
+- Reasoning passthrough (6c).
+- The `task`/child-session tool, plus `skill`, `question` and MCP. Together they're under 0.5% of the tool parts in LIFE.md.
+- Per-step assistant messages and `step-start`/`step-finish` parts, which would only matter if the PWA starts rendering steps.
+- No real-model run in this slice. The mock exercises the OpenAI tool-call wire format, but a live provider may differ in small ways (e.g. sending `id` on every fragment, which the reassembly already tolerates).

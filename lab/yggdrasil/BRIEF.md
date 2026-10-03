@@ -1,49 +1,56 @@
-# YGGDRASIL — slice 4: package for Omarchy/Arch, deploy-ready for other people
+# YGGDRASIL — slice 6a: tools + agent loop (the life of the machine)
 
-Slices 1-3 are green: bifrost's own e2e suite drives yggdrasil via
-OPENCODE_URL. Now make it installable by someone else on a clean machine in
-one command. Deadline is real; land the deliverable green.
+LIFE.md in this directory is the measured usage model from real opencode
+data. Read it first. The headline: 8,749 tool parts vs 5,151 text parts —
+opencode's life is an agent that EXECUTES, and yggdrasil today only relays
+text. Fix that. Land THIS slice green.
 
-## Deliverables (all inside `install/`)
+## Scope
 
-1. `install.sh` — one command, idempotent: builds (or reuses) the release
-   binary, installs it, installs a systemd USER unit, an env template, and
-   prints what to do next (how to set the upstream + how to point bifrost's
-   OPENCODE_URL at it). Prefer a prebuilt binary sitting next to the script
-   when present; fall back to `cargo build --release` (`source ~/.cargo/env`
-   may be needed).
-2. `yggdrasil.service` — systemd user unit (this is how bifrost itself runs;
-   Omarchy/Arch convention). Read env from a config file. Hardened sanely
-   (no new privileges; nothing exotic — it must still just work).
-3. Env template (`.env` style) — the YGG_* vars, documented inline.
-4. `README.md` — install, configure upstream, run, point bifrost at it
-   (OPENCODE_URL), verify with one curl. Written for a stranger.
-5. PKGBUILD (optional, if cheap after 1-4): Arch-native alternative that
-   builds the same thing. Skip without guilt if time is short — 1-4 are the
-   deliverable.
+Yggdrasil becomes a tool-executing agent:
+
+- On POST message, declare a tool set to the upstream (OpenAI function
+  calling) and run the loop: assistant tool_calls → execute each → feed
+  results back as tool messages → repeat until a final text reply (or an
+  abort / a sane max-iterations cap, your call, documented).
+- Tools (schemas your design, opencode-plausible): `bash` (run a shell
+  command in a configured project dir, capture stdout/stderr/exit), `read`,
+  `write`, `edit` (exact string replace), `glob`, `grep`, `webfetch` (GET →
+  text), `todowrite` (store the list on the session; execution = store and
+  ack). Project dir: env var, default cwd. `bash` and file tools resolve
+  relative paths against it.
+- Every tool call is STORED on the assistant message as opencode-shaped
+  parts: `{"type":"tool","callID":...,"tool":...,"state":{"status":
+  "completed"|"error","input":{...},"output":...}}` — GET /session/:id/message
+  must show the full tool trace. Emit `message.part.updated`-style events on
+  the /event bus per tool start/finish (names your call, opencode-plausible).
+- Concurrency of tools within one step: your call (serial is acceptable,
+  document it).
+
+Judgment calls are yours and go in the slice-6a section of ASSESSMENT.md:
+tool schema details, loop cap, timeouts for bash, output truncation limits
+(real tool outputs hit hundreds of KB — LIFE.md pattern 1), security
+posture (this is a single-user box; document what you chose NOT to guard
+against, like opencode's permission system — explicitly out of scope).
+
+NOTE: `data/session/` holds REAL human sessions — tests use throwaway data
+dirs only, never touch `data/`.
 
 ## Verification (your own, before you report done)
 
-- Clean-path install: run install.sh with XDG_CONFIG_HOME / XDG_DATA_HOME /
-  bin dir pointed at a throwaway prefix — files land exactly where a stranger
-  would expect, nothing leaks into the real home except what install.sh
-  explicitly says it touches.
-- The INSTALLED unit actually runs under `systemctl --user` (you may need a
-  daemon-reload on the real bus for the unit-start check — that is fine;
-  document it) and serves a full curl round-trip: POST /session → POST
-  message (mock upstream) → SSE reply → GET history.
-- The install.sh re-run does not break anything (idempotency).
-- Release binary: strip it, note its size.
-
-## Judgment calls are yours
-
-Prebuilt-in-git vs build-from-source default, unit hardening level, default
-port (4096 is opencode's — colliding on purpose so OPENCODE_URL needs no edit
-is a legitimate choice, but so is 4100 + one env line; pick and defend),
-PKGBUILD or not. Write every call + reason into a slice-4 section of
-ASSESSMENT.md.
+Extend `verify.sh` with a slice-6a block (mock upstream grows a tool-call
+mode: first reply requests a `bash` echo tool_call, then after the tool
+result returns final text):
+- a message round-trip where the model calls bash → the command really ran
+  (observable effect), tool part stored with input+output, final text
+  delivered on the SSE stream;
+- read/write/edit against a temp file under the project dir;
+- loop safety: a mock that demands tools forever terminates at the cap with
+  an error event, not a hang;
+- slices 1-5 assertions still PASS.
 
 ## Operational facts
 
-- `source ~/.cargo/env`. Work only in `lab/yggdrasil/`. Product code frozen.
-- You have ~45 minutes. Blocked twice on the same thing: stop, write, exit.
+- `source ~/.cargo/env`. Only `lab/yggdrasil/`. Product code frozen.
+- ~60 minutes — the biggest slice. Blocked twice on the same thing: stop,
+  write, exit.

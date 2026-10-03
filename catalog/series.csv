@@ -1,0 +1,22 @@
+series_id,source_id,slug,extract,unit,cadence,max_age_days,stage,label
+owid.extreme_poverty,owid,share-of-population-in-extreme-poverty,owid:entity=World;col=headcount_ratio__ppp_version_2021__poverty_line_300__welfare_type_income_or_consumption__table_income_or_consumption_consolidated__survey_comparability_no_spells,%,annual,1100,core,Extreme poverty ($3/day)
+owid.life_expectancy,owid,life-expectancy,owid:entity=World;col=life_expectancy_0,years,annual,1100,core,Life expectancy
+wb.gdp_per_capita,worldbank,NY.GDP.PCAP.KD,wb:WLD,US$,annual,1100,core,GDP per capita (const. 2015 $)
+epoch.open_weights_share,epoch,notable_ai_models,epoch:open_share,%,monthly,100,core,Open-weights share of notable models (12 mo)
+epoch.org_diversity,epoch,notable_ai_models,epoch:org_diversity,index 0-1,monthly,100,core,Organisation diversity of notable models (12 mo)
+epoch.country_diversity,epoch,notable_ai_models,epoch:country_diversity,index 0-1,monthly,100,core,Country diversity of notable models (12 mo)
+epoch.frontier_compute,epoch,notable_ai_models,epoch:frontier_compute,log10 FLOP,monthly,100,core,Largest training run (12 mo)
+owid.genai_user_share,owid,estimated-share-people-generative-ai,owid:entity=World;col=ai_user_share,%,daily,300,core,Share of people using generative AI
+wiki.deepfake,wikimedia,Deepfake,wiki:monthly,views,monthly,100,core,Attention: Deepfake
+wiki.synthetic_media,wikimedia,Synthetic_media,wiki:monthly,views,monthly,100,core,Attention: Synthetic media
+wiki.ai_regulation,wikimedia,Regulation_of_artificial_intelligence,wiki:monthly,views,monthly,100,core,Attention: AI regulation
+wiki.ai_xrisk,wikimedia,Existential_risk_from_artificial_intelligence,wiki:monthly,views,monthly,100,core,Attention: AI existential risk
+wiki.agi,wikimedia,Artificial_general_intelligence,wiki:monthly,views,monthly,100,core,Attention: AGI
+wiki.en_total,wikimedia,_aggregate,wiki:aggregate,views,monthly,100,core,"en.wikipedia total user views (normaliser, not mapped)"
+owid.electoral_democracy,owid,electoral-democracy-index,owid:entity=World;col=electdem_vdem__estimate_best,index 0-1,annual,1100,core,Electoral democracy (V-Dem)
+owid.conflict_deaths,owid,deaths-in-armed-conflicts-by-region,owid:entity=World;col=number_deaths_ongoing_conflicts__conflict_type_all,count,annual,1100,core,Deaths in armed conflicts (UCDP)
+wb.unemployment,worldbank,SL.UEM.TOTL.ZS,wb:WLD,%,annual,1100,core,Unemployment (ILO modeled)
+owid.ai_private_investment,owid,private-investment-in-artificial-intelligence,owid:entity=World;col=private_investment,US$,annual,1100,core,Private AI investment
+owid.ai_company_adoption,owid,share-companies-using-artificial-intelligence,owid:entity=All geographies;col=pct_of_respondents,%,annual,1100,core,Companies using AI
+owid.frontiermath_best,owid,ai-frontiermath-over-time,owid:runmax;col=mean_score,%,monthly,120,core,FrontierMath best score to date
+owid.large_scale_ai_systems,owid,cumulative-number-of-large-scale-ai-systems-by-country,owid:entity=World;col=cumulative_count,count,annual,1100,candidate,"Large-scale AI systems (cumulative; cross-check, unmapped)"

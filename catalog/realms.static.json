@@ -1,0 +1,20 @@
+{
+ "colors": {
+  "control": "#fbbf24",
+  "divergence": "#38bdf8",
+  "drift": "#a78bfa",
+  "stagnation": "#94a3b8",
+  "terminus": "#f87171",
+  "transcendence": "#f0abfc",
+  "utopia": "#4ade80"
+ },
+ "definitions": {
+  "control": "humans keep the leash — regulation, audits, lawsuits, treaties",
+  "divergence": "intelligence escapes the few — open weights, local models, many small actors",
+  "drift": "attention eats everything — virality, slop, synthetic media, no direction",
+  "stagnation": "the revolution stalls — winters, plateaus, overpromising, disillusion",
+  "terminus": "the leash breaks badly — job losses, weapons, scams, existential risk",
+  "transcendence": "the horizon dissolves — superintelligence, minds beyond minds",
+  "utopia": "AI broadly solves material problems — health, abundance, education"
+ }
+}

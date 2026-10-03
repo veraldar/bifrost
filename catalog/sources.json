@@ -1,0 +1,114 @@
+{
+ "aiid": {
+  "attribution": "AI Incident Database snapshots",
+  "homepage": "https://incidentdatabase.ai",
+  "license": "to confirm",
+  "license_url": "",
+  "status": "candidate",
+  "title": "AI Incident Database"
+ },
+ "arxiv": {
+  "attribution": "arXiv API (metadata CC0 1.0)",
+  "homepage": "https://info.arxiv.org/help/api/",
+  "license": "CC0 1.0 (metadata)",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "status": "m3",
+  "title": "arXiv"
+ },
+ "epoch": {
+  "attribution": "Epoch AI, 'Data on Notable AI Models' (CC BY 4.0), epoch.ai/data/notable-ai-models",
+  "homepage": "https://epoch.ai/data/notable-ai-models",
+  "license": "CC BY 4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "status": "core",
+  "title": "Epoch AI"
+ },
+ "fedreg": {
+  "attribution": "Federal Register API v1",
+  "homepage": "https://www.federalregister.gov",
+  "license": "public domain (US gov work)",
+  "license_url": "https://www.federalregister.gov/reader-aids/developer-resources/rest-api",
+  "status": "m3",
+  "title": "Federal Register"
+ },
+ "gdelt": {
+  "attribution": "The GDELT Project",
+  "homepage": "https://www.gdeltproject.org",
+  "license": "free, attribution",
+  "license_url": "https://www.gdeltproject.org/about.html#termsofuse",
+  "status": "candidate",
+  "title": "GDELT"
+ },
+ "github": {
+  "attribution": "GitHub search API",
+  "homepage": "https://api.github.com",
+  "license": "ToS (counts = facts)",
+  "license_url": "https://docs.github.com/site-policy/github-terms/github-terms-of-service",
+  "status": "candidate",
+  "title": "GitHub"
+ },
+ "hf": {
+  "attribution": "Hugging Face Hub API",
+  "homepage": "https://huggingface.co",
+  "license": "ToS (no stated data license)",
+  "license_url": "https://huggingface.co/terms-of-service",
+  "status": "candidate",
+  "title": "Hugging Face Hub"
+ },
+ "manifold": {
+  "attribution": "Manifold Markets API",
+  "homepage": "https://manifold.markets",
+  "license": "none stated",
+  "license_url": "",
+  "status": "candidate",
+  "title": "Manifold Markets"
+ },
+ "noaa_gml": {
+  "attribution": "NOAA Global Monitoring Laboratory, Mauna Loa monthly CO2",
+  "homepage": "https://gml.noaa.gov/ccgg/trends/",
+  "license": "public domain (US gov)",
+  "license_url": "https://gml.noaa.gov/about/disclaimer.html",
+  "status": "m3",
+  "title": "NOAA GML"
+ },
+ "owid": {
+  "attribution": "Our World in Data (ourworldindata.org), CC BY 4.0; upstream per column citationShort",
+  "homepage": "https://ourworldindata.org",
+  "license": "CC BY 4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "status": "core",
+  "title": "Our World in Data"
+ },
+ "pubmed": {
+  "attribution": "NCBI/NLM PubMed E-utilities",
+  "homepage": "https://www.ncbi.nlm.nih.gov/books/NBK25501/",
+  "license": "public domain (NLM; US gov)",
+  "license_url": "https://www.ncbi.nlm.nih.gov/home/about/policies/",
+  "status": "m3",
+  "title": "PubMed (NCBI E-utilities)"
+ },
+ "unsdg": {
+  "attribution": "United Nations SDG Global Database",
+  "homepage": "https://unstats.un.org/sdgs/dataportal",
+  "license": "UN terms (free reuse w/ attribution)",
+  "license_url": "https://www.un.org/en/about-us/terms-of-use",
+  "status": "candidate",
+  "title": "UN SDG Global Database"
+ },
+ "wikimedia": {
+  "attribution": "Wikimedia Foundation Pageviews API (CC0 1.0)",
+  "homepage": "https://wikimedia.org/api/rest_v1/",
+  "license": "CC0 1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "status": "core",
+  "title": "Wikimedia"
+ },
+ "worldbank": {
+  "attribution": "World Bank, World Development Indicators (CC BY 4.0)",
+  "homepage": "https://data.worldbank.org",
+  "license": "CC BY 4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "status": "core",
+  "title": "World Bank"
+ }
+}

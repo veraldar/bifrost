@@ -49,8 +49,8 @@ Source: docs/reviews/agi-roadmap-review.md. Security debts S1–S3 defined there
 | **WAVE 1** (1 week, user fires) | techie preview | Show HN day 0 (hook-first title + timed cold-start video, CPU path, cheap box); X passive same day; r/LocalLLaMA +2d; r/selfhosted +4d; r/omarchy loose; 5-10 seeded cold testers before day 0 |
 | **v0.8.0** (~1 week) | WSL2 one-click | PS wrapper (WSL path), edge-on-Windows validation, voice-models.md published, Tailscale admin-URL detection + /selfcheck page |
 | **v0.9.0** (2 weeks) | consumer gates | QR /pair onboarding, **device tokens at the seam (S1 fix, blocking v1.0)**, android-lab green, push polish, federation/peering spec signed off (user pivot: unified sessions across trees, no switching) |
-| **v1.0** (1-2 weeks) | the promise kept | consumer decision tree wired (Tier 1 cloud / Tier 2 sovereign), veraldar.org one-pager + video #1, wave 3 launch |
-| **v1.1** (evidence-triggered) | many trees | federation/peering build (unified sessions across trees — user pivot 10-02), TV/media skill, per-bridge identity |
+| **v1.0** (1-2 weeks) | the promise kept | consumer decision tree wired (Tier 1 cloud / Tier 2 sovereign), veraldar.org one-pager + video #1, wave 3 launch — **layman validation: the girlfriend-iPhone test passed** |
+| **v1.1** (evidence-triggered) | many trees | federation/peering deepen (TV/media skill, per-bridge identity) — v0.8 federation is the base |
 
 Background (never gates a release): voice-lab remainder/P3, edge Termux arm64,
 yggdrasil lab (per playbook lesson), hardwar lab.

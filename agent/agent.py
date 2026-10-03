@@ -1,6 +1,7 @@
 """LiveKit voice agent bridging phone audio to a local opencode server."""
 
 import asyncio
+import json
 import os
 import re
 from typing import AsyncIterable
@@ -39,6 +40,14 @@ INSTRUCTIONS = (
     "Keep spoken replies concise: code is described, not read character by character."
 )
 
+# req 10-02 mode awareness: appended to hands-free commits so opencode's LLM
+# knows the reply will be read aloud. Protocol, not content — the phone
+# strips `[ctx: …]` from every rendered surface (pwa lib/oc-transcript.ts).
+CTX_TAG = (
+    "\n\n[ctx: mode=hands-free; the user is talking, the reply will be read "
+    "aloud — keep it short, conversational, spoken-style]"
+)
+
 # whisper-small hallucinates on silence/room tone — these strings as an ENTIRE
 # turn are noise, not speech (seen live: "you" and "呃" committed after a
 # quiet stretch). Matched lowercase, punctuation stripped.
@@ -74,11 +83,15 @@ class OpenCodeLLM(llm.LLM):
     title is reused, or created on first use.
     """
 
-    def __init__(self, base_url: str, room_key: str = "voice") -> None:
+    def __init__(self, base_url: str, room_key: str = "voice", mode_state: dict | None = None) -> None:
         super().__init__()
         self._base = base_url.rstrip("/")
         self._room_key = room_key.lower()
         self._session_id: str | None = None
+        # current interaction mode, published by the phone as participant
+        # metadata ('text' | 'free') — req 10-02 mode awareness: hands-free
+        # commits carry a spoken-style context tag for opencode's LLM
+        self.mode_state = mode_state or {"mode": "text"}
         # last full (cumulative) voice prompt posted for this room — hands-free
         # VAD re-commits turns as A, A+B, A+B+C… while the previous reply is
         # still playing; only the delta may reach opencode (see _run)
@@ -205,6 +218,12 @@ class OpenCodeStream(LLMStream):
         if not send:
             logger.info("opencode bridge: turn was only the keyword, skipping")
             return
+        # mode context rides the payload (req 10-02): appended AFTER the
+        # cumulative-dedup bookkeeping so last_prompt stays the raw speech
+        mode = str(self._oc.mode_state.get("mode") or "text")
+        if mode == "free":
+            send = send + CTX_TAG
+        logger.info("turn → opencode (mode=%s)", mode)
         try:
             reply = await self._oc.ask(send)
         except Exception as e:  # noqa: BLE001 - surface errors as speech
@@ -220,6 +239,9 @@ server = AgentServer()
 @server.rtc_session(agent_name="bifrost")
 async def entrypoint(ctx: JobContext) -> None:
     _api_key = "not-needed"
+    # interaction mode published by the phone as participant metadata
+    # ('text' | 'free') — req 10-02 mode awareness
+    mode_state = {"mode": "text"}
     session = AgentSession(
         # turn-taking is keyword-driven in hands-free (see below): turns never
         # auto-commit on silence — speech buffers until "over"/"over and out".
@@ -230,7 +252,7 @@ async def entrypoint(ctx: JobContext) -> None:
         # arrives after turn has been committed") and the speech is dropped
         turn_handling={"endpointing": {"min_delay": 1.5}},
         stt=openai.STT(base_url=SPEACHES_URL, api_key=_api_key, model=STT_MODEL),
-        llm=OpenCodeLLM(OPENCODE_URL, room_key=ctx.room.name),
+        llm=OpenCodeLLM(OPENCODE_URL, room_key=ctx.room.name, mode_state=mode_state),
         tts=openai.TTS(base_url=SPEACHES_URL, api_key=_api_key, model=TTS_MODEL, voice=TTS_VOICE),
     )
     await session.start(
@@ -263,6 +285,32 @@ async def entrypoint(ctx: JobContext) -> None:
         logger.warning("another agent already in room '%s' — shutting down", ctx.room.name)
         ctx.shutdown("duplicate agent")
         return
+
+    # ---- mode awareness (req 10-02) ----
+    # The phone publishes its interaction mode ('text' | 'free') as its
+    # participant metadata on every mode switch and on room join. The mode
+    # decides whether committed turns carry the spoken-style context tag —
+    # it must be readable at commit time, not guessed from the turn path
+    # (PTT holds and tap-to-send commits work in BOTH modes).
+    def _phone_mode() -> str:
+        p = ctx.room.remote_participants.get(human_identity)
+        if p is None:
+            return "text"
+        try:
+            return str((json.loads(p.metadata or "{}") or {}).get("mode") or "text")
+        except Exception:  # noqa: BLE001 — malformed metadata must never kill a turn
+            return "text"
+
+    def _on_metadata_changed(participant) -> None:
+        if participant.identity != human_identity:
+            return
+        prev = mode_state["mode"]
+        mode_state["mode"] = _phone_mode()
+        if mode_state["mode"] != prev:
+            logger.info("mode → %s (participant metadata)", mode_state["mode"])
+
+    ctx.room.on("participant_metadata_changed", _on_metadata_changed)
+    mode_state["mode"] = _phone_mode()
 
     def _end_job_with_session(_ev) -> None:
         # start() returns immediately, so the job would otherwise outlive its
@@ -426,6 +474,11 @@ async def entrypoint(ctx: JobContext) -> None:
         phrase = "over and out" if out else "over"
         keyword_busy = True
         turn_text = ""
+        # keyword turn-taking only exists in hands-free — authoritative mode
+        # even if the metadata update has not landed yet. "over and out" is
+        # the radio exit: its reply lands as text (never spoken) → no tag.
+        if not out:
+            mode_state["mode"] = "free"
         logger.info("keyword commit (%s)", phrase)
         if not out:
             # phone mutes the mic NOW and shows the working animation; the
@@ -464,6 +517,9 @@ async def entrypoint(ctx: JobContext) -> None:
         if asyncio.get_running_loop().time() > deadline:
             break
         await asyncio.sleep(0.2)
+    # the human may have joined after the dup check — their join carries the
+    # current mode metadata; read it once now that they are in the room
+    mode_state["mode"] = _phone_mode()
 
     # (audio output is disabled — the greeting would synthesize into the
     # void; the phone's UI is the greeting now)

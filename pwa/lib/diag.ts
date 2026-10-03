@@ -11,16 +11,28 @@ const MAX_PENDING = 400;
 const FLUSH_MS = 10_000;
 const FLUSH_AT = 40;
 
-type Ev = { t: number; kind: string; msg: string };
+type Ev = { t: number; kind: string; msg: string; m?: string };
 
 let recent: Ev[] = [];
 let pending: Ev[] = [];
 let clientId = '';
 let flushing = false;
 let pollFailStreak = 0;
+// current interaction mode ('text' | 'free' | 'ptt' during a hold) — stamped
+// onto every event so any diag line is attributable to how the user was
+// talking (req 10-02 mode awareness). '' = not set yet (pre-mount).
+let curMode = '';
+
+/** The session page reports every mode transition here; every event pushed
+ *  after that carries it. A hold stamps 'ptt' and the release restores the
+ *  underlying mode. */
+export function setDiagMode(mode: string): void {
+  curMode = mode;
+}
 
 function push(kind: string, msg: string): void {
-  const ev = { t: Date.now(), kind, msg: String(msg).slice(0, 2000) };
+  const ev: Ev = { t: Date.now(), kind, msg: String(msg).slice(0, 2000) };
+  if (curMode) ev.m = curMode;
   recent.push(ev);
   if (recent.length > MAX_RECENT) recent = recent.slice(-MAX_RECENT);
   pending.push(ev);
@@ -208,7 +220,9 @@ export function initDiag(): void {
 }
 
 export function diagDump(): string {
-  return recent.map((e) => `${new Date(e.t).toISOString()} [${e.kind}] ${e.msg}`).join('\n');
+  return recent
+    .map((e) => `${new Date(e.t).toISOString()} [${e.kind}${e.m ? `·${e.m}` : ''}] ${e.msg}`)
+    .join('\n');
 }
 
 /** Record an app-level event (voice, errors, …) into the diag pipeline. */

@@ -11,7 +11,9 @@ export default defineConfig({
   retries: 0,
   reporter: [['list']],
   use: {
-    baseURL: 'http://127.0.0.1:8080',
+    // worktree labs serve their own build on another port — the live
+    // lk-pwa on 8080 must never be a test target (PW_BASE_URL override)
+    baseURL: process.env.PW_BASE_URL || 'http://127.0.0.1:8080',
     viewport: { width: 360, height: 780 }, // phone shape
     launchOptions: {
       args: [

@@ -28,7 +28,7 @@ import {
   stopSpeech,
   subscribeSpeech,
 } from '@/lib/speech';
-import { diagEvent } from '@/lib/diag';
+import { diagEvent, setDiagMode } from '@/lib/diag';
 import { clearAsked, ensureNotifyPermission, markAsked, notifyReply } from '@/lib/notify';
 import { PENDING_TTL_MS } from '@/lib/pending-ttl';
 import { markRead } from '@/lib/read';
@@ -801,6 +801,7 @@ export default function SessionView({
           try {
             modeRef.current = 'free';
             setMode('free');
+            setDiagMode('free');
             setFreeCycle('listening');
             await mic(true);
             diagEvent('voice', 'hands-free restored after refresh');
@@ -833,6 +834,12 @@ export default function SessionView({
   useEffect(() => {
     modeRef.current = mode;
   }, [mode]);
+
+  // mode awareness (req 10-02): sessions open in keyboard mode — every diag
+  // event and the room metadata carry the interaction mode from here on
+  useEffect(() => {
+    setDiagMode('text');
+  }, [slug]);
 
   // --- tts deck handlers ---
   const lastAssistant = useMemo(
@@ -952,6 +959,7 @@ export default function SessionView({
       });
       roomRef.current = room;
       setVoiceState('ready');
+      publishMode(modeRef.current); // the agent must know the mode from join
       diagEvent('voice', 'ready');
       return room;
     } catch (e) {
@@ -988,9 +996,22 @@ export default function SessionView({
   // (the RPC handler must work no matter what the closure saw). The room and
   // the agent in it stay warm: a PTT hold right after "over and out" must
   // find the agent present, not race its re-dispatch (see switchMode).
+  /** Publish the interaction mode into the room so the voice agent sees it
+   *  at commit time (req 10-02: the agent must know the user is hands-free
+   *  — replies then come short and spoken). Fire-and-forget: a laggy link
+   *  must not stall the mode switch. */
+  function publishMode(next: Mode) {
+    try {
+      void roomRef.current?.localParticipant.setMetadata(JSON.stringify({ mode: next }));
+    } catch {
+      /* room not up yet — connectVoice publishes the current mode on join */
+    }
+  }
+
   async function exitFree() {
     modeRef.current = 'text';
     setMode('text');
+    setDiagMode('text');
     setFreeCycle('listening');
     try {
       localStorage.setItem('oz-mode', 'text');
@@ -999,6 +1020,7 @@ export default function SessionView({
     }
     const room = roomRef.current;
     if (room) releaseMicDevice(room);
+    publishMode('text');
     diagEvent('voice', 'released (over and out) — mic device released, room stays warm');
   }
 
@@ -1010,6 +1032,8 @@ export default function SessionView({
     // asynchronously and the self-heal must already see the new mode, or it
     // reconnects a room the user just left (socket that never closes)
     modeRef.current = next;
+    setDiagMode(next);
+    publishMode(next);
     // survive refresh: mode is component state, a reload silently dropped
     // hands-free to keyboard (req 09-29 'it switching from hf to keyboard')
     try {
@@ -1058,6 +1082,8 @@ export default function SessionView({
       }
     } catch {
       setMode('text'); // connect/mic failed (error surfaced by ensureVoice)
+      modeRef.current = 'text';
+      setDiagMode('text');
     }
   }
 
@@ -1067,8 +1093,7 @@ export default function SessionView({
     pttWantRef.current = true;
     pttCancelArmRef.current = false;
     setPttCancelArm(false);
-    // instant feedback: hold UI (equalizer slot) appears on press — the bars
-    // stay flat until the room + mic track are actually live
+    setDiagMode('ptt'); // every event during the hold is attributable to it
     setHolding(true);
     if (e) pttStartRef.current = { x: e.clientX, y: e.clientY };
     try {
@@ -1097,8 +1122,13 @@ export default function SessionView({
           })
           .catch(() => {});
       }
+      diagEvent('ptt', 'hold — mic requested');
       await room.localParticipant.setMicrophoneEnabled(true);
-    } catch {
+      // the ONE event stamped while mode='ptt' — proves the hold reached the
+      // mic (mode evidence + the outcome half of "PTT pressed → mic on?")
+      diagEvent('ptt', 'hold — mic enabled');
+    } catch (e) {
+      diagEvent('ptt-fail', `hold — mic enable failed: ${e instanceof Error ? e.message : e}`);
       setHolding(false); // connect/mic failed — error already surfaced by ensureVoice
     }
   }
@@ -1154,6 +1184,7 @@ export default function SessionView({
     pttCancelArmRef.current = false;
     setPttCancelArm(false);
     setHolding(false);
+    setDiagMode(modeRef.current); // hold over — events attribute to the mode again
     const room = roomRef.current;
     if (!room) {
       // released while the room was still connecting (refresh + immediate
@@ -1598,7 +1629,10 @@ export default function SessionView({
       const r = await fetch(`/api/session/${slug}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, images, files, async: true }),
+        // mode rides the payload (req 10-02): the proxy logs it with the
+        // send, so server-side diag attributes the prompt to the interaction
+        // mode it was written in
+        body: JSON.stringify({ text, images, files, async: true, mode: modeRef.current }),
         // a hung radio/socket must surface as an error, not a silent stuck send
         signal: AbortSignal.timeout(30_000),
       });

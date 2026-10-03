@@ -32,9 +32,11 @@ def sha256_bytes(b: bytes) -> str:
     return hashlib.sha256(b).hexdigest()
 
 
-def dumps(obj) -> str:
-    """Generated JSON: UTF-8, 1-space indent, sorted keys, trailing newline."""
-    return json.dumps(obj, indent=1, sort_keys=True, ensure_ascii=False) + "\n"
+def dumps(obj, sort_keys=True) -> str:
+    """Generated JSON: UTF-8, 1-space indent, sorted keys, trailing newline.
+    sort_keys=False only for realm-keyed outputs (realms.json, provenance.json): their
+    realm maps keep realm order (plan.md step 6 asserts list(weights) == realm order)."""
+    return json.dumps(obj, indent=1, sort_keys=sort_keys, ensure_ascii=False) + "\n"
 
 
 def write_text(p, text: str):
@@ -47,8 +49,8 @@ def write_text(p, text: str):
     os.replace(tmp, p)
 
 
-def write_json(p, obj):
-    write_text(p, dumps(obj))
+def write_json(p, obj, sort_keys=True):
+    write_text(p, dumps(obj, sort_keys))
 
 
 def csv_text(header, rows) -> str:

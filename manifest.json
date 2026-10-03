@@ -1,28 +1,28 @@
 {
- "generated_at": "2026-10-03T20:30:45Z",
+ "generated_at": "2026-10-03T20:31:29Z",
  "last_published": {
-  "run_id": "20261003T203045Z",
-  "updated": "2026-10-03T20:30:45Z"
+  "run_id": "20261003T060000Z",
+  "updated": "2026-10-03T06:00:00Z"
  },
  "last_run": {
   "first_gate_failure": null,
   "published": true,
-  "run_id": "20261003T203045Z"
+  "run_id": "20261003T060000Z"
  },
  "method_version": "0.1.0",
  "out": {
   "history": {
    "path": "out/history.csv",
-   "rows": 3
+   "rows": 5
   },
   "provenance": {
    "path": "out/realms.provenance.json",
-   "sha256": "50cb273e542aae37a113690806ae652fea5cb1fb3d0d3a5a0fcc31767e70bdf4"
+   "sha256": "67b0b1bbed9c17d14c3da2b959d541abc37a93db7ab3a1a356b42aaa6de84677"
   },
   "realms": {
    "path": "out/realms.json",
-   "run_id": "20261003T203045Z",
-   "sha256": "349233d4e0c7175404c6e3a40ccf4514e54ec363826060b31ee79c4fc7eca82e"
+   "run_id": "20261003T060000Z",
+   "sha256": "54d1567f645899ccb512fac4f862d4d984795a7728ed8e56bce441f5cecfd08e"
   }
  },
  "raw": [
@@ -245,6 +245,12 @@
  ],
  "repo_commit": null,
  "runs": [
+  {
+   "first_gate_failure": null,
+   "path": "runs/20261003T060000Z/",
+   "published": true,
+   "run_id": "20261003T060000Z"
+  },
   {
    "first_gate_failure": null,
    "path": "runs/20261003T202945Z/",

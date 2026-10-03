@@ -105,6 +105,58 @@ test('connection lifecycle: connect/agent-join durations + disconnect reason rea
     .toBe('ok');
 });
 
+test('interaction outcomes: send lands, PTT commits, slide-cancel discards', async ({ page }) => {
+  const NAME4 = `e2e-diag-out-${Date.now().toString(36)}`;
+  await page.goto('/');
+  await page.getByRole('button', { name: 'new session' }).click();
+  await page.getByPlaceholder('session name…').fill(NAME4);
+  await page.getByRole('button', { name: 'create & open' }).click();
+  await expect(page).toHaveURL(new RegExp(`/session/${NAME4}`));
+  const dump = () => page.evaluate(() => (window as any).ozDiagDump?.() || '');
+  // the room must be up (preconnect) so a hold can actually enable the mic
+  await expect
+    .poll(() => dump(), { timeout: 30_000 })
+    .toMatch(/room connected \(\d+ms after connect start\)/);
+
+  // text send: expected effect = transcript entry; outcome = echo reconciled
+  await page.getByPlaceholder('message…').fill('Reply with exactly: pong');
+  await page.getByRole('button', { name: 'send', exact: true }).click();
+  await expect
+    .poll(() => dump(), { timeout: 15_000 })
+    .toMatch(/\[send·text\] posted direct/);
+  await expect
+    .poll(() => dump(), { timeout: 90_000 })
+    .toMatch(/landed — \d+ echo\(es\) reconciled/);
+
+  // PTT hold past the arm + re-acquire → release commits: outcome pair
+  const mic = page.getByTestId('composer-mic');
+  let box = await mic.boundingBox();
+  expect(box).toBeTruthy();
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(1_500);
+  await page.mouse.up();
+  await expect
+    .poll(() => dump(), { timeout: 30_000 })
+    .toMatch(/commit ok — turn handed to the voice agent/);
+
+  // slide left inside the hold → release discards (no commit, mic back)
+  box = await mic.boundingBox();
+  expect(box).toBeTruthy();
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(600);
+  await page.mouse.move(box!.x + box!.width / 2 - 60, box!.y + box!.height / 2, { steps: 4 });
+  await page.waitForTimeout(200);
+  await page.mouse.up();
+  await expect
+    .poll(() => dump(), { timeout: 30_000 })
+    .toMatch(/slide-cancel — discarding the buffered turn/);
+  await expect
+    .poll(() => dump(), { timeout: 30_000 })
+    .toMatch(/discard ok — buffered turn dropped agent-side/);
+});
+
 test('agent ctx tag is stripped from the transcript the phone sees', async ({ request }) => {
   // through the REAL proxy (a mocked endpoint would bypass the server-side
   // strip): create a session, send a prompt carrying the tag the agent would

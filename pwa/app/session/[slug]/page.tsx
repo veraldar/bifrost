@@ -580,10 +580,16 @@ export default function SessionView({
           ) {
             void notifyReply(slug);
           }
-          // keep optimistic echoes until the server transcript catches up
+          // keep optimistic echoes until the server transcript catches up;
+          // an echo dropping out IS the "message landed" outcome (req 10-02
+          // interaction outcomes) — countable, paired with the send event
+          const before = echoesRef.current.length;
           const echoes = echoesRef.current.filter(
             (e) => !fresh.some((m) => m.role === 'user' && m.text === e.text)
           );
+          if (echoes.length < before) {
+            diagEvent('send', `landed — ${before - echoes.length} echo(es) reconciled with the transcript`);
+          }
           setMsgs([...fresh, ...echoes]);
           try {
             if (JSON.stringify(fresh).length < 300_000) {
@@ -691,7 +697,10 @@ export default function SessionView({
         totalRef.current > runBaseTotalRef.current &&
         !liveRef.current
       ) {
-        diagEvent('busy', `clear ${slug} after ${sec}s`);
+        diagEvent(
+          'busy',
+          `clear ${slug} after ${sec}s (${settled ? 'settled: stable completed state' : 'run-ended: proxy saw the finish'})`
+        );
         setBusy(false);
         busyBeatRef.current = 0;
         runStreakRef.current = 0;
@@ -1224,7 +1233,12 @@ export default function SessionView({
           payload: '{}',
           responseTimeout: 4_000,
         })
-        .catch(() => {});
+        .then(() => diagEvent('ptt', 'discard ok — buffered turn dropped agent-side'))
+        .catch(() =>
+          diagEvent('ptt-fail', 'discard RPC failed — agent gone, buffer dies with the room')
+        );
+    } else {
+      diagEvent('ptt-fail', 'discard impossible — no room/agent, buffer dies with the room');
     }
   }
 
@@ -1254,6 +1268,7 @@ export default function SessionView({
     }
     if (discard) {
       // released inside the delete zone — drop the buffered turn
+      diagEvent('ptt', 'slide-cancel — discarding the buffered turn');
       if (modeRef.current !== 'free') await mic(false);
       pttDiscardRpc();
       // text mode: release the capture device (room stays warm for the
@@ -1290,8 +1305,15 @@ export default function SessionView({
         responseTimeout: 14_000,
       });
       // agent answered but its session is dead (stale room) → reconnect
-      if (res && res !== 'ok') throw new Error(res);
-    } catch {
+      if (res && res !== 'ok') {
+        diagEvent('ptt-fail', `commit rejected (${res}) — reconnecting fresh`);
+        throw new Error(res);
+      }
+      diagEvent('ptt', 'commit ok — turn handed to the voice agent');
+    } catch (e) {
+      if (!(e instanceof Error && /commit rejected/.test(e.message))) {
+        diagEvent('ptt-fail', `commit failed (${e instanceof Error ? e.message : e}) — reconnecting fresh`);
+      }
       // stale voice session (e.g. the agent's session closed earlier) — a
       // retry against the same room keeps failing, so drop it and reconnect
       // with a fresh token; the agent side ends the job with its session,
@@ -1697,14 +1719,24 @@ export default function SessionView({
       });
       if (!r.ok) {
         const d = await r.json().catch(() => ({}));
+        diagEvent('send-fail', `HTTP ${r.status} — ${d.error || 'send rejected'}`);
         setError(d.error || `send failed (${r.status})`);
         setInput((prev) => (prev.trim() ? prev : text)); // draft back, no clobber
         setBusy(false);
       } else if (!willQueue) {
         addEcho(text, images); // queued sends come back via the poll instead
+        // outcome expectation: the echo must reconcile with the server
+        // transcript (loadMsgs) — until then the send is "posted, not landed"
+        diagEvent(
+          'send',
+          `posted direct (${text.length} chars${images.length ? ` +${images.length} img` : ''}) — expecting transcript entry`
+        );
+      } else {
+        diagEvent('send', `posted queued (run in flight) — proxy owns pickup`);
       }
       await loadMsgs();
     } catch {
+      diagEvent('send-fail', 'network — no response from the proxy');
       setError('send failed');
       setInput((prev) => (prev.trim() ? prev : text)); // draft back, no clobber
       setBusy(false);
@@ -1740,6 +1772,7 @@ export default function SessionView({
     stickRef.current = true;
     setBusy(true); // cleared when the run state settles (see poller)
     armRunWatch();
+    diagEvent('free', 'tap-to-send — commit requested');
     try {
       const agent = await agentInRoom(room, 4_000);
       if (!agent) {
@@ -1754,7 +1787,11 @@ export default function SessionView({
         payload: '{}',
         responseTimeout: 14_000,
       });
-      if (res && res !== 'ok') throw new Error(res);
+      if (res && res !== 'ok') {
+        diagEvent('free-fail', `tap-to-send commit rejected (${res}) — reconnecting fresh`);
+        throw new Error(res);
+      }
+      diagEvent('free', 'tap-to-send commit ok — turn handed to the voice agent');
       // tap = "over" (req 09-30: 'should be the same behavior as if I say
       // over'): the strip leaves listening — mic paused now, auto-speak on
       // idle, mic back when the spoken reply ends or is stopped. The agent

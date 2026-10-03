@@ -95,6 +95,7 @@ let swapCount = 0;
 let swapMsTotal = 0;
 let swapMsMax = 0;
 let boundaryStallT0 = 0; // 'ended' with no next piece — waiting on the stream
+let boundaryStallTimer: ReturnType<typeof setTimeout> | null = null;
 let stallCount = 0;
 let bufMinSec = Infinity; // min buffer depth (received − played) while playing
 
@@ -216,6 +217,18 @@ function onPieceEnded(el: HTMLAudioElement): void {
       'tts-stall',
       `boundary stall: stream lagging behind playback, buffer ${depth.toFixed(1)}s (sid ${sid})`
     );
+    // bounded escape: a stream that died mid-reply (post-generation-lock this
+    // is rare) must not leave the deck on "synthesizing" forever — end the
+    // reply gracefully after 20s of no recovery, like the first-audio watchdog
+    if (boundaryStallTimer) clearTimeout(boundaryStallTimer);
+    const mySid = sid;
+    boundaryStallTimer = setTimeout(() => {
+      boundaryStallTimer = null;
+      if (state.phase === 'loading' && boundaryStallT0 && sid === mySid) {
+        diagEvent('tts-stall', `boundary stall gave up after ${Math.round(performance.now() - boundaryStallT0)}ms (sid ${mySid})`);
+        stopSpeech();
+      }
+    }, 20_000);
     setPhase('loading'); // stream lagging — enqueue() resumes playback
   }
 }
@@ -325,6 +338,10 @@ function enqueuePiece(startSample: number, len: number): void {
         `boundary stall recovered in ${Math.round(performance.now() - boundaryStallT0)}ms (sid ${sid})`
       );
       boundaryStallT0 = 0;
+      if (boundaryStallTimer) {
+        clearTimeout(boundaryStallTimer);
+        boundaryStallTimer = null;
+      }
     }
     let offsetSec = 0;
     if (pendingSkip !== null && pendingSkip > pieces[startIdx].startSample) {
@@ -512,6 +529,10 @@ export function startSpeech(text: string, slug = ''): void {
   swapMsTotal = 0;
   swapMsMax = 0;
   boundaryStallT0 = 0;
+  if (boundaryStallTimer) {
+    clearTimeout(boundaryStallTimer);
+    boundaryStallTimer = null;
+  }
   stallCount = 0;
   bufMinSec = Infinity;
   if (rttTimer) clearInterval(rttTimer);
@@ -630,6 +651,10 @@ export function stopSpeech(): void {
   if (rttTimer) {
     clearInterval(rttTimer);
     rttTimer = null;
+  }
+  if (boundaryStallTimer) {
+    clearTimeout(boundaryStallTimer);
+    boundaryStallTimer = null;
   }
   if (state.phase !== 'idle') {
     set({ phase: 'idle', progress: 0, positionSec: 0, receivedSec: 0 });

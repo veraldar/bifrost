@@ -64,6 +64,47 @@ test('mode rides diag events and the send payload', async ({ page }) => {
   expect((sendBodies[0] as { mode?: string }).mode).toBe('text');
 });
 
+test('connection lifecycle: connect/agent-join durations + disconnect reason reach diag', async ({
+  page,
+}) => {
+  const NAME3 = `e2e-diag-lc-${Date.now().toString(36)}`;
+  await page.goto('/');
+  await page.getByRole('button', { name: 'new session' }).click();
+  await page.getByPlaceholder('session name…').fill(NAME3);
+  await page.getByRole('button', { name: 'create & open' }).click();
+  await expect(page).toHaveURL(new RegExp(`/session/${NAME3}`));
+  const dump = () => page.evaluate(() => (window as any).ozDiagDump?.() || '');
+
+  // preconnect fires on load: token mint, connect timing, and the real voice
+  // agent dispatch landing in the room must all be in the trail
+  await expect
+    .poll(() => dump(), { timeout: 30_000 })
+    .toMatch(/token minted \(#1\)/);
+  await expect
+    .poll(() => dump(), { timeout: 60_000 })
+    .toMatch(/room connected \(\d+ms after connect start\)/);
+  await expect
+    .poll(() => dump(), { timeout: 60_000 })
+    .toMatch(/voice agent joined the room/);
+
+  // leaving the session disconnects deliberately: the reason + connected
+  // duration ride the pagehide beacon into the SERVER diag file
+  await page.goto('/');
+  await expect
+    .poll(async () => {
+      const r = await page.request.get('/api/diag');
+      if (!r.ok()) return 'pending';
+      const text = await r.text();
+      const line = text
+        .split('\n')
+        .find((l) => l.includes('room disconnected') && l.includes(`room=${NAME3}`));
+      return /room disconnected \(reason=CLIENT_INITIATED\) after \d+s/.test(line || '')
+        ? 'ok'
+        : (line || 'pending');
+    }, { timeout: 30_000, intervals: [1_000] })
+    .toBe('ok');
+});
+
 test('agent ctx tag is stripped from the transcript the phone sees', async ({ request }) => {
   // through the REAL proxy (a mocked endpoint would bypass the server-side
   // strip): create a session, send a prompt carrying the tag the agent would

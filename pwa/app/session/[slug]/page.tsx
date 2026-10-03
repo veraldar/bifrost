@@ -10,7 +10,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { useRouter } from 'next/navigation';
-import { Room, RoomEvent, Track, createAudioAnalyser } from 'livekit-client';
+import { DisconnectReason, Room, RoomEvent, Track, createAudioAnalyser } from 'livekit-client';
 import Link from 'next/link';
 import { LineIcon, StopSquare } from '@/components/line-icon';
 import { type Msg, SessionMessage, userProse } from '@/components/session-message';
@@ -276,6 +276,9 @@ export default function SessionView({
   // epoch ms of the last opencode stream event for this session (poll header
   // X-Run-Last-Event) — the wedge escape's liveness evidence
   const runLastEventRef = useRef(0);
+  // token mints this page performed — #2+ is a refresh (stale room rejoin),
+  // countable in diag (req 10-02 connection lifecycle)
+  const tokenMintsRef = useRef(0);
   // mirror for the always-on run-events SSE: its handlers read the CURRENT
   // mode/room state without re-subscribing on every hands-free toggle
   const voiceStateRef = useRef<'off' | 'connecting' | 'ready'>('off');
@@ -869,9 +872,14 @@ export default function SessionView({
   }
 
   /** Single self-heal path for a dropped/stale room: deduped by timer,
-   *  exponential backoff while connects keep failing. */
+   *  exponential backoff while connects keep failing. Every attempt, failure
+   *  and success lands in diag — the break/restart trail must be countable
+   *  (req 10-02 connection lifecycle). */
   function reconnectVoice() {
     if (unmountedRef.current || reconnectTimerRef.current) return;
+    const waitMs = Math.min(4_000, 250 * 2 ** reconnectFailsRef.current);
+    const attempt = reconnectFailsRef.current + 1;
+    diagEvent('voice', `self-heal reconnect scheduled (attempt ${attempt} in ${waitMs}ms)`);
     reconnectTimerRef.current = setTimeout(
       () => {
         reconnectTimerRef.current = null;
@@ -879,15 +887,20 @@ export default function SessionView({
         ensureVoice()
           .then((r) => {
             reconnectFailsRef.current = 0;
+            diagEvent('voice', 'self-heal reconnect OK — room fresh');
             if (modeRef.current === 'free') return r.localParticipant.setMicrophoneEnabled(true);
             return undefined;
           })
-          .catch(() => {
+          .then((micOn) => {
+            if (micOn) diagEvent('voice', 'self-heal: mic re-enabled (hands-free)');
+          })
+          .catch((e) => {
             reconnectFailsRef.current += 1; // next attempt waits longer
+            diagEvent('voice-fail', `reconnect attempt ${attempt} failed: ${e}`);
             reconnectVoice();
           });
       },
-      Math.min(4_000, 250 * 2 ** reconnectFailsRef.current)
+      waitMs
     );
   }
 
@@ -909,11 +922,57 @@ export default function SessionView({
         body: JSON.stringify({ room: slug }),
       });
       const d = await r.json();
+      // connection lifecycle (req 10-02): every mint is countable — the
+      // second+ mint for this page is a refresh (stale room rejoin)
+      tokenMintsRef.current += 1;
+      diagEvent('voice', `token minted (#${tokenMintsRef.current})`);
       const room = new Room({ adaptiveStream: false });
-      room.on(RoomEvent.SignalConnected, () => diagEvent('voice', 'signal connected'));
-      room.on(RoomEvent.Connected, () => diagEvent('voice', 'room connected'));
-      room.on(RoomEvent.Disconnected, () => {
-        diagEvent('voice', 'room disconnected');
+      // --- connection lifecycle timings: connect span, outage span,
+      // agent presence — the break/restart trail lands in diag with
+      // reasons and durations, not prose timestamps alone
+      const connectStarted = Date.now();
+      let connectedAt = 0;
+      let reconnectingAt = 0;
+      let agentJoinedAt = 0;
+      room.on(RoomEvent.SignalConnected, () =>
+        diagEvent('voice', `signal connected (${Date.now() - connectStarted}ms into connect)`)
+      );
+      room.on(RoomEvent.Connected, () => {
+        connectedAt = Date.now();
+        diagEvent(
+          'voice',
+          `room connected (${connectedAt - connectStarted}ms after connect start)`
+        );
+      });
+      room.on(RoomEvent.SignalReconnecting, () => {
+        if (!reconnectingAt) reconnectingAt = Date.now();
+        diagEvent('voice', 'signal lost — LiveKit signal reconnecting…');
+      });
+      room.on(RoomEvent.Reconnecting, () => {
+        if (!reconnectingAt) reconnectingAt = Date.now();
+        diagEvent('voice', 'connection lost — LiveKit media reconnecting…');
+      });
+      room.on(RoomEvent.Reconnected, () => {
+        const outage = reconnectingAt ? `${((Date.now() - reconnectingAt) / 1000).toFixed(1)}s` : '?';
+        reconnectingAt = 0;
+        diagEvent('voice', `reconnected (outage ${outage})`);
+      });
+      room.on(RoomEvent.ParticipantConnected, (p) => {
+        if (p.identity === room.localParticipant.identity) return;
+        agentJoinedAt = Date.now();
+        diagEvent('voice', `voice agent joined the room (${p.identity})`);
+      });
+      room.on(RoomEvent.ParticipantDisconnected, (p) => {
+        if (p.identity === room.localParticipant.identity) return;
+        const secs = agentJoinedAt ? ` after ${Math.round((Date.now() - agentJoinedAt) / 1000)}s` : '';
+        agentJoinedAt = 0;
+        diagEvent('voice', `voice agent left the room${secs} — holds/commits will fail until it returns`);
+      });
+      room.on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
+        const why =
+          reason === undefined ? 'no-reason' : (DisconnectReason[reason] ?? String(reason));
+        const secs = connectedAt ? Math.round((Date.now() - connectedAt) / 1000) : 0;
+        diagEvent('voice', `room disconnected (reason=${why}) after ${secs}s · room=${slug}`);
         // the room's join token is stale now — reconnecting with it just 401s
         // ("token is expired"). Drop it so the next connect mints a fresh one.
         roomRef.current = null;

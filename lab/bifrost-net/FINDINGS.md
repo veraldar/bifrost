@@ -9,7 +9,70 @@ from PROVEN crates only?
 (WireGuard protocol) + str0m WebRTC echo relay. Not the product — the two
 seams everything else hangs on.
 
-**Date**: 10-03 · **Session**: BIFROST-NET-LAB · **Verdict: FEASIBLE — M0 GREEN, 4/4 runs**
+**Date**: 10-03 · **Session**: BIFROST-NET-LAB · **Verdict: FEASIBLE — M0 GREEN (4/4) → M1 FULL BUILD GREEN (5/5)**
+
+---
+
+## M1 — the full build (same session, driver GO after M0)
+
+One binary now exists: `bifrost-net serve -c config.toml` = private mesh +
+WebRTC relay + HTTP signaling in one process, from one explicit config file.
+
+```
+$ ./m1-verify.sh
+[PASS] S1 config: generated config VALID + livekit-scar warning present
+[PASS] M0 regression: both seams still green
+[PASS] S2 mesh: M1.1 PASS
+[PASS] S3 relay: 39 A-frames relayed to B, 39 B-frames relayed to A
+[PASS] S4 serve: one process, mesh+webrtc LIVE, signaling answering
+M1 VERIFY: 5/5 PASS
+```
+
+- **S1 config+keys**: TOML config ([node]/[mesh]/[webrtc]) with LIVE bind-probe
+  validation — it caught the real 7880 collision with this box's LiveKit on its
+  first run. Empty candidates = loud warning (the scar made structural).
+  `keygen` prints wg-style pairs.
+- **S2 mesh service**: a userspace WireGuard *device* for N peers — routing
+  mirrors boringtun's own device layer (identity via parse_handshake_anon for
+  inits, receiver_idx>>8 for the rest), allowed-IP checked on inner SOURCE
+  (virtual-IP spoof drops), endpoint learning (NAT roaming), keepalive timers,
+  forced rekeys. Selftest: 2×200 packets + forced rekey + 2×200 more, in-order
+  byte-verified, 25 garbage datagrams injected mid-stream — counters consistent,
+  4/4 runs.
+- **S3 relay service**: str0m SFU-lite — one shared UDP media socket,
+  datagram-per-datagram demux, media forwarded to all-but-origin; signaling =
+  HTTP POST /offer (tiny_http). Selftest drives the REAL signaling path: two
+  clients, frames cross-relayed byte-exact, 6/6 runs.
+- **S4 serve**: both halves + config report in one process; boot smoke verified
+  (LIVE lines + signaling answering 400 on garbage offers).
+
+### What the M1 build taught (Rule 10-02 evidence, would be invisible from APIs)
+
+1. **boringtun's queue-flush is undocumented at the API surface**: after ANY
+   WriteToNetwork result you must repeat `decapsulate` with an EMPTY datagram
+   until Done, or pre-handshake queued packets never flush. Found because the
+   M1 test's 200-packet wave never arrived; confirmed against boringtun's own
+   device loop (`flush` flag). This is exactly the class of behavior only a
+   life-respecting test catches.
+2. **stats-based rekey detection is unreliable in 0.7** (handshake age never
+   resets) — replaced with wire evidence: the rekey proof is B receiving a
+   second HandshakeInit, not a timer reading.
+3. **Shared-socket demux is where WebRTC servers actually break**: a
+   per-client socket drain silently discards the OTHER peers' packets; the
+   selftest flipped which peer connected per run (HashMap order), exposing it.
+   chat.rs's demux-each-datagram pattern is the correct one.
+4. **Config probes pay for themselves immediately** (port collision caught on
+   first run).
+
+### M1 honest limits
+- Mesh inner traffic in serve mode is counted and dropped — no TUN/bridge
+  routing yet (M2).
+- Relay forwards single-audio-track peers; simulcast/BWE/NACK-chaos untested.
+- No NAT traversal beyond host candidates (no STUN/TURN) — VPS public-IP
+  pinning covers the flagship deployment; phone-on-cellular needs M2 work.
+- Signaling is plain HTTP on purpose (LAN/tailnet); TLS is deployment config.
+- No VPS run yet — needs the user's VPS choice (BLOCKED = VISIBLE: country +
+  account are user decisions).
 
 ---
 

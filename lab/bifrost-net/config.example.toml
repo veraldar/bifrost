@@ -8,6 +8,7 @@ private_key = "REPLACE_WITH_bifrost-net_keygen_OUTPUT"
 # Private mesh: WireGuard protocol (boringtun), one UDP port.
 [mesh]
 listen = "0.0.0.0:51820"
+address = "10.7.0.1/24"   # this node's own virtual IP
 
 [[mesh.peers]]
 name = "omarchy"

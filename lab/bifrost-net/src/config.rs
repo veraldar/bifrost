@@ -34,6 +34,8 @@ pub struct NodeConfig {
 pub struct MeshConfig {
     /// UDP listen address for WireGuard traffic
     pub listen: String,
+    /// this node's own virtual IP, e.g. "10.7.0.1/24"
+    pub address: String,
     #[serde(default)]
     pub peers: Vec<PeerConfig>,
 }
@@ -95,6 +97,9 @@ impl Config {
 
         let mut virtual_ips: Vec<String> = vec![];
         if let Some(mesh) = &self.mesh {
+            let my_cidr = crate::mesh::parse_cidr(&mesh.address)
+                .map_err(|e| format!("mesh.address: {e}"))?;
+            let _ = my_cidr;
             let listen: SocketAddr = mesh
                 .listen
                 .parse()
@@ -114,11 +119,14 @@ impl Config {
                     return Err(format!("mesh.peers[{}]: allowed_ips empty", p.name));
                 }
                 for cidr in &p.allowed_ips {
-                    let ip = cidr
-                        .split('/')
-                        .next()
-                        .and_then(|s| s.parse::<IpAddr>().ok())
-                        .ok_or_else(|| format!("mesh.peers[{}]: bad allowed_ip '{cidr}'", p.name))?;
+                    let (ip, _len) = crate::mesh::parse_cidr(cidr)
+                        .map_err(|e| format!("mesh.peers[{}]: {e}", p.name))?;
+                    if Some(ip) == Some(my_cidr.0) {
+                        return Err(format!(
+                            "mesh.peers[{}]: allowed_ip '{cidr}' collides with this node's own address {}",
+                            p.name, mesh.address
+                        ));
+                    }
                     virtual_ips.push(ip.to_string());
                 }
             }

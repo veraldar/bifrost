@@ -621,6 +621,10 @@ impl MeshService {
             .map(|p| &mut p.endpoint)
     }
 
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     /// (time since last handshake, tx bytes, rx bytes)
     pub fn peer_stats(&self, peer: &str) -> Result<(Option<Duration>, usize, usize), String> {
         let p = self
@@ -632,9 +636,6 @@ impl MeshService {
         Ok((hs, tx, rx))
     }
 
-    pub fn name(&self) -> &str {
-        &self.name
-    }
 }
 
 /// S2 selftest: config-shaped mesh service under sustained traffic.

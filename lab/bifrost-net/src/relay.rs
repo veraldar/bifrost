@@ -260,7 +260,6 @@ fn http_post_json(addr: SocketAddr, path: &str, body: &str) -> Result<String, St
 struct TestClient {
     rtc: Rtc,
     sock: UdpSocket,
-    relay_media: SocketAddr,
     buf: Vec<u8>,
     mid: Option<Mid>,
     pt: Option<Pt>,
@@ -268,7 +267,7 @@ struct TestClient {
 }
 
 impl TestClient {
-    fn connect(name: &str, relay_sig: SocketAddr, relay_media: SocketAddr) -> Result<TestClient, String> {
+    fn connect(_name: &str, relay_sig: SocketAddr, _relay_media: SocketAddr) -> Result<TestClient, String> {
         let sock = UdpSocket::bind("127.0.0.1:0").map_err(|e| e.to_string())?;
         sock.set_nonblocking(true).map_err(|e| e.to_string())?;
         let local = sock.local_addr().map_err(|e| e.to_string())?;
@@ -293,12 +292,11 @@ impl TestClient {
         rtc.sdp_api()
             .accept_answer(pending, answer)
             .map_err(|e| format!("accept_answer: {e}"))?;
-        let _ = name;
+
 
         Ok(TestClient {
             rtc,
             sock,
-            relay_media,
             buf: vec![0u8; 4000],
             mid: Some(mid),
             pt: Some(pt),

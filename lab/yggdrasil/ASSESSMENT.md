@@ -56,3 +56,13 @@
 - Each change rewrites the whole session file, which is O(n) per write. That is fine at this scale, but long sessions would want an append log. There is no fsync, so a crash right after a write could lose the last change. Nothing is pruned or deleted.
 - Two concurrent posts to the same session are not serialized. A new post replaces the abort handle, so `abort` targets the newest reply.
 - Only the mock upstream was tested. No real provider was tried.
+
+## Post-lab ops fix (2026-10-03, ops/flip-automation)
+
+Content negotiation on POST /session/:id/message: the real bifrost clients
+(proxy `ocFetch`, voice agent `ask()`) POST without Accept and JSON-parse the
+reply — slice-1's SSE-only response would have 500'd every send the moment
+OPENCODE_URL flipped here. Default POST now returns the final message JSON
+(opencode parity); `Accept: text/event-stream` keeps the slice-1 stream. The
+global /event bus sees every event in both modes. verify.sh extended: all
+slice curls pin SSE explicitly + a JSON-mode block; full PASS re-run.

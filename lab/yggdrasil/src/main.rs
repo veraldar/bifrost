@@ -150,11 +150,16 @@ fn push_message(st: &AppState, id: &str, msg: Value) -> bool {
     true
 }
 
-/// Sends an event to the posting client's stream (named SSE event, slice-1 shape)
-/// and to the global bus (`{type, properties}`).
-async fn emit(st: &AppState, tx: &mpsc::Sender<Event>, kind: &str, props: Value) {
+/// Sends an event to the global bus (`{type, properties}`) — every listener
+/// of `GET /event` sees every event, whatever the posting client asked for.
+async fn emit_bus(st: &AppState, kind: &str, props: Value) {
     let _ = st.bus.send(json!({ "type": kind, "properties": props }));
-    // The posting client may have gone away; the reply keeps going for /event listeners.
+}
+
+/// Bus + the posting client's stream (named SSE event, slice-1 shape). The
+/// posting client may have gone away; the reply keeps going for /event listeners.
+async fn emit(st: &AppState, tx: &mpsc::Sender<Event>, kind: &str, props: Value) {
+    emit_bus(st, kind, props.clone()).await;
     let _ = tx.send(Event::default().event(kind).json_data(props).unwrap()).await;
 }
 
@@ -220,6 +225,7 @@ async fn events(State(st): State<AppState>) -> Response {
 async fn post_message(
     State(st): State<AppState>,
     Path(id): Path<String>,
+    headers: axum::http::HeaderMap,
     Json(body): Json<PostMessage>,
 ) -> Response {
     let text = body
@@ -232,6 +238,17 @@ async fn post_message(
     if text.is_empty() {
         return (StatusCode::BAD_REQUEST, Json(json!({ "error": "no text parts" }))).into_response();
     }
+
+    // opencode parity (2026-10-03, flip-automation): the real clients —
+    // bifrost's proxy (`ocFetch` JSON-parses the reply) and the voice agent
+    // (`ask()` does `r.json()`) — POST without asking for SSE and expect the
+    // final message JSON. Stream SSE only when the client asks for it
+    // (Accept: text/event-stream). The global /event bus sees everything
+    // either way.
+    let wants_sse = headers
+        .get(axum::http::header::ACCEPT)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|a| a.contains("text/event-stream"));
 
     // Append the user message and snapshot history for the upstream call.
     let user_msg = make_message(&id, "user", &text);
@@ -246,16 +263,19 @@ async fn post_message(
             .map(|m| json!({ "role": m["info"]["role"], "content": message_text(m) }))
             .collect()
     };
-    let _ = st.bus.send(json!({ "type": "message.updated", "properties": user_msg }));
+    emit_bus(&st, "message.updated", user_msg).await;
 
     let cancel = Arc::new(Notify::new());
     st.running.lock().unwrap().insert(id.clone(), cancel.clone());
 
     let (tx, rx) = mpsc::channel::<Event>(64);
+    let (resp_tx, resp_rx) = tokio::sync::oneshot::channel::<Response>();
+    let st2 = st.clone();
+    let id2 = id.clone();
     tokio::spawn(async move {
         let mut partial = String::new();
         let outcome = {
-            let fut = relay(&st, &id, history, &tx, &mut partial);
+            let fut = relay(&st2, &id2, history, &tx, &mut partial);
             tokio::select! {
                 r = fut => Some(r),
                 _ = cancel.notified() => None,
@@ -263,32 +283,62 @@ async fn post_message(
         };
         // Only clear our own entry; a newer post may have replaced it.
         {
-            let mut running = st.running.lock().unwrap();
-            if running.get(&id).is_some_and(|n| Arc::ptr_eq(n, &cancel)) {
-                running.remove(&id);
+            let mut running = st2.running.lock().unwrap();
+            if running.get(&id2).is_some_and(|n| Arc::ptr_eq(n, &cancel)) {
+                running.remove(&id2);
             }
         }
         match outcome {
             Some(Ok(reply)) => {
-                let msg = make_message(&id, "assistant", &reply);
-                push_message(&st, &id, msg.clone());
-                emit(&st, &tx, "message.completed", msg).await;
+                let msg = make_message(&id2, "assistant", &reply);
+                push_message(&st2, &id2, msg.clone());
+                if wants_sse {
+                    emit(&st2, &tx, "message.completed", msg.clone()).await;
+                } else {
+                    emit_bus(&st2, "message.completed", msg.clone()).await;
+                }
+                let _ = resp_tx.send(Json(msg).into_response());
             }
             Some(Err(e)) => {
                 eprintln!("upstream error: {e}");
-                emit(&st, &tx, "error", json!({ "sessionID": id, "error": e })).await;
+                if wants_sse {
+                    emit(&st2, &tx, "error", json!({ "sessionID": id2, "error": e })).await;
+                } else {
+                    emit_bus(&st2, "error", json!({ "sessionID": id2, "error": e })).await;
+                }
+                let _ = resp_tx.send(
+                    (StatusCode::BAD_GATEWAY, Json(json!({ "error": e }))).into_response(),
+                );
             }
             None => {
                 // Keep whatever was streamed, flagged the way opencode flags it.
-                let mut msg = make_message(&id, "assistant", &partial);
+                let mut msg = make_message(&id2, "assistant", &partial);
                 msg["info"]["error"] = json!({ "name": "MessageAbortedError", "data": { "message": "aborted" } });
-                push_message(&st, &id, msg.clone());
-                emit(&st, &tx, "message.aborted", msg).await;
+                push_message(&st2, &id2, msg.clone());
+                if wants_sse {
+                    emit(&st2, &tx, "message.aborted", msg.clone()).await;
+                } else {
+                    emit_bus(&st2, "message.aborted", msg.clone()).await;
+                }
+                let _ = resp_tx.send(Json(msg).into_response());
             }
         }
     });
 
-    Sse::new(ReceiverStream::new(rx).map(Ok::<_, Infallible>)).into_response()
+    if wants_sse {
+        // the posting client wanted a stream; resp_rx dies here, so the
+        // task's final-JSON send is a silent no-op
+        Sse::new(ReceiverStream::new(rx).map(Ok::<_, Infallible>)).into_response()
+    } else {
+        match resp_rx.await {
+            Ok(resp) => resp,
+            Err(_) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": "reply task died" })),
+            )
+                .into_response(),
+        }
+    }
 }
 
 /// Calls the upstream with `stream: true`, forwarding each content delta as an SSE

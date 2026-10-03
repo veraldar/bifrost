@@ -27,7 +27,7 @@ SID=$(curl -sf -X POST http://$YGG/session | python3 -c 'import sys,json;print(j
 echo "session: $SID"
 for msg in hello again; do
   echo "--- POST message: $msg"
-  OUT=$(curl -sfN -X POST http://$YGG/session/$SID/message -H 'content-type: application/json' \
+  OUT=$(curl -sfN -X POST http://$YGG/session/$SID/message -H 'content-type: application/json' -H 'accept: text/event-stream' \
     -d "{\"parts\":[{\"type\":\"text\",\"text\":\"$msg\"}]}")
   echo "$OUT"
   grep -q "MOCK-REPLY: you said '$msg'" <<<"$OUT" || { echo "FAIL: reply missing in SSE"; exit 1; }
@@ -48,7 +48,7 @@ echo "--- 404 check"
 
 echo "--- abort mid-stream"
 [ "$(curl -sf -X POST http://$YGG/session/$SID/abort)" = false ] || { echo "FAIL: idle abort should be false"; exit 1; }
-curl -sfN -X POST http://$YGG/session/$SID/message -H 'content-type: application/json' \
+curl -sfN -X POST http://$YGG/session/$SID/message -H 'content-type: application/json' -H 'accept: text/event-stream' \
   -d '{"parts":[{"type":"text","text":"slow please"}]}' >$TMP/slow.txt & SLOW=$!
 sleep 1.5   # mock emits a chunk every 0.2s; full reply takes ~10s
 T0=$(date +%s.%N)
@@ -77,7 +77,7 @@ assert "".join(deltas) == partial, ("".join(deltas), partial)
 print("partial kept:", repr(partial))
 PY
 # Session still usable after abort.
-OUT=$(curl -sfN -X POST http://$YGG/session/$SID/message -H 'content-type: application/json' \
+OUT=$(curl -sfN -X POST http://$YGG/session/$SID/message -H 'content-type: application/json' -H 'accept: text/event-stream' \
   -d '{"parts":[{"type":"text","text":"after"}]}')
 grep -q "MOCK-REPLY: you said 'after' (7 msgs)" <<<"$OUT" || { echo "FAIL: post-abort turn"; echo "$OUT"; exit 1; }
 
@@ -104,8 +104,21 @@ start_srv
 AFTER=$(curl -sf http://$YGG/session/$SID/message)
 [ "$BEFORE" = "$AFTER" ] || { echo "FAIL: history differs after restart"; echo "$AFTER"; exit 1; }
 curl -sf http://$YGG/session | grep -q "$SID" || { echo "FAIL: session missing from list"; exit 1; }
-OUT=$(curl -sfN -X POST http://$YGG/session/$SID/message -H 'content-type: application/json' \
+OUT=$(curl -sfN -X POST http://$YGG/session/$SID/message -H 'content-type: application/json' -H 'accept: text/event-stream' \
   -d '{"parts":[{"type":"text","text":"reborn"}]}')
 grep -q "MOCK-REPLY: you said 'reborn' (9 msgs)" <<<"$OUT" || { echo "FAIL: post-restart turn"; echo "$OUT"; exit 1; }
+echo "--- JSON mode (default POST = final message JSON, what bifrost + the voice agent speak)"
+SID2=$(curl -sf -X POST http://$YGG/session | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
+CT=$(curl -sf -X POST http://$YGG/session/$SID2/message -H 'content-type: application/json' \
+  -d '{"parts":[{"type":"text","text":"json mode"}]}' -o $TMP/json.json -w '%{content_type}')
+grep -q 'application/json' <<<"$CT" || { echo "FAIL: default POST is not JSON ($CT)"; exit 1; }
+python3 - "$TMP/json.json" <<'PY'
+import sys, json
+d = json.load(open(sys.argv[1]))
+assert d["info"]["role"] == "assistant", d
+assert d["parts"][0]["text"] == "MOCK-REPLY: you said 'json mode' (1 msgs)", d
+print("json reply:", d["parts"][0]["text"])
+PY
+
 echo "history ($(python3 -c 'import sys,json;print(len(json.loads(sys.argv[1])))' "$AFTER") msgs) survived restart"
 echo PASS

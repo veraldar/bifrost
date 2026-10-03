@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The plan — how everything connects</title>
+<style>
+:root{--bg:#080810;--s:#0e0e1a;--b:#26263a;--g:#4ade80;--a:#fbbf24;--d:#8b8ba3;--t:#e8e8f2;--r:#f87171;--bl:#38bdf8}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--t);font:14px/1.6 ui-monospace,Menlo,monospace;padding:24px;max-width:760px;margin:0 auto}
+h1{font-size:22px;margin-bottom:4px}.g{color:var(--green)}.g{color:var(--g)}
+h1 span{color:var(--g)}
+h2{font-size:15px;color:var(--g);letter-spacing:.1em;text-transform:uppercase;margin:26px 0 12px}
+h2::before{content:'▚ ';color:var(--d)}
+p{font-size:13px;margin-bottom:10px}
+.sub{color:var(--d);font-size:12px;margin-bottom:20px}
+.lane{background:var(--s);border:1px solid var(--b);border-radius:10px;padding:12px;margin-bottom:10px}
+.lane b{color:var(--g)}
+.lane .r{color:var(--a)}
+.box{display:inline-block;background:var(--s);border:1px solid var(--b);border-radius:8px;padding:8px 12px;margin:3px;font-size:12px;text-align:center}
+.box b{display:block;font-size:12px}.box i{font-style:normal;color:var(--d);font-size:10.5px}
+.box.hub{border-color:var(--g);box-shadow:0 0 12px rgba(74,222,128,.15)}
+.box.tree{border-color:var(--bl)}
+.box.cloud{border-style:dashed}
+.arr{display:block;color:var(--a);font-size:16px;text-align:center;margin:2px 0}
+table{width:100%;border-collapse:collapse;font-size:12px;margin:10px 0}
+td,th{border:1px solid var(--b);padding:7px 10px;text-align:left}
+th{color:var(--d);font-weight:normal;text-transform:uppercase;letter-spacing:.08em;font-size:10px}
+td:first-child{color:var(--g);white-space:nowrap}
+.note{border-left:3px solid var(--a);padding-left:12px;color:var(--d);font-size:11.5px;margin:16px 0}
+.ans{background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.4);border-radius:10px;padding:14px;margin:14px 0}
+.ans b{color:var(--g)}
+</style></head><body>
+<h1><span>The plan</span> — how everything connects</h1>
+<p class="sub">tailscale or not? one bifrost or many? who talks to whom · 10-02</p>
+
+<h2>1 · today — your own world (running now)</h2>
+<div class="lane">
+<div class="box">📱 phone<b>PWA</b><i>couch, hands-free</i></div>
+<div class="arr">⇅ tailnet (private)</div>
+<div class="box hub">🌉 BIFROST<b>this box · Omarchy</b><i>the bridge you talk to</i></div>
+<div class="arr">⇅ localhost</div>
+<div class="box">🌳 opencode<b>agent core</b><i>127.0.0.1:4096</i></div>
+</div>
+<div class="lane">
+<div class="box">🎙 Mac Studio<b>voice + its own stack</b><i>MLX speech :8001 · opencode-serve · skid workers</i></div>
+<div class="arr">⇅ LAN / tailnet</div>
+</div>
+<p>Everything sits inside the tailnet. Nothing public. This is tier 2 — the sovereign setup — and it is what you use today.</p>
+
+<h2>2 · the two doors (end users choose one)</h2>
+<table>
+<tr><th></th><th>door A — simple</th><th>door B — sovereign (pushed)</th></tr>
+<tr><td>brain</td><td>cloud API (OpenRouter, coding plans) — any AI: US, Chinese, European, open</td><td>their own box, their models (CPU or MLX)</td></tr>
+<tr><td>voice</td><td>cloud STT/TTS</td><td><b>local — identity stays home</b></td></tr>
+<tr><td>network</td><td>LiveKit Cloud + hosted PWA — <b>no tailscale, no VPS, nothing to learn</b></td><td>tailscale, installed automatically by the bootstrap — invisible to the user</td></tr>
+<tr><td>cost</td><td>per-use / subscriptions</td><td>hardware + electricity</td></tr>
+<tr><td>data</td><td>per provider policy</td><td><b>never leaves the house</b></td></tr>
+</table>
+<div class="ans"><b>Answer to "do we drop tailscale?": no — we make it invisible.</b> Door A users never see it (they use the cloud door). Door B users get it installed automatically. Nobody configures networking by hand.</div>
+
+<h2>3 · the federation (your couch scenario)</h2>
+<div class="lane">
+<div class="box">📱 phone<b>one app</b></div>
+<div class="arr">⇅</div>
+<div class="box hub">🌉 YOUR bifrost<b>this box</b><i>the hub — the only thing the phone talks to</i></div>
+<div class="arr">⇅ tailnet, server-to-server</div>
+<div class="box tree">📺 TV PC<b>Yggdrasil</b><i>"play the movie"</i></div>
+<div class="box tree">🎮 game PC<b>Yggdrasil</b><i>agent core</i></div>
+<div class="box tree">💼 work PC<b>Yggdrasil</b><i>agent core</i></div>
+</div>
+<p style="margin-top:10px">You ask <b>your</b> bifrost: "play the movie." It routes over the tailnet to the TV PC's Yggdrasil. The movie plays. The answer comes back through the same bridge. <b>One phone, one interface, as many trees as you want.</b></p>
+<div class="ans">Bifrost instances also discover <b>each other</b> over the tailnet — so any family member's phone reaches any tree. One private world, many bridges, many trees.</div>
+
+<h2>4 · who needs what — plain answers</h2>
+<table>
+<tr><th>question</th><th>answer</th></tr>
+<tr><td>do we drop tailscale?</td><td>no — invisible in door A, automatic in door B</td></tr>
+<tr><td>do end users install models?</td><td>no — door A uses cloud; door B ships defaults and the user changes the voice/model by asking</td></tr>
+<tr><td>is a VPS required?</td><td>no — door A uses cloud services; door B is your own box</td></tr>
+<tr><td>one bifrost ↔ many yggdrasils?</td><td><b>yes — that is the hub model</b>, the couch scenario</td></tr>
+<tr><td>bifrost ↔ bifrost?</td><td>they discover each other so any phone reaches any tree — sessions stay unified</td></tr>
+<tr><td>only a WebRTC server?</td><td>door A: LiveKit Cloud is the WebRTC server. door B: LiveKit on your own box</td></tr>
+</table>
+
+<p class="footer">Veraldar · bifrost v0.6.0+ · AGPL-3.0 · the world-tree, the bridges, the roots</p>
+</body></html>

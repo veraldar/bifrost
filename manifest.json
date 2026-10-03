@@ -1,0 +1,516 @@
+{
+ "generated_at": "2026-10-03T20:30:45Z",
+ "last_published": {
+  "run_id": "20261003T203045Z",
+  "updated": "2026-10-03T20:30:45Z"
+ },
+ "last_run": {
+  "first_gate_failure": null,
+  "published": true,
+  "run_id": "20261003T203045Z"
+ },
+ "method_version": "0.1.0",
+ "out": {
+  "history": {
+   "path": "out/history.csv",
+   "rows": 3
+  },
+  "provenance": {
+   "path": "out/realms.provenance.json",
+   "sha256": "50cb273e542aae37a113690806ae652fea5cb1fb3d0d3a5a0fcc31767e70bdf4"
+  },
+  "realms": {
+   "path": "out/realms.json",
+   "run_id": "20261003T203045Z",
+   "sha256": "349233d4e0c7175404c6e3a40ccf4514e54ec363826060b31ee79c4fc7eca82e"
+  }
+ },
+ "raw": [
+  {
+   "bytes": 2261902,
+   "path": "raw/epoch/notable_ai_models/20261003T202614Z.csv",
+   "retrieved_at": "2026-10-03T20:26:14Z",
+   "sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d",
+   "slug": "notable_ai_models",
+   "source_id": "epoch"
+  },
+  {
+   "bytes": 4530,
+   "path": "raw/owid/ai-frontiermath-over-time/20261003T202615Z.csv",
+   "retrieved_at": "2026-10-03T20:26:15Z",
+   "sha256": "184d1ebfcd3e891941cc3d951c43750859fd7b30cb32f872815517994fb5c95e",
+   "slug": "ai-frontiermath-over-time",
+   "source_id": "owid"
+  },
+  {
+   "bytes": 3287,
+   "path": "raw/owid/ai-frontiermath-over-time/20261003T202615Z.metadata.json",
+   "retrieved_at": "2026-10-03T20:26:15Z",
+   "sha256": "a5718a2d459985df50692f3915ec3748ce2ff5fcf32cf6fda5849ab1b0e15baa",
+   "slug": "ai-frontiermath-over-time",
+   "source_id": "owid"
+  },
+  {
+   "bytes": 3375,
+   "path": "raw/owid/cumulative-number-of-large-scale-ai-systems-by-country/20261003T202615Z.csv",
+   "retrieved_at": "2026-10-03T20:26:15Z",
+   "sha256": "e779893f1b64284556f02b6dec3394171352f03f4a07ebcfbd85acda1ebb281b",
+   "slug": "cumulative-number-of-large-scale-ai-systems-by-country",
+   "source_id": "owid"
+  },
+  {
+   "bytes": 2111,
+   "path": "raw/owid/cumulative-number-of-large-scale-ai-systems-by-country/20261003T202615Z.metadata.json",
+   "retrieved_at": "2026-10-03T20:26:15Z",
+   "sha256": "3a55a854ba11dbb79bd01a29542a95a9e4d6e34d66b4c6d9107c468e3ab8e5bf",
+   "slug": "cumulative-number-of-large-scale-ai-systems-by-country",
+   "source_id": "owid"
+  },
+  {
+   "bytes": 171670,
+   "path": "raw/owid/deaths-in-armed-conflicts-by-region/20261003T202615Z.csv",
+   "retrieved_at": "2026-10-03T20:26:15Z",
+   "sha256": "49322bd5f71f62962ef75c762fc7eb14e8f5bebfc253c325ebb95e9fa5c7b0ae",
+   "slug": "deaths-in-armed-conflicts-by-region",
+   "source_id": "owid"
+  },
+  {
+   "bytes": 4219,
+   "path": "raw/owid/deaths-in-armed-conflicts-by-region/20261003T202615Z.metadata.json",
+   "retrieved_at": "2026-10-03T20:26:15Z",
+   "sha256": "c2ec55422c4c5da407b9ba20a9c8b42152755307c4186ab6e32f3984ddeacabc",
+   "slug": "deaths-in-armed-conflicts-by-region",
+   "source_id": "owid"
+  },
+  {
+   "bytes": 1115453,
+   "path": "raw/owid/electoral-democracy-index/20261003T202616Z.csv",
+   "retrieved_at": "2026-10-03T20:26:16Z",
+   "sha256": "a0843a64486708e1638e5051be67dde8ddb0c82ae7be264c512173f503445afc",
+   "slug": "electoral-democracy-index",
+   "source_id": "owid"
+  },
+  {
+   "bytes": 5538,
+   "path": "raw/owid/electoral-democracy-index/20261003T202616Z.metadata.json",
+   "retrieved_at": "2026-10-03T20:26:16Z",
+   "sha256": "0e78ff78e76433cf6c962cad461da20bd1e98592911dcb6584efd1f3369e9404",
+   "slug": "electoral-democracy-index",
+   "source_id": "owid"
+  },
+  {
+   "bytes": 20251,
+   "path": "raw/owid/estimated-share-people-generative-ai/20261003T202616Z.csv",
+   "retrieved_at": "2026-10-03T20:26:16Z",
+   "sha256": "89871cf51c90711343daec35e3ad37a60919ea329d3ad546245718219628207a",
+   "slug": "estimated-share-people-generative-ai",
+   "source_id": "owid"
+  },
+  {
+   "bytes": 6542,
+   "path": "raw/owid/estimated-share-people-generative-ai/20261003T202616Z.metadata.json",
+   "retrieved_at": "2026-10-03T20:26:16Z",
+   "sha256": "d3c002b9cad0f60264a6f3fcc0bd63bdaec208ca1c36c50f91e67435be385738",
+   "slug": "estimated-share-people-generative-ai",
+   "source_id": "owid"
+  },
+  {
+   "bytes": 605252,
+   "path": "raw/owid/life-expectancy/20261003T202617Z.csv",
+   "retrieved_at": "2026-10-03T20:26:17Z",
+   "sha256": "6336e80067d72cd910e5b03a4150bbb203fb8f22c6a9c0c43e91aba07038720b",
+   "slug": "life-expectancy",
+   "source_id": "owid"
+  },
+  {
+   "bytes": 4370,
+   "path": "raw/owid/life-expectancy/20261003T202617Z.metadata.json",
+   "retrieved_at": "2026-10-03T20:26:17Z",
+   "sha256": "e0347362bdab08012bd0cbe1b4909faa3f3b329c9e0ac65da32f7a97b538ba22",
+   "slug": "life-expectancy",
+   "source_id": "owid"
+  },
+  {
+   "bytes": 1669,
+   "path": "raw/owid/private-investment-in-artificial-intelligence/20261003T202617Z.csv",
+   "retrieved_at": "2026-10-03T20:26:17Z",
+   "sha256": "560efc682ae711de37062313e5430483cf9265c9cef15494d950933b818250be",
+   "slug": "private-investment-in-artificial-intelligence",
+   "source_id": "owid"
+  },
+  {
+   "bytes": 3843,
+   "path": "raw/owid/private-investment-in-artificial-intelligence/20261003T202617Z.metadata.json",
+   "retrieved_at": "2026-10-03T20:26:17Z",
+   "sha256": "6401f10f9adfacaadc38f8f12c8c841348f79814f841eba54b8ec13232ea091f",
+   "slug": "private-investment-in-artificial-intelligence",
+   "source_id": "owid"
+  },
+  {
+   "bytes": 806,
+   "path": "raw/owid/share-companies-using-artificial-intelligence/20261003T202617Z.csv",
+   "retrieved_at": "2026-10-03T20:26:17Z",
+   "sha256": "0876f171001e3c0809634e2ded7f6a2bd1cc1a7730b3bd5e8603803a825229c0",
+   "slug": "share-companies-using-artificial-intelligence",
+   "source_id": "owid"
+  },
+  {
+   "bytes": 2804,
+   "path": "raw/owid/share-companies-using-artificial-intelligence/20261003T202618Z.metadata.json",
+   "retrieved_at": "2026-10-03T20:26:18Z",
+   "sha256": "d2b4d6e33f3f09f2bd4a2ed39adcca035d325297c38f07ea48820dce72f31db3",
+   "slug": "share-companies-using-artificial-intelligence",
+   "source_id": "owid"
+  },
+  {
+   "bytes": 2167676,
+   "path": "raw/owid/share-of-population-in-extreme-poverty/20261003T202618Z.csv",
+   "retrieved_at": "2026-10-03T20:26:18Z",
+   "sha256": "2ec710800ef8b0ec25ddcbd96a880173ed05c5c8319ac8e2db85a020f7ade7bd",
+   "slug": "share-of-population-in-extreme-poverty",
+   "source_id": "owid"
+  },
+  {
+   "bytes": 9701,
+   "path": "raw/owid/share-of-population-in-extreme-poverty/20261003T202618Z.metadata.json",
+   "retrieved_at": "2026-10-03T20:26:18Z",
+   "sha256": "a25bf9e118ce484bb893665e0f7d9205575aeb5fd10578edfd3edccc04b8dc6e",
+   "slug": "share-of-population-in-extreme-poverty",
+   "source_id": "owid"
+  },
+  {
+   "bytes": 23102,
+   "path": "raw/wikimedia/Artificial_general_intelligence/20261003T202619Z.json",
+   "retrieved_at": "2026-10-03T20:26:19Z",
+   "sha256": "76414d1f40304ad8d8efb5d28be8089d7585d1eb4dcfcce4c4fae71698e0a3eb",
+   "slug": "Artificial_general_intelligence",
+   "source_id": "wikimedia"
+  },
+  {
+   "bytes": 15419,
+   "path": "raw/wikimedia/Deepfake/20261003T202619Z.json",
+   "retrieved_at": "2026-10-03T20:26:19Z",
+   "sha256": "422f25cfa266e469c533dcb857319e87dbb66032613af4b4a2f5e063f8434c5d",
+   "slug": "Deepfake",
+   "source_id": "wikimedia"
+  },
+  {
+   "bytes": 4628,
+   "path": "raw/wikimedia/Existential_risk_from_artificial_intelligence/20261003T202619Z.json",
+   "retrieved_at": "2026-10-03T20:26:19Z",
+   "sha256": "46d4fc7eb0d41091e614b1ee0dd3428b0436fc2ceae9614ac9556e9b4795c78b",
+   "slug": "Existential_risk_from_artificial_intelligence",
+   "source_id": "wikimedia"
+  },
+  {
+   "bytes": 13914,
+   "path": "raw/wikimedia/Regulation_of_artificial_intelligence/20261003T202619Z.json",
+   "retrieved_at": "2026-10-03T20:26:19Z",
+   "sha256": "90fd097c29f3e8130bfe2f284255e72e51361d3d44058cb01d528b36ba38ad0f",
+   "slug": "Regulation_of_artificial_intelligence",
+   "source_id": "wikimedia"
+  },
+  {
+   "bytes": 12483,
+   "path": "raw/wikimedia/Synthetic_media/20261003T202619Z.json",
+   "retrieved_at": "2026-10-03T20:26:19Z",
+   "sha256": "cba5db089865b000fc18a5d17b4329ba0b9a062a7dacc2f7e4c14bfda2852a70",
+   "slug": "Synthetic_media",
+   "source_id": "wikimedia"
+  },
+  {
+   "bytes": 17831,
+   "path": "raw/wikimedia/_aggregate/20261003T202620Z.json",
+   "retrieved_at": "2026-10-03T20:26:20Z",
+   "sha256": "11dd09b787b65e4584b0aca31c4a2bba330986b1b204ae70d62125364b18954f",
+   "slug": "_aggregate",
+   "source_id": "wikimedia"
+  },
+  {
+   "bytes": 14737,
+   "path": "raw/worldbank/NY.GDP.PCAP.KD/20261003T202620Z.json",
+   "retrieved_at": "2026-10-03T20:26:20Z",
+   "sha256": "3c2820efa60c6da45bcd8beedd8c5ffaa06974314acf0ac5fb9174e93cc71d21",
+   "slug": "NY.GDP.PCAP.KD",
+   "source_id": "worldbank"
+  },
+  {
+   "bytes": 16545,
+   "path": "raw/worldbank/SL.UEM.TOTL.ZS/20261003T202620Z.json",
+   "retrieved_at": "2026-10-03T20:26:20Z",
+   "sha256": "043ba91ac5fb5d989495a0f9497f49b76398afb40e590b8912f9dc73b3273e53",
+   "slug": "SL.UEM.TOTL.ZS",
+   "source_id": "worldbank"
+  }
+ ],
+ "repo_commit": null,
+ "runs": [
+  {
+   "first_gate_failure": null,
+   "path": "runs/20261003T202945Z/",
+   "published": true,
+   "run_id": "20261003T202945Z"
+  },
+  {
+   "first_gate_failure": null,
+   "path": "runs/20261003T203006Z/",
+   "published": true,
+   "run_id": "20261003T203006Z"
+  },
+  {
+   "first_gate_failure": null,
+   "path": "runs/20261003T203045Z/",
+   "published": true,
+   "run_id": "20261003T203045Z"
+  }
+ ],
+ "schema": "worldtree.manifest/1",
+ "series": [
+  {
+   "first_period": "2015-01",
+   "last_date": "2026-09-30",
+   "last_period": "2026-09",
+   "path": "series/epoch.country_diversity.csv",
+   "rows": 141,
+   "series_id": "epoch.country_diversity",
+   "sha256": "0e4cd30202f2d8c621c49089d262b1d86d81901c98c75d79cf0b376cc6d62ca7",
+   "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d",
+   "stale": false
+  },
+  {
+   "first_period": "2015-01",
+   "last_date": "2026-09-30",
+   "last_period": "2026-09",
+   "path": "series/epoch.frontier_compute.csv",
+   "rows": 141,
+   "series_id": "epoch.frontier_compute",
+   "sha256": "8bead23941452f6ee837b853432db0742159ad5f584055a837608813e73b3b26",
+   "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d",
+   "stale": false
+  },
+  {
+   "first_period": "2016-09",
+   "last_date": "2026-09-30",
+   "last_period": "2026-09",
+   "path": "series/epoch.open_weights_share.csv",
+   "rows": 121,
+   "series_id": "epoch.open_weights_share",
+   "sha256": "c9d3cec3a05fab60c5aca3eb3cbc63bd95aef48e898bf893ca109c09b6d529ce",
+   "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d",
+   "stale": false
+  },
+  {
+   "first_period": "2015-01",
+   "last_date": "2026-09-30",
+   "last_period": "2026-09",
+   "path": "series/epoch.org_diversity.csv",
+   "rows": 141,
+   "series_id": "epoch.org_diversity",
+   "sha256": "13a044959ed400b357b8374366f21f6d98549c7d4215a9eb3c664c6b0f5f7e07",
+   "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d",
+   "stale": false
+  },
+  {
+   "first_period": "2021",
+   "last_date": "2025-12-31",
+   "last_period": "2025",
+   "path": "series/owid.ai_company_adoption.csv",
+   "rows": 5,
+   "series_id": "owid.ai_company_adoption",
+   "sha256": "dab40a648ac499f734c0b2488cc092086b4be7e1ff1e45358c866f8a3e75f8c2",
+   "snapshot_sha256": "0876f171001e3c0809634e2ded7f6a2bd1cc1a7730b3bd5e8603803a825229c0",
+   "stale": false
+  },
+  {
+   "first_period": "2013",
+   "last_date": "2025-12-31",
+   "last_period": "2025",
+   "path": "series/owid.ai_private_investment.csv",
+   "rows": 13,
+   "series_id": "owid.ai_private_investment",
+   "sha256": "df825c0c3db8cb748cd0c17e14602569fa0c1de994f7925bad901b56169850d6",
+   "snapshot_sha256": "560efc682ae711de37062313e5430483cf9265c9cef15494d950933b818250be",
+   "stale": false
+  },
+  {
+   "first_period": "1989",
+   "last_date": "2025-12-31",
+   "last_period": "2025",
+   "path": "series/owid.conflict_deaths.csv",
+   "rows": 37,
+   "series_id": "owid.conflict_deaths",
+   "sha256": "20c5961b997dc81c6efec7eb6345d32f21498a1e82465032159e075b3f9d36fe",
+   "snapshot_sha256": "49322bd5f71f62962ef75c762fc7eb14e8f5bebfc253c325ebb95e9fa5c7b0ae",
+   "stale": false
+  },
+  {
+   "first_period": "1789",
+   "last_date": "2025-12-31",
+   "last_period": "2025",
+   "path": "series/owid.electoral_democracy.csv",
+   "rows": 237,
+   "series_id": "owid.electoral_democracy",
+   "sha256": "6dbc252d29dbbee8e9543c3df1e369da67f5c320faf451ef7dd45f38d1f47127",
+   "snapshot_sha256": "a0843a64486708e1638e5051be67dde8ddb0c82ae7be264c512173f503445afc",
+   "stale": false
+  },
+  {
+   "first_period": "1990",
+   "last_date": "2025-12-31",
+   "last_period": "2025",
+   "path": "series/owid.extreme_poverty.csv",
+   "rows": 36,
+   "series_id": "owid.extreme_poverty",
+   "sha256": "c98e7c477e4719e778ccf25ade2d1d7ae74aa437aa2a68ed1414f4bb9ebeaa86",
+   "snapshot_sha256": "2ec710800ef8b0ec25ddcbd96a880173ed05c5c8319ac8e2db85a020f7ade7bd",
+   "stale": false
+  },
+  {
+   "first_period": "2024-01",
+   "last_date": "2026-09-30",
+   "last_period": "2026-09",
+   "path": "series/owid.frontiermath_best.csv",
+   "rows": 33,
+   "series_id": "owid.frontiermath_best",
+   "sha256": "631299838e1ca11a03a9e5803e10f8410401d5b99b797df4c31b6887f63ed856",
+   "snapshot_sha256": "184d1ebfcd3e891941cc3d951c43750859fd7b30cb32f872815517994fb5c95e",
+   "stale": false
+  },
+  {
+   "first_period": "2025-06-30",
+   "last_date": "2026-03-31",
+   "last_period": "2026-03-31",
+   "path": "series/owid.genai_user_share.csv",
+   "rows": 3,
+   "series_id": "owid.genai_user_share",
+   "sha256": "8b632050407486f3b9722c790b3a6875cc2e112f6c5557eb1b525f633847b5da",
+   "snapshot_sha256": "89871cf51c90711343daec35e3ad37a60919ea329d3ad546245718219628207a",
+   "stale": false
+  },
+  {
+   "first_period": "1770",
+   "last_date": "2023-12-31",
+   "last_period": "2023",
+   "path": "series/owid.life_expectancy.csv",
+   "rows": 81,
+   "series_id": "owid.life_expectancy",
+   "sha256": "833a527954f7356210fa16908f26827a4a927142f64761ef546d3f5e07d2a430",
+   "snapshot_sha256": "6336e80067d72cd910e5b03a4150bbb203fb8f22c6a9c0c43e91aba07038720b",
+   "stale": false
+  },
+  {
+   "first_period": "1960",
+   "last_date": "2025-12-31",
+   "last_period": "2025",
+   "path": "series/wb.gdp_per_capita.csv",
+   "rows": 66,
+   "series_id": "wb.gdp_per_capita",
+   "sha256": "6622b102e4897670a345080571143edb8397c3e1d62800db44e849647aae3caa",
+   "snapshot_sha256": "3c2820efa60c6da45bcd8beedd8c5ffaa06974314acf0ac5fb9174e93cc71d21",
+   "stale": false
+  },
+  {
+   "first_period": "1991",
+   "last_date": "2025-12-31",
+   "last_period": "2025",
+   "path": "series/wb.unemployment.csv",
+   "rows": 35,
+   "series_id": "wb.unemployment",
+   "sha256": "b10b6c77b49b34af401532b079da4d55a3ad6242a3d6a3b2240dd4c55f971cde",
+   "snapshot_sha256": "043ba91ac5fb5d989495a0f9497f49b76398afb40e590b8912f9dc73b3273e53",
+   "stale": false
+  },
+  {
+   "first_period": "2015-07",
+   "last_date": "2026-09-30",
+   "last_period": "2026-09",
+   "path": "series/wiki.agi.csv",
+   "rows": 135,
+   "series_id": "wiki.agi",
+   "sha256": "e00f197388b2e865b59108e419e91374115ed99c1e4a7544357d4ada39916946",
+   "snapshot_sha256": "76414d1f40304ad8d8efb5d28be8089d7585d1eb4dcfcce4c4fae71698e0a3eb",
+   "stale": false
+  },
+  {
+   "first_period": "2020-03",
+   "last_date": "2026-09-30",
+   "last_period": "2026-09",
+   "path": "series/wiki.ai_regulation.csv",
+   "rows": 79,
+   "series_id": "wiki.ai_regulation",
+   "sha256": "430920c64dd05c789947aac5194d2c4cb52365f247b71882ddff82d031392d2e",
+   "snapshot_sha256": "90fd097c29f3e8130bfe2f284255e72e51361d3d44058cb01d528b36ba38ad0f",
+   "stale": false
+  },
+  {
+   "first_period": "2024-09",
+   "last_date": "2026-09-30",
+   "last_period": "2026-09",
+   "path": "series/wiki.ai_xrisk.csv",
+   "rows": 25,
+   "series_id": "wiki.ai_xrisk",
+   "sha256": "0642b1f5b1840bb1b64f81672f48840a5581db7a8d63378872c09542f7ff14f0",
+   "snapshot_sha256": "46d4fc7eb0d41091e614b1ee0dd3428b0436fc2ceae9614ac9556e9b4795c78b",
+   "stale": false
+  },
+  {
+   "first_period": "2018-02",
+   "last_date": "2026-09-30",
+   "last_period": "2026-09",
+   "path": "series/wiki.deepfake.csv",
+   "rows": 104,
+   "series_id": "wiki.deepfake",
+   "sha256": "d0ed32acf21145698b639878c38cb23def2579c91d37e1924e2dc4cd79a20c9d",
+   "snapshot_sha256": "422f25cfa266e469c533dcb857319e87dbb66032613af4b4a2f5e063f8434c5d",
+   "stale": false
+  },
+  {
+   "first_period": "2015-07",
+   "last_date": "2026-09-30",
+   "last_period": "2026-09",
+   "path": "series/wiki.en_total.csv",
+   "rows": 135,
+   "series_id": "wiki.en_total",
+   "sha256": "e5f05393aae00a3562d42cd7fe8276a1bcb54786574f7cf4a90b1c7c300a4442",
+   "snapshot_sha256": "11dd09b787b65e4584b0aca31c4a2bba330986b1b204ae70d62125364b18954f",
+   "stale": false
+  },
+  {
+   "first_period": "2020-01",
+   "last_date": "2026-09-30",
+   "last_period": "2026-09",
+   "path": "series/wiki.synthetic_media.csv",
+   "rows": 81,
+   "series_id": "wiki.synthetic_media",
+   "sha256": "98d0da80916022f0d2ee0c5eef61c71234d047e9cd5c8b8e9fd5608abf61efe4",
+   "snapshot_sha256": "cba5db089865b000fc18a5d17b4329ba0b9a062a7dacc2f7e4c14bfda2852a70",
+   "stale": false
+  }
+ ],
+ "sources": {
+  "epoch": {
+   "last_retrieved_at": "2026-10-03T20:26:14Z",
+   "last_status": 200,
+   "license": "CC BY 4.0",
+   "snapshots": 1
+  },
+  "owid": {
+   "last_retrieved_at": "2026-10-03T20:26:18Z",
+   "last_status": 200,
+   "license": "CC BY 4.0",
+   "snapshots": 18
+  },
+  "wikimedia": {
+   "last_retrieved_at": "2026-10-03T20:26:20Z",
+   "last_status": 200,
+   "license": "CC0 1.0",
+   "snapshots": 6
+  },
+  "worldbank": {
+   "last_retrieved_at": "2026-10-03T20:26:20Z",
+   "last_status": 200,
+   "license": "CC BY 4.0",
+   "snapshots": 2
+  }
+ }
+}

@@ -260,12 +260,8 @@ def main(as_of, now=None, no_fetch=False, commit=False):
         append_csv(root() / "out" / "history.csv", HISTORY_HEADER,
                    [run_id, updated, method_version(), int(published)] + [realms["weights"][k] for k in REALMS]
                    + [first_fail or ""])
-        try:
-            from .manifest import write_manifest
-        except ImportError:
-            write_manifest = None
-        if write_manifest:
-            write_manifest(run_id, published, first_fail, updated, head)
+        from .manifest import write_manifest
+        write_manifest(run_id, published, first_fail, as_of, head)
         if commit:
             from .gitops import commit_run
             commit_run(run_id, published, first_fail)

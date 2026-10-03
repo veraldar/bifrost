@@ -22,7 +22,7 @@ and prints a verdict + the URL to open. Already cloned? Say instead:
 afterwards: `opencode auth login` (your LLM provider key — nothing may mint
 that for you). Prefer manual setup? Keep reading.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fveraldar%2Fyggdrasil-bifrost&root-directory=pwa&env=LIVEKIT_URL%2CLIVEKIT_API_KEY%2CLIVEKIT_API_SECRET%2COPENCODE_URL)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fveraldar%2Fbifrost&root-directory=pwa&env=LIVEKIT_URL%2CLIVEKIT_API_KEY%2CLIVEKIT_API_SECRET%2COPENCODE_URL)
 
 > One-click Vercel deploy of the PWA: after cloning, set the env vars
 > `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` (see

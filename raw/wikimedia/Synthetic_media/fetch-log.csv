@@ -1,3 +1,4 @@
 attempted_at,url,http_status,bytes,sha256,stored,error
 2026-10-03T20:26:19Z,https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Synthetic_media/monthly/20150701/20260930,200,12483,cba5db089865b000fc18a5d17b4329ba0b9a062a7dacc2f7e4c14bfda2852a70,1,
 2026-10-03T20:26:31Z,https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Synthetic_media/monthly/20150701/20260930,200,12483,cba5db089865b000fc18a5d17b4329ba0b9a062a7dacc2f7e4c14bfda2852a70,0,
+2026-10-03T20:31:39Z,https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Synthetic_media/monthly/20150701/20260930,200,12483,cba5db089865b000fc18a5d17b4329ba0b9a062a7dacc2f7e4c14bfda2852a70,0,

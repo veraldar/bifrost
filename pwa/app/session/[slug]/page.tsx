@@ -2231,26 +2231,26 @@ export default function SessionView({
                 style={{ maxHeight: 96 }}
               />
             )}
-            {/* discord-style rightmost key: mic (hold to talk) when empty,
-                send as soon as there's something to send */}
-            {input.trim() || attachments.length > 0 ? (
+            {/* composer law (req 10-02): the mic is PERMANENT — hold to
+                talk, tap for hands-free, in every state. When there is
+                something to send, send appears BESIDE it, never instead. */}
+            {(input.trim() || attachments.length > 0) && (
               <button onClick={sendText} aria-label="send" className="oz-k ok">
                 <LineIcon name="send" size={16} />
               </button>
-            ) : (
-              <button
-                {...micHoldHandlers}
-                data-testid="composer-mic"
-                aria-label="push to talk"
-                className={`oz-k mic ${holding ? `heard ${pttCancelArm ? 'drop' : ''}` : ''} ${
-                  voiceState === 'connecting' ? 'opacity-50' : ''
-                }`}
-              >
-                {/* a quick TAP is the hands-free toggle (req 09-30), a hold
-                    talks — the held mic glows amber: you are heard */}
-                <LineIcon name="mic" size={16} />
-              </button>
             )}
+            <button
+              {...micHoldHandlers}
+              data-testid="composer-mic"
+              aria-label="push to talk"
+              className={`oz-k mic ${holding ? `heard ${pttCancelArm ? 'drop' : ''}` : ''} ${
+                voiceState === 'connecting' ? 'opacity-50' : ''
+              }`}
+            >
+              {/* a quick TAP is the hands-free toggle (req 09-30), a hold
+                  talks — the held mic glows amber: you are heard */}
+              <LineIcon name="mic" size={16} />
+            </button>
           </div>
         </>
       )}

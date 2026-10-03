@@ -54,8 +54,12 @@ test('bell: unseen artifact counts, gallery opens it, tap marks seen', async ({ 
   const grid = page.getByTestId('artifact-grid');
   await expect(grid).toBeVisible();
   await expect(grid.locator('iframe').first()).toBeVisible();
-  // "all" reveals the rest — our md row appears (chip may carry an unseen count)
-  await page.getByRole('button', { name: /^all( \d+)?$/ }).click();
+  // "all" reveals the rest — our md row appears (chip may carry an unseen
+  // count); scoped to the format group now that a category chip says 'all' too
+  await page
+    .getByRole('group', { name: 'filter' })
+    .getByRole('button', { name: /^all( \d+)?$/ })
+    .click();
   const row = page.getByRole('button', { name: new RegExp(name) });
   await expect(row).toBeVisible();
   // tap → viewer renders the md, opening marks it seen

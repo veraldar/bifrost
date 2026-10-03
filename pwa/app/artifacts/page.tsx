@@ -11,10 +11,16 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Streamdown } from 'streamdown';
 import { LineIcon } from '@/components/line-icon';
 import type { ArtifactEntry } from '@/lib/artifacts';
 import { countUnseen, lastSeen, markAllSeen, markSeen, seenInit } from '@/lib/artifact-read';
+import { slugify } from '@/lib/slug';
+
+// entries carry the ai sidecar when fetched with ?meta=1 — category,
+// one-line note, the authoring session and its slug for the ask flow
+type Entry = ArtifactEntry & { cat?: string; note?: string; ses?: string; slug?: string | null };
 
 // instant paint on back-navigation, same trick as the sessions list
 const CACHE_KEY = 'oz-artifacts';
@@ -157,29 +163,33 @@ function HtmlThumb({ name }: { name: string }) {
 }
 
 export default function ArtifactsPage() {
-  const [files, setFiles] = useState<ArtifactEntry[]>(() => {
+  const router = useRouter();
+  const [files, setFiles] = useState<Entry[]>(() => {
     try {
       const raw = sessionStorage.getItem(CACHE_KEY);
-      return raw ? (JSON.parse(raw) as ArtifactEntry[]) : [];
+      return raw ? (JSON.parse(raw) as Entry[]) : [];
     } catch {
       return [];
     }
   });
-  const [open, setOpen] = useState<ArtifactEntry | null>(null);
+  const [open, setOpen] = useState<Entry | null>(null);
   // html-only gallery is the default — that's what agents make for you;
   // "all" reveals everything else (md, png, wav, diffs…)
   const [filter, setFilter] = useState<'html' | 'all'>('html');
+  // category chips — ai-generated, capped set from the sidecar
+  const [cat, setCat] = useState<string>('all');
+  const [recatting, setRecatting] = useState(false);
   const loadInFlightRef = useRef(false);
 
   const load = useCallback(async () => {
     if (loadInFlightRef.current) return;
     loadInFlightRef.current = true;
     try {
-      const r = await fetch('/api/artifact', {
+      const r = await fetch('/api/artifact?meta=1', {
         cache: 'no-store',
         signal: AbortSignal.timeout(10_000),
       });
-      const list: ArtifactEntry[] = await r.json();
+      const list: Entry[] = await r.json();
       setFiles(list);
       seenInit(list); // first run mercy: everything already on disk counts as seen
       try {
@@ -223,13 +233,59 @@ export default function ArtifactsPage() {
     else setOpen(f);
   }, [touch]);
   const unread = countUnseen(files);
-  const isHtml = (f: ArtifactEntry) => kindOf(f.name) === 'html';
+  const isHtml = (f: Entry) => kindOf(f.name) === 'html';
   const rows = files.map((f) => ({ f, isUnread: f.mtime > lastSeen(f.name) }));
-  const viewRows = filter === 'html' ? rows.filter((r) => isHtml(r.f)) : rows;
+  // two orthogonal filters: format (html/all) × category (ai sidecar)
+  const cats = [...new Set(files.map((f) => f.cat).filter(Boolean))] as string[];
+  const viewRows = rows
+    .filter((r) => (filter === 'html' ? isHtml(r.f) : true))
+    .filter((r) => (cat === 'all' ? true : r.f.cat === cat));
   const emptyMsg =
     filter === 'html'
       ? 'no html artifacts yet — switch to all for the rest'
       : 'no artifacts yet — agents drop files here and they show up in chat';
+
+  /** ask about this — the reference lands as its own tiny line, then the
+   *  session opens; question rides any mode on top of it (txt / ptt / hf).
+   *  No known author → fresh session, same reference. */
+  async function ask(f: Entry) {
+    const ref = `artifact: ${f.name}${f.cat ? ` · ${f.cat}` : ''}${f.note ? ` — ${f.note}` : ''}`;
+    let sid = f.ses;
+    let slug = f.slug || null;
+    if (!sid) {
+      const r = await fetch('/api/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: `ask ${f.name.replace(/\.[a-z0-9]+$/i, '')}` }),
+      });
+      const s = await r.json();
+      if (!s?.id) return;
+      sid = s.id;
+      slug = slugify(s.title || s.id);
+    }
+    await fetch(`/api/session/${sid}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ async: true, text: ref }),
+    }).catch(() => {});
+    markSeen(f.name, f.mtime);
+    router.push(`/session/${slug || sid}?id=${sid}`);
+  }
+
+  /** force re-cat — one artifact (viewer) or everything pending (header). */
+  async function recat(name?: string) {
+    setRecatting(true);
+    try {
+      await fetch('/api/artifact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(name ? { recat: name } : {}),
+      });
+      await load();
+    } finally {
+      setRecatting(false);
+    }
+  }
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col px-3 pb-6">
@@ -251,6 +307,11 @@ export default function ArtifactsPage() {
             mark all read
           </button>
         )}
+        {!open && (
+          <button onClick={() => recat()} disabled={recatting} className="oz-k sm">
+            {recatting ? '…' : 're-cat'}
+          </button>
+        )}
       </header>
 
       <div className="mb-2 flex items-center gap-2">
@@ -270,6 +331,16 @@ export default function ArtifactsPage() {
         </span>
       </div>
 
+      {cats.length > 0 && (
+        <div className="oz-tabs mb-2 flex-wrap" role="group" aria-label="category">
+          {['all', ...cats].map((c) => (
+            <button key={c} onClick={() => setCat(c)} aria-pressed={cat === c}>
+              {c}
+            </button>
+          ))}
+        </div>
+      )}
+
       {open ? (
         <div className="flex flex-col gap-2">
           <button onClick={() => setOpen(null)} className="oz-k sm w-fit">
@@ -277,6 +348,29 @@ export default function ArtifactsPage() {
           </button>
           <div className="truncate px-0.5 text-xs text-[var(--oz-dim)]">
             {open.name} · {fmtTime(open.mtime)} · {fmtSize(open.size)}
+            {open.note && <span> · {open.note}</span>}
+          </div>
+          <div className="flex items-center gap-1.5">
+            {open.ses && (
+              <Link
+                href={`/session/${open.slug || open.ses}?id=${open.ses}`}
+                className="oz-k sm flex-1 justify-start px-2.5"
+                aria-label="open source session"
+              >
+                from session
+              </Link>
+            )}
+            <button onClick={() => ask(open)} className="oz-k sm ok" aria-label="ask about this artifact">
+              ask ↗
+            </button>
+            <button
+              onClick={() => recat(open.name)}
+              disabled={recatting}
+              className="oz-k sm"
+              aria-label="recategorize this artifact"
+            >
+              {recatting ? '…' : 're-cat'}
+            </button>
           </div>
           <Viewer file={open} />
         </div>
@@ -294,15 +388,18 @@ export default function ArtifactsPage() {
                 className="oz-row overflow-hidden p-0"
               >
                 <HtmlThumb name={f.name} />
-                <div className="flex items-center gap-1.5 border-t border-[var(--oz-border)] px-2 py-1.5">
-                  {isUnread && (
-                    <span className="text-[9px]" aria-label="unseen">
-                      ●
+                <div className="border-t border-[var(--oz-border)] px-2 py-1.5">
+                  <div className="flex items-center gap-1.5">
+                    {isUnread && (
+                      <span className="text-[9px]" aria-label="unseen">
+                        ●
+                      </span>
+                    )}
+                    <span className={`truncate text-xs ${isUnread ? 'font-bold' : 'opacity-80'}`}>
+                      {f.name}
                     </span>
-                  )}
-                  <span className={`truncate text-xs ${isUnread ? 'font-bold' : 'opacity-80'}`}>
-                    {f.name}
-                  </span>
+                  </div>
+                  {f.note && <div className="oz-r2 mt-0.5">{f.cat ? `${f.cat} · ` : ''}{f.note}</div>}
                 </div>
               </button>
               {/* both entries possible: tap = here, corner = new tab. Sibling
@@ -349,6 +446,7 @@ export default function ArtifactsPage() {
                         {fmtTime(f.mtime)} · {fmtSize(f.size)}
                       </time>
                     </div>
+                    {f.note && <div className="oz-r2">{f.cat ? `${f.cat} · ` : ''}{f.note}</div>}
                   </button>
                 </li>
               );

@@ -8,6 +8,7 @@ import { abortedAt, markRunEnd, markRunStart } from './oc-live';
 import { dequeue } from './oc-queue';
 import { emitRunError } from './run-events';
 import { pushRunDone } from './push';
+import { metaTrigger } from './artifact-meta';
 
 export type SendBody = {
   text?: string;
@@ -99,6 +100,7 @@ export function forward(sid: string, slug: string, body: SendBody, isRetry = fal
     if (!markRunEnd(sid)) return;
     bustCache(); // list drops the "awaiting answer" state
     void pushRunDone(slug);
+    metaTrigger(); // runs drop artifacts — force-set their meta on post
     // queue pickup: an abort also lands here, so stop advances to the
     // next queued message instead of stalling the session
     const next = dequeue(sid);

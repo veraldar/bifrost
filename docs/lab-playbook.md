@@ -60,3 +60,16 @@ Design-by-checklist kills AGI craft. The winning shape, after an A/B:
   data pass redesign.
 - Identical minimal briefs to 3 parallel labs → 3 genuinely different designs.
   Prescriptive briefs to 3 labs → 3 near-identical ones.
+
+## Rule 10-02: THE INTERFACE LIES — STUDY FILES, DATA, AND USAGE
+Rebuilding a tool from its API surface is rebuilding a shadow. The API shows
+shapes; it hides time-dependent behaviors (compaction, migrations, backups,
+token growth) that only appear over weeks of real use. A rebuild attempt must:
+1. Go through the FILES and the DATA of the original (its store, its logs,
+   its config) — not only its endpoints.
+2. INFER THE USAGE PATTERNS by itself: how was this actually used? What did
+   long use exercise (compaction = usage-born; tools = usage-born)? Make
+   those assumptions explicitly and design for them.
+3. Treat the owner's lived memory as a requirement source — the user knows
+   behaviors no interface exposes.
+The goal is not copying the API; it is copying the LIFE of the system.

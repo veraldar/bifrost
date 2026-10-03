@@ -10,10 +10,9 @@ and the final call. Everything below was learned by running this fleet.
   gates: approve, reject, pick, say stop.
 - **The coordinator** (main session) captures the intention, translates it
   into the right prompt shape, holds the checkpoint, verifies the outcome,
-  and reports one-liners. For BIG missions, the coordinator echoes the
+  and reports one-liners. ALWAYS — every mission, every size — the coordinator echoes the
   captured intention back in one line ("I understood: X, for Y — going")
-  and proceeds unless corrected — validation without waiting. Small asks:
-  capture and go.
+  and proceeds unless corrected. The echo is never skipped.
 - **AGI** gets freedom of judgment inside the goal — and carries the work.
 
 The user is never asked to find the right words. Finding the right words is

@@ -1,0 +1,23 @@
+{
+ "attribution": "Uppsala Conflict Data Program (2026); geoBoundaries (2023) – processed by Our World in Data",
+ "bytes": 171670,
+ "content_type": "text/csv",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://ourworldindata.org/grapher/deaths-in-armed-conflicts-by-region.csv?v=1&csvType=full&useColumnShortNames=true",
+ "http_status": 200,
+ "license": "CC BY 4.0",
+ "license_url": "https://creativecommons.org/licenses/by/4.0/",
+ "path": "raw/owid/deaths-in-armed-conflicts-by-region/20261003T202615Z.csv",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-03T20:26:15Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "49322bd5f71f62962ef75c762fc7eb14e8f5bebfc253c325ebb95e9fa5c7b0ae",
+ "slug": "deaths-in-armed-conflicts-by-region",
+ "source_id": "owid",
+ "stored_bytes": true,
+ "upstream_next_update": "2026-11-01",
+ "upstream_updated": "2026-08-03",
+ "url": "https://ourworldindata.org/grapher/deaths-in-armed-conflicts-by-region.csv?v=1&csvType=full&useColumnShortNames=true"
+}

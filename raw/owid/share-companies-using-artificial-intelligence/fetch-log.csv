@@ -1,0 +1,5 @@
+attempted_at,url,http_status,bytes,sha256,stored,error
+2026-10-03T20:26:17Z,https://ourworldindata.org/grapher/share-companies-using-artificial-intelligence.csv?v=1&csvType=full&useColumnShortNames=true,200,806,0876f171001e3c0809634e2ded7f6a2bd1cc1a7730b3bd5e8603803a825229c0,1,
+2026-10-03T20:26:18Z,https://ourworldindata.org/grapher/share-companies-using-artificial-intelligence.metadata.json?v=1&csvType=full&useColumnShortNames=true,200,2804,d2b4d6e33f3f09f2bd4a2ed39adcca035d325297c38f07ea48820dce72f31db3,1,
+2026-10-03T20:26:28Z,https://ourworldindata.org/grapher/share-companies-using-artificial-intelligence.csv?v=1&csvType=full&useColumnShortNames=true,200,806,0876f171001e3c0809634e2ded7f6a2bd1cc1a7730b3bd5e8603803a825229c0,0,
+2026-10-03T20:26:29Z,https://ourworldindata.org/grapher/share-companies-using-artificial-intelligence.metadata.json?v=1&csvType=full&useColumnShortNames=true,200,2804,d2b4d6e33f3f09f2bd4a2ed39adcca035d325297c38f07ea48820dce72f31db3,0,

@@ -1,0 +1,23 @@
+{
+ "attribution": "Microsoft (2026) – with minor processing by Our World in Data",
+ "bytes": 6542,
+ "content_type": "application/json",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://ourworldindata.org/grapher/estimated-share-people-generative-ai.metadata.json?v=1&csvType=full&useColumnShortNames=true",
+ "http_status": 200,
+ "license": "CC BY 4.0",
+ "license_url": "https://creativecommons.org/licenses/by/4.0/",
+ "path": "raw/owid/estimated-share-people-generative-ai/20261003T202616Z.metadata.json",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-03T20:26:16Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "d3c002b9cad0f60264a6f3fcc0bd63bdaec208ca1c36c50f91e67435be385738",
+ "slug": "estimated-share-people-generative-ai",
+ "source_id": "owid",
+ "stored_bytes": true,
+ "upstream_next_update": "2026-11-03",
+ "upstream_updated": "2026-06-12",
+ "url": "https://ourworldindata.org/grapher/estimated-share-people-generative-ai.metadata.json?v=1&csvType=full&useColumnShortNames=true"
+}

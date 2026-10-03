@@ -1,0 +1,23 @@
+{
+ "attribution": "Epoch AI (2026) – with minor processing by Our World in Data",
+ "bytes": 3287,
+ "content_type": "application/json",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://ourworldindata.org/grapher/ai-frontiermath-over-time.metadata.json?v=1&csvType=full&useColumnShortNames=true",
+ "http_status": 200,
+ "license": "CC BY 4.0",
+ "license_url": "https://creativecommons.org/licenses/by/4.0/",
+ "path": "raw/owid/ai-frontiermath-over-time/20261003T202615Z.metadata.json",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-03T20:26:15Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "a5718a2d459985df50692f3915ec3748ce2ff5fcf32cf6fda5849ab1b0e15baa",
+ "slug": "ai-frontiermath-over-time",
+ "source_id": "owid",
+ "stored_bytes": true,
+ "upstream_next_update": "2026-10-08",
+ "upstream_updated": "2026-09-07",
+ "url": "https://ourworldindata.org/grapher/ai-frontiermath-over-time.metadata.json?v=1&csvType=full&useColumnShortNames=true"
+}

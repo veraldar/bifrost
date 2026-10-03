@@ -65,3 +65,17 @@ alone; clicking it runs vocal onboarding and creates THE MAIN session
 (caps-tagged); afterwards the tree shrinks to its corner but stays the door
 — clicking it always opens main. One gesture on two surfaces: you knock on
 the tree, the bridge opens.
+
+## yggdrasil-net (10-02, user — recorded, not scheduled)
+
+The ambitious end-state of the sovereign tier: OUR OWN safe access point in
+Rust — private mesh (WireGuard-protocol via proven crates like boringtun) +
+WebRTC server (str0m-class) + the Yggdrasil agent core = ONE binary. One
+command on a VPS: your own tailscale-replacement + WebRTC + brain. Auditable,
+AGI-assembled from proven crates — never hand-rolled crypto.
+
+Status: was never proposed to AGI (the reviews simplified transport to
+client-side multi-bridge to avoid scope explosion). Not rejected — deferred
+by omission. De-risk path: a [LAB] spike (M0 = two nodes meshed via
+boringtun + one str0m echo test) measuring whether AGI can assemble it.
+Trigger: sovereign-tier demand after v1.0, or the user calls the spike.

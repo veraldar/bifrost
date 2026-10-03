@@ -1,0 +1,10 @@
+[package]
+name = "bifrost-net"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+boringtun = "0.7.1"
+etherparse = "0.21.0"
+rand_core = { version = "0.6.4", features = ["getrandom"] }
+str0m = "0.24.0"

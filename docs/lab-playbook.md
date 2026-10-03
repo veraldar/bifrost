@@ -67,9 +67,10 @@ shapes; it hides time-dependent behaviors (compaction, migrations, backups,
 token growth) that only appear over weeks of real use. A rebuild attempt must:
 1. Go through the FILES and the DATA of the original (its store, its logs,
    its config) — not only its endpoints.
-2. INFER THE USAGE PATTERNS by itself: how was this actually used? What did
-   long use exercise (compaction = usage-born; tools = usage-born)? Make
-   those assumptions explicitly and design for them.
+2. INFER THE USAGE PATTERNS by itself: go through the data, files, and DB to
+   assume the real behavior AND what would be the BEST BEHAVIOR FOR THE USER.
+   Had it done this, the missing tools and compaction would have been built.
+   Make those assumptions explicitly and design for them.
 3. Treat the owner's lived memory as a requirement source — the user knows
    behaviors no interface exposes.
 The goal is not copying the API; it is copying the LIFE of the system.

@@ -34,6 +34,17 @@ phone". The genuinely NEW engineering piece is the **instance switcher**:
 one PWA holding several backends (per-PC identity, swipe to change tree).
 That is a real feature candidate — spec before building.
 
+## PIVOT 10-02 (user): federation, not switching
+
+The user challenged the instance switcher — and won. If all trees share one
+tailnet, one Bifrost can KNOW its siblings and contact them directly: the
+phone sees ALL sessions from ALL trees in ONE unified list. No switching, no
+mode change — one world view. Technically: peer discovery over the tailnet,
+the phone's own instance fans out server-to-server (one-seam invariant stays;
+peers talk over the tailnet), sessions carry their tree label. Auth between
+peers = instance tokens (same seam as S1). This replaces the switcher as the
+v1.1+ architecture: spec name becomes "federation/peering", not "switcher".
+
 ## Commitments traced to this vision
 
 1. Instance switcher (multi-backend PWA) — feature candidate, needs spec

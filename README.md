@@ -110,7 +110,7 @@ Everything is systemd-managed on omarchy (`lk-pwa`, `lk-agent`,
 > Tailscale is the only network requirement (install it on box + phone).
 
 ```bash
-git clone https://github.com/veraldar/bifrost.git && cd yggdrasil-bifrost
+git clone https://github.com/veraldar/bifrost.git && cd bifrost
 scripts/selfhost-check.sh   # one-command check: can this box run the PWA? (clone→build→boot→probe)
 
 # 0. opencode itself (the coding agent this whole thing drives)

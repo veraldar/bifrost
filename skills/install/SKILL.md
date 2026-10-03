@@ -15,7 +15,7 @@ harness. Do not ask the user questions unless a step hard-fails twice.
 If the current directory is not the bifrost repo:
 
 ```bash
-git clone https://github.com/veraldar/yggdrasil-bifrost.git && cd yggdrasil-bifrost
+git clone https://github.com/veraldar/bifrost.git && cd bifrost
 ```
 
 ## 1. Check prerequisites

@@ -40,7 +40,7 @@ edge/*.log
 /artifacts/*
 !/artifacts/architecture-connectors.html
 !/artifacts/artifacts-gallery-live.png
-!/artifacts/flip-m0-*.png
+!/artifacts/flip-*.png
 !/artifacts/user-checklist.html
 
 

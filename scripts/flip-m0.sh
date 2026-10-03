@@ -27,12 +27,11 @@ start_srv() {
   fail "scratch server did not come up (log: $LOG)"
 }
 
-if up; then
-  echo "[flip-m0] scratch server already up on :$PORT"
-else
-  echo "[flip-m0] starting scratch server on :$PORT…"
-  start_srv
-fi
+# always start FRESH: a long-lived scratch server holds its build in memory,
+# and a rebuild swaps .next under it (HTML/chunk mismatch = ChunkLoadError)
+fuser -k $PORT/tcp 2>/dev/null || true; sleep 1
+echo "[flip-m0] starting scratch server on :$PORT…"
+start_srv
 
 echo "[flip-m0] running the M0 repro spec…"
 (cd "$PWA" && npx playwright test --config=playwright.flip.config.ts)

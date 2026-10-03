@@ -29,6 +29,7 @@ import {
   subscribeSpeech,
 } from '@/lib/speech';
 import { diagEvent } from '@/lib/diag';
+import { useFlipRearm, type FlipRearm } from '@/lib/flip-rearm';
 import { clearAsked, ensureNotifyPermission, markAsked, notifyReply } from '@/lib/notify';
 import { PENDING_TTL_MS } from '@/lib/pending-ttl';
 import { markRead } from '@/lib/read';
@@ -280,6 +281,9 @@ export default function SessionView({
   // mode/room state without re-subscribing on every hands-free toggle
   const voiceStateRef = useRef<'off' | 'connecting' | 'ready'>('off');
   voiceStateRef.current = voiceState;
+  // flip-automation (req 10-03): signals from the poller/room into the re-arm
+  // machine — a ref, so loadMsgs/connectVoice never re-run for it
+  const flipRef = useRef<FlipRearm | null>(null);
   // arms ONE busy-restoration check on entering a session: navigating away
   // and back (or a reload) must re-show the working indicator
   const autoArmRef = useRef('');
@@ -501,6 +505,7 @@ export default function SessionView({
         });
         if (r.ok) {
           lastGoodPollRef.current = Date.now();
+          flipRef.current?.noteOk(); // flip-automation: server is back
           const fresh: Msg[] = await r.json();
           const totalCount = Number(r.headers.get('X-Total-Count') || fresh.length);
           setTotal(totalCount);
@@ -597,7 +602,9 @@ export default function SessionView({
           }
         }
       } catch {
-        /* transient */
+        // flip-automation: a failed poll is the down signal — the re-arm
+        // machine opens its bounded window on the first one
+        flipRef.current?.noteFail();
       } finally {
         pollInFlightRef.current = false;
       }
@@ -804,6 +811,16 @@ export default function SessionView({
             setFreeCycle('listening');
             await mic(true);
             diagEvent('voice', 'hands-free restored after refresh');
+            // flip-automation: a restore can land in an agent-less room when
+            // the flip restarted lk-agent mid-window — M0 pain 2 was exactly
+            // this state faking "listening" silently. Give the agent its
+            // join window, then hand the emptiness to the re-arm machine.
+            window.setTimeout(() => {
+              if (unmountedRef.current || modeRef.current !== 'free') return;
+              if (roomRef.current?.remoteParticipants.size === 0) {
+                flipRef.current?.restoreAgentless();
+              }
+            }, 10_000);
           } catch (e) {
             modeRef.current = 'text';
             setMode('text');
@@ -923,6 +940,13 @@ export default function SessionView({
         if (!unmountedRef.current && wantsVoice) reconnectVoice();
       });
       room.on(RoomEvent.MediaDevicesError, (e: Error) => diagEvent('voice-fail', String(e)));
+      // flip-automation (req 10-03): the AGENT left while the phone stays —
+      // exactly what a flip's lk-agent restart does. Without this the room
+      // fakes "listening" forever (M0 pain 3); with it, the re-arm machine
+      // re-mints (per-mint dispatch) and the agent returns hands-free.
+      room.on(RoomEvent.ParticipantDisconnected, () => {
+        if (modeRef.current === 'free') flipRef.current?.agentLost();
+      });
       diagEvent('voice', 'connecting signal…');
       await withTimeout(room.connect(d.serverUrl, d.participantToken), 12_000, 'signal');
       diagEvent('voice', 'connected, mic stays muted until a mode/handler turns it on');
@@ -1000,6 +1024,45 @@ export default function SessionView({
     const room = roomRef.current;
     if (room) releaseMicDevice(room);
     diagEvent('voice', 'released (over and out) — mic device released, room stays warm');
+  }
+
+  /** flip-automation (req 10-03): ONE re-arm attempt — drop any stale room,
+   *  fresh token mint (the token route dispatches the voice agent per mint),
+   *  mic hot, cycle back to listening. Resolves true when an agent is in the
+   *  room (or hands-free is moot); false = still empty, the loop retries. */
+  async function rearmOnce(): Promise<boolean> {
+    if (unmountedRef.current || modeRef.current !== 'free') return true;
+    const cur = roomRef.current;
+    if (cur && voiceStateRef.current === 'ready' && cur.remoteParticipants.size > 0) {
+      return true; // intact — nothing to re-arm (plain proxy blip case)
+    }
+    try {
+      await cur?.disconnect();
+    } catch {
+      /* already gone */
+    }
+    roomRef.current = null;
+    voicePromiseRef.current = null;
+    setVoiceState('off');
+    arrivedBusyRef.current = false; // a stale arrival flag must not gate the next arm
+    try {
+      const room = await ensureVoice();
+      await mic(true);
+      setFreeCycle('listening');
+      // bounded agent wait on THIS fresh mint — dispatch needs a moment
+      const t0 = Date.now();
+      while (Date.now() - t0 < 10_000) {
+        await new Promise((r) => setTimeout(r, 500));
+        if (unmountedRef.current || modeRef.current !== 'free') return true;
+        // fresh read: connectVoice reassigns roomRef.current asynchronously
+        const nowRoom = roomRef.current as Room | null;
+        if (nowRoom && nowRoom === room && nowRoom.remoteParticipants.size > 0) return true;
+      }
+      diagEvent('flip', 're-arm mint: no agent in the room after 10s');
+      return false;
+    } catch {
+      return false; // token/connect failed while the server blipped — retry
+    }
   }
 
   async function switchMode(next: Mode) {
@@ -1239,6 +1302,13 @@ export default function SessionView({
   const freeCycleRef = useRef(freeCycle);
   freeCycleRef.current = freeCycle;
   const freeLevels = useMicLevels(mode === 'free' && voiceState === 'ready', roomRef);
+
+  // flip-automation (req 10-03): the re-arm machine — bounded retry while the
+  // server is down, automatic hands-free re-entry on return (fresh mint →
+  // agent re-dispatch), loud note past the flip window. Clock/notes live in
+  // lib/flip-rearm; the voice work is rearmOnce above.
+  const flip = useFlipRearm({ slug, active: mode === 'free', attempt: rearmOnce });
+  flipRef.current = flip;
 
   // auto-listen cycle: while waiting for the reply (free_state "processing"),
   // the first assistant message that lands is spoken via the same TTS as the
@@ -1868,6 +1938,19 @@ export default function SessionView({
       {error && (
         <div className="mt-2">
           <ErrorBox error={error} onDismiss={() => setError('')} slug={slug} />
+        </div>
+      )}
+
+      {/* flip-automation (req 10-03): the flip note — server down / re-arming
+          / re-armed / loud timeout. The phone's ONLY required action is
+          none: this line narrates what the machine does on its own. */}
+      {flip.note && (
+        <div
+          data-testid="flip-note"
+          role="status"
+          className="mt-2 rounded-md border border-[var(--oz-active)]/40 bg-[var(--oz-active)]/10 px-3 py-2 text-[11px] leading-snug text-[var(--oz-text)]"
+        >
+          {flip.note}
         </div>
       )}
 

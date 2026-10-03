@@ -3,31 +3,31 @@ import { openSync } from 'fs';
 import { expect, test } from '@playwright/test';
 
 /**
- * M0 (flip-automation, req 10-03): reproduce the manual-re-entry pain.
+ * flip-automation contract (req 10-03): a flip restarts the proxy (and the
+ * voice agent) under a live phone — the phone NEVER needs manual action.
+ * Runs against the SCRATCH server on :3312 (never the live :8080); the spec
+ * restarts that server mid-test to walk the flip window.
  *
- * A flip restarts the proxy (and the voice agent) under a live phone. This
- * spec walks that sequence against the SCRATCH server on :3312 (never the
- * live :8080) and records what the client does with ZERO user action:
+ *  leg 1 — plain proxy restart under a hands-free client: the down-window
+ *            is ANNOUNCED (flip-note), and the return re-arms quietly. The
+ *            room + agent survive, so no re-mint may fire (the re-arm
+ *            guard must not churn dispatches for an intact room).
+ *  leg 2 — the flip window kills the agent dispatch, and the phone reloads
+ *            mid-window (PWA reopen): restore lands agent-less, the re-arm
+ *            machine mints again and again (bounded), goes LOUD past the
+ *            window (flip-note + notification path), and still recovers
+ *            hands-free the moment the window ends — zero taps anywhere.
  *
- *  leg 1 — plain proxy restart under a hands-free client:
- *            down-window silence + zero-action survival (the quiet case)
- *  leg 2 — restart whose agent dispatch is dead, then a reload (what a phone
- *            does when the PWA reopens mid-flip): the client lands in an
- *            agent-less room that still claims "listening" — the fake — and
- *            after the proxy returns (dispatch alive again) NOTHING re-arms:
- *            no re-mint, no agent, no note. A manual tap is the only exit.
- *
- * The M0 assertions pin TODAY's behavior as evidence. The M1 commit flips
- * them to the auto-re-arm contract (bounded retry, re-enter listening on
- * return, loud timeout note).
+ * Today's-pain evidence this spec replaces: commit 46acf1e (M0).
  */
 
-const NAME = `e2e-flip-m0-${Date.now().toString(36)}`;
+const NAME = `e2e-flip-${Date.now().toString(36)}`;
 const PORT = 3312;
 const BASE = `http://127.0.0.1:${PORT}`;
 const PWA = process.cwd(); // pwa/
 const LOG = '/tmp/opencode/flip-pwa.log';
 const FREE = 'tap the bars to send';
+const NOTE = '[data-testid="flip-note"]';
 
 function srvUp(): Promise<boolean> {
   return fetch(`${BASE}/api/session`, { signal: AbortSignal.timeout(3_000) })
@@ -60,12 +60,15 @@ function srvKill(): void {
   execSync(`fuser -k ${PORT}/tcp 2>/dev/null || true`, { stdio: 'ignore' });
 }
 
-test('M0: flip-window restart under a hands-free client — what demands manual action today', async ({
+async function readLog(): Promise<string> {
+  return import('fs/promises').then((fs) => fs.readFile(LOG, 'utf8'));
+}
+
+test('flip window under a hands-free client — announced, bounded, self-healing', async ({
   page,
-}, testInfo) => {
-  test.setTimeout(240_000);
-  const shot = (n: string) =>
-    page.screenshot({ path: `../artifacts/flip-m0-${n}.png`, fullPage: false });
+}) => {
+  test.setTimeout(300_000);
+  const shot = (n: string) => page.screenshot({ path: `../artifacts/flip-${n}.png` });
 
   // --- session + hands-free entry with a real agent --------------------------
   const r = await page.request.post('/api/session', { data: { name: NAME } });
@@ -82,19 +85,22 @@ test('M0: flip-window restart under a hands-free client — what demands manual 
     // --- leg 1: plain proxy restart under the client -------------------------
     srvKill();
     await waitSrv(false, 15_000);
-    await page.waitForTimeout(8_000); // the down window
-    // PAIN 1 (silence): nothing on screen says the server is gone
-    await expect(page.locator('[data-testid="flip-note"]')).toHaveCount(0);
+    // the down-window is ANNOUNCED (M0 pain 1 was silence)
+    await expect(page.locator(NOTE)).toContainText('server down', { timeout: 10_000 });
     await shot('2-downwindow');
     srvStart(); // back up, same (good) env
     await waitSrv(true, 60_000);
+    const mark = (await readLog()).length;
     await page.waitForTimeout(20_000); // zero-action observation
-    // today the quiet case survives: strip still claims listening, no note
+    // room + agent survived the proxy blip: re-armed quietly, no re-mint
     await expect(free).toContainText(FREE);
-    await expect(page.locator('[data-testid="flip-note"]')).toHaveCount(0);
+    await expect(page.locator(NOTE)).toHaveCount(0); // note cleared itself
+    expect((await readLog()).slice(mark)).not.toContain('[token]');
     await shot('3-quiet-return');
 
-    // --- leg 2: return with dispatch broken + a phone reload -----------------
+    // --- leg 2: dispatch-dead window + a phone reload ------------------------
+    // bound override: the loud path must fire inside the test, not after 8min
+    await page.evaluate(() => localStorage.setItem('oz-flip-bound-ms', '15000'));
     srvKill();
     await waitSrv(false, 15_000);
     // LIVEKIT_API_URL → dead port: token mint succeeds, agent dispatch fails
@@ -103,33 +109,35 @@ test('M0: flip-window restart under a hands-free client — what demands manual 
     await waitSrv(true, 60_000);
     await page.reload(); // the phone reopens the PWA mid-flip
     await expect(free).toBeVisible({ timeout: 30_000 });
-    await page.waitForTimeout(12_000);
-    // PAIN 2 (the fake): agent-less room, yet the UI claims a working
-    // hands-free — no error, no note, nothing says nobody is transcribing
-    await expect(free).toContainText(FREE);
-    await expect(page.getByText(/voice agent missing/i)).toHaveCount(0);
-    await expect(page.locator('[data-testid="flip-note"]')).toHaveCount(0);
-    await shot('4-agentless-fake');
-    // proof from the source: the dispatch genuinely failed server-side
-    const badLog = await import('fs/promises').then((fs) => fs.readFile(LOG, 'utf8'));
-    expect(badLog).toContain('agent dispatch failed');
+    // restore lands agent-less: the machine starts working on its own
+    await expect(page.locator(NOTE)).toContainText(/re-arming/, { timeout: 25_000 });
+    const badLog = await readLog();
+    expect(badLog).toContain('[token]'); // re-mint attempts are running
+    expect(badLog).toContain('agent dispatch failed'); // and honestly failing
+    await shot('4-agentless-rearming');
+    // past the bound: LOUD (M0 pain 2 was a silent fake "listening")
+    await expect(page.locator(NOTE)).toContainText(/flip window exceeded/i, {
+      timeout: 45_000,
+    });
+    await shot('5-loud');
 
-    // --- the return: dispatch alive again, client left alone -----------------
+    // --- the window ends: dispatch alive again -------------------------------
     srvKill();
     await waitSrv(false, 15_000);
     srvStart(); // good env — the flip window is over
     await waitSrv(true, 60_000);
-    const goodMark = (await import('fs/promises').then((fs) => fs.readFile(LOG, 'utf8'))).length;
-    await page.waitForTimeout(25_000); // zero-action observation
-    // PAIN 3 (no self-heal): no re-mint, no agent, no note — the strip keeps
-    // faking listening and a manual tap is the only way back today
+    const goodMark = (await readLog()).length;
+    // hands-free re-arms ITSELF: fresh mint → dispatch → agent joins → hot mic
+    await expect(free).toContainText(FREE, { timeout: 60_000 });
+    await expect(page.locator(NOTE)).not.toContainText(/flip window exceeded/i, {
+      timeout: 30_000,
+    });
+    await expect(page.getByText(/voice agent missing/i)).toHaveCount(0);
+    expect((await readLog()).slice(goodMark)).toContain('[token]'); // a real re-mint happened
+    await page.waitForTimeout(12_000); // and it STAYS healed (no flapping)
     await expect(free).toContainText(FREE);
-    await expect(page.locator('[data-testid="flip-note"]')).toHaveCount(0);
-    await shot('5-no-selfheal');
-    const goodLog = (await import('fs/promises').then((fs) => fs.readFile(LOG, 'utf8'))).slice(
-      goodMark
-    );
-    expect(goodLog).not.toContain('[token]'); // no re-dispatch was attempted
+    await expect(page.locator(NOTE)).toHaveCount(0);
+    await shot('6-rearmed');
   } finally {
     // the scratch server must end UP and GOOD for any later tests/runs
     if (!(await srvUp())) {
@@ -137,6 +145,5 @@ test('M0: flip-window restart under a hands-free client — what demands manual 
       await waitSrv(true, 60_000);
     }
     await page.request.delete(`/api/session/${sessionId}`).catch(() => {});
-    void testInfo; // screenshots above carry the evidence
   }
 });

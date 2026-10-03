@@ -7,7 +7,7 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './e2e',
   testMatch: /flip\.spec\.ts/,
-  timeout: 180_000,
+  timeout: 320_000,
   expect: { timeout: 20_000 },
   workers: 1, // the spec restarts the shared scratch server — never parallel
   retries: 0,

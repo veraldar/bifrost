@@ -61,16 +61,20 @@ Design-by-checklist kills AGI craft. The winning shape, after an A/B:
 - Identical minimal briefs to 3 parallel labs → 3 genuinely different designs.
   Prescriptive briefs to 3 labs → 3 near-identical ones.
 
-## Rule 10-02: THE INTERFACE LIES — STUDY FILES, DATA, AND USAGE
+## Rule 10-02: REBUILD THE LIFE, NOT THE SURFACE
 Rebuilding a tool from its API surface is rebuilding a shadow. The API shows
 shapes; it hides time-dependent behaviors (compaction, migrations, backups,
-token growth) that only appear over weeks of real use. A rebuild attempt must:
-1. Go through the FILES and the DATA of the original (its store, its logs,
-   its config) — not only its endpoints.
-2. INFER THE USAGE PATTERNS by itself: go through the data, files, and DB to
-   assume the real behavior AND what would be the BEST BEHAVIOR FOR THE USER.
-   Had it done this, the missing tools and compaction would have been built.
-   Make those assumptions explicitly and design for them.
-3. Treat the owner's lived memory as a requirement source — the user knows
-   behaviors no interface exposes.
-The goal is not copying the API; it is copying the LIFE of the system.
+token growth) that only appear over weeks of real use. Prompt form:
+
+> Before writing code: study the data, files, DB, and logs; reconstruct how
+> the system was actually used — over days, weeks, and months. Infer what the
+> user needed but never had to ask for. Where the original falls short of the
+> user's interest, do not copy the shortfall — build the better version.
+> Present your reconstructed usage model and your planned improvements before
+> building; one confirmation, then build.
+
+The three upgrades this carries: the time dimension is explicit (compaction
+gets caught), the inference is user-centered (best behavior FOR THE USER —
+the missing tools would have been built), and the usage-model checkpoint
+exposes gaps before the first line of code. The owner's lived memory is a
+requirement source — the user knows behaviors no interface exposes.

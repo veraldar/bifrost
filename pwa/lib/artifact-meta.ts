@@ -75,13 +75,19 @@ async function pickModel() {
  *  mtime get their transcript scanned for the artifact's mention. Bounded —
  *  three candidates, an 8s overall budget and a 6s per-session race (some
  *  transcripts here carry megabytes of data-urls), first hit wins, null
- *  over wrong. */
+ *  over wrong. The meta lab sessions are excluded — their transcripts
+ *  contain every artifact name and would claim authorship of everything. */
 async function findAuthor(name: string, mtime: number): Promise<string | undefined> {
   const deadline = Date.now() + 8000;
   try {
-    const sessions = (await ocFetch('/session')) as { id: string; time?: { updated?: number } }[];
+    const sessions = (await ocFetch('/session')) as {
+      id: string;
+      title?: string;
+      time?: { updated?: number };
+    }[];
     const cand = sessions
       .filter((s) => {
+        if (s.title === META_TITLE) return false;
         const u = s.time?.updated || 0;
         return u && u > mtime - 900_000 && u <= Date.now();
       })
@@ -121,6 +127,7 @@ function excerptFor(f: ArtifactEntry): string {
 
 let running: Promise<number> | null = null;
 let lastRun = 0;
+const META_TITLE = 'artifact-meta';
 
 /** One batched run over the pending set (new or mtime-changed files).
  *  forceNames pins specific files (re-cat); it bypasses the cooldown,
@@ -129,7 +136,10 @@ export function categorizePending(forceNames?: string[]): Promise<number> {
   if (running) return running;
   if (!forceNames && Date.now() - lastRun < COOLDOWN_MS) return Promise.resolve(0);
   running = run(forceNames)
-    .catch(() => 0) // a failed run leaves items uncategorized — next trigger retries
+    .catch((e) => {
+      console.error(`[meta] run failed: ${e}`);
+      return 0;
+    })
     .finally(() => {
       running = null;
       lastRun = Date.now();
@@ -140,7 +150,7 @@ export function categorizePending(forceNames?: string[]): Promise<number> {
 async function run(forceNames?: string[]): Promise<number> {
   const files = await listArtifacts();
   const meta = await readMeta();
-  const skip = (n: string) => /^e2e[-_.]/.test(n); // test debris never reaches the model
+  const skip = (n: string) => /e2e/i.test(n); // test debris never reaches the model // test debris never reaches the model
   let pending = files.filter((f) => {
     if (skip(f.name)) return false;
     const it = meta.items[f.name];
@@ -176,9 +186,9 @@ async function run(forceNames?: string[]): Promise<number> {
         try {
           const { readFile: rf } = await import('fs/promises');
           const buf = await rf(path.join(ARTIFACTS_DIR, f.name), 'utf8');
-          return `- ${f.name}:\n\`\`\`\n${String(buf).slice(0, 4000)}\n\`\`\``;
+          return `=== file: ${f.name} ===\n${String(buf).slice(0, 4000)}\n=== end ===`;
         } catch {
-          return `- ${f.name} (${f.type})`;
+          return `=== file: ${f.name} === (unreadable) === end ===`;
         }
       })
     )
@@ -187,59 +197,85 @@ async function run(forceNames?: string[]): Promise<number> {
   const catLine = meta.cats.length
     ? `Existing categories: ${meta.cats.join(', ')}. You may propose ONE new category only if the set has fewer than ${MAX_CATS}; otherwise you MUST reuse an existing one.`
     : `Propose up to ${MAX_CATS} categories (fewer if enough) that fit these artifacts as a set.`;
-  const prompt = `You label files for a small gallery. ${catLine}
-For EACH file reply with a category and a note (max 60 chars, lowercase, what it IS — no fluff).
-Reply with ONLY a JSON array, no prose: [{"name":"<file>","cat":"<category>","note":"<one line>"}]
-Files:
+  const prompt = `Label each file below for a small gallery. ${catLine}
+Prefer a few BROAD reusable categories over specific ones — a category should plausibly cover many files (e.g. design beats 'html wireframe mockup v2').
+Use NO tools and inspect nothing — label ONLY from the content given here.
+Output ONE line of JSON per file, nothing else, no markdown fences: {"name":"<file>","cat":"<category>","note":"<one line, max 60 chars, lowercase>"}
 ${excerpts}`;
 
+  // a fresh throwaway session per run — reusing one poisons the model with
+  // its own history (it started replying '[]') and its transcript would
+  // claim authorship of every artifact it ever labelled; deleted after
   const sid = (
     (await ocFetch('/session', {
       method: 'POST',
-      body: JSON.stringify({ title: 'artifact-meta' }),
+      body: JSON.stringify({ title: META_TITLE }),
     })) as { id: string }
   ).id;
-  const model = await pickModel();
-  if (model)
-    await ocFetch(`/api/session/${sid}/model`, {
-      method: 'POST',
-      body: JSON.stringify({ model }),
-    }).catch(() => {}); // a dead pin must not kill the run — default carries it
-  const reply = (await ocFetch(`/session/${sid}/message`, {
-    method: 'POST',
-    body: JSON.stringify({ parts: [{ type: 'text', text: prompt }] }),
-  })) as { parts?: { type: string; text?: string }[] };
-  const text = (reply?.parts || [])
-    .filter((p) => p.type === 'text')
-    .map((p) => p.text || '')
-    .join('\n');
-  const m = /\[[\s\S]*\]/.exec(text);
-  if (!m) return 0;
-  let verdicts: { name?: string; cat?: string; note?: string }[] = [];
+  console.error(`[meta] run ${sid} pending=[${pending.map((f) => f.name).join(', ')}] prompt ${prompt.length}ch head: ${prompt.slice(0, 200).replace(/\n/g, ' | ')}`);
   try {
-    verdicts = JSON.parse(m[0]);
-  } catch {
-    return 0;
-  }
+    const model = await pickModel();
+    if (model)
+      await ocFetch(`/api/session/${sid}/model`, {
+        method: 'POST',
+        body: JSON.stringify({ model }),
+      }).catch(() => {}); // a dead pin must not kill the run — default carries it
+    const reply = (await Promise.race([
+      ocFetch(`/session/${sid}/message`, {
+        method: 'POST',
+        body: JSON.stringify({ parts: [{ type: 'text', text: prompt }] }),
+      }),
+      // the labeling run is one completion, not an agent loop — when the
+      // model decides to go exploring with tools instead, kill it and let
+      // the next trigger retry (45s is generous for a 4k-char prompt)
+      new Promise((_, rej) => setTimeout(() => rej(new Error('label run timeout')), 45_000)),
+    ])) as { parts?: { type: string; text?: string }[] };
+    const text = (reply?.parts || [])
+      .filter((p) => p.type === 'text')
+      .map((p) => p.text || '')
+      .join('\n');
+    // line-delimited JSON — fences in file content can't break it
+    const verdicts: { name?: string; cat?: string; note?: string }[] = [];
+    for (const line of text.split('\n')) {
+      const t = line.trim().replace(/^```(json)?/, '').replace(/```$/, '').trim();
+      if (!t.startsWith('{')) continue;
+      try {
+        const v = JSON.parse(t);
+        if (v && typeof v === 'object') verdicts.push(v);
+      } catch {
+        /* partial line — skip */
+      }
+    }
+    if (!verdicts.length) {
+      console.error(`[meta] no verdict lines in reply: ${text.slice(0, 300)}`);
+      return 0;
+    }
 
-  const now = Date.now();
-  let added = 0;
-  for (const v of verdicts) {
-    const f = pending.find((p) => p.name === v.name);
-    if (!f || !v.cat) continue;
-    if (!meta.cats.includes(v.cat) && meta.cats.length < MAX_CATS) meta.cats.push(v.cat);
-    if (!meta.cats.includes(v.cat)) continue; // at cap and the model invented one — drop
-    meta.items[f.name] = {
-      cat: v.cat,
-      note: (v.note || '').slice(0, 60) || undefined,
-      ses: authors.get(f.name) || meta.items[f.name]?.ses,
-      mtime: f.mtime,
-      at: now,
-    };
-    added++;
+    const now = Date.now();
+    let added = 0;
+    for (const v of verdicts) {
+      const f = pending.find((p) => p.name === v.name);
+      if (!f || !v.cat) continue;
+      if (!meta.cats.includes(v.cat) && meta.cats.length < MAX_CATS) meta.cats.push(v.cat);
+      if (!meta.cats.includes(v.cat)) continue; // at cap and the model invented one — drop
+      meta.items[f.name] = {
+        cat: v.cat,
+        note: (v.note || '').slice(0, 60) || undefined,
+        ses: authors.get(f.name) || meta.items[f.name]?.ses,
+        mtime: f.mtime,
+        at: now,
+      };
+      added++;
+    }
+    if (added) await writeMeta(meta);
+    else console.error(`[meta] verdicts unusable: ${JSON.stringify(verdicts).slice(0, 300)}`);
+    return added;
+  } finally {
+    // home list never keeps the lab session (user req); abort first —
+    // a timed-out run must not linger holding the throwaway session
+    await ocFetch(`/session/${sid}/abort`, { method: 'POST' }).catch(() => {});
+    await ocFetch(`/session/${sid}`, { method: 'DELETE' }).catch(() => {});
   }
-  if (added) await writeMeta(meta);
-  return added;
 }
 
 /** Fire-and-forget trigger for the hooks (gallery open, run end, watcher). */

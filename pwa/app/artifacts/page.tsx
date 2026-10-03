@@ -16,7 +16,6 @@ import { Streamdown } from 'streamdown';
 import { LineIcon } from '@/components/line-icon';
 import type { ArtifactEntry } from '@/lib/artifacts';
 import { countUnseen, lastSeen, markAllSeen, markSeen, seenInit } from '@/lib/artifact-read';
-import { slugify } from '@/lib/slug';
 
 // entries carry the ai sidecar when fetched with ?meta=1 — category,
 // one-line note, the authoring session and its slug for the ask flow
@@ -247,39 +246,30 @@ export default function ArtifactsPage() {
 
   /** ask about this — the reference lands as its own tiny line, then the
    *  session opens; question rides any mode on top of it (txt / ptt / hf).
-   *  No known author → fresh session, same reference. */
+   *  Only offered when the artifact has a known source session — no hollow
+   *  auto-created sessions (user req). */
   async function ask(f: Entry) {
+    if (!f.ses) return;
     const ref = `artifact: ${f.name}${f.cat ? ` · ${f.cat}` : ''}${f.note ? ` — ${f.note}` : ''}`;
-    let sid = f.ses;
-    let slug = f.slug || null;
-    if (!sid) {
-      const r = await fetch('/api/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: `ask ${f.name.replace(/\.[a-z0-9]+$/i, '')}` }),
-      });
-      const s = await r.json();
-      if (!s?.id) return;
-      sid = s.id;
-      slug = slugify(s.title || s.id);
-    }
-    await fetch(`/api/session/${sid}/messages`, {
+    await fetch(`/api/session/${f.ses}/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ async: true, text: ref }),
     }).catch(() => {});
     markSeen(f.name, f.mtime);
-    router.push(`/session/${slug || sid}?id=${sid}`);
+    router.push(`/session/${f.slug || f.ses}?id=${f.ses}`);
   }
 
-  /** force re-cat — one artifact (viewer) or everything pending (header). */
+  /** force re-cat — one artifact (viewer) or the ten newest (header); the
+   *  ten-newest force bypasses the cooldown so the key always does
+   *  something visible (user req: 're-cat doesn't do anything'). */
   async function recat(name?: string) {
     setRecatting(true);
     try {
       await fetch('/api/artifact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(name ? { recat: name } : {}),
+        body: JSON.stringify(name ? { recat: name } : { recent: true }),
       });
       await load();
     } finally {
@@ -351,18 +341,28 @@ export default function ArtifactsPage() {
             {open.note && <span> · {open.note}</span>}
           </div>
           <div className="flex items-center gap-1.5">
-            {open.ses && (
-              <Link
-                href={`/session/${open.slug || open.ses}?id=${open.ses}`}
-                className="oz-k sm flex-1 justify-start px-2.5"
-                aria-label="open source session"
-              >
-                from session
-              </Link>
+            {open.ses ? (
+              <>
+                <Link
+                  href={`/session/${open.slug || open.ses}?id=${open.ses}`}
+                  className="oz-k sm flex-1 justify-start px-2.5"
+                  aria-label="open source session"
+                >
+                  from session
+                </Link>
+                <button
+                  onClick={() => ask(open)}
+                  className="oz-k sm ok"
+                  aria-label="ask about this artifact"
+                >
+                  ask ↗
+                </button>
+              </>
+            ) : (
+              <span className="flex-1 px-0.5 text-[10px] text-[var(--oz-dim)]">
+                no source session — attach it manually in a chat
+              </span>
             )}
-            <button onClick={() => ask(open)} className="oz-k sm ok" aria-label="ask about this artifact">
-              ask ↗
-            </button>
             <button
               onClick={() => recat(open.name)}
               disabled={recatting}

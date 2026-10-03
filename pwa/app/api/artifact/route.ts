@@ -47,12 +47,26 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   startMetaWatcher();
   let recat: string | undefined;
+  let recent = false;
   try {
     const b = await req.json();
     recat = typeof b?.recat === 'string' ? b.recat : undefined;
+    recent = b?.recent === true;
   } catch {
     /* empty body = re-cat everything pending */
   }
-  const n = await import('@/lib/artifact-meta').then((m) => m.categorizePending(recat ? [recat] : undefined));
+  // header re-cat must always DO something visible: it forces the ten
+  // newest files through the model again (bypasses the cooldown), instead
+  // of only the pending set — which is usually empty (user req)
+  const forceNames = recent
+    ? (await listArtifacts())
+        .filter((f) => !/e2e/i.test(f.name)) // the categoriser skips debris too
+        .slice(0, 10)
+        .map((f) => f.name)
+    : recat
+      ? [recat]
+      : undefined;
+  const m = await import('@/lib/artifact-meta');
+  const n = await m.categorizePending(forceNames);
   return NextResponse.json({ recategorised: n });
 }

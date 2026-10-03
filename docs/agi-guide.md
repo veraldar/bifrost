@@ -4,6 +4,18 @@ Written for the one who drives. You never need perfect words — you need the
 right SHAPE of ask. AGI fills in the rest; your job is direction, judgment,
 and the final call. Everything below was learned by running this fleet.
 
+## The division of labor (the user is a GATE, not a prompt engineer)
+
+- **The user** states intention plainly — any words, any order. Then only
+  gates: approve, reject, pick, say stop.
+- **The coordinator** (main session) captures the intention, translates it
+  into the right prompt shape, holds the checkpoint, verifies the outcome,
+  and reports one-liners.
+- **AGI** gets freedom of judgment inside the goal — and carries the work.
+
+The user is never asked to find the right words. Finding the right words is
+the coordinator's job; gating the result is the user's.
+
 ## The five shapes of asking
 
 ### 1. Build something new

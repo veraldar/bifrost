@@ -1,28 +1,28 @@
 {
- "generated_at": "2026-10-03T20:31:40Z",
+ "generated_at": "2026-10-03T20:32:08Z",
  "last_published": {
-  "run_id": "20261003T203134Z",
-  "updated": "2026-10-03T20:31:34Z"
+  "run_id": "20261003T203202Z",
+  "updated": "2026-10-03T20:32:02Z"
  },
  "last_run": {
   "first_gate_failure": null,
   "published": true,
-  "run_id": "20261003T203134Z"
+  "run_id": "20261003T203202Z"
  },
  "method_version": "0.1.0",
  "out": {
   "history": {
    "path": "out/history.csv",
-   "rows": 6
+   "rows": 7
   },
   "provenance": {
    "path": "out/realms.provenance.json",
-   "sha256": "8171715d454c133d1de8614996c7f82a20e4a32b24b59bdc3627c5bb53fabbf0"
+   "sha256": "e6081ce7a5d6a8e7bae632467d9011ffd8c13ffebd353307408ff10f6fc4bacf"
   },
   "realms": {
    "path": "out/realms.json",
-   "run_id": "20261003T203134Z",
-   "sha256": "73f72a028d928e5548bf583625c2d9d49e01a3206f0be19db61148c60f2de919"
+   "run_id": "20261003T203202Z",
+   "sha256": "77743ebee0b84542526f2141d161358c340865b70c10e52b033a6446aa15d6f3"
   }
  },
  "raw": [
@@ -243,7 +243,7 @@
    "source_id": "worldbank"
   }
  ],
- "repo_commit": "61508ce930f6a05c05bfe1fe8932b7e9649c50e1",
+ "repo_commit": "ae6c26cfcd6263dac598f937b2dd1ee5bcd05eb7",
  "runs": [
   {
    "first_gate_failure": null,
@@ -274,6 +274,12 @@
    "path": "runs/20261003T203134Z/",
    "published": true,
    "run_id": "20261003T203134Z"
+  },
+  {
+   "first_gate_failure": null,
+   "path": "runs/20261003T203202Z/",
+   "published": true,
+   "run_id": "20261003T203202Z"
   }
  ],
  "schema": "worldtree.manifest/1",

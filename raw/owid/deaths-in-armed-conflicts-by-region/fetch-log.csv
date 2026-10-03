@@ -5,3 +5,5 @@ attempted_at,url,http_status,bytes,sha256,stored,error
 2026-10-03T20:26:26Z,https://ourworldindata.org/grapher/deaths-in-armed-conflicts-by-region.metadata.json?v=1&csvType=full&useColumnShortNames=true,200,4219,c2ec55422c4c5da407b9ba20a9c8b42152755307c4186ab6e32f3984ddeacabc,0,
 2026-10-03T20:31:35Z,https://ourworldindata.org/grapher/deaths-in-armed-conflicts-by-region.csv?v=1&csvType=full&useColumnShortNames=true,200,171670,49322bd5f71f62962ef75c762fc7eb14e8f5bebfc253c325ebb95e9fa5c7b0ae,0,
 2026-10-03T20:31:35Z,https://ourworldindata.org/grapher/deaths-in-armed-conflicts-by-region.metadata.json?v=1&csvType=full&useColumnShortNames=true,200,4219,c2ec55422c4c5da407b9ba20a9c8b42152755307c4186ab6e32f3984ddeacabc,0,
+2026-10-03T20:32:03Z,https://ourworldindata.org/grapher/deaths-in-armed-conflicts-by-region.csv?v=1&csvType=full&useColumnShortNames=true,200,171670,49322bd5f71f62962ef75c762fc7eb14e8f5bebfc253c325ebb95e9fa5c7b0ae,0,
+2026-10-03T20:32:03Z,https://ourworldindata.org/grapher/deaths-in-armed-conflicts-by-region.metadata.json?v=1&csvType=full&useColumnShortNames=true,200,4219,c2ec55422c4c5da407b9ba20a9c8b42152755307c4186ab6e32f3984ddeacabc,0,

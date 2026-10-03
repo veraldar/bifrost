@@ -66,13 +66,21 @@ alone; clicking it runs vocal onboarding and creates THE MAIN session
 — clicking it always opens main. One gesture on two surfaces: you knock on
 the tree, the bridge opens.
 
-## yggdrasil-net (10-02, user — recorded, not scheduled)
+## bifrost-net (10-02, user — recorded, not scheduled; corrected 10-03: the access point is a BIFROST — bridges connect; Yggdrasil = the trees on machines)
 
 The ambitious end-state of the sovereign tier: OUR OWN safe access point in
-Rust — private mesh (WireGuard-protocol via proven crates like boringtun) +
-WebRTC server (str0m-class) + the Yggdrasil agent core = ONE binary. One
-command on a VPS: your own tailscale-replacement + WebRTC + brain. Auditable,
+Rust — a BIFROST NODE for the sky: private mesh (WireGuard-protocol via
+proven crates like boringtun) + WebRTC server (str0m-class) = ONE binary on
+a VPS: your own tailscale-replacement + WebRTC + the bridge. Trees
+(Yggdrasils) stay on the user's machines and connect THROUGH it. Auditable,
 AGI-assembled from proven crates — never hand-rolled crypto.
+
+## FACTUAL BASELINE (10-03): two trees already live
+- omarchy: bifrost + opencode (building bifrost + yggdrasil)
+- Mac Studio: its own bifrost + its yggdrasil (opencode-serve, skid
+  workers, seidr) — used through a bifrost for a DIFFERENT project
+Federation is not future: two bridges, two trees exist today. The user
+already crosses between them.
 
 Status: was never proposed to AGI (the reviews simplified transport to
 client-side multi-bridge to avoid scope explosion). Not rejected — deferred

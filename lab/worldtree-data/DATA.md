@@ -20,6 +20,25 @@ nightly (14:30 Europe/Berlin). This directory mirrors the pipeline repo layout
 Today's weights themselves: https://veraldar.org/realms.json (page contract; carries
 `refresh`, `geography` and a `history` {file, sha256} pointer).
 
+## Sources
+| source | series | cadence | license |
+|---|---|---|---|
+| Our World in Data | `owid.*` (8) | annual / monthly / daily | CC BY 4.0 |
+| World Bank | `wb.*` (2) | annual | CC BY 4.0 |
+| Epoch AI | `epoch.*` (4) | monthly | CC BY 4.0 |
+| Wikimedia pageviews | `wiki.*` (6) | monthly | CC0 1.0 |
+| arXiv · PubMed · Federal Register · NOAA GML | `arxiv.cs_ai`, `pubmed.ai_biomed`, `fedreg.ai_documents`, `noaa.co2` | monthly | CC0 1.0 (metadata) / public domain |
+| Mac Studio ARI pipeline | `ari.index` — Agent Restriction Index, weekly 0-100 (control realm) | weekly | dweeb.xyz Agent Restriction Index — verbatim capture, © pipeline output, methodology at report §method |
+
+`series/ari.index.csv` carries extra columns after the standard four: `s` (weighted
+event points of the week), `n` (events), `p` (partial-week flag), `pts_<component>`
+and `n_<component>` for os_restriction ×3, platform_ban ×3, datacenter_backlash ×2,
+safety_exit ×2, legal_wall ×1. One row per week, `date` = week end (Sunday).
+Attribution: *Agent Restriction Index (ARI), dweeb.xyz — weekly index of restriction
+pressure on AI agents; methodology (component weights, K calibration, Mann-Kendall
+trend) at the report's §method section, cited in every raw sidecar
+(`methodology_url`).*
+
 ## Why
 The tree is a claim about where the world is heading. A claim from open data
 should ship its data: anyone can recompute, audit, or disagree with a number.
@@ -29,7 +48,7 @@ Derived files inherit their source's license — see `catalog/sources.json` and
 the `license` field on every indicator in the provenance files: Our World in
 Data CC BY 4.0, World Bank CC BY 4.0, Epoch AI CC BY 4.0, Wikimedia CC0 1.0,
 arXiv metadata CC0 1.0, PubMed / Federal Register / NOAA GML public domain (US
-gov). Attribute the upstream source when you reuse a series. Raw source files
+gov), Agent Restriction Index © dweeb.xyz pipeline output (attribution above). Attribute the upstream source when you reuse a series. Raw source files
 are not mirrored here (size); `manifest.json` lists them with sha256 and URL.
 
 ## History honesty

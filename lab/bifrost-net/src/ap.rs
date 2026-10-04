@@ -834,10 +834,55 @@ async fn dial_once(cfg: &Arc<DialConfig>) -> Result<(), String> {
     res
 }
 
+fn percent_decode(s: &str) -> String {
+    let b = s.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        let hex = |c: u8| (c as char).to_digit(16);
+        if b[i] == b'%' && i + 2 < b.len() {
+            if let (Some(h), Some(l)) = (hex(b[i + 1]), hex(b[i + 2])) {
+                out.push((h * 16 + l) as u8);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(b[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// What the gate classifies: a SUPERSET of how the upstream may resolve the path
+/// (repeated percent-decoding, `\` as `/`, empty and dot segments resolved,
+/// case-folded) — so /x/../api, //api, /%61pi or /API can never slip past it.
+fn normalize_path(raw: &str) -> String {
+    let mut cur = raw.split(['?', '#']).next().unwrap_or("").to_string();
+    for _ in 0..4 {
+        let dec = percent_decode(&cur);
+        if dec == cur {
+            break;
+        }
+        cur = dec;
+    }
+    let cur = cur.replace('\\', "/").to_lowercase();
+    let mut segs: Vec<&str> = vec![];
+    for seg in cur.split('/') {
+        match seg.trim() {
+            "" | "." => {}
+            ".." => {
+                segs.pop();
+            }
+            _ => segs.push(seg),
+        }
+    }
+    format!("/{}", segs.join("/"))
+}
+
 /// The S1 gate, on the bridge: /api/* needs a live device token issued in the
 /// region of the client's REAL address (as the ap saw it). /api/pair mints.
 fn gate(tokens: &TokenStore, req: &Req, ip: IpAddr) -> Result<(), Deny> {
-    let p = req.path.split('?').next().unwrap_or("");
+    let p = normalize_path(&req.path);
     if !(p == "/api" || p.starts_with("/api/")) || p == "/api/pair" || p.starts_with("/api/pair/") {
         return Ok(());
     }
@@ -854,6 +899,7 @@ fn rewrite_head(req: &Req, ip: IpAddr, upgrade: bool) -> Vec<u8> {
     const DROP: &[&str] = &[
         "connection", "keep-alive", "proxy-connection", "forwarded", "x-forwarded-for",
         "x-forwarded-proto", "x-forwarded-host", "x-real-ip", "x-bifrost-peer",
+        "x-middleware-subrequest",
     ];
     let mut s = format!("{} {} {}\r\n", req.method, req.path, req.version);
     for (k, v) in &req.headers {
@@ -1094,6 +1140,13 @@ pub fn selftest() -> Result<String, String> {
     if !r.starts_with("HTTP/1.1 401") || !r.contains("\"why\":\"missing\"") {
         return Err(format!("uncredentialed /api not refused: {r}"));
     }
+    for sneaky in ["/x/../api/sessions", "//api/sessions", "/%61pi/sessions", "/%2561pi/sessions", "/API/sessions",
+                   "/api/pair/../sessions", "/api/pair/%2e%2e/sessions", "/api/pair/..%5csessions", "/./api"] {
+        let r = text(&client(format!("GET {sneaky} HTTP/1.1\r\nHost: localhost\r\n\r\n").into_bytes(), None)?);
+        if !r.starts_with("HTTP/1.1 401") {
+            return Err(format!("gate bypass via {sneaky}: {}", r.lines().next().unwrap_or("")));
+        }
+    }
     let r = text(&client(b"GET /api/sessions HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer wrong-token-0123456789\r\n\r\n".to_vec(), None)?);
     if !r.starts_with("HTTP/1.1 401") || !r.contains("\"why\":\"invalid\"") {
         return Err(format!("bad token not refused: {r}"));
@@ -1131,7 +1184,7 @@ pub fn selftest() -> Result<String, String> {
     let _ = std::fs::remove_dir_all(&dir);
     Ok(format!(
         "pin {}…; wrong pairing token 401 + wrong pin refused; GET / 200 + HSTS + XFF=real peer (spoofed dropped); \
-         /api 401 missing/invalid, Bearer+cookie pass, /api/pair open; 5000-byte POST exact + smuggled request dropped; \
+         /api 401 missing/invalid + 9 path-normalization bypasses 401, Bearer+cookie pass, /api/pair open; 5000-byte POST exact + smuggled request dropped; \
          websocket 101 + 3000 bytes echoed byte-exact",
         &pin[..20]
     ))

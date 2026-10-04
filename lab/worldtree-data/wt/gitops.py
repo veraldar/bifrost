@@ -15,8 +15,10 @@ def head_commit():
 
 def commit_run(run_id, published, first_fail):
     msg = f"run {run_id}: published" if published else f"run {run_id}: held — {first_fail}"
-    _git("add", "-A")
+    # pathspec "." = this lab dir only: R sits inside the bifrost repo, and a bare
+    # `add -A` stages every other session's work (run 20261004T081621Z did).
+    _git("add", "-A", "--", ".")
     # --allow-empty: raw/series/runs/out are gitignored (relocate 10-04) — a run
     # that changed no tracked file still gets its one-commit-per-run marker.
-    _git("commit", "-q", "--allow-empty", "-m", msg)
+    _git("commit", "-q", "--allow-empty", "-m", msg, "--", ".")
     return msg

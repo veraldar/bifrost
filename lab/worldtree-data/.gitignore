@@ -10,3 +10,4 @@ __pycache__/
 /runs/
 /out/
 /manifest.json
+/nightly.log

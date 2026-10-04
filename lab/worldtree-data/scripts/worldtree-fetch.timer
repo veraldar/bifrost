@@ -1,0 +1,9 @@
+[Unit]
+Description=worldtree-data nightly cycle at 14:30 local
+
+[Timer]
+OnCalendar=*-*-* 14:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

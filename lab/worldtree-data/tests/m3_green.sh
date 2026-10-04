@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
-# M3 finish line (briefs/M3-build.md): the M2 gate updated for method 0.2.0 — 8 core sources, 25 series, 24 mapping rows.
+# M3 finish line (briefs/M3-build.md): the M2 gate updated for method 0.2.0 — pins at method 0.3.1 (+ARI): 9 core sources, 26 series, 25 mapping rows.
 set -e
 cd "$(dirname "$0")/.."
 step() { echo "== $*"; }
 
 step "1 proofs"
 { bash tests/proofs.sh; bash tests/proofs_m3.sh; } > /tmp/proofs.txt
-[ "$(grep -vc '^200 ' /tmp/proofs.txt || true)" = 0 ] && [ "$(wc -l < /tmp/proofs.txt)" = 31 ] || { echo "FAIL line $LINENO"; exit 1; }; echo "proofs 31/31 200"
+[ "$(grep -vc '^200 ' /tmp/proofs.txt || true)" = 0 ] && [ "$(wc -l < /tmp/proofs.txt)" = 32 ] || { echo "FAIL line $LINENO"; exit 1; }; echo "proofs 32/32 200"
 
 step "2 catalog"
-python3 -m wt check catalog | grep -qx 'catalog OK 25 series 24 rows' || { echo "FAIL line $LINENO"; exit 1; }; echo "catalog OK 25 series 24 rows"
+python3 -m wt check catalog | grep -qx 'catalog OK 26 series 25 rows' || { echo "FAIL line $LINENO"; exit 1; }; echo "catalog OK 26 series 25 rows"
 python3 - <<'PY'
 import csv; from collections import Counter
 m=list(csv.DictReader(open('catalog/mapping.csv'))); c=Counter()
 for r in m: c[r['realm']]+=int(r['weight'])
-assert dict(c)=={'utopia':9,'divergence':7,'drift':3,'control':4,'terminus':6,'stagnation':7,'transcendence':4}, c
+assert dict(c)=={'utopia':9,'divergence':7,'drift':3,'control':6,'terminus':6,'stagnation':7,'transcendence':4}, c
 assert all(r['weight']=='1' for r in m if r['transform']=='logistic_delta')
 print('mapping OK', len(m))
 PY
@@ -29,8 +29,8 @@ jq -r '"\(.sha256)  \(.path)"' $(find raw -name '*.prov.json') | sha256sum -c --
 jq -e -s 'all(.[]; .schema=="worldtree.prov/1" and .http_status==200 and (.license|length>0) and (.sha256|test("^[0-9a-f]{64}$")))' $(find raw -name '*.prov.json')
 
 step "4 series"
-for f in arxiv.cs_ai pubmed.ai_biomed fedreg.ai_documents noaa.co2; do
-  n=$(($(wc -l < series/$f.csv) - 1)); [ "$n" -ge 72 ] || { echo "series/$f.csv only $n rows"; exit 1; }; echo "series $f $n rows"
+for f in arxiv.cs_ai pubmed.ai_biomed fedreg.ai_documents noaa.co2 ari.index; do
+  n=$(($(wc -l < series/$f.csv) - 1)); min=72; [ $f = ari.index ] && min=26; [ "$n" -ge $min ] || { echo "series/$f.csv only $n rows"; exit 1; }; echo "series $f $n rows"
 done
 python3 -m unittest discover -s tests -p 'test_extract.py' 2>&1 | tail -1 | grep -qx OK || { echo "FAIL line $LINENO"; exit 1; }; echo "extract tests OK"
 
@@ -53,7 +53,7 @@ for k in K:
     for i in R['indicators']:
         assert 0<=i['score']<=1 and i['source_url'].startswith('https://') and i['license']
         n+=1; srcs.add(i['source_id'])
-assert n>=16 and len(srcs)==8, (n,srcs)
+assert n>=17 and len(srcs)==9, (n,srcs)
 x=[e for e in p['realms']['terminus']['excluded'] if e['series_id']=='wiki.ai_xrisk']
 print('PROV-OK', n, 'indicators', sorted(srcs), 'xrisk excluded:', x[0]['reason'] if x else 'no')
 PY
@@ -64,7 +64,7 @@ python3 tests/check_contract.py out/realms.json
 if python3 tests/check_contract.py ~/Work/veraldar-site/realms.json >/dev/null; then echo "seed passed?!"; exit 1; fi; echo "seed exit=1"
 jq '.weights.drift="x"' out/realms.json > /tmp/wt-bad.json
 if python3 tests/check_contract.py /tmp/wt-bad.json >/dev/null; then echo "bad passed?!"; exit 1; fi; echo "bad exit=1"
-[ "$(jq '.feeds|length' out/realms.json)" = 23 ] || { echo "FAIL line $LINENO"; exit 1; }; echo "feeds 23"
+[ "$(jq '.feeds|length' out/realms.json)" = 24 ] || { echo "FAIL line $LINENO"; exit 1; }; echo "feeds 24"
 
 step "8 queries"
 bash tests/queries.sh > /tmp/q.txt 2>&1
@@ -75,7 +75,7 @@ python3 -m unittest discover -s tests -p 'test_fixture.py' 2>&1 | tail -1 | grep
 
 step "10 manifest"
 jq -r '.raw[] | "\(.sha256)  \(.path)"' manifest.json | sha256sum -c --quiet || { echo "FAIL line $LINENO"; exit 1; }; echo ALL-RAW-OK
-jq -e --arg v "$(cat method/VERSION)" '.schema=="worldtree.manifest/1" and .method_version==$v and .last_run.published==true and (.series|length)==24' manifest.json
+jq -e --arg v "$(cat method/VERSION)" '.schema=="worldtree.manifest/1" and .method_version==$v and .last_run.published==true and (.series|length)==25' manifest.json
 jq -r '.out.realms.sha256' manifest.json | diff - <(sha256sum out/realms.json | cut -d' ' -f1) || { echo "FAIL line $LINENO"; exit 1; }; echo OUT-HASH-OK
 git log -1 --format=%s | grep -E '^run [0-9]{8}T[0-9]{6}Z: published$'
 [ "$(git status --porcelain . | wc -l)" = 0 ] || { echo "FAIL line $LINENO"; exit 1; }; echo "worktree clean"  # lab dir; other sessions' WIP elsewhere is not ours

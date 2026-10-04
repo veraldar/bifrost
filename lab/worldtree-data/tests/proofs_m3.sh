@@ -7,3 +7,4 @@ p "https://export.arxiv.org/api/query?search_query=cat:cs.AI&max_results=1" "arx
 p "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=artificial+intelligence&retmode=json&rettype=count" "pubmed:ai_biomed"
 p "https://www.federalregister.gov/api/v1/documents.json?conditions[term]=%22artificial+intelligence%22&per_page=1&fields[]=publication_date" "fedreg:ai_documents"
 p "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv" "noaa_gml:co2_mm_mlo"
+p "https://dweeb-xzys-mac-studio.tail5435b1.ts.net/api/artifact/report-ari.html" "ari:report"  # method 0.3.1 (tailnet)

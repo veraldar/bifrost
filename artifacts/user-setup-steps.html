@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Your bifrost — setup from zero to talking</title>
+<style>
+:root{--bg:#080810;--s:#0e0e1a;--b:#26263a;--g:#4ade80;--a:#fbbf24;--d:#8b8ba3;--t:#e8e8f2;--bl:#38bdf8}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--t);font:14px/1.6 ui-monospace,Menlo,monospace;padding:24px;max-width:720px;margin:0 auto}
+h1{font-size:22px;margin-bottom:4px}h1 span{color:var(--g)}
+.sub{color:var(--d);font-size:12px;margin-bottom:22px}
+h2{font-size:14px;color:var(--g);letter-spacing:.08em;text-transform:uppercase;margin:24px 0 10px}
+h2::before{content:'▚ ';color:var(--d)}
+.step{background:var(--s);border:1px solid var(--b);border-radius:10px;padding:14px 16px;margin-bottom:12px;position:relative}
+.step .n{position:absolute;top:-10px;left:14px;background:var(--g);color:#000;font-weight:bold;font-size:11px;border-radius:99px;padding:2px 10px}
+.step h3{font-size:13.5px;margin-bottom:6px}
+.step p,.step li{font-size:12.5px}
+.step ul{margin:6px 0 0 18px}
+.step li{margin-bottom:3px}
+.time{float:right;color:var(--a);font-size:11px;border:1px solid var(--b);border-radius:99px;padding:2px 10px}
+.talk{border-left:3px solid var(--g);padding:6px 10px;margin:8px 0;font-size:12px;color:var(--g);background:rgba(74,222,128,.06);border-radius:0 6px 6px 0}
+.talk::before{content:'🎤 ';color:var(--d)}
+code{background:#050510;border:1px solid var(--b);border-radius:4px;padding:1px 6px;font-size:11.5px}
+.her{background:linear-gradient(135deg,rgba(74,222,128,.1),rgba(56,189,248,.05));border:1px solid rgba(74,222,128,.4);border-radius:10px;padding:16px;margin:14px 0}
+.her b{color:var(--g)}
+.note{border-left:3px solid var(--a);padding-left:12px;color:var(--d);font-size:11.5px;margin:16px 0}
+.choose{display:flex;gap:10px;margin:8px 0;flex-wrap:wrap}
+.opt{flex:1;min-width:180px;background:var(--s);border:1px solid var(--b);border-radius:8px;padding:10px}
+.opt b{color:var(--bl);font-size:12px}
+.opt p{font-size:11px;color:var(--d);margin-top:4px}
+</style></head><body>
+<h1>Your <span>bifrost</span> — zero to talking</h1>
+<p class="sub">one machine · one command · one conversation · one QR · ~20 minutes</p>
+
+<div class="step"><span class="n">STEP 1</span><h3>One command on your machine</h3>
+<p>On your Linux box (or WSL on Windows), give this to your AI agent — or type it:</p>
+<ul><li><code>curl -fsSL https://veraldar.org/install.sh | bash</code></li></ul>
+<p>It installs everything: <b>bifrost</b> (your bridge app), <b>Yggdrasil</b> (the agent core), local voice, and starts them. It prints what it does — nothing hidden. ~3 minutes.</p></div>
+
+<div class="her"><b>The onboarding conversation starts by itself.</b><br>
+Your new assistant speaks (through your machine's local voice — free, private):<br><br>
+<i>"Hi. I'm your bifrost. Three quick things and we're done."</i><br><br>
+<b>1 · Language?</b> — <i>"English" / "Français"</i><br>
+<b>2 · My voice?</b> — <i>"Woman" / "Man" / "calm and deep"</i> — I switch and you hear it immediately<br>
+<b>3 · How do I talk?</b> — <i>"Short and fast" / "with more explanations"</i> — change it any time by just asking<br><br>
+Each answer is applied live. Your machine's microphone proves the whole stack works before we continue.</div>
+
+<div class="step"><span class="n">STEP 2</span><h3>Choose your brain</h3>
+<p>The assistant presents your options, with prices and data facts:</p>
+<div class="choose">
+<div class="opt"><b>CODING PLAN (recommended)</b><p>cheapest — a subscription (Zai, Anthropic…). The vendor sees your data.</p></div>
+<div class="opt"><b>OpenRouter</b><p>pay per use — flexible models including AGI-class. Pricier, per-provider data.</p></div>
+<div class="opt"><b>LOCAL + FREE</b><p>your own machine runs the model. Zero cloud, slower on old hardware.</p></div>
+</div>
+<p>Paste the key it asks for. Done — the brain is yours, the choice reversible any time.</p></div>
+
+<div class="step"><span class="n">STEP 3</span><h3>Your phone becomes the remote</h3>
+<p>A QR appears (on screen, or at <code>/pair</code>). Scan it with your phone:</p>
+<ul><li>the app opens in your browser — <b>add to home screen</b> (one tap) — it behaves like a native app</li><li>a device token pairs your phone — no accounts, no passwords</li><li>notifications enabled with one permission tap</li></ul>
+<p class="note">📱 iPhone: same flow via Safari → Share → Add to Home Screen. Voice works in-app; iOS quirks are stated limits, not surprises.</p></div>
+
+<div class="step"><span class="n">STEP 4</span><h3>Talk.</h3>
+<p>Hold to talk — or go hands-free. Ask anything. Your words become work on your machine, and the answer comes back as text and speech.</p></div>
+
+<h2>Growing — when you want more</h2>
+<div class="step"><span class="n">A</span><h3>Another tree — the TV, the game PC</h3>
+<p>Install <b>Yggdrasil only</b> on another machine (one command). It joins your private network automatically and appears in the same session list. Your phone: same app, swipe — ask the TV PC to play a movie.</p></div>
+<div class="step"><span class="n">B</span><h3>Your own safe access point — anywhere</h3>
+<p>One command on a VPS deploys <b>bifrost-net</b>: your private mesh + WebRTC access point, in the country of your choice. Your data, your server, your laws. The trees connect through it from anywhere.</p></div>
+<div class="step"><span class="n">C</span><h3>Voice of your own</h3>
+<p>"I want a calmer voice." "Deeper." "A voice like [someone]." — ask, and the voice changes. Clone your own (with your consent) for a voice that is genuinely yours.</p></div>
+
+<div class="note"><b>What you never do:</b> write code · configure networks by hand · touch Rust · create accounts · send your voice to a cloud you didn't choose.</div>
+
+<p style="color:var(--d);font-size:11px">Veraldar · bifrost · AGPL-3.0 · local-first, always. The parts marked "coming" are built in the open at github.com/veraldar/bifrost.</p>
+</body></html>

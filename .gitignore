@@ -42,7 +42,9 @@ edge/*.log
 !/artifacts/artifacts-gallery-live.png
 !/artifacts/user-checklist.html
 !/artifacts/network-plan.html
+!/artifacts/user-setup-steps.html
 
 
 # playwright output at repo root (watchdog config)
 test-results/
+.agi-log/

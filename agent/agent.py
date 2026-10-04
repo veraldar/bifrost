@@ -168,6 +168,54 @@ class OpenCodeLLM(llm.LLM):
             llm=self, chat_ctx=chat_ctx, tools=tools, conn_options=conn_options
         )
 
+    async def ask_stream(self, text: str) -> AsyncIterable[str]:
+        """Streaming first-sound (reviewer fix 3): consume yggdrasil's SSE reply
+        and yield each COMPLETED sentence as it arrives, so the TTS speaks the
+        first sentence seconds before the run completes. Raises on upstream
+        failure only if nothing was yielded yet."""
+        sid = await self._ensure_session()
+        buf = ""
+        event = ""
+        async with httpx.AsyncClient(timeout=300) as c:
+            async with c.stream(
+                "POST",
+                f"{self._base}/session/{sid}/message",
+                json={"parts": [{"type": "text", "text": text}]},
+                headers={"Accept": "text/event-stream"},
+            ) as r:
+                r.raise_for_status()
+                async for line in r.aiter_lines():
+                    if line.startswith("event:"):
+                        event = line[6:].strip()
+                        continue
+                    if not line.startswith("data:"):
+                        continue
+                    payload = line[5:].strip()
+                    if not payload:
+                        continue
+                    try:
+                        d = json.loads(payload)
+                    except ValueError:
+                        continue
+                    if event == "error":
+                        if not buf:
+                            raise RuntimeError(str(d)[:200])
+                        break
+                    if event == "message.completed":
+                        break
+                    if isinstance(d, dict) and "text" in d and "info" not in d:
+                        buf += d["text"]
+                        while True:
+                            m = re.search(r"^(.*?[.!?])(\s|$)", buf, re.S)
+                            if not m:
+                                break
+                            sent = m.group(1).strip()
+                            buf = buf[m.end():]
+                            if sent:
+                                yield sent
+        if buf.strip():
+            yield buf.strip()
+
 
 class OpenCodeStream(LLMStream):
     def __init__(
@@ -224,6 +272,30 @@ class OpenCodeStream(LLMStream):
         if mode == "free":
             send = send + CTX_TAG
         logger.info("turn → opencode (mode=%s)", mode)
+        # Streaming first-sound (AGENT_STREAM_TTS=1 default): speak sentences as
+        # they arrive; AGENT_STREAM_TTS=0 restores wait-for-completion verbatim.
+        if os.environ.get("AGENT_STREAM_TTS", "1") != "0":
+            spoke = False
+            try:
+                async for chunk in self._oc.ask_stream(send):
+                    spoke = True
+                    self._event_ch.send_nowait(
+                        llm.ChatChunk(id="opencode", delta=llm.ChoiceDelta(content=chunk + " "))
+                    )
+                if spoke:
+                    return
+                # stream ended with no text at all → same shape as an empty reply
+                self._event_ch.send_nowait(
+                    llm.ChatChunk(id="opencode", delta=llm.ChoiceDelta(content="(opencode returned no text)"))
+                )
+                return
+            except Exception as e:  # noqa: BLE001
+                if spoke:
+                    self._event_ch.send_nowait(
+                        llm.ChatChunk(id="opencode", delta=llm.ChoiceDelta(content=f"(connection lost: {e})"))
+                    )
+                    return
+                logger.warning("opencode stream failed before first sentence, falling back: %s", e)
         try:
             reply = await self._oc.ask(send)
         except Exception as e:  # noqa: BLE001 - surface errors as speech

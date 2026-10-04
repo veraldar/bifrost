@@ -250,6 +250,23 @@ fn plan(body: &Value) -> Planned {
 
     let nap = find_sleep(&lc);
 
+    // multi-paragraph long-form reply — the "TTS breaks" pattern (the voice
+    // pipeline must carry paragraph pauses and a long burst to the far end).
+    // contains, not starts_with: STT may prepend filler to the spoken directive.
+    if lc.contains("essay") {
+        let para = |n: &str, tail: &str| {
+            format!(
+                "This is paragraph {n} of the simulated essay. It carries several full sentences so the voice has real length to hold. The bridge must hand every pause and every burst to the far end without dropping the thread. {tail}"
+            )
+        };
+        return Planned {
+            kind: "chat",
+            text: format!("{}\n\n{}", para("one", "Here the first thought rests."), para("two", "And here the essay closes.")),
+            chunk_ms: 5,
+            first_ms: nap,
+        };
+    }
+
     if last_user.starts_with("slow") {
         return Planned {
             kind: "chat",

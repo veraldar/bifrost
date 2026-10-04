@@ -300,20 +300,24 @@ fn wire_loop(
             }
         }
 
-        // FA carries client → server
+        // FA carries client → server; the server also targets FA (it is the
+        // candidate both sides advertise), so demux by source.
         loop {
             match fa.recv_from(&mut buf) {
-                Ok((n, _src)) => schedule(
-                    &mut heap,
-                    &mut seq,
-                    false,
-                    &buf[..n],
-                    &profile.fwd,
-                    &mut rng,
-                    blackout_until,
-                    &mut tokens_fwd,
-                    &stats,
-                ),
+                Ok((n, src)) => {
+                    let rev = src == server;
+                    schedule(
+                        &mut heap,
+                        &mut seq,
+                        rev,
+                        &buf[..n],
+                        if rev { &profile.rev } else { &profile.fwd },
+                        &mut rng,
+                        blackout_until,
+                        if rev { &mut tokens_rev } else { &mut tokens_fwd },
+                        &stats,
+                    );
+                }
                 Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => break,
                 Err(_) => break,
             }

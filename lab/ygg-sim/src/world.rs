@@ -43,10 +43,15 @@ pub struct BridgeInfo {
     pub media: SocketAddr,
     /// raw device token (the sim is the paired device)
     pub token: String,
+    /// the tokens file — revocation scenarios rewrite it (the bridge re-reads
+    /// it mtime-aware within ~1s, that's the S1 contract)
+    pub tokens_file: PathBuf,
 }
 
 pub struct World {
     pub tmp: PathBuf,
+    /// the deterministic upstream — scenarios drive failure injection through it
+    #[allow(dead_code)]
     pub mock: MockUpstream,
     pub ygg: SocketAddr,
     pub bridge: Option<BridgeInfo>,
@@ -258,17 +263,20 @@ fn spawn_bridge(
             http: http_addr,
             media: media_addr,
             token: raw,
+            tokens_file: tokens_path,
         },
         child,
     ))
 }
 
 fn json_devs(hash: &str) -> String {
+    // contract check against the PWA's own file (pwa/.devices.json): the
+    // bridge's serde rename_all=camelCase means the real key is tokenHash
     serde_json::json!({
         "devices": [{
             "id": "dev_ygg_sim",
             "name": "ygg-sim",
-            "token_hash": hash,
+            "tokenHash": hash,
             "created": "sim",
             "revoked": false,
         }]

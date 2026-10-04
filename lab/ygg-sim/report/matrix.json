@@ -1,0 +1,303 @@
+{
+  "scenarios": [
+    {
+      "counters": [],
+      "device": "desktop",
+      "latencies_ms": [
+        [
+          "turn",
+          47
+        ]
+      ],
+      "name": "rest.text-roundtrip",
+      "profile": "home",
+      "verdict": "PASS"
+    },
+    {
+      "counters": [],
+      "device": "desktop",
+      "latencies_ms": [
+        [
+          "abort",
+          6
+        ],
+        [
+          "post-abort-turn",
+          36
+        ]
+      ],
+      "name": "rest.abort-mid-run",
+      "profile": "home",
+      "verdict": "PASS"
+    },
+    {
+      "counters": [],
+      "device": "phone",
+      "latencies_ms": [
+        [
+          "turn",
+          99
+        ]
+      ],
+      "name": "rest.refresh-reread",
+      "profile": "phone-cell",
+      "verdict": "PASS"
+    },
+    {
+      "counters": [
+        [
+          "rollups",
+          2
+        ]
+      ],
+      "device": "desktop",
+      "latencies_ms": [
+        [
+          "turn-0",
+          2864
+        ],
+        [
+          "turn-1",
+          2911
+        ],
+        [
+          "turn-2",
+          2870
+        ],
+        [
+          "post-rollup-turn",
+          36
+        ],
+        [
+          "total",
+          8660
+        ]
+      ],
+      "name": "rest.marathon-rollup",
+      "profile": "home",
+      "verdict": "PASS"
+    },
+    {
+      "counters": [],
+      "device": "desktop",
+      "latencies_ms": [
+        [
+          "recovery-turn",
+          36
+        ],
+        [
+          "recover-total",
+          36
+        ]
+      ],
+      "name": "rest.upstream-down",
+      "profile": "home",
+      "verdict": "PASS"
+    },
+    {
+      "counters": [],
+      "device": "desktop",
+      "latencies_ms": [],
+      "name": "bridge.auth",
+      "profile": "home",
+      "verdict": "PASS"
+    },
+    {
+      "counters": [
+        [
+          "wire-drops",
+          0
+        ]
+      ],
+      "device": "phone",
+      "latencies_ms": [
+        [
+          "ping-avg",
+          148
+        ],
+        [
+          "ping-max",
+          169
+        ]
+      ],
+      "name": "bridge.data-roundtrip",
+      "profile": "phone-cell",
+      "verdict": "PASS"
+    },
+    {
+      "counters": [],
+      "device": "phone",
+      "latencies_ms": [
+        [
+          "run",
+          20010
+        ]
+      ],
+      "name": "bridge.prompt-run-done",
+      "profile": "phone-cell",
+      "verdict": "KNOWN"
+    },
+    {
+      "counters": [
+        [
+          "tts-delivered-%",
+          98
+        ]
+      ],
+      "device": "phone",
+      "latencies_ms": [
+        [
+          "voice-turn",
+          19879
+        ]
+      ],
+      "name": "bridge.handsfree-round",
+      "profile": "phone-cell",
+      "verdict": "PASS"
+    },
+    {
+      "counters": [
+        [
+          "tts-delivered-%",
+          90
+        ],
+        [
+          "wire-drops",
+          53
+        ]
+      ],
+      "device": "phone",
+      "latencies_ms": [
+        [
+          "voice-turn",
+          19441
+        ]
+      ],
+      "name": "bridge.poor-network-turn",
+      "profile": "poor-cell",
+      "verdict": "PASS"
+    },
+    {
+      "counters": [
+        [
+          "survive-4s",
+          1
+        ]
+      ],
+      "device": "phone",
+      "latencies_ms": [
+        [
+          "recover-2s",
+          136
+        ]
+      ],
+      "name": "bridge.link-flap",
+      "profile": "poor-cell",
+      "verdict": "PASS"
+    },
+    {
+      "counters": [
+        [
+          "rebind-survived",
+          0
+        ]
+      ],
+      "device": "phone",
+      "latencies_ms": [],
+      "name": "bridge.nat-rebind",
+      "profile": "phone-cell",
+      "verdict": "BREAK-OK"
+    },
+    {
+      "counters": [],
+      "device": "phone+desktop",
+      "latencies_ms": [],
+      "name": "bridge.multi-device",
+      "profile": "phone-cell",
+      "verdict": "PASS"
+    },
+    {
+      "counters": [
+        [
+          "tts-delivered-%",
+          98
+        ]
+      ],
+      "device": "phone",
+      "latencies_ms": [
+        [
+          "keyboard-cycle",
+          5635
+        ],
+        [
+          "ping-keyboard",
+          166
+        ],
+        [
+          "voice-turn",
+          20283
+        ],
+        [
+          "ping-after-voice",
+          151
+        ]
+      ],
+      "name": "bridge.mode-switch",
+      "profile": "phone-cell",
+      "verdict": "PASS"
+    },
+    {
+      "counters": [],
+      "device": "phone",
+      "latencies_ms": [
+        [
+          "fresh-connect",
+          1071
+        ],
+        [
+          "idle-after-death",
+          1071
+        ]
+      ],
+      "name": "bridge.abort-mid-turn",
+      "profile": "phone-cell",
+      "verdict": "PASS"
+    },
+    {
+      "counters": [],
+      "device": "phone",
+      "latencies_ms": [
+        [
+          "reconnect",
+          3
+        ]
+      ],
+      "name": "bridge.reconnect-after-switch",
+      "profile": "phone-cell",
+      "verdict": "PASS"
+    },
+    {
+      "counters": [
+        [
+          "received-frames",
+          502
+        ],
+        [
+          "delivered-%",
+          98
+        ]
+      ],
+      "device": "phone",
+      "latencies_ms": [
+        [
+          "essay-turn",
+          30100
+        ]
+      ],
+      "name": "bridge.tts-paragraphs",
+      "profile": "phone-cell",
+      "verdict": "PASS"
+    }
+  ],
+  "seed": "0xc0ffee"
+}

@@ -14,10 +14,26 @@ absent, voice scenarios SKIP loudly instead of pretending.
 ## Run
 
 ```bash
-cargo test                      # unit tests (rng, wire decision fn, mock plan, strip)
-cargo run -q --release -- m0    # seam proof: shaper + shaped WebRTC echo + real yggdrasil turn
-cargo run -q --release -- matrix   # the scenario matrix + board (M1+)
+cargo test                          # unit tests (rng, wire decision fn, mock plan, strip)
+cargo run -q --release -- m0        # seam proof: shaper + shaped WebRTC echo + real yggdrasil turn
+cargo run -q --release -- matrix    # the scenario matrix + board (~3 min)
+cargo run -q --release -- matrix --only bridge.voice   # any name substring
 ```
+
+Env: `YGG_SIM_SEED` (wire RNG, default 0xc0ffee), `YGG_SIM_SPEACHES` (voice
+lane, default :8000/v1 — absent speaches ⇒ voice scenarios SKIP loudly),
+`YGG_SIM_DEBUG=1` (breadcrumb watchdog), `YGG_SIM_YGG_BIN`/`YGG_SIM_BRIDGE_BIN`.
+
+## The matrix (17)
+
+- `rest.*` — text roundtrip · abort-mid-run · refresh-reread ·
+  marathon-rollup (the 400K-token mechanism) · upstream-down
+- `bridge.*` — auth (incl. revocation) · data-roundtrip · prompt-run-done
+  (tracks the known bridge bug) · handsfree-round · poor-network-turn ·
+  link-flap · nat-rebind (break-as-documented) · multi-device · mode-switch ·
+  abort-mid-turn · reconnect-after-switch · tts-paragraphs (essay)
+
+Reports land in `report/matrix.{md,json}`. Findings: `FINDINGS.md`.
 
 Binaries it spawns (must be built first):
 

@@ -169,7 +169,14 @@ on `/api/*` regardless. That gate is what `ap-verify.sh` checks 7–9 prove.
 - `/api/token` (device-gated) and the LiveKit signaling websocket (`/rtc`, with
   `livekit = "127.0.0.1:7880"` in `[ap]`) both flow through the channel. LiveKit's JWT
   gates `/rtc`.
-- **Media (UDP/WebRTC) does not cross the ap yet.** The channel carries TCP streams only.
-  The next slice is either LiveKit ICE-TCP (tunnel :7881 as a raw stream and set
-  LiveKit `node_ip` to the VPS) or the bifrost-net str0m relay on the VPS (relay.rs) with
-  its UDP port open there. See `AP-REPORT.md`.
+- **Media transport: raw TCP forwards are built and verified** (`ap-verify.sh` check 15:
+  50000 bytes exact, unmapped names refused). `AP_ICE_TCP=7881 ./deploy-vps.sh sni` adds
+  `[[ap.tcp]] livekit-ice` on VPS tcp/7881 (open it in the VPS firewall) and the bridge-side
+  `tcp = { livekit-ice = "127.0.0.1:7881" }`. The ap only names the stream; the bridge dials
+  only targets in its own config.
+- **Not yet proven: LiveKit media over it.** LiveKit on the box must advertise the VPS
+  as its ICE-TCP candidate (`rtc.tcp_port: 7881`, `rtc.node_ip: <VPS IP>`,
+  `use_external_ip: false`), and a phone call must show audio flowing. UDP stays
+  unreachable from the internet (the box takes no inbound traffic), so phones use ICE-TCP.
+  The fallback is the bifrost-net str0m relay on the VPS (relay.rs) with a UDP port open
+  there. See `AP-REPORT.md`.

@@ -10,6 +10,7 @@
 # Env:  VPS_HOST (veraldar)  AP_DOMAIN (sandbox.veraldar.org)  AP_LISTEN (mode default)
 #       BRIDGE_TOML (~/.local/state/bifrost-bridge/bridge.toml)  AP_UPSTREAM (127.0.0.1:8090)
 #       AP_LIVEKIT (unset; e.g. 127.0.0.1:7880 → /rtc goes to LiveKit signaling)
+#       AP_ICE_TCP (unset; e.g. 7881 → VPS tcp/7881 forwarded raw to LiveKit ICE-TCP on the box)
 #       AP_BUILD=remote  build on the VPS instead (when its glibc < 2.38 — preflight says so)
 #       DRY_RUN=1        print the remote commands, change nothing anywhere
 set -euo pipefail
@@ -62,6 +63,9 @@ key_path = "/run/credentials/bifrost-ap.service/key"
 bridge_token_sha256 = "$HASH"
 proxy_protocol = $PP
 EOF
+if [ -n "${AP_ICE_TCP:-}" ]; then
+  printf '\n[[ap.tcp]]\nname = "livekit-ice"\nlisten = "0.0.0.0:%s"\n' "$AP_ICE_TCP" >> "$STAGE/ap.toml"
+fi
 cat > "$STAGE/bifrost-ap.service" <<EOF
 [Unit]
 Description=bifrost-net access point ($DOMAIN)
@@ -136,6 +140,8 @@ token = \"$RAW\"
 upstream = \"$UPSTREAM\""
 [ -n "${AP_LIVEKIT:-}" ] && SECTION="$SECTION
 livekit = \"$AP_LIVEKIT\""
+[ -n "${AP_ICE_TCP:-}" ] && SECTION="$SECTION
+tcp = { livekit-ice = \"127.0.0.1:$AP_ICE_TCP\" }"
 if [ -n "${DRY_RUN:-}" ]; then
   echo "  [dry] would write into $BRIDGE_TOML:"; echo "$SECTION" | sed 's/^token = .*/token = "<raw, 64 hex>"/; s/^/    /'
 else

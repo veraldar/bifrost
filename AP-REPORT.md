@@ -1,11 +1,11 @@
 # LANE AP report: bifrost-net becomes the access point
 
-**Verdict: GREEN for the edge, channel, PWA proxy, websocket/SSE and token gate. The voice
-MEDIA leg is not built** (signaling flows; RTP/UDP does not cross the ap yet; see "What
-remains"). Nothing touched the VPS: the deployment is packaged, dry-run tested and
+**Verdict: GREEN for the edge, channel, PWA proxy, websocket/SSE, token gate and the
+raw-TCP media transport. Voice media end to end is NOT proven**: LiveKit is not yet
+pointed at the forward, and no phone call has run through it (see "What remains"). Nothing touched the VPS: the deployment is packaged, dry-run tested and
 waiting for the operator.
 
-Branch `lane2/merge`, commits `50f4066` → `f323c89` (plus this report). Territory kept:
+Branch `lane2/merge`, commits `50f4066` → `17f6fb0` (plus this report). Territory kept:
 `lab/bifrost-net/` + `docs/claims.md` + this file. pwa/agent/brain untouched.
 
 ## Built
@@ -22,13 +22,14 @@ one subcommand, selftest inside).
 | Proxy hygiene | Client-sent `X-Forwarded-*`, `X-Real-IP`, `X-Bifrost-Peer`, `Forwarded` and `X-Middleware-Subrequest` are deleted; `X-Forwarded-For` is stamped with the real peer. One request per upstream connection (`Connection: close`). Only the declared `Content-Length` body is forwarded, so a pipelined request can't be smuggled past the gate. Chunked request bodies are refused (411). Upgrade bytes flow only after the upstream's 101. The gate classifies a **normalized** path (repeated %-decode, `\`→`/`, dot/empty segments, case-fold). |
 | nginx SNI mode | `proxy_protocol = true` reads nginx's PROXY v1 line, so the client region survives SNI passthrough. The ap refuses that setting unless it listens on loopback, and a connection without a PROXY line is dropped. |
 | Helpers | `ap-token` (raw for the bridge + sha-256 for the ap), `ap-pin CERT.pem` (equals `curl --pinnedpubkey sha256//…`), `ap-cert DIR NAMES…` (self-signed, for local runs), `selftest ap`. Pins may be comma-separated for key rotation. |
-| bridge.toml | New `[ap]` section: `url`, `pin`, `token`, `upstream` (default `127.0.0.1:8090`), optional `livekit`. `bridge_main.rs` starts the dialer, which reuses `[bridge].tokens_file`. |
+| Raw TCP forwards | `[[ap.tcp]] name/listen` on the ap become raw streams over the same channel, with nothing parsed: the LiveKit **ICE-TCP** leg. The ap only *names* the stream. The bridge dials only targets in its own `tcp = { name = "host:port" }` and refuses unmapped names, so the ap can't use the bridge as an open proxy into the LAN. |
+| bridge.toml | New `[ap]` section: `url`, `pin`, `token`, `upstream` (default `127.0.0.1:8090`), optional `livekit` and `tcp`. `bridge_main.rs` starts the dialer, which reuses `[bridge].tokens_file`. |
 
 ## Working (evidence, this machine)
 
 `lab/bifrost-net/ap-verify.sh` runs the **real chain**: curl → `ap` process (self-signed,
 :4443) ← `bridge` process dialing out, pinned → the live sandbox PWA on :8090.
-**AP VERIFY: 14/14 PASS, AP VERDICT: GREEN** (run several times, last on the final binary):
+**AP VERIFY: 15/15 PASS, AP VERDICT: GREEN** (run several times, last on the final binary):
 
 1. `selftest ap` (in-process, stub upstream): wrong pairing token → 401; wrong pin →
    TLS refused; spoofed XFF dropped; 9 path-normalization bypass shapes → 401; 5000-byte POST
@@ -52,6 +53,8 @@ one subcommand, selftest inside).
 13. Bridge killed → 503. Bridge restarted → re-registers → 200.
 14. SNI/PROXY mode (stand-in nginx front): the region follows the PROXY line; a bare
     connection is refused.
+15. Raw TCP forward `ice`: 50000 random bytes echoed exact through ap→channel→bridge;
+    an unmapped name is refused by the bridge.
 
 Regressions on the same build: **M0 3/3 GREEN, M1 5/5 GREEN, V9 GREEN** (V9.2 channel
 protocol vs live opencode, V9.3 voice vs speaches; STT heard 4/4 keywords). There are zero
@@ -59,16 +62,18 @@ new warnings; the 5 that remain are pre-existing in bridge.rs/speech.rs.
 
 ## What remains
 
-1. **Voice media through the ap (brief item 3), not built.** `/api/token` and the
-   LiveKit signaling websocket (`/rtc`) flow today. RTP does not, because the channel
-   carries TCP only. There are two paths, cheapest first:
-   - **LiveKit ICE-TCP over the channel:** add raw TCP stream forwards to the ap
-     (`[[ap.tcp]] listen = ":7881"` → bridge target `127.0.0.1:7881`, same mux, no HTTP
-     parsing), and set LiveKit `rtc.tcp_port: 7881`, `node_ip: <VPS IP>`. That's about 40
-     lines plus a LiveKit config change. It needs a phone test to prove.
-   - **bifrost-net relay on the VPS** (relay.rs/str0m, already proven 39/39 frames in M1):
-     the phone does WebRTC to the ap's UDP port, and the ap cross-forwards to the bridge
-     peer. This adds an open UDP port on the VPS.
+1. **Voice media end to end (brief item 3) is not proven.** Built and verified:
+   `/api/token` and the LiveKit signaling websocket (`/rtc`) through the channel, plus the
+   raw TCP forward that carries ICE-TCP (check 15). Missing:
+   - LiveKit on the box must advertise the VPS as its ICE-TCP candidate: `rtc.tcp_port:
+     7881`, `rtc.node_ip: <VPS IP>`, `use_external_ip: false`. That's deploy/ territory,
+     frozen for this lane.
+   - Deploy with `AP_ICE_TCP=7881` and open tcp/7881 on the VPS firewall.
+   - A phone call through `https://sandbox.veraldar.org` must show audio both ways. The
+     risk to watch: ICE-TCP through a tunnel means LiveKit sees the bridge's loopback
+     address as the remote, and whether pion's TCP mux accepts that is unproven.
+   - Fallback if ICE-TCP disappoints: the bifrost-net str0m relay on the VPS (relay.rs,
+     proven 39/39 frames in M1), with a UDP port open there.
 2. **The sandbox PWA should run behind `server.mjs` with `BIFROST_TRUST_PROXY=1
    BIFROST_AUTH=devices` on `127.0.0.1:8090`.** Today it is plain `next start` on `*:8090`
    in tailnet mode. The bridge gate covers `/api/*` anyway, but the PWA's pairing flow
@@ -108,8 +113,9 @@ Full detail in `lab/bifrost-net/deploy-vps.md`. Run from this box, in `lab/bifro
    writes `[ap]` into `~/.local/state/bifrost-bridge/bridge.toml` (backup kept), restarts
    `bifrost-bridge.service`, and probes from outside. It expects `/` → 200 + HSTS and
    `/api/session` → 401, then prints **`DEPLOY: GREEN`**.
-6. **Phone:** open `https://sandbox.veraldar.org`, then pair. Voice media waits on "What
-   remains" #1.
+6. **Phone:** open `https://sandbox.veraldar.org`, then pair. For voice, add
+   `AP_ICE_TCP=7881 AP_LIVEKIT=127.0.0.1:7880` to step 5 and apply the LiveKit settings
+   from "What remains" #1.
 
 Rollback: `sudo systemctl disable --now bifrost-ap`, restore nginx's `listen 443 ssl`, delete
 `[ap]` from bridge.toml, then `systemctl --user restart bifrost-bridge`.

@@ -50,3 +50,6 @@ edge/*.log
 test-results/
 .agi-log/
 lab/bifrost-net/config-bridge.toml
+
+# rust lab build dirs (binaries rebuilt from source; siblings keep them untracked)
+lab/*/target/

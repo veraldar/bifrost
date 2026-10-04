@@ -15,16 +15,40 @@ Slice 6a tool mode (last user message starts with "tool:"):
                        the script is exhausted, the reply is final text:
                        TOOL-FINAL: <last tool result> [tools declared: N] [tool msgs in history: K]
   Each tool step streams a short text ("step k.") before its tool_calls; arguments are split
-  across two chunks so the server must reassemble them."""
+  across two chunks so the server must reassemble them. TOOL-FINAL also reports
+  [pruned: P] = tool messages whose content is the roll-up prune stub.
+Slice 6b roll-up: a request whose system message starts with "[yggdrasil roll-up]" gets a
+  JSON reply "MOCK-SUMMARY: <first USER line of the transcript> | <N> chars".
+GET /calls -> {"chat": n, "summary": n, "summary_with_tools": n} (request counters)."""
 import os
 import json, re, sys, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+CALLS = {"chat": 0, "summary": 0, "summary_with_tools": 0}
+
 class H(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path != "/calls":
+            self.send_error(404); return
+        out = json.dumps(CALLS).encode()
+        self.send_response(200); self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(out))); self.end_headers(); self.wfile.write(out)
+
     def do_POST(self):
         if not self.path.endswith("/chat/completions"):
             self.send_error(404); return
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        first = body["messages"][0]
+        if first["role"] == "system" and str(first["content"]).startswith("[yggdrasil roll-up]"):
+            CALLS["summary"] += 1
+            CALLS["summary_with_tools"] += bool(body.get("tools"))
+            tr = body["messages"][-1]["content"]
+            head = next((l for l in tr.splitlines() if l.startswith("USER: ")), "")
+            out = json.dumps({"choices": [{"message": {"role": "assistant",
+                  "content": f"MOCK-SUMMARY: {head} | {len(tr)} chars"}}]}).encode()
+            self.send_response(200); self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(out))); self.end_headers(); self.wfile.write(out); return
+        CALLS["chat"] += 1
         users = [i for i, m in enumerate(body["messages"]) if m["role"] == "user"]
         if users and body["messages"][users[-1]]["content"].startswith("tool:"):
             return self.tool_mode(body, users[-1])
@@ -70,7 +94,8 @@ class H(BaseHTTPRequestHandler):
             last_tool = next((m["content"] for m in reversed(msgs) if m["role"] == "tool"), "")
             n_tools = len(body.get("tools") or [])
             k = sum(1 for m in msgs if m["role"] == "tool")
-            reply = f"TOOL-FINAL: {last_tool} [tools declared: {n_tools}] [tool msgs in history: {k}]"
+            pruned = sum(1 for m in msgs if m["role"] == "tool" and m["content"].startswith("[old tool output pruned"))
+            reply = f"TOOL-FINAL: {last_tool} [tools declared: {n_tools}] [tool msgs in history: {k}] [pruned: {pruned}]"
             if not stream:
                 out = json.dumps({"choices": [{"message": {"role": "assistant", "content": reply}}]}).encode()
                 self.send_header("Content-Length", str(len(out))); self.end_headers(); self.wfile.write(out); return

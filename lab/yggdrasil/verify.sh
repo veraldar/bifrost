@@ -3,6 +3,8 @@
 # Slice 1: session create, message post (SSE), history, 404.
 # Slice 2: abort mid-stream, global GET /event, persistence across a restart.
 # Slice 3: opencode-shaped JSON post, title/parent, get/patch/delete, busy map, catalog.
+# Slice 6b: context roll-up — forced threshold, one extra upstream call, summary stored+visible,
+#   recursive roll-up, restart, in-run tool-output prune.
 # Slice 6a: agent loop — bash/read/write/edit/glob/grep/todowrite round-trips, truncation,
 #   step cap, abort mid-tool. (Slice 4 = packaging, verified in ASSESSMENT.md; no slice 5 surface.)
 set -euo pipefail
@@ -274,4 +276,72 @@ start_srv
 [ "$BEFORE" = "$(curl -sf http://$YGG/session/$S6/message)" ] || { echo "FAIL: tool trace lost on restart"; exit 1; }
 curl -sf http://$YGG/session/$S6/todo | grep -q 'ship 6a' || { echo "FAIL: todo lost on restart"; exit 1; }
 echo "slice-6a tools ok"
+echo "--- slice 6b: context roll-up (forced threshold)"
+kill $SRV; wait $SRV 2>/dev/null || true; SRV=
+export YGG_ROLLUP_TOKENS=300 YGG_ROLLUP_KEEP_TOKENS=60 YGG_MAX_STEPS=10
+start_srv
+calls() { curl -sf http://127.0.0.1:$MOCK_PORT/calls; }
+S8=$(curl -sf -X POST http://$YGG/session | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
+LOREM=$(printf 'lorem %.0s' $(seq 40))
+ROLLED=0
+for k in $(seq 1 12); do
+  C0=$(calls)
+  post6 $S8 "marathon turn $k: $LOREM" >$TMP/m$k.txt
+  grep -q '^event: message.completed' $TMP/m$k.txt || { echo "FAIL: turn $k incomplete"; tail -3 $TMP/m$k.txt; exit 1; }
+  if grep -q '^event: session.compacted' $TMP/m$k.txt; then
+    ROLLED=$((ROLLED+1))
+    python3 - "$TMP/m$k.txt" "$C0" "$(calls)" "$(curl -sf http://$YGG/session/$S8/message)" $k $ROLLED <<'PY6B'
+import sys, json
+sse, c0, c1, msgs, k, n = open(sys.argv[1]).read(), json.loads(sys.argv[2]), json.loads(sys.argv[3]), json.loads(sys.argv[4]), int(sys.argv[5]), int(sys.argv[6])
+evs = [(b.split("\n")[0][7:], json.loads(b.split("\n", 1)[1][5:])) for b in sse.strip().split("\n\n") if b.startswith("event:")]
+comp = [e for kind, e in evs if kind == "session.compacted"][0]
+assert comp["tokensAfter"] < comp["tokensBefore"], comp
+# exactly one extra upstream call, tool-less
+assert c1["summary"] - c0["summary"] == 1 and c1["chat"] - c0["chat"] == 1 and c1["summary_with_tools"] == 0, (c0, c1)
+text = "".join(e["text"] for kind, e in evs if kind == "message.part.delta")
+assert f"you said 'marathon turn {k}:" in text and text.endswith("(3 msgs)"), text[-60:]
+# stored: ..., compaction user, summary assistant, current user, reply
+ask, summ, cur = msgs[-4], msgs[-3], msgs[-2]
+assert ask["info"]["role"] == "user" and ask["parts"][0]["type"] == "compaction" and ask["parts"][0]["auto"] is True, ask
+assert summ["info"]["role"] == "assistant" and summ["info"]["summary"] is True and summ["info"]["id"] == comp["messageID"], summ["info"]
+st = summ["parts"][0]["text"]
+first = "USER: marathon turn 1:" if n == 1 else "USER: What did we do so far?"
+assert st.startswith("MOCK-SUMMARY: " + first), st[:80]
+assert cur["parts"][0]["text"].startswith(f"marathon turn {k}:"), cur
+assert len(msgs) == 2 * k + 2 * n, (len(msgs), k, n)
+print(f"turn {k}: roll-up #{n} — 1 extra call, ~{comp['tokensBefore']} -> ~{comp['tokensAfter']} tokens, summary visible: {st[:60]!r}")
+PY6B
+  else
+    [ "$(calls | python3 -c 'import sys,json;print(json.load(sys.stdin)["summary"])')" = "$(python3 -c 'import sys,json;print(json.loads(sys.argv[1])["summary"])' "$C0")" ] \
+      || { echo "FAIL: summary call without session.compacted"; exit 1; }
+  fi
+  [ $ROLLED = 2 ] && break
+done
+[ $ROLLED = 2 ] || { echo "FAIL: expected two roll-ups (got $ROLLED)"; exit 1; }
+# the turn after a roll-up continues from the summary (no new call), and survives a restart
+BEFORE=$(curl -sf http://$YGG/session/$S8/message)
+kill $SRV; wait $SRV 2>/dev/null || true; SRV=
+start_srv
+[ "$BEFORE" = "$(curl -sf http://$YGG/session/$S8/message)" ] || { echo "FAIL: roll-up lost on restart"; exit 1; }
+C0=$(calls); post6 $S8 "after restart: short" >$TMP/m-after.txt
+grep -q "you said 'after restart: short' (5 msgs)" $TMP/m-after.txt || { echo "FAIL: post-roll-up turn should send 5 msgs"; grep -o '([0-9]* msgs)' $TMP/m-after.txt; exit 1; }
+[ "$(calls)" = "$(python3 -c 'import sys,json;d=json.loads(sys.argv[1]);d["chat"]+=1;print(json.dumps(d))' "$C0")" ] || { echo "FAIL: unexpected extra call"; calls; exit 1; }
+echo "post-roll-up turn: 5 msgs upstream (summary + tail), survived restart"
+
+echo "- in-run prune: big tool outputs within one run"
+S9=$(curl -sf -X POST http://$YGG/session | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
+C0=$(calls)
+post6 $S9 'tool:[[["bash",{"command":"seq 1 3000"}]],[["bash",{"command":"seq 1 3001"}]],[["bash",{"command":"seq 1 3002"}]]]' >$TMP/p1.txt
+python3 - "$TMP/p1.txt" "$(curl -sf http://$YGG/session/$S9/message)" "$C0" "$(calls)" <<'PY6B'
+import sys, json
+sse, msgs, c0, c1 = open(sys.argv[1]).read(), json.loads(sys.argv[2]), json.loads(sys.argv[3]), json.loads(sys.argv[4])
+final = msgs[-1]["parts"][-1]["text"]
+assert "[tool msgs in history: 3] [pruned: 2]" in final and final.rstrip().split("[tools")[0].rstrip().endswith("3002"), final[-120:]
+outs = [p["state"]["output"] for p in msgs[-1]["parts"] if p["type"] == "tool"]
+assert len(outs) == 3 and all(len(o) > 13000 for o in outs), [len(o) for o in outs]
+assert c1["summary"] == c0["summary"], (c0, c1)
+print("pruned 2 old tool outputs upstream (latest kept), stored outputs intact:", [len(o) for o in outs])
+PY6B
+unset YGG_ROLLUP_TOKENS YGG_ROLLUP_KEEP_TOKENS
+echo "slice-6b roll-up ok"
 echo PASS

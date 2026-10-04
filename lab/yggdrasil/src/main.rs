@@ -1,4 +1,4 @@
-//! YGGDRASIL (slices 1-6a): an opencode-compatible surface that bifrost's PWA proxy can
+//! YGGDRASIL (slices 1-6b): an opencode-compatible surface that bifrost's PWA proxy can
 //! drive unchanged. Sessions + message relay to an OpenAI-compatible chat endpoint;
 //! abort; global `/event` bus; on-disk store; per-session run serialization;
 //! session get/patch/delete, busy map, model/agent catalog + v2 switches.
@@ -16,6 +16,9 @@
 //!   YGG_MAX_STEPS          upstream calls per run before the loop gives up (default: 100)
 //!   YGG_BASH_TIMEOUT_MS    default bash tool timeout (default: 120000)
 //!   YGG_TOOLS              `0` = don't declare tools (plain relay, for tool-less upstreams)
+//!   YGG_ROLLUP_TOKENS      slice 6b: estimated-token limit for the upstream history (default 100000,
+//!                          `0` = off); over it, older history is summarized (`rollup.rs`)
+//!   YGG_ROLLUP_KEEP_TOKENS recent history kept verbatim at a roll-up (default: limit / 4)
 //!
 //! Slice 6a: each run is an agent loop — the upstream gets the tool set (`tools.rs`); its
 //! tool_calls are executed serially, fed back as `tool` messages, repeated until a reply
@@ -51,6 +54,7 @@ use serde_json::{Value, json};
 use tokio::sync::{Notify, broadcast, mpsc, oneshot};
 use tokio_stream::wrappers::{BroadcastStream, ReceiverStream};
 
+mod rollup;
 mod tools;
 
 struct Config {
@@ -60,6 +64,8 @@ struct Config {
     catalog: Value,
     max_steps: usize,
     tools_enabled: bool,
+    rollup_tokens: usize,
+    rollup_keep_tokens: usize,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -444,10 +450,10 @@ fn upstream_history(messages: &[Value]) -> Vec<Value> {
         text.clear();
     }
     let mut out = Vec::new();
-    for m in messages {
+    for m in &messages[last_compaction(messages)..] {
         let role = m["info"]["role"].as_str().unwrap_or("user");
         if role != "assistant" {
-            let text = message_text(m);
+            let text = if is_compaction(m) { rollup::COMPACTION_ASK.to_string() } else { message_text(m) };
             if !text.is_empty() {
                 out.push(json!({ "role": role, "content": text }));
             }
@@ -482,6 +488,15 @@ fn upstream_history(messages: &[Value]) -> Vec<Value> {
         flush(&mut out, &mut text, &mut calls, &mut results);
     }
     out
+}
+
+fn is_compaction(msg: &Value) -> bool {
+    msg["parts"].as_array().is_some_and(|ps| ps.iter().any(|p| p["type"] == "compaction"))
+}
+
+/// Index of the latest compaction message (the upstream history starts there), or 0.
+fn last_compaction(messages: &[Value]) -> usize {
+    messages.iter().rposition(is_compaction).unwrap_or(0)
 }
 
 /// What the model sees for a finished tool part.
@@ -550,7 +565,7 @@ impl Run {
 /// un-completed assistant placeholder, run the agent loop (abortable), store the
 /// outcome, then `session.idle`. Returns the final assistant message (aborted ones included).
 async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<Value, String> {
-    let history = st.sessions.lock().unwrap().get(id).map(|s| upstream_history(&s.messages));
+    let history = st.sessions.lock().unwrap().get(id).map(|s| s.messages.clone());
     let Some(history) = history else { return Err(format!("session {id} not found")) };
 
     let cancel = Arc::new(Notify::new());
@@ -613,12 +628,19 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<V
 async fn agent_loop(
     st: &AppState,
     id: &str,
-    mut convo: Vec<Value>,
+    messages: Vec<Value>,
     tx: &mpsc::Sender<Event>,
     run: &mut Run,
 ) -> Result<(), String> {
+    let mut convo = rollup_if_needed(st, id, tx, messages).await;
     let max = st.config.max_steps;
     for _ in 0..max {
+        if st.config.rollup_tokens > 0 {
+            let n = rollup::prune(&mut convo, st.config.rollup_tokens);
+            if n > 0 {
+                eprintln!("roll-up: pruned {n} old tool output(s) in session {id}");
+            }
+        }
         let calls = relay(st, id, &convo, tx, &mut run.text).await?;
         let text = run.text.clone();
         run.flush_text();
@@ -646,6 +668,99 @@ async fn agent_loop(
         }
     }
     Err(format!("agent loop hit the step cap ({max} upstream calls) without a final reply"))
+}
+
+/// Slice 6b. Over the token limit at run start: summarize everything before the recent
+/// tail with one extra upstream call, store the compaction pair in front of the tail, and
+/// return the shortened upstream history. Any failure keeps the full history (logged).
+async fn rollup_if_needed(st: &AppState, id: &str, tx: &mpsc::Sender<Event>, messages: Vec<Value>) -> Vec<Value> {
+    let convo = upstream_history(&messages);
+    let limit = st.config.rollup_tokens;
+    if limit == 0 || rollup::est_tokens(&convo) <= limit {
+        return convo;
+    }
+    // The tail starts at a user message and fits the keep budget (the current prompt always stays).
+    let start = last_compaction(&messages);
+    let live = &messages[start..];
+    let (mut cut, mut acc) = (None, 0);
+    for i in (0..live.len()).rev() {
+        acc += rollup::est_tokens(&upstream_history(&live[i..=i]));
+        if acc > st.config.rollup_keep_tokens && cut.is_some() {
+            break;
+        }
+        if live[i]["info"]["role"] == "user" && !is_compaction(&live[i]) {
+            cut = Some(i);
+        }
+    }
+    let cut = cut.unwrap_or(0);
+    let covered = upstream_history(&live[..cut]);
+    if !live[..cut].iter().any(|m| !is_compaction(m) && m["info"]["summary"] != true) {
+        return convo; // nothing new to fold in; in-run pruning is all that's left
+    }
+    let req = json!([
+        { "role": "system", "content": rollup::PROMPT },
+        { "role": "user", "content": rollup::transcript(&covered) },
+    ]);
+    let summary = match summarize(st, &req).await {
+        Ok(s) if !s.trim().is_empty() => s,
+        Ok(_) => {
+            eprintln!("roll-up {id}: empty summary, keeping full history");
+            return convo;
+        }
+        Err(e) => {
+            eprintln!("roll-up {id}: {e}; keeping full history");
+            return convo;
+        }
+    };
+    let ask = make_message(id, "user", vec![json!({ "type": "compaction", "auto": true })]);
+    let mut sum = make_message(id, "assistant", vec![text_part(&summary)]);
+    sum["info"]["summary"] = json!(true);
+    sum["info"]["mode"] = json!("compaction");
+    sum["info"]["time"]["completed"] = json!(now_ms());
+    let anchor = live[cut]["info"]["id"].clone();
+    with_session(st, id, |s| {
+        let at = s.messages.iter().position(|m| m["info"]["id"] == anchor).unwrap_or(s.messages.len());
+        s.messages.splice(at..at, [ask.clone(), sum.clone()]);
+    });
+    for m in [&ask, &sum] {
+        publish(st, "message.updated", json!({ "info": m["info"] }));
+    }
+    let before = rollup::est_tokens(&convo);
+    let mut rolled: Vec<Value> = messages[..start + cut].to_vec();
+    rolled.extend([ask, sum.clone()]);
+    rolled.extend_from_slice(&live[cut..]);
+    let convo = upstream_history(&rolled);
+    let after = rollup::est_tokens(&convo);
+    eprintln!("roll-up {id}: {cut} message(s) summarized, ~{before} -> ~{after} tokens");
+    emit(st, tx, "session.compacted", json!({ "sessionID": id, "messageID": sum["info"]["id"],
+        "summarized": cut, "tokensBefore": before, "tokensAfter": after })).await;
+    convo
+}
+
+/// The roll-up's extra upstream call: no tools, no streaming to the client.
+async fn summarize(st: &AppState, messages: &Value) -> Result<String, String> {
+    let cfg = &st.config;
+    let url = format!("{}/chat/completions", cfg.base_url.trim_end_matches('/'));
+    let mut req = st.http.post(&url).json(&json!({ "model": cfg.model, "messages": messages, "stream": false }));
+    if let Some(key) = &cfg.api_key {
+        req = req.bearer_auth(key);
+    }
+    let resp = req.send().await.map_err(|e| format!("request failed: {e}"))?;
+    let status = resp.status();
+    let body = resp.text().await.map_err(|e| format!("read failed: {e}"))?;
+    if !status.is_success() {
+        return Err(format!("upstream {status}: {body}"));
+    }
+    if let Ok(v) = serde_json::from_str::<Value>(&body) {
+        return Ok(v["choices"][0]["message"]["content"].as_str().unwrap_or_default().to_string());
+    }
+    // Some providers stream regardless of `stream: false`.
+    Ok(body
+        .lines()
+        .filter_map(|l| l.trim().strip_prefix("data:"))
+        .filter_map(|d| serde_json::from_str::<Value>(d.trim()).ok())
+        .filter_map(|v| v["choices"][0]["delta"]["content"].as_str().map(String::from))
+        .collect())
 }
 
 /// Executes one call: stores a running tool part, emits `message.part.updated`, runs it,
@@ -824,6 +939,7 @@ async fn main() {
             _ => default,
         }
     };
+    let rollup_tokens = env_num("YGG_ROLLUP_TOKENS", 100_000);
     let config = Config {
         base_url,
         api_key: std::env::var("YGG_UPSTREAM_API_KEY").ok().filter(|k| !k.is_empty()),
@@ -831,6 +947,8 @@ async fn main() {
         model,
         max_steps: env_num("YGG_MAX_STEPS", 100).max(1) as usize,
         tools_enabled: std::env::var("YGG_TOOLS").map_or(true, |v| v != "0"),
+        rollup_tokens: rollup_tokens as usize,
+        rollup_keep_tokens: env_num("YGG_ROLLUP_KEEP_TOKENS", rollup_tokens / 4) as usize,
     };
     let project_dir = match std::env::var("YGG_PROJECT_DIR") {
         Ok(d) if !d.is_empty() => PathBuf::from(d),

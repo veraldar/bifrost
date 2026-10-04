@@ -1,14 +1,113 @@
 {
- "regions": {"NA": "North America", "LATAM": "Latin America & Caribbean", "EUR": "Europe", "AF": "Sub-Saharan Africa", "MENA": "Middle East & North Africa", "ASIA": "Asia", "OC": "Oceania", "GLOBAL": "world aggregate / not regionally split"},
+ "regions": {
+  "AF": "Sub-Saharan Africa",
+  "ASIA": "Asia",
+  "EUR": "Europe",
+  "GLOBAL": "world aggregate / not regionally split",
+  "LATAM": "Latin America & Caribbean",
+  "MENA": "Middle East & North Africa",
+  "NA": "North America",
+  "OC": "Oceania"
+ },
  "sources": {
-  "owid": {"regions": ["GLOBAL"], "detail": "World aggregates only (entity World / All geographies) — OWID compiles UN WPP, World Bank PIP, V-Dem, UCDP, Stanford AI Index; no regional series used", "license": "CC BY 4.0", "source_doc": "https://ourworldindata.org/faqs#how-is-the-data-for-world-calculated"},
-  "worldbank": {"regions": ["GLOBAL"], "detail": "WLD aggregate over the 217 economies in World Development Indicators", "license": "CC BY 4.0", "source_doc": "https://datahelpdesk.worldbank.org/knowledgebase/articles/906519-world-bank-country-and-lending-groups"},
-  "epoch": {"regions": ["NA", "ASIA", "EUR", "GLOBAL"], "detail": "notable AI models attributed to the developer organisation's country (mostly US, CN, UK, EU, CA, KR, JP) — global industry, concentrated in a few countries", "license": "CC BY 4.0", "source_doc": "https://epoch.ai/data/notable-ai-models"},
-  "wikimedia": {"regions": ["GLOBAL"], "detail": "English-Wikipedia page views from readers worldwide — English-language skew disclosed (bias B1)", "license": "CC0 1.0", "source_doc": "https://wikitech.wikimedia.org/wiki/Analytics/AQS/Pageviews"},
-  "arxiv": {"regions": ["GLOBAL"], "detail": "cs.AI preprints submitted worldwide (US, CN, EU authors largest); counts not split by country", "license": "CC0 1.0 (metadata)", "source_doc": "https://info.arxiv.org/help/api/"},
-  "pubmed": {"regions": ["GLOBAL"], "detail": "biomedical literature indexed by the US National Library of Medicine from journals worldwide", "license": "public domain (NLM; US gov)", "source_doc": "https://www.nlm.nih.gov/bsd/difference.html"},
-  "fedreg": {"regions": ["NA"], "detail": "US federal rulemaking and notices only — no other government is covered", "license": "public domain (US gov work)", "source_doc": "https://www.federalregister.gov/reader-aids/using-federalregister-gov/understanding-the-federal-register"},
-  "ari": {"regions": ["GLOBAL"], "detail": "event-sourced restriction pressure on AI agents — global platforms, scored weekly (English-language tech news + HN + OS-vendor blogs; bias B14)", "license": "dweeb.xyz Agent Restriction Index — verbatim capture, © pipeline output, methodology at report §method", "source_doc": "https://dweeb-xzys-mac-studio.tail5435b1.ts.net/api/artifact/report-ari.html"},
-  "noaa_gml": {"regions": ["GLOBAL"], "detail": "one station: Mauna Loa Observatory (US-HI), the long-running reference for well-mixed global background CO₂ (bias B13)", "license": "public domain (US gov)", "source_doc": "https://gml.noaa.gov/ccgg/trends/data.html"}
+  "ari": {
+   "detail": "event-sourced restriction pressure on AI agents — global platforms, scored weekly (English-language tech news + HN + OS-vendor blogs; bias B14)",
+   "license": "dweeb.xyz Agent Restriction Index — verbatim capture, © pipeline output, methodology at report §method",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://dweeb-xzys-mac-studio.tail5435b1.ts.net/api/artifact/report-ari.html"
+  },
+  "arxiv": {
+   "detail": "cs.AI preprints submitted worldwide (US, CN, EU authors largest); counts not split by country",
+   "license": "CC0 1.0 (metadata)",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://info.arxiv.org/help/api/"
+  },
+  "epoch": {
+   "detail": "notable AI models attributed to the developer organisation's country (mostly US, CN, UK, EU, CA, KR, JP) — global industry, concentrated in a few countries",
+   "license": "CC BY 4.0",
+   "regions": [
+    "NA",
+    "ASIA",
+    "EUR",
+    "GLOBAL"
+   ],
+   "source_doc": "https://epoch.ai/data/notable-ai-models"
+  },
+  "fedreg": {
+   "detail": "US federal rulemaking and notices only — no other government is covered",
+   "license": "public domain (US gov work)",
+   "regions": [
+    "NA"
+   ],
+   "source_doc": "https://www.federalregister.gov/reader-aids/using-federalregister-gov/understanding-the-federal-register"
+  },
+  "ne": {
+   "detail": "country polygons for the map layer — geometry only, no indicators",
+   "license": "public domain",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://www.naturalearthdata.com"
+  },
+  "noaa_gml": {
+   "detail": "one station: Mauna Loa Observatory (US-HI), the long-running reference for well-mixed global background CO₂ (bias B13)",
+   "license": "public domain (US gov)",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://gml.noaa.gov/ccgg/trends/data.html"
+  },
+  "owid": {
+   "detail": "World aggregates only (entity World / All geographies) — OWID compiles UN WPP, World Bank PIP, V-Dem, UCDP, Stanford AI Index; no regional series used",
+   "license": "CC BY 4.0",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://ourworldindata.org/faqs#how-is-the-data-for-world-calculated"
+  },
+  "pubmed": {
+   "detail": "biomedical literature indexed by the US National Library of Medicine from journals worldwide",
+   "license": "public domain (NLM; US gov)",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://www.nlm.nih.gov/bsd/difference.html"
+  },
+  "unsdg": {
+   "detail": "UN member-state reporting — ~250 areas, country×year SDG series",
+   "license": "UN terms — free reuse with attribution",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://unstats.un.org/sdgapi"
+  },
+  "who_gho": {
+   "detail": "194 WHO member states reporting health indicators",
+   "license": "public domain (WHO)",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://www.who.int/data/gho"
+  },
+  "wikimedia": {
+   "detail": "English-Wikipedia page views from readers worldwide — English-language skew disclosed (bias B1)",
+   "license": "CC0 1.0",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://wikitech.wikimedia.org/wiki/Analytics/AQS/Pageviews"
+  },
+  "worldbank": {
+   "detail": "WLD aggregate over the 217 economies in World Development Indicators",
+   "license": "CC BY 4.0",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://datahelpdesk.worldbank.org/knowledgebase/articles/906519-world-bank-country-and-lending-groups"
+  }
  }
 }

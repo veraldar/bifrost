@@ -1,18 +1,61 @@
 {
  "cadence": "nightly",
  "local_time": "14:30 Europe/Berlin",
- "utc_time": "12:30 UTC",
- "utc_note": "12:30 UTC while Central European Summer Time applies; 13:30 UTC in winter (CET) — the timer fires at 14:30 local",
- "timer": "worldtree-fetch.timer",
  "sources": [
-  {"id": "owid", "updated_from": "ourworldindata.org/grapher/<slug>.csv + .metadata.json — full history re-downloaded each night (9 charts)"},
-  {"id": "worldbank", "updated_from": "api.worldbank.org/v2/country/WLD/indicator/{NY.GDP.PCAP.KD,SL.UEM.TOTL.ZS} — full annual history"},
-  {"id": "epoch", "updated_from": "epoch.ai/data/notable_ai_models.csv — full model list, 12-month windows derived locally"},
-  {"id": "wikimedia", "updated_from": "wikimedia.org/api/rest_v1/metrics/pageviews — monthly en.wikipedia user views since 2015-07 (5 articles + all-pages total)"},
-  {"id": "arxiv", "updated_from": "export.arxiv.org/api/query — cs.AI submission count per month; new complete months + the previous one re-fetched"},
-  {"id": "pubmed", "updated_from": "eutils.ncbi.nlm.nih.gov esearch — AI×biomed paper count per month; new complete months + the previous one re-fetched"},
-  {"id": "fedreg", "updated_from": "federalregister.gov/api/v1/documents — documents mentioning \"artificial intelligence\" per month; new complete months + the previous one re-fetched"},
-  {"id": "noaa_gml", "updated_from": "gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv — Mauna Loa monthly mean CO₂, full record since 1958-03"},
-  {"id": "ari", "updated_from": "Mac Studio ARI report (tailnet) report-ari.html — embedded <script id=\"ari-data\"> JSON block, every week since 2026-04-06; the report is rebuilt daily, weeks dated after the as-of are not read"}
- ]
+  {
+   "id": "ari",
+   "updated_from": "Mac Studio ARI report (tailnet) report-ari.html — embedded <script id=\"ari-data\"> JSON block, every week since 2026-04-06; the report is rebuilt daily, weeks dated after the as-of are not read"
+  },
+  {
+   "id": "arxiv",
+   "updated_from": "export.arxiv.org/api/query — cs.AI submission count per month; new complete months + the previous one re-fetched"
+  },
+  {
+   "id": "epoch",
+   "updated_from": "epoch.ai/data/notable_ai_models.csv — full model list, 12-month windows derived locally"
+  },
+  {
+   "id": "fedreg",
+   "updated_from": "federalregister.gov/api/v1/documents — documents mentioning \"artificial intelligence\" per month; new complete months + the previous one re-fetched"
+  },
+  {
+   "id": "github",
+   "pulls": "release lists + last-month commit counts + star snapshots (keyless 60/hr budget)"
+  },
+  {
+   "id": "ne",
+   "pulls": "Natural Earth 110m country polygons (map asset, fetched when upstream changes)"
+  },
+  {
+   "id": "noaa_gml",
+   "updated_from": "gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv — Mauna Loa monthly mean CO₂, full record since 1958-03"
+  },
+  {
+   "id": "owid",
+   "updated_from": "ourworldindata.org/grapher/<slug>.csv + .metadata.json — full history re-downloaded each night (9 charts)"
+  },
+  {
+   "id": "pubmed",
+   "updated_from": "eutils.ncbi.nlm.nih.gov esearch — AI×biomed paper count per month; new complete months + the previous one re-fetched"
+  },
+  {
+   "id": "unsdg",
+   "pulls": "SDG series values (country×year, all areas, one request per series)"
+  },
+  {
+   "id": "who_gho",
+   "pulls": "GHO indicator values (country×year, keyless OData)"
+  },
+  {
+   "id": "wikimedia",
+   "updated_from": "wikimedia.org/api/rest_v1/metrics/pageviews — monthly en.wikipedia user views since 2015-07 (5 articles + all-pages total)"
+  },
+  {
+   "id": "worldbank",
+   "updated_from": "api.worldbank.org/v2/country/WLD/indicator/{NY.GDP.PCAP.KD,SL.UEM.TOTL.ZS} — full annual history"
+  }
+ ],
+ "timer": "worldtree-fetch.timer",
+ "utc_note": "12:30 UTC while Central European Summer Time applies; 13:30 UTC in winter (CET) — the timer fires at 14:30 local",
+ "utc_time": "12:30 UTC"
 }

@@ -1,0 +1,45 @@
+The tree-first flow now works end to end on the sandbox (:8090), and it passed with the real brain. The build is green and my Playwright test passes (1/1, 18s). Nothing is committed, and live :8080 was not touched.
+
+![1 · first open: the tree alone](/api/artifact/tree-first-1-first-open.png)
+![2 · onboarding: the brain's greeting, spoken hands-free](/api/artifact/tree-first-2-onboarding.png)
+![3 · afterwards: the list, the MAIN row, the tree in its corner](/api/artifact/tree-first-3-corner-door.png)
+
+What the test checks, in order:
+1. **First open:** a fresh device shows only the fullscreen tree and one line inviting a tap. There is no list and no header. The check is per device, not based on the server being empty.
+2. **Tap:** a pulse climbs the trunk, the onboarding session opens with hands-free on, and the greeting appears and is spoken: "Hello, I'm bifrost… say over. Do you want my voice to be a woman or a man?" The setup instructions sent to the brain stay hidden.
+3. **Completion:** the test fakes the brain's final "setup done" line, because a spoken conversation can't run in the test. From there everything is real:
+   - The page waits until that last line has been spoken.
+   - It sends the answers to `/api/onboard` and marks the device as set up.
+   - It opens MAIN, and going back from MAIN lands on home.
+4. **Home afterwards:** the normal list returns, the tree shrinks into the bottom-right corner once, and tapping it opens MAIN.
+5. **MAIN can't be deleted:** its row has no swipe-to-delete, a drag does nothing, and its settings page has no delete button and a read-only name. The server also refuses the delete (403).
+
+**Blocked twice, then cleared:** the first two tries got no greeting because the brain's AI provider was overloaded. To verify the rest of the flow anyway, I added a clearly named switch (`TF_BRAIN_DOWN=1`) that skips waiting for the greeting. Minutes later the provider recovered, and one run with the real brain passed.
+
+**Two judgment calls you may want to change:**
+- **Hands-free ends with setup.** The invitation says "grants mic access · hands-free · this session", so MAIN opens in whatever mode the device used before. Keeping hands-free on into MAIN instead is a one-line change.
+- **The voice choice isn't applied to speech.** "Woman or man" only reaches MAIN's preferences note. The phone has no voice setting of its own; the voice comes from the server's settings.
+
+**Gaps I didn't fix:**
+- **Silent dead end:** if the brain fails on its first reply, setup sits on "your box speaks first" forever with the mic on. This happened twice today; it needs a "tap to ask again" button.
+- **"brain: undefined" in MAIN:** the server accepts incomplete answers, which is how the previous run's test wrote that into MAIN. My page always sends complete answers.
+- **Duplicate setups:** leaving setup halfway and tapping the tree again starts a new onboarding session.
+- **Missing MAIN:** the corner tree assumes MAIN exists on the server.
+- **Real voice untested:** a human pass on the phone is still needed for speaking the answers and saying "over".
+
+**Side effects:**
+- The sandbox's voice connection was failing because its settings file was missing values the live server has. I copied the voice and speech values (not the secrets) into the sandbox's settings file, `.env.local`, which git ignores.
+- I restarted :8090 on my build.
+- Each test run adds one preferences message to MAIN, so it now holds five, one of them from the previous run.
+- The run took about 70 minutes against the ~45 budgeted.
+
+The report reconstructs the previous run from git, file times and what it left on the server, since its logs were empty. It also lists every file changed.
+
+Files are in the sandbox's `artifacts/` folder:
+- [tree-first-report.md](/api/artifact/tree-first-report.md)
+- tree-first-1-first-open.png
+- tree-first-2-onboarding.png
+- tree-first-2-onboarding-brain-down.png
+- tree-first-3a-shrinking.png
+- tree-first-3-corner-door.png
+- tree-first-4-main.png

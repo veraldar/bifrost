@@ -110,6 +110,40 @@
   .oz-cap i { display: inline-block; width: 7px; height: 7px; margin-right: 6px; background: var(--oz-dim); }
   .oz-band.live .oz-cap i { background: var(--oz-success); }
 
+  /* tree-first — the whole tree, alone, on a device's first open; then the
+     same drawing in its corner as the door to MAIN. Same crop at both ends
+     (slice, centered), so the one-time shrink is one continuous zoom-out */
+  .oz-first { position: fixed; inset: 0; background: var(--oz-bg); }
+  .oz-first > button { display: block; width: 100%; height: 100%; cursor: pointer; }
+  .oz-first svg { width: 100%; height: 100%; }
+  .oz-first .base { opacity: .32; }
+  .oz-first .sig { stroke-width: 5; }
+  .oz-invite {
+    position: absolute; left: 0; right: 0; bottom: calc(28px + env(safe-area-inset-bottom));
+    display: grid; justify-items: center; gap: 2px; padding: 0 16px; pointer-events: none;
+    font-size: 12px; text-align: center; color: var(--oz-text);
+  }
+  .oz-invite span { padding: 1px 6px; background: var(--oz-bg); }
+  .oz-invite .sub { font-size: 10.5px; color: var(--oz-dim); }
+  .oz-invite .err { color: var(--oz-danger); }
+  .oz-door {
+    position: fixed; z-index: 40; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom));
+    width: 60px; height: 60px; display: block;
+    border: 1px solid var(--oz-border); background: var(--oz-surface);
+  }
+  .oz-door svg { width: 100%; height: 100%; }
+  .oz-door .base { opacity: .6; }
+  .oz-door:hover .base { opacity: .88; }
+  @keyframes oz-tf-shrink {
+    from {
+      transform: translate(var(--tf-x), var(--tf-y)) scale(var(--tf-s));
+      border-color: transparent; background: var(--oz-bg);
+    }
+  }
+  @keyframes oz-tf-base { from { opacity: .32; } }
+  .oz-door.shrink { animation: oz-tf-shrink 1.1s cubic-bezier(.6, 0, .2, 1) both; }
+  .oz-door.shrink .base { animation: oz-tf-base 1.1s cubic-bezier(.6, 0, .2, 1) both; }
+
   /* ── session rows ── */
   .oz-sw { position: relative; overflow: hidden; }
   .oz-zone {

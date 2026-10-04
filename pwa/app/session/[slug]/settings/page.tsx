@@ -14,6 +14,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { slugify } from '@/lib/slug';
+import { isMainSlug } from '@/lib/tree-first';
 import { ErrorBox } from '@/components/app/error-box';
 
 type ModelRef = {
@@ -236,9 +237,14 @@ export default function SessionSettingsView() {
             }}
             aria-label="session name"
             className="oz-field"
+            readOnly={isMainSlug(slug)}
           />
         </div>
-        <p className="note">url + voice room follow the name</p>
+        <p className="note">
+          {isMainSlug(slug)
+            ? 'MAIN keeps its name — the tree door finds it by it'
+            : 'url + voice room follow the name'}
+        </p>
       </section>
 
       <section className="oz-blk">
@@ -356,22 +362,25 @@ export default function SessionSettingsView() {
       </p>
 
       {/* DELETE — two taps; sub-sessions cascade server-side, then back to
-          the list (which no longer shows the deleted row) */}
-      <section className="oz-blk danger mb-6">
-        <h2>session</h2>
-        <div>
-          <button
-            disabled={deleting}
-            onClick={() => (armed ? void deleteSession() : setArmed(true))}
-            className={`oz-del ${armed ? 'armed' : ''}`}
-          >
-            {deleting ? 'deleting…' : armed ? 'tap again to delete' : 'delete session'}
-          </button>
-        </div>
-        <p className="note">
-          {armed ? 'this cannot be undone — sub-sessions go too' : 'removes the session and its sub-sessions'}
-        </p>
-      </section>
+          the list (which no longer shows the deleted row). MAIN has none:
+          the proxy refuses it (403), the page doesn't offer it */}
+      {!isMainSlug(slug) && (
+        <section className="oz-blk danger mb-6">
+          <h2>session</h2>
+          <div>
+            <button
+              disabled={deleting}
+              onClick={() => (armed ? void deleteSession() : setArmed(true))}
+              className={`oz-del ${armed ? 'armed' : ''}`}
+            >
+              {deleting ? 'deleting…' : armed ? 'tap again to delete' : 'delete session'}
+            </button>
+          </div>
+          <p className="note">
+            {armed ? 'this cannot be undone — sub-sessions go too' : 'removes the session and its sub-sessions'}
+          </p>
+        </section>
+      )}
     </main>
   );
 }

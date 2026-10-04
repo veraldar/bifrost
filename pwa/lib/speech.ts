@@ -46,6 +46,7 @@ let state: SpeechState = {
 };
 const subs = new Set<() => void>();
 import { diagEvent } from '@/lib/diag';
+import { stripMarkers } from '@/lib/tree-first';
 function set(patch: Partial<SpeechState>) {
   state = { ...state, ...patch };
   subs.forEach((f) => f());
@@ -357,7 +358,7 @@ function appendPcm(int16: Int16Array, myGen: number): void {
 
 /** Start speaking `text` from the beginning (stops any current playback). */
 export function startSpeech(text: string, slug = ''): void {
-  const clean = text
+  const clean = stripMarkers(text)
     .replace(/```[\s\S]*?```/g, ' (code block) ')
     .replace(/`([^`]+)`/g, '$1')
     .replace(/!?\[([^\]]*)\]\(([^)]*)\)/g, '$1')

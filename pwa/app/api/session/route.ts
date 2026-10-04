@@ -14,6 +14,8 @@ import { bustCache, getCache, setCache } from '@/lib/oc-cache';
 import { isRunLive } from '@/lib/oc-live';
 import { PENDING_TTL_MS } from '@/lib/pending-ttl';
 import { ensureWatchdog } from '@/lib/oc-watchdog';
+import { slugify } from '@/lib/slug';
+import { MAIN_SLUG } from '@/lib/tree-first';
 
 export const dynamic = 'force-dynamic';
 
@@ -128,9 +130,14 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const { name } = await req.json();
+    const title = String(name || '').slice(0, 80) || 'session';
+    // slug `main` is reserved for THE MAIN session (/api/onboard creates it)
+    if (slugify(title) === MAIN_SLUG) {
+      return NextResponse.json({ error: 'the name "main" is reserved' }, { status: 409 });
+    }
     const s = await ocFetch('/session', {
       method: 'POST',
-      body: JSON.stringify({ title: String(name || '').slice(0, 80) || 'session' }),
+      body: JSON.stringify({ title }),
     });
     bustCache();
     return NextResponse.json({ id: s.id, title: s.title });

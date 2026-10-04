@@ -33,6 +33,18 @@ import { clearAsked, ensureNotifyPermission, markAsked, notifyReply } from '@/li
 import { PENDING_TTL_MS } from '@/lib/pending-ttl';
 import { markRead } from '@/lib/read';
 import { lastHeard, markHeard } from '@/lib/heard';
+import {
+  MAIN_SLUG,
+  TF_DONE_KEY,
+  TF_PREFS_KEY,
+  TF_PREV_MODE_KEY,
+  TF_SHRINK_KEY,
+  type OnboardPrefs,
+  isOnboardPrompt,
+  isOnboardingSlug,
+  parseOnboarded,
+  stripMarkers,
+} from '@/lib/tree-first';
 
 type Mode = 'text' | 'free';
 type Attach =
@@ -164,6 +176,10 @@ export default function SessionView({
   const [seekFrac, setSeekFrac] = useState<number | null>(null);
   const seekRef = useRef<HTMLDivElement>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
+  // tree-first onboarding: the answers, once the brain's closing marker
+  // landed; endedRef = the hand-off to MAIN already ran
+  const [onboarded, setOnboarded] = useState<OnboardPrefs | null>(null);
+  const onboardEndedRef = useRef(false);
   const [input, setInput] = useState('');
   // swipe-history browser: index of the message on screen, null = closed
   const [histIdx, setHistIdx] = useState<number | null>(null);
@@ -426,6 +442,8 @@ export default function SessionView({
       // the first poll below may restore busy if a run is live here
       setBusy(false);
       setError('');
+      setOnboarded(null);
+      onboardEndedRef.current = false;
       runStateRef.current = '';
       runStreakRef.current = 0;
       runBaseTotalRef.current = 0;
@@ -501,8 +519,26 @@ export default function SessionView({
         });
         if (r.ok) {
           lastGoodPollRef.current = Date.now();
-          const fresh: Msg[] = await r.json();
-          const totalCount = Number(r.headers.get('X-Total-Count') || fresh.length);
+          const raw: Msg[] = await r.json();
+          // tree-first: the onboarding prompt is setup for the brain, never
+          // shown; the brain's closing marker is for the PWA, never for eyes
+          // (speech.ts keeps it from ears) — reading it ends the onboarding
+          const onb = isOnboardingSlug(slug);
+          const fresh = raw
+            .filter((m) => !(onb && m.role === 'user' && isOnboardPrompt(m.text)))
+            .map((m) =>
+              m.role === 'assistant' && m.text.includes('[[')
+                ? { ...m, text: stripMarkers(m.text) }
+                : m
+            );
+          if (onb) {
+            const end = raw.find(
+              (m) => m.role === 'assistant' && m.done !== false && parseOnboarded(m.text)
+            );
+            if (end) setOnboarded((cur) => cur ?? parseOnboarded(end.text));
+          }
+          const totalCount =
+            Number(r.headers.get('X-Total-Count') || raw.length) - (raw.length - fresh.length);
           setTotal(totalCount);
           totalRef.current = totalCount;
           const st = r.headers.get('X-Run-State') || '';
@@ -586,10 +622,7 @@ export default function SessionView({
             if (JSON.stringify(fresh).length < 300_000) {
               sessionStorage.setItem(
                 'oz-cache:' + slug,
-                JSON.stringify({
-                  msgs: fresh,
-                  total: Number(r.headers.get('X-Total-Count') || fresh.length),
-                })
+                JSON.stringify({ msgs: fresh, total: totalCount })
               );
             }
           } catch {
@@ -1474,6 +1507,57 @@ export default function SessionView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, voiceState, busy, freeCycle, lastAssistant, slug]);
 
+  // tree-first: the brain wrote its closing marker → setup is over. The
+  // closing line is said first (hands-free speaks it, then gives the mic
+  // back); a line that can't be spoken (TTS down) still ends the setup, later
+  const lastAssistantAt = lastAssistant?.time || 0;
+  useEffect(() => {
+    if (!onboarded || onboardEndedRef.current || busy || speech.phase !== 'idle') return;
+    if (mode === 'free' && freeCycle !== 'listening') return;
+    const said = lastHeard(slug) >= lastAssistantAt;
+    const wait = mode !== 'free' ? 4_000 : said ? 1_500 : 15_000;
+    const t = setTimeout(() => void endOnboarding(onboarded), wait);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onboarded, busy, speech.phase, mode, freeCycle, lastAssistantAt, slug]);
+
+  /** Setup done: MAIN is created (or found) server-side with the answers,
+   *  this device stops being a first run, and MAIN opens in place of the
+   *  onboarding (back from MAIN goes home, where the tree shrinks once). */
+  async function endOnboarding(prefs: OnboardPrefs) {
+    if (onboardEndedRef.current) return;
+    onboardEndedRef.current = true;
+    diagEvent('voice', `tree-first: ${slug} onboarded → MAIN`);
+    try {
+      const r = await fetch('/api/onboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ step: 'done', from: slug, prefs }),
+        signal: AbortSignal.timeout(15_000),
+      });
+      const d = (await r.json().catch(() => ({}))) as { id?: string; error?: string };
+      if (!r.ok || !d.id) throw new Error(d.error || `onboard ${r.status}`);
+      // the consent read "hands-free, this session": the mic leaves with the
+      // setup, and the mode it replaced comes back for MAIN (own room too)
+      if (modeRef.current === 'free') await exitFree();
+      roomRef.current?.disconnect();
+      try {
+        localStorage.setItem(TF_PREFS_KEY, JSON.stringify(prefs));
+        localStorage.setItem('oz-mode', localStorage.getItem(TF_PREV_MODE_KEY) || 'text');
+        localStorage.removeItem(TF_PREV_MODE_KEY);
+        localStorage.setItem(TF_DONE_KEY, String(Date.now()));
+        sessionStorage.setItem(TF_SHRINK_KEY, '1');
+      } catch {
+        /* private mode — home falls back to the list */
+      }
+      router.replace(`/session/${MAIN_SLUG}?id=${d.id}`);
+    } catch (e) {
+      setError(
+        `setup is done, but MAIN did not open — ${e instanceof Error ? e.message : e}. reload to retry`
+      );
+    }
+  }
+
   useEffect(() => {
     if (!holding) return;
     setPttSecs(0);
@@ -1886,7 +1970,9 @@ export default function SessionView({
         )}
         {msgs.length === 0 && (
           <div className="pt-10 text-center text-xs text-[var(--oz-dim)]">
-            empty session — type, hold the mic to talk, or tap it for hands-free
+            {isOnboardingSlug(slug)
+              ? 'setup — your box speaks first, then you answer by voice'
+              : 'empty session — type, hold the mic to talk, or tap it for hands-free'}
           </div>
         )}
         {msgs.map((m, i) => (

@@ -5,12 +5,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LineIcon } from '@/components/line-icon';
 import { BAND_VIEWBOX, YggTree } from '@/components/ygg';
+import { FirstTree, TreeDoor } from '@/components/tree-door';
 import { Marked } from '@/components/marked';
 import { askedSessions, clearAsked, notifyReply } from '@/lib/notify';
 import type { ArtifactEntry } from '@/lib/artifacts';
 import { countUnseen, seenInit } from '@/lib/artifact-read';
 import { lastRead, markRead } from '@/lib/read';
 import { slugify } from '@/lib/slug';
+import { TF_DONE_KEY, TF_PREV_MODE_KEY, isMainSlug, isOnboardPrompt } from '@/lib/tree-first';
 
 // open-question circles go stale after this long
 const OPEN_QUESTION_TTL_MS = 48 * 60 * 60 * 1000;
@@ -39,18 +41,22 @@ type GHit = {
 };
 
 /** Mobile-style swipe row: drag left to reveal a red delete zone; release
- *  past the threshold to delete, else it snaps back. A tap still opens. */
+ *  past the threshold to delete, else it snaps back. A tap still opens.
+ *  `locked` (THE MAIN session) has no delete zone and never drags — the
+ *  proxy refuses MAIN's delete too (403), this is the UI half. */
 function SwipeRow({
   onOpen,
   onDelete,
   compact,
   unread,
+  locked,
   children,
 }: {
   onOpen: () => void;
   onDelete: () => void;
   compact?: boolean;
   unread?: boolean;
+  locked?: boolean;
   children: React.ReactNode;
 }) {
   const [dx, setDx] = useState(0);
@@ -58,6 +64,19 @@ function SwipeRow({
   const x0 = useRef(0);
   const moved = useRef(false);
   const captured = useRef(false);
+
+  if (locked) {
+    return (
+      <div className="oz-sw" data-locked="">
+        <button
+          onClick={onOpen}
+          className={`oz-row ${compact ? 'compact' : ''} ${unread ? 'unread' : ''}`}
+        >
+          {children}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="oz-sw">
@@ -136,6 +155,17 @@ function fmtListTime(t?: number): string {
 
 export default function SessionsPage() {
   const router = useRouter();
+  // tree-first, per device (never the server store): no done-flag here →
+  // the tree alone. Unknown until the first client render — the server HTML
+  // can't read localStorage, and a guess would flash the wrong world
+  const [tf, setTf] = useState<'first' | 'done' | null>(null);
+  useEffect(() => {
+    try {
+      setTf(localStorage.getItem(TF_DONE_KEY) ? 'done' : 'first');
+    } catch {
+      setTf('done'); // private mode can't keep the flag — never trap it on the tree
+    }
+  }, []);
   // instant paint on back-navigation: the last fetched list is cached in
   // sessionStorage (per-tab), so the rows are there before the first fetch
   // answers — the fresh fetch then updates/corrects underneath
@@ -403,9 +433,36 @@ export default function SessionsPage() {
   // the band walks only while something is true: any run (sub-runs too)
   const working = sessions.filter((s) => s.pending).length;
 
+  // first tap: onboarding rides the existing hands-free path — oz-mode is
+  // what the session view restores on arrival, and this tap is the gesture.
+  // The mode it replaces is parked once; setup's end hands it back
+  async function startOnboarding(): Promise<string> {
+    try {
+      if (localStorage.getItem(TF_PREV_MODE_KEY) === null) {
+        localStorage.setItem(TF_PREV_MODE_KEY, localStorage.getItem('oz-mode') || 'text');
+      }
+      localStorage.setItem('oz-mode', 'free');
+    } catch {
+      /* private mode — the session opens in keyboard mode */
+    }
+    const r = await fetch('/api/onboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ step: 'start' }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    const d = (await r.json().catch(() => ({}))) as { id?: string; slug?: string; error?: string };
+    if (!r.ok || !d.slug) throw new Error(d.error || `onboard ${r.status}`);
+    return `/session/${d.slug}?id=${d.id}`;
+  }
+
+  if (tf === null) return null;
+  if (tf === 'first') return <FirstTree onStart={startOnboarding} />;
+
   return (
     <>
-      <main className="relative mx-auto flex min-h-dvh max-w-md flex-col px-3 pb-6">
+      {/* pb-24: the last row scrolls clear of the corner door */}
+      <main className="relative mx-auto flex min-h-dvh max-w-md flex-col px-3 pb-24">
         {/* the wordmark alone, full caps, no sign before it — it is the way
             into settings; the artifact runestone counts what you haven't seen */}
         <header className="oz-head">
@@ -591,6 +648,7 @@ export default function SessionsPage() {
                 <li key={s.id}>
                   <SwipeRow
                     unread={unread}
+                    locked={isMainSlug(slugify(s.title || ''))}
                     onOpen={() => router.push(`/session/${slugify(s.title)}?id=${s.id}`)}
                     onDelete={() => remove(s)}
                   >
@@ -628,7 +686,11 @@ export default function SessionsPage() {
                       <time>{fmtListTime(s.updated || s.lastAt)}</time>
                     </div>
                     <div className="oz-r2">
-                      {s.pending ? 'awaiting answer…' : s.preview || '\u00a0'}
+                      {s.pending
+                        ? 'awaiting answer…'
+                        : isOnboardPrompt(s.preview || '') // the brain's setup brief, never for eyes
+                          ? 'setup'
+                          : s.preview || '\u00a0'}
                     </div>
                   </SwipeRow>
                   {kids.length > 0 && subsOpen[s.id] && (
@@ -682,6 +744,9 @@ export default function SessionsPage() {
           </ul>
         )}
       </main>
+
+      {/* the tree, shrunk to its corner, stays the door: MAIN */}
+      <TreeDoor />
 
       {/* undo toast — the bar is the mercy window; tap undo to restore the row */}
       {toast && (

@@ -1,8 +1,17 @@
 import { NextResponse } from 'next/server';
 import { OC, ocFetch, resolveId } from '@/lib/oc';
+import { slugify } from '@/lib/slug';
+import { MAIN_SLUG } from '@/lib/tree-first';
 import { bustCache } from '@/lib/oc-cache';
 
 export const dynamic = 'force-dynamic';
+
+/** THE MAIN session (slug `main`) is reserved: no delete, no rename. */
+async function isMain(idOrSlug: string, sid: string): Promise<boolean> {
+  if (idOrSlug === MAIN_SLUG) return true;
+  const s = (await ocFetch(`/session/${sid}`)) as { title?: string };
+  return slugify(s.title || '') === MAIN_SLUG;
+}
 
 type ModelRef = { providerID: string; modelID: string; variant: string | null };
 
@@ -83,6 +92,10 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     if (body.title !== undefined) {
       const t = String(body.title || '').trim().slice(0, 80);
       if (!t) return NextResponse.json({ error: 'empty title' }, { status: 400 });
+      // MAIN keeps its name (the door finds it by slug) and nothing else takes it
+      if ((await isMain(id, sid)) || slugify(t) === MAIN_SLUG) {
+        return NextResponse.json({ error: 'MAIN is reserved — it keeps its name' }, { status: 409 });
+      }
       await ocFetch(`/session/${sid}`, { method: 'PATCH', body: JSON.stringify({ title: t }) });
     }
 
@@ -130,6 +143,11 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
   const { id } = await ctx.params;
   try {
     const sid = await resolveId(id); // accepts slug or session id
+    // belt and suspenders: the list never offers MAIN's delete, and the
+    // proxy — the phone's only way to the brain — refuses it too
+    if (await isMain(id, sid)) {
+      return NextResponse.json({ error: 'MAIN is reserved — it cannot be deleted' }, { status: 403 });
+    }
     const r = await ocFetch(`/session/${sid}`, { method: 'DELETE' });
     bustCache(); // next list poll rebuilds instead of showing the deleted row
     return NextResponse.json(r ?? { ok: true });

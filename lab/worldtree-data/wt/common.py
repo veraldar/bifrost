@@ -119,3 +119,19 @@ def parse_params(s: str) -> dict:
         k, v = kv.split("=", 1)
         out[k.strip()] = v.strip()
     return out
+
+
+MONTHLY_SOURCES = ("arxiv", "pubmed", "fedreg")
+_MONTH_RE = {
+    "arxiv": r"submittedDate:\[(\d{4})(\d{2})01",
+    "pubmed": r'"(\d{4})/(\d{2})/01"\[PDAT\]',
+    "fedreg": r"\[publication_date\]\[gte\]=(\d{4})-(\d{2})-01",
+}
+
+
+def month_of_url(source_id, url):
+    """(year, month) a per-month count request covers, parsed from its URL (sidecar `url`), or None."""
+    import re
+    import urllib.parse
+    m = re.search(_MONTH_RE[source_id], urllib.parse.unquote(url))
+    return (int(m.group(1)), int(m.group(2))) if m else None

@@ -2,17 +2,25 @@
 import datetime as dt
 import json
 import sys
+import calendar
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from .common import FETCHER, UA, append_csv, load_series, load_sources, rel, root, sha256_bytes, write_json
+from .common import FETCHER, MONTHLY_SOURCES, UA, append_csv, month_of_url, load_series, load_sources, rel, root, sha256_bytes, write_json
 
 OWID_Q = "?v=1&csvType=full&useColumnShortNames=true"
 TIMEOUT = 30
 BACKOFF = [5, 15, 45]
 TRIES = 3
+BACKFILL_FROM = (2019, 1)
+SLEEP = {"arxiv": 6.0, "pubmed": 0.4, "fedreg": 0.5}  # seconds between requests (arXiv: ≥ 6 s, M3-fix-1 — 3 s bursts tripped 429)
+REPAIR_SWEEPS = 3  # per-month sources: re-try skipped months after the first pass
+PUBMED_QUERY = ('(artificial intelligence[Title/Abstract]) AND (drug discovery[Title/Abstract] OR protein[Title/Abstract] '
+                'OR molecular[Title/Abstract] OR battery[Title/Abstract] OR catalyst[Title/Abstract]) '
+                'AND ("{y:04d}/{m:02d}/01"[PDAT]:"{y:04d}/{m:02d}/{last:02d}"[PDAT])')
 LOG_HEADER = ["attempted_at", "url", "http_status", "bytes", "sha256", "stored", "error"]
 
 
@@ -36,6 +44,41 @@ def wiki_end(today=None):
 
 def owid_value_col(extract):
     return dict(kv.split("=", 1) for kv in extract.split(":", 1)[1].split(";") if "=" in kv)["col"]
+
+
+def month_url(src, y, m):
+    last = calendar.monthrange(y, m)[1]
+    if src == "arxiv":
+        return ("xml", "https://export.arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:"
+                f"[{y:04d}{m:02d}010000+TO+{y:04d}{m:02d}{last:02d}2359]&max_results=1")  # max_results=0 → HTTP 500, http → 301 (10-04); count = totalResults
+    if src == "pubmed":
+        q = urllib.parse.quote(PUBMED_QUERY.format(y=y, m=m, last=last))
+        return ("json", f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmode=json&rettype=count&term={q}")
+    if src == "fedreg":
+        return ("json", "https://www.federalregister.gov/api/v1/documents.json?conditions[term]=%22artificial+intelligence%22"
+                f"&conditions[publication_date][gte]={y:04d}-{m:02d}-01&conditions[publication_date][lte]={y:04d}-{m:02d}-{last:02d}"
+                "&per_page=1&fields[]=publication_date")
+    raise SystemExit(f"no monthly fetcher for source {src}")
+
+
+def month_window(src, slug, today=None):
+    """(newest stored month − 1) … last complete month; nothing stored → BACKFILL_FROM. Months from sidecar urls.
+    Plus any month since BACKFILL_FROM with no stored file (a failed fetch is retried next run, never left a hole)."""
+    end = wiki_end(today)
+    d = root() / "raw" / src / slug
+    have = [month_of_url(src, json.loads(sc.read_text())["url"]) for sc in d.glob("*.prov.json")] if d.exists() else []
+    have = {x for x in have if x}
+    lo = BACKFILL_FROM
+    if have:
+        y, m = max(have)
+        lo = (y, m - 1) if m > 1 else (y - 1, 12)
+    out = []
+    y, m = BACKFILL_FROM
+    while (y, m) <= (end.year, end.month):
+        if (y, m) >= lo or (y, m) not in have:
+            out.append((y, m))
+        y, m = (y, m + 1) if m < 12 else (y + 1, 1)
+    return out
 
 
 def units():
@@ -64,6 +107,10 @@ def units():
             else:
                 url = f"{api}/per-article/en.wikipedia/all-access/user/{slug}/monthly/20150701/{end}"
             out[key] = {"files": [("json", url)]}
+        elif src in MONTHLY_SOURCES:
+            out[key] = {"files": [month_url(src, y, m) for y, m in month_window(src, slug)], "per_url": True}
+        elif src == "noaa_gml":
+            out[key] = {"files": [("csv", "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv")]}
         else:
             raise SystemExit(f"no fetcher for source {src}")
     return out
@@ -89,12 +136,15 @@ def get(url, log_path):
     return None
 
 
-def newest_sha(slug_dir: Path, ext: str):
-    """sha256 of the newest stored file of this kind (from its sidecar)."""
+def newest_sha(slug_dir: Path, ext: str, url=None):
+    """sha256 of the newest stored file of this kind (from its sidecar); per-month sources dedupe per url."""
     files = sorted(p for p in slug_dir.glob("*.prov.json") if p.name.split(".", 1)[1] == f"{ext}.prov.json")
-    if not files:
+    metas = [json.loads(p.read_text()) for p in files]
+    if url is not None:
+        metas = [x for x in metas if x["url"] == url]
+    if not metas:
         return None
-    return json.loads(files[-1].read_text())["sha256"]
+    return max(metas, key=lambda x: (x["retrieved_at"], x["path"]))["sha256"]
 
 
 def fetch(sources=None):
@@ -106,61 +156,81 @@ def fetch(sources=None):
         d = root() / "raw" / src / slug
         d.mkdir(parents=True, exist_ok=True)
         log = d / "fetch-log.csv"
-        got = {}
-        for ext, url in u["files"]:
-            r = get(url, log)
-            if r is None:
-                failed += 1
-                print(f"fetch FAIL {src}/{slug} {url}", file=sys.stderr)
-                continue
-            r["url"] = url
-            got[ext] = r
-        if not got:
+        got, todo, n = [], list(u["files"]), 0
+        for sweep in range(1 + (REPAIR_SWEEPS if u.get("per_url") else 0)):
+            skipped = []
+            for ext, url in todo:
+                if n and src in SLEEP:
+                    time.sleep(SLEEP[src])
+                n += 1
+                r = get(url, log)
+                if r is None:
+                    skipped.append((ext, url))
+                    print(f"fetch {'SKIP' if u.get('per_url') else 'FAIL'} {src}/{slug} {url}", file=sys.stderr)
+                    continue
+                r["url"], r["ext"] = url, ext
+                got.append(r)
+                if u.get("per_url"):  # store as we go: a long backfill never loses finished months
+                    store(src, slug, d, log, u, srcmeta, [r])
+            todo = skipped
+            if not todo:
+                break
+            if u.get("per_url"):
+                print(f"fetch {src}/{slug}: {len(todo)} months skipped after sweep {sweep}", file=sys.stderr)
+        failed += len(todo)
+        if u.get("per_url") or not got:
             continue
-        # upstream dates + attribution
-        upd = nxt = None
-        attribution = srcmeta[src]["attribution"]
-        if src == "owid" and "metadata.json" in got:
-            meta = json.loads(got["metadata.json"]["body"])
-            col = meta.get("columns", {}).get(u["col"], {})
-            attribution = col.get("citationShort") or attribution
-            upd, nxt = col.get("lastUpdated"), col.get("nextUpdate")
-        if src == "worldbank" and "json" in got:
-            try:
-                upd = json.loads(got["json"]["body"])[0].get("lastupdated")
-            except Exception:
-                pass
-        for ext, r in got.items():
-            body, sha = r["body"], sha256_bytes(r["body"])
-            stored = sha != newest_sha(d, ext)
-            if stored:
-                ts = stamp(r["t"])
-                p = d / f"{ts}.{ext}"
-                n = 1
-                while p.exists():  # same-second collision: never overwrite raw
-                    p = d / f"{ts}-{n}.{ext}"; n += 1
-                p.write_bytes(body)
-                write_json(Path(str(p) + ".prov.json"), {
-                    "schema": "worldtree.prov/1",
-                    "path": rel(p),
-                    "source_id": src,
-                    "slug": slug,
-                    "url": r["url"],
-                    "final_url": r["final_url"],
-                    "request_headers": {"User-Agent": UA},
-                    "retrieved_at": iso(r["t"]),
-                    "http_status": r["status"],
-                    "content_type": r["ctype"],
-                    "bytes": len(body),
-                    "stored_bytes": True,
-                    "sha256": sha,
-                    "license": srcmeta[src]["license"],
-                    "license_url": srcmeta[src]["license_url"],
-                    "attribution": attribution,
-                    "upstream_updated": upd,
-                    "upstream_next_update": nxt,
-                    "fetcher": FETCHER,
-                })
-            append_csv(log, LOG_HEADER, [iso(r["t"]), r["url"], r["status"], len(body), sha, int(stored), ""])
-            print(f"{'stored' if stored else 'same  '} {src}/{slug} .{ext} {len(body)} B")
+        store(src, slug, d, log, u, srcmeta, got)
     return 1 if failed else 0
+
+
+def store(src, slug, d, log, u, srcmeta, got):
+    """Write each response not already stored (dedupe by sha256 vs newest of its kind / url) + sidecar + log line."""
+    by_ext = {r["ext"]: r for r in got}
+    # upstream dates + attribution
+    upd = nxt = None
+    attribution = srcmeta[src]["attribution"]
+    if src == "owid" and "metadata.json" in by_ext:
+        meta = json.loads(by_ext["metadata.json"]["body"])
+        col = meta.get("columns", {}).get(u["col"], {})
+        attribution = col.get("citationShort") or attribution
+        upd, nxt = col.get("lastUpdated"), col.get("nextUpdate")
+    if src == "worldbank" and "json" in by_ext:
+        try:
+            upd = json.loads(by_ext["json"]["body"])[0].get("lastupdated")
+        except Exception:
+            pass
+    for r in got:
+        ext = r["ext"]
+        body, sha = r["body"], sha256_bytes(r["body"])
+        stored = sha != newest_sha(d, ext, r["url"] if u.get("per_url") else None)
+        if stored:
+            ts = stamp(r["t"])
+            p = d / f"{ts}.{ext}"
+            n = 1
+            while p.exists():  # same-second collision: never overwrite raw
+                p = d / f"{ts}-{n}.{ext}"; n += 1
+            p.write_bytes(body)
+            write_json(Path(str(p) + ".prov.json"), {
+                "schema": "worldtree.prov/1",
+                "path": rel(p),
+                "source_id": src,
+                "slug": slug,
+                "url": r["url"],
+                "final_url": r["final_url"],
+                "request_headers": {"User-Agent": UA},
+                "retrieved_at": iso(r["t"]),
+                "http_status": r["status"],
+                "content_type": r["ctype"],
+                "bytes": len(body),
+                "stored_bytes": True,
+                "sha256": sha,
+                "license": srcmeta[src]["license"],
+                "license_url": srcmeta[src]["license_url"],
+                "attribution": attribution,
+                "upstream_updated": upd,
+                "upstream_next_update": nxt,
+                "fetcher": FETCHER,
+            })
+        append_csv(log, LOG_HEADER, [iso(r["t"]), r["url"], r["status"], len(body), sha, int(stored), ""])
+        print(f"{'stored' if stored else 'same  '} {src}/{slug} .{ext} {len(body)} B")

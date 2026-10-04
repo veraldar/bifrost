@@ -45,3 +45,4 @@ next-env.d.ts
 .push-subs.json
 .oc-live.json
 .oc-queue.json
+.devices.json

@@ -189,6 +189,14 @@ struct Planned {
     text: String,
     chunk_ms: u64,
     first_ms: u64,
+    /// tool calls the agent loop must execute (in order) before the next turn
+    calls: Vec<PlannedCall>,
+}
+
+struct PlannedCall {
+    id: String,
+    name: String,
+    args: String,
 }
 
 /// Dialect-neutral reply plan — mirrors mock_upstream.py's contract subset.
@@ -221,6 +229,7 @@ fn plan(body: &Value) -> Planned {
             text: format!("MOCK-SUMMARY: {head} | {} chars", tr.len()),
             chunk_ms: 0,
             first_ms: 0,
+            calls: vec![],
         };
     }
 
@@ -233,6 +242,68 @@ fn plan(body: &Value) -> Planned {
         .unwrap_or_default();
     let lc = last_user.to_lowercase();
 
+    // ---- agent tool loop ----------------------------------------------------
+    // "tool:echo X"   → one bash `echo X` call, then TOOL-FINAL: X
+    // "tool:twice X"  → two calls (`echo X-1`, `echo X-2`), then TOOL-FINAL: X-2
+    // The last USER message carries the directive; results after it mean the
+    // loop already ran (this turn = final text). Older tool messages from
+    // EARLIER loops don't count — positions, not existence.
+    if last_user.starts_with("tool:") {
+        let last_user_pos = msgs.iter().rposition(|m| m.get("role").and_then(|r| r.as_str()) == Some("user"));
+        let last_tool_pos = msgs.iter().rposition(|m| m.get("role").and_then(|r| r.as_str()) == Some("tool"));
+        let fresh = last_tool_pos.map_or(true, |t| last_user_pos.map_or(false, |u| u > t));
+        let arg = last_user["tool:".len()..].trim();
+        if !fresh {
+            let last_tool = msgs
+                .iter()
+                .rev()
+                .find(|m| m.get("role").and_then(|r| r.as_str()) == Some("tool"))
+                .and_then(|m| m.get("content"))
+                .and_then(|c| c.as_str())
+                .unwrap_or_default()
+                .trim()
+                .to_string();
+            return Planned {
+                kind: "chat",
+                text: format!("TOOL-FINAL: {last_tool}"),
+                chunk_ms: 10,
+                first_ms: 0,
+                calls: vec![],
+            };
+        }
+        let mk = |n: usize, cmd: String| PlannedCall {
+            id: format!("call_sim_{n}"),
+            name: "bash".into(),
+            args: serde_json::json!({ "command": cmd }).to_string(),
+        };
+        if let Some(x) = arg.strip_prefix("twice ") {
+            let x = x.trim();
+            return Planned {
+                kind: "tools",
+                text: "Running the tools.".into(),
+                chunk_ms: 5,
+                first_ms: 0,
+                calls: vec![mk(0, format!("echo {x}-1")), mk(1, format!("echo {x}-2"))],
+            };
+        }
+        if let Some(x) = arg.strip_prefix("echo ") {
+            return Planned {
+                kind: "tools",
+                text: "Running the tool.".into(),
+                chunk_ms: 5,
+                first_ms: 0,
+                calls: vec![mk(0, format!("echo {x}"))],
+            };
+        }
+        return Planned {
+            kind: "chat",
+            text: format!("TOOL-FINAL: unknown tool directive '{arg}'"),
+            chunk_ms: 10,
+            first_ms: 0,
+            calls: vec![],
+        };
+    }
+
     // "reply with exactly: X"
     for marker in ["reply with exactly:", "reply exactly:", "reply:"] {
         if let Some(i) = lc.find(marker) {
@@ -244,6 +315,7 @@ fn plan(body: &Value) -> Planned {
                 text: word.to_string(),
                 chunk_ms: 5,
                 first_ms: 0,
+                calls: vec![],
             };
         }
     }
@@ -264,6 +336,7 @@ fn plan(body: &Value) -> Planned {
             text: format!("{}\n\n{}", para("one", "Here the first thought rests."), para("two", "And here the essay closes.")),
             chunk_ms: 5,
             first_ms: nap,
+            calls: vec![],
         };
     }
 
@@ -277,6 +350,7 @@ fn plan(body: &Value) -> Planned {
             ),
             chunk_ms: 200,
             first_ms: nap,
+            calls: vec![],
         };
     }
 
@@ -285,6 +359,7 @@ fn plan(body: &Value) -> Planned {
         text: format!("MOCK-REPLY: you said '{last_user}' ({} msgs)", msgs.len()),
         chunk_ms: 10,
         first_ms: nap,
+        calls: vec![],
     }
 }
 
@@ -331,6 +406,34 @@ fn sse_response(p: Planned) -> tiny_http::Response<ChanReader> {
                 }
                 if p.chunk_ms > 0 {
                     std::thread::sleep(Duration::from_millis(p.chunk_ms));
+                }
+            }
+            // tool calls: id+name in the first delta, arguments split across
+            // two more (forces the consumer to reassemble across chunks)
+            for (i, call) in p.calls.iter().enumerate() {
+                let head = json!({
+                    "id": "cmpl-ygg-sim",
+                    "object": "chat.completion.chunk",
+                    "choices": [{"index": 0, "delta": {"tool_calls": [{
+                        "index": i, "id": call.id, "type": "function",
+                        "function": {"name": call.name, "arguments": ""},
+                    }]}}],
+                });
+                if tx.send(sse_data(&head.to_string())).is_err() {
+                    return;
+                }
+                let cut = call.args.len() / 2;
+                for piece in [call.args[..cut].to_string(), call.args[cut..].to_string()] {
+                    let ev = json!({
+                        "id": "cmpl-ygg-sim",
+                        "object": "chat.completion.chunk",
+                        "choices": [{"index": 0, "delta": {"tool_calls": [{
+                            "index": i, "function": {"arguments": piece},
+                        }]}}],
+                    });
+                    if tx.send(sse_data(&ev.to_string())).is_err() {
+                        return;
+                    }
                 }
             }
             let _ = tx.send(b"data: [DONE]\n\n".to_vec());
@@ -421,6 +524,27 @@ mod tests {
         assert_eq!(p.text, "PONG");
         let p = plan(&json!({"messages": [{"role": "user", "content": "sleep 2 and say hi"}]}));
         assert_eq!(p.first_ms, 2000);
+    }
+
+    #[test]
+    fn plan_tool_loop() {
+        // step 1: the directive — one bash call
+        let p = plan(&json!({"messages": [{"role": "user", "content": "tool:echo ygg-sim-v2"}], "stream": true}));
+        assert_eq!(p.kind, "tools");
+        assert_eq!(p.calls.len(), 1);
+        assert_eq!(p.calls[0].name, "bash");
+        assert!(p.calls[0].args.contains("echo ygg-sim-v2"));
+        // step 2: the tool result is in history — final text carries it
+        let p = plan(&json!({"messages": [
+            {"role": "user", "content": "tool:echo ygg-sim-v2"},
+            {"role": "assistant", "content": null, "tool_calls": [{"id": "call_sim_0", "function": {"name": "bash", "arguments": "{}"}}]},
+            {"role": "tool", "tool_call_id": "call_sim_0", "content": "ygg-sim-v2\n"}
+        ]}));
+        assert_eq!(p.text, "TOOL-FINAL: ygg-sim-v2");
+        // twice: two calls
+        let p = plan(&json!({"messages": [{"role": "user", "content": "tool:twice deep"}]}));
+        assert_eq!(p.calls.len(), 2);
+        assert!(p.calls[1].args.contains("echo deep-2"));
     }
 
     #[test]

@@ -41,6 +41,18 @@ pub fn registry() -> Vec<crate::runner::ScenarioDef> {
             profile: "home",
             run: upstream_down,
         },
+        crate::runner::ScenarioDef {
+            name: "rest.tool-loop",
+            device: "desktop",
+            profile: "home",
+            run: tool_loop,
+        },
+        crate::runner::ScenarioDef {
+            name: "rest.parallel-sessions",
+            device: "desktop×4",
+            profile: "home",
+            run: parallel_sessions,
+        },
     ]
 }
 
@@ -380,5 +392,160 @@ fn upstream_down() -> (Verdict, Metrics) {
         return (Verdict::Fail(format!("recovery echo wrong: {reply}")), m);
     }
     m = m.lat("recovery-turn", ms).lat("recover-total", t0.elapsed().as_millis() as u64);
+    (Verdict::Pass, m)
+}
+
+/// The agent tool loop over the wire: the mock streams tool_calls, the REAL
+/// yggdrasil agent loop executes real bash, feeds results back, and lands the
+/// opencode-shaped tool part in the transcript. Echo-once and echo-twice.
+fn tool_loop() -> (Verdict, Metrics) {
+    let mut m = Metrics::new();
+    let world = match World::spawn(WorldOpts::default()) {
+        Ok(w) => w,
+        Err(e) => return (Verdict::Fail(format!("world: {e}")), m),
+    };
+    let mut http = ShapedHttp::new(0xA07, &profile_home().fwd);
+
+    let sid = match create_session(&world, &mut http, "sim tool loop") {
+        Ok(s) => s,
+        Err(e) => return (Verdict::Fail(e), m),
+    };
+
+    // one call
+    let t0 = Instant::now();
+    let (reply, ms) = match prompt_wait(&world, &mut http, &sid, "tool:echo ygg-sim-v2") {
+        Ok(r) => r,
+        Err(e) => return (Verdict::Fail(format!("tool turn: {e}")), m),
+    };
+    if !reply.contains("TOOL-FINAL: ygg-sim-v2") {
+        return (Verdict::Fail(format!("tool loop did not land the output: {reply}")), m);
+    }
+    m = m.lat("one-call", ms);
+
+    // two calls in one step
+    let (reply, ms2) = match prompt_wait(&world, &mut http, &sid, "tool:twice deep") {
+        Ok(r) => r,
+        Err(e) => return (Verdict::Fail(format!("twice turn: {e}")), m),
+    };
+    if !reply.contains("TOOL-FINAL: deep-2") {
+        return (Verdict::Fail(format!("twice loop lost the second call: {reply}")), m);
+    }
+    m = m.lat("two-call", ms2).lat("total", t0.elapsed().as_millis() as u64);
+
+    // the transcript carries opencode-shaped tool parts with real output
+    let tr = match transcript_of(&world, &mut http, &sid) {
+        Ok(t) => t,
+        Err(e) => return (Verdict::Fail(e), m),
+    };
+    let tool_parts = tool_parts_of(&tr);
+    if tool_parts.len() < 3 {
+        return (
+            Verdict::Fail(format!("expected ≥3 tool parts, got {}: {}", tool_parts.len(), tool_parts.join(" | "))),
+            m,
+        );
+    }
+    let ok_outputs = tool_parts.iter().filter(|p| p.contains("ygg-sim-v2") || p.contains("deep-1") || p.contains("deep-2")).count();
+    if ok_outputs < 3 {
+        return (Verdict::Fail(format!("tool parts missing real outputs: {tool_parts:?}")), m);
+    }
+    (Verdict::Pass, m)
+}
+
+fn tool_parts_of(tr: &Value) -> Vec<String> {
+    tr.as_array()
+        .map(|msgs| {
+            msgs.iter()
+                .filter_map(|msg| msg["parts"].as_array())
+                .flatten()
+                .filter(|p| p["type"] == "tool")
+                .map(|p| {
+                    format!(
+                        "{}:{}:{}",
+                        p["tool"].as_str().unwrap_or("?"),
+                        p["state"]["status"].as_str().unwrap_or("?"),
+                        p["state"]["output"].as_str().unwrap_or("").trim()
+                    )
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Concurrency: four sessions run interleaved turns against one yggdrasil.
+/// Per-session run locks must hold, all echoes must land, the busy map must
+/// drain, and the session list must show every one of them.
+fn parallel_sessions() -> (Verdict, Metrics) {
+    let mut m = Metrics::new();
+    let world = match World::spawn(WorldOpts::default()) {
+        Ok(w) => w,
+        Err(e) => return (Verdict::Fail(format!("world: {e}")), m),
+    };
+    let url = world.ygg_url();
+
+    let t0 = Instant::now();
+    let mut handles = vec![];
+    for i in 0..4 {
+        let url = url.clone();
+        handles.push(std::thread::spawn(move || -> Result<(String, String, u64), String> {
+            let mut http = ShapedHttp::new(0xA10 + i as u64, &profile_home().fwd);
+            let raw = http
+                .post_json(&format!("{url}/session"), &serde_json::json!({"title": format!("sim parallel {i}")}).to_string())
+                .map_err(|e| format!("create: {e}"))?;
+            let sid = serde_json::from_str::<serde_json::Value>(&raw)
+                .map_err(|e| e.to_string())?
+                .get("id")
+                .and_then(|x| x.as_str())
+                .ok_or("no id")?
+                .to_string();
+            let t1 = std::time::Instant::now();
+            let reply = http
+                .post_json(
+                    &format!("{url}/session/{sid}/message"),
+                    &serde_json::json!({"parts":[{"type":"text","text":format!("reply with exactly: PAR-{i}")}]}).to_string(),
+                )
+                .map_err(|e| format!("prompt: {e}"))?;
+            Ok((sid, reply, t1.elapsed().as_millis() as u64))
+        }));
+    }
+    let mut results = vec![];
+    for h in handles {
+        match h.join() {
+            Ok(Ok(r)) => results.push(r),
+            Ok(Err(e)) => return (Verdict::Fail(e), m),
+            Err(_) => return (Verdict::Fail("worker panicked".into()), m),
+        }
+    }
+    let wall = t0.elapsed().as_millis() as u64;
+    let mut http = ShapedHttp::new(0xA20, &profile_home().fwd);
+
+    let mut sids = vec![];
+    for (i, (sid, reply, ms)) in results.iter().enumerate() {
+        if !reply.contains(&format!("PAR-{i}")) {
+            return (Verdict::Fail(format!("session {i}: wrong echo: {reply}")), m);
+        }
+        sids.push(sid.clone());
+        m = m.lat(&format!("turn-{i}"), *ms);
+    }
+    if sids.iter().collect::<std::collections::HashSet<_>>().len() != 4 {
+        return (Verdict::Fail("sessions collided".into()), m);
+    }
+
+    let list = match http.get(&format!("{}/session", url)) {
+        Ok(l) => l,
+        Err(e) => return (Verdict::Fail(e), m),
+    };
+    for sid in &sids {
+        if !list.contains(sid) {
+            return (Verdict::Fail(format!("session {sid} missing from list")), m);
+        }
+    }
+    let status = match http.get(&format!("{}/session/status", url)) {
+        Ok(s) => s,
+        Err(e) => return (Verdict::Fail(e), m),
+    };
+    if sids.iter().any(|sid| status.contains(sid.as_str())) {
+        return (Verdict::Fail("busy map not drained after all turns".into()), m);
+    }
+    m = m.lat("wall-4-parallel", wall);
     (Verdict::Pass, m)
 }

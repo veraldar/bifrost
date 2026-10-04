@@ -70,12 +70,13 @@ fn main() {
                 .map(|w| w[1].as_str());
             runner::run_matrix(only)
         }
+        Some("cycle") => runner::run_cycle(),
         Some(cmd) => {
-            eprintln!("ygg-sim: unknown command '{cmd}' (known: m0, matrix)");
+            eprintln!("ygg-sim: unknown command '{cmd}' (known: m0, matrix, cycle)");
             2
         }
         None => {
-            eprintln!("usage: ygg-sim m0 | matrix [--only FILTER]");
+            eprintln!("usage: ygg-sim m0 | matrix [--only FILTER] | cycle");
             2
         }
     };

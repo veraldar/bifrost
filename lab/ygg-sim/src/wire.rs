@@ -146,6 +146,28 @@ pub fn profile_poor() -> NetProfile {
     NetProfile::new("poor-cell", f, r)
 }
 
+/// Congested cell: capped downlink (64 kbps) + loss — the TTS burst queues
+/// against the token bucket and the pipe drips.
+#[allow(dead_code)] // used from bridge.bandwidth-starved (v2)
+pub fn profile_congested() -> NetProfile {
+    let f = FlowProfile {
+        latency: Duration::from_millis(60),
+        jitter: Duration::from_millis(25),
+        loss: 0.03,
+        ..Default::default()
+    };
+    let r = FlowProfile {
+        latency: Duration::from_millis(80),
+        jitter: Duration::from_millis(30),
+        loss: 0.05,
+        dup: 0.0,
+        reorder_frac: 0.0,
+        reorder_delay: Duration::from_millis(0),
+        bps: 8000, // 64 kbps downlink
+    };
+    NetProfile::new("congested-cell", f, r)
+}
+
 /// m0's proof profile: lossy enough that nothing survives by luck.
 pub fn profile_m0() -> NetProfile {
     let f = FlowProfile {

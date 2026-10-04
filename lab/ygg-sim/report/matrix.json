@@ -58,11 +58,11 @@
         ],
         [
           "turn-1",
-          2911
+          2920
         ],
         [
           "turn-2",
-          2870
+          2864
         ],
         [
           "post-rollup-turn",
@@ -70,7 +70,7 @@
         ],
         [
           "total",
-          8660
+          8664
         ]
       ],
       "name": "rest.marathon-rollup",
@@ -97,6 +97,56 @@
     {
       "counters": [],
       "device": "desktop",
+      "latencies_ms": [
+        [
+          "one-call",
+          41
+        ],
+        [
+          "two-call",
+          81
+        ],
+        [
+          "total",
+          122
+        ]
+      ],
+      "name": "rest.tool-loop",
+      "profile": "home",
+      "verdict": "PASS"
+    },
+    {
+      "counters": [],
+      "device": "desktop×4",
+      "latencies_ms": [
+        [
+          "turn-0",
+          11
+        ],
+        [
+          "turn-1",
+          12
+        ],
+        [
+          "turn-2",
+          12
+        ],
+        [
+          "turn-3",
+          10
+        ],
+        [
+          "wall-4-parallel",
+          18
+        ]
+      ],
+      "name": "rest.parallel-sessions",
+      "profile": "home",
+      "verdict": "PASS"
+    },
+    {
+      "counters": [],
+      "device": "desktop",
       "latencies_ms": [],
       "name": "bridge.auth",
       "profile": "home",
@@ -113,11 +163,11 @@
       "latencies_ms": [
         [
           "ping-avg",
-          148
+          150
         ],
         [
           "ping-max",
-          169
+          167
         ]
       ],
       "name": "bridge.data-roundtrip",
@@ -130,7 +180,7 @@
       "latencies_ms": [
         [
           "run",
-          20010
+          20004
         ]
       ],
       "name": "bridge.prompt-run-done",
@@ -142,13 +192,17 @@
         [
           "tts-delivered-%",
           98
+        ],
+        [
+          "stt-hits",
+          3
         ]
       ],
       "device": "phone",
       "latencies_ms": [
         [
           "voice-turn",
-          19879
+          23334
         ]
       ],
       "name": "bridge.handsfree-round",
@@ -159,18 +213,22 @@
       "counters": [
         [
           "tts-delivered-%",
-          90
+          88
+        ],
+        [
+          "stt-hits",
+          2
         ],
         [
           "wire-drops",
-          53
+          61
         ]
       ],
       "device": "phone",
       "latencies_ms": [
         [
           "voice-turn",
-          19441
+          22718
         ]
       ],
       "name": "bridge.poor-network-turn",
@@ -227,19 +285,19 @@
       "latencies_ms": [
         [
           "keyboard-cycle",
-          5635
+          5663
         ],
         [
           "ping-keyboard",
-          166
+          151
         ],
         [
           "voice-turn",
-          20283
+          15702
         ],
         [
           "ping-after-voice",
-          151
+          136
         ]
       ],
       "name": "bridge.mode-switch",
@@ -252,11 +310,11 @@
       "latencies_ms": [
         [
           "fresh-connect",
-          1071
+          1069
         ],
         [
           "idle-after-death",
-          1071
+          1069
         ]
       ],
       "name": "bridge.abort-mid-turn",
@@ -280,7 +338,7 @@
       "counters": [
         [
           "received-frames",
-          502
+          503
         ],
         [
           "delivered-%",
@@ -291,12 +349,42 @@
       "latencies_ms": [
         [
           "essay-turn",
-          30100
+          28046
         ]
       ],
       "name": "bridge.tts-paragraphs",
       "profile": "phone-cell",
       "verdict": "PASS"
+    },
+    {
+      "counters": [
+        [
+          "tts-delivered-%",
+          35
+        ],
+        [
+          "stt-hits",
+          1
+        ],
+        [
+          "rev-drops",
+          171
+        ]
+      ],
+      "device": "phone",
+      "latencies_ms": [
+        [
+          "voice-turn",
+          23375
+        ],
+        [
+          "post-burst-ping",
+          181
+        ]
+      ],
+      "name": "bridge.bandwidth-starved",
+      "profile": "congested-cell",
+      "verdict": "BREAK-OK"
     }
   ],
   "seed": "0xc0ffee"

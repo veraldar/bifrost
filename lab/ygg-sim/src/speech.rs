@@ -19,8 +19,31 @@ pub struct Pcm {
 pub struct SpeechClient {
     base: String,
     http: ureq::Agent,
+    stt_model: String,
     tts_model: String,
     tts_voice: String,
+}
+
+pub fn encode_wav_mono16(pcm: &[i16], rate: u32) -> Vec<u8> {
+    let data_len = pcm.len() * 2;
+    let mut w = Vec::with_capacity(44 + data_len);
+    w.extend(b"RIFF");
+    w.extend(&((36 + data_len) as u32).to_le_bytes());
+    w.extend(b"WAVE");
+    w.extend(b"fmt ");
+    w.extend(&16u32.to_le_bytes());
+    w.extend(&1u16.to_le_bytes());
+    w.extend(&1u16.to_le_bytes());
+    w.extend(&rate.to_le_bytes());
+    w.extend(&(rate * 2).to_le_bytes());
+    w.extend(&2u16.to_le_bytes());
+    w.extend(&16u16.to_le_bytes());
+    w.extend(b"data");
+    w.extend(&(data_len as u32).to_le_bytes());
+    for s in pcm {
+        w.extend(&s.to_le_bytes());
+    }
+    w
 }
 
 pub fn decode_wav_mono16(bytes: &[u8]) -> Result<Pcm, String> {
@@ -125,10 +148,16 @@ pub fn decode_opus_20ms(frames: &[Vec<u8>]) -> Result<Vec<i16>, String> {
 }
 
 impl SpeechClient {
-    pub fn new(base: impl Into<String>, tts_model: &str, tts_voice: &str) -> SpeechClient {
+    pub fn new(
+        base: impl Into<String>,
+        stt_model: &str,
+        tts_model: &str,
+        tts_voice: &str,
+    ) -> SpeechClient {
         SpeechClient {
             base: base.into().trim_end_matches('/').to_string(),
-            http: AgentBuilder::new().timeout(Duration::from_secs(60)).build(),
+            http: AgentBuilder::new().timeout(Duration::from_secs(120)).build(),
+            stt_model: stt_model.to_string(),
             tts_model: tts_model.to_string(),
             tts_voice: tts_voice.to_string(),
         }
@@ -152,5 +181,37 @@ impl SpeechClient {
             .read_to_end(&mut bytes)
             .map_err(|e| format!("speaches TTS body: {e}"))?;
         decode_wav_mono16(&bytes)
+    }
+
+    /// PCM16 mono → transcript text (the quality gate: what a listener would
+    /// have heard from the frames the client actually received).
+    pub fn transcribe(&self, pcm: &Pcm) -> Result<String, String> {
+        let wav = encode_wav_mono16(&pcm.samples, pcm.rate);
+        let boundary = "ysim0tls";
+        let mut body: Vec<u8> = vec![];
+        let part = |name: &str, value: &str| {
+            format!(
+                "--{boundary}\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n{value}\r\n"
+            )
+        };
+        body.extend(part("model", &self.stt_model).as_bytes());
+        body.extend(
+            format!("--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"audio.wav\"\r\nContent-Type: audio/wav\r\n\r\n")
+                .as_bytes(),
+        );
+        body.extend(&wav);
+        body.extend(format!("\r\n--{boundary}--\r\n").as_bytes());
+        let r = self
+            .http
+            .post(&format!("{}/audio/transcriptions", self.base))
+            .set("Content-Type", &format!("multipart/form-data; boundary={boundary}"))
+            .send(&body[..])
+            .map_err(|e| format!("speaches STT: {e}"))?;
+        let v: serde_json::Value = r.into_json().map_err(|e| format!("speaches STT body: {e}"))?;
+        Ok(v.get("text")
+            .and_then(|t| t.as_str())
+            .unwrap_or_default()
+            .trim()
+            .to_string())
     }
 }

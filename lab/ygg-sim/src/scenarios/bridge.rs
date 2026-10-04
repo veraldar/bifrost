@@ -85,6 +85,12 @@ pub fn registry() -> Vec<crate::runner::ScenarioDef> {
             profile: "phone-cell",
             run: tts_paragraphs,
         },
+        crate::runner::ScenarioDef {
+            name: "bridge.bandwidth-starved",
+            device: "phone",
+            profile: "congested-cell",
+            run: bandwidth_starved,
+        },
     ]
 }
 
@@ -306,6 +312,17 @@ fn prompt_run_done() -> (Verdict, Metrics) {
     }
 }
 
+/// Voice-turn quality bar (the STT∘TTS contract):
+/// - Gate: transcribe what the client received; fail under the keyword floor
+/// - Record: transcribe and report, no gate (lossy links garble honestly)
+/// - Skip: amplitude/delivery gates only (long audio keeps the matrix fast)
+#[derive(Clone, Copy, PartialEq)]
+enum Quality {
+    Gate,
+    Record,
+    Skip,
+}
+
 fn handsfree_round() -> (Verdict, Metrics) {
     let mut m = Metrics::new();
     let world = match world_with_bridge() {
@@ -323,15 +340,24 @@ fn handsfree_round() -> (Verdict, Metrics) {
         Ok(c) => c,
         Err(e) => return (Verdict::Fail(format!("connect: {e}")), m),
     };
-    match voice_round_spoken(&mut c, 0xB10, "hello bridge this is a simulated phone", "hello") {
-        Ok((turn_ms, delivered_pct)) => {
+    match voice_round_spoken(
+        &mut c,
+        0xB10,
+        "hello bridge this is a simulated phone",
+        "hello",
+        Quality::Gate,
+    ) {
+        Ok((turn_ms, delivered_pct, hits)) => {
             if delivered_pct < 80 {
                 return (
                     Verdict::Fail(format!("only {delivered_pct}% of TTS frames arrived on a good link")),
                     m,
                 );
             }
-            m = m.lat("voice-turn", turn_ms).cnt("tts-delivered-%", delivered_pct);
+            m = m
+                .lat("voice-turn", turn_ms)
+                .cnt("tts-delivered-%", delivered_pct)
+                .cnt("stt-hits", hits);
             (Verdict::Pass, m)
         }
         Err(e) => (Verdict::Fail(e), m),
@@ -340,19 +366,18 @@ fn handsfree_round() -> (Verdict, Metrics) {
 
 /// The full hands-free turn: TTS the "user speech" (real speaches audio as the
 /// mic fixture), stream it as Opus over the track, commit, then await
-/// voice.stt → run.done → voice.reply with audio frames back.
-fn voice_round(c: &mut SimClient, req_base: u64) -> Result<(u64, u64), String> {
-    voice_round_spoken(c, req_base, "hello bridge this is a simulated phone", "hello")
-}
-
+/// voice.stt → run.done → voice.reply with audio frames back. `quality`
+/// decides whether the received audio faces the STT∘TTS keyword gate.
 fn voice_round_spoken(
     c: &mut SimClient,
     req_base: u64,
     spoken: &str,
     expect_word: &str,
-) -> Result<(u64, u64), String> {
+    quality: Quality,
+) -> Result<(u64, u64, u64), String> {
     let speech = crate::speech::SpeechClient::new(
         speaches_base(),
+        "Systran/faster-whisper-small",
         "speaches-ai/Kokoro-82M-v1.0-ONNX",
         "af_heart",
     );
@@ -441,8 +466,25 @@ fn voice_round_spoken(
     if peak < 500 {
         return Err(format!("received audio is near-silence (peak {peak})"));
     }
+    // quality: transcribe what the client actually received — the STT∘TTS
+    // loop contract, measured at the far end
+    let hits = if quality == Quality::Skip {
+        0
+    } else {
+        let heard = speech
+            .transcribe(&crate::speech::Pcm { samples: pcm, rate: 48000 })
+            .unwrap_or_default()
+            .to_lowercase();
+        ["bridge", "simulated", "phone", "essay"]
+            .iter()
+            .filter(|w| heard.contains(*w))
+            .count()
+    };
+    if quality == Quality::Gate && hits < 2 {
+        return Err(format!("STT∘TTS quality gate failed: {hits} keywords survived the round trip"));
+    }
     let delivered = (c.frames_rx as f64 / frames_back as f64 * 100.0) as u64;
-    Ok((t0.elapsed().as_millis() as u64, delivered))
+    Ok((t0.elapsed().as_millis() as u64, delivered, hits as u64))
 }
 
 fn poor_network_turn() -> (Verdict, Metrics) {
@@ -459,8 +501,14 @@ fn poor_network_turn() -> (Verdict, Metrics) {
         Ok(c) => c,
         Err(e) => return (Verdict::Fail(format!("connect: {e}")), m),
     };
-    match voice_round(&mut c, 0xC10) {
-        Ok((turn_ms, delivered_pct)) => {
+    match voice_round_spoken(
+        &mut c,
+        0xC10,
+        "hello bridge this is a simulated phone",
+        "hello",
+        Quality::Record,
+    ) {
+        Ok((turn_ms, delivered_pct, hits)) => {
             let st = c.wire_stats();
             if st.fwd_dropped + st.rev_dropped < 5 {
                 return (Verdict::Fail("poor profile dropped nothing — profile broken".into()), m);
@@ -474,6 +522,7 @@ fn poor_network_turn() -> (Verdict, Metrics) {
             m = m
                 .lat("voice-turn", turn_ms)
                 .cnt("tts-delivered-%", delivered_pct)
+                .cnt("stt-hits", hits)
                 .cnt("wire-drops", st.fwd_dropped + st.rev_dropped);
             (Verdict::Pass, m)
         }
@@ -716,8 +765,14 @@ fn mode_switch() -> (Verdict, Metrics) {
     };
 
     // hands-free round (mode flip mid-session)
-    match voice_round(&mut c, 0xB21) {
-        Ok((voice_ms, delivered)) => {
+    match voice_round_spoken(
+        &mut c,
+        0xB21,
+        "hello bridge this is a simulated phone",
+        "hello",
+        Quality::Skip,
+    ) {
+        Ok((voice_ms, delivered, _hits)) => {
             // back to keyboard: channel must still be crisp
             let ping2 = match c.ping_rtt(30) {
                 Ok(p) => p.as_millis() as u64,
@@ -758,6 +813,7 @@ fn abort_mid_turn() -> (Verdict, Metrics) {
     };
     let speech = crate::speech::SpeechClient::new(
         speaches_base(),
+        "Systran/faster-whisper-small",
         "speaches-ai/Kokoro-82M-v1.0-ONNX",
         "af_heart",
     );
@@ -956,8 +1012,8 @@ fn tts_paragraphs() -> (Verdict, Metrics) {
         Ok(c) => c,
         Err(e) => return (Verdict::Fail(format!("connect: {e}")), m),
     };
-    match voice_round_spoken(&mut c, 0xB27, "essay please", "essay") {
-        Ok((turn_ms, delivered_pct)) => {
+    match voice_round_spoken(&mut c, 0xB27, "essay please", "essay", Quality::Skip) {
+        Ok((turn_ms, delivered_pct, _hits)) => {
             let frames = c.frames_rx;
             if frames < 300 {
                 return (
@@ -984,6 +1040,76 @@ fn tts_paragraphs() -> (Verdict, Metrics) {
                 .cnt("received-frames", frames as u64)
                 .cnt("delivered-%", delivered_pct);
             (Verdict::Pass, m)
+        }
+        Err(e) => (Verdict::Fail(e), m),
+    }
+}
+
+/// Congested cell: the downlink is capped at 64 kbps with 5% loss. The whole
+/// TTS burst queues against the token bucket and drips — the data channel and
+/// the lifecycle notices must survive the starvation, the audio must still
+/// arrive decodable, and the channel must breathe again after the burst.
+fn bandwidth_starved() -> (Verdict, Metrics) {
+    let mut m = Metrics::new();
+    let world = match world_with_bridge() {
+        Ok(w) => w,
+        Err(e) => return (Verdict::Fail(format!("world: {e}")), m),
+    };
+    if !speaches_up() {
+        return (Verdict::Skip("speaches not reachable".into()), m);
+    }
+    let (token, b) = world_bridge(&world);
+    let mut c = match SimClient::connect(
+        b.http,
+        b.media,
+        &token,
+        crate::wire::profile_congested(),
+        0xB30,
+    ) {
+        Ok(c) => c,
+        Err(e) => return (Verdict::Fail(format!("connect: {e}")), m),
+    };
+    match voice_round_spoken(
+        &mut c,
+        0xB31,
+        "hello bridge this is a simulated phone",
+        "hello",
+        Quality::Record,
+    ) {
+        Ok((turn_ms, delivered_pct, hits)) => {
+            // hard floors: not a total collapse, notices landed, audio decodes
+            if delivered_pct < 30 {
+                return (
+                    Verdict::Fail(format!("starved link delivered only {delivered_pct}% — total collapse")),
+                    m,
+                );
+            }
+            // after the burst the channel must breathe again
+            let ping = match c.ping_rtt(90) {
+                Ok(p) => p.as_millis() as u64,
+                Err(e) => return (Verdict::Fail(format!("channel suffocated after burst: {e}")), m),
+            };
+            if ping > 5000 {
+                return (Verdict::Fail(format!("post-burst ping {ping}ms — channel congested")), m);
+            }
+            let st = c.wire_stats();
+            m = m
+                .lat("voice-turn", turn_ms)
+                .lat("post-burst-ping", ping)
+                .cnt("tts-delivered-%", delivered_pct)
+                .cnt("stt-hits", hits)
+                .cnt("rev-drops", st.rev_dropped);
+            // the capacity law: opus audio (~24 kbps) FITS a 64 kbps pipe, but
+            // the bridge writes the whole TTS burst unpaced and has no
+            // bandwidth adaptation — most of the burst misses the window.
+            // Documented behavior; a pacing/BWE pass in bifrost-net's lane
+            // would flip this to PASS.
+            (
+                Verdict::ExpectedBreak(format!(
+                    "bridge bursts TTS unpaced (no BWE/pacing): 64 kbps downlink delivered only {delivered_pct}% of a burst that fits the pipe when paced; channel + notices + recovery unaffected"
+                )),
+                m,
+            )
         }
         Err(e) => (Verdict::Fail(e), m),
     }

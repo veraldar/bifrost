@@ -1,0 +1,16 @@
+I wrote the runbook and committed it as `bcb9a4e` on `lane3/runbook`. It's one file, `docs/runbook-lambda-test.md`, using the box's real Wi-Fi address, 192.168.1.89. Every on-screen message it quotes matches the code.
+
+**Decision for you before tonight:** hands-free can't work on her iPhone over the plain Wi-Fi address. iPhone Safari blocks the mic on `http://` pages, and home-network https isn't built yet; `RELEASE-REPORT.md` already lists this. The runbook gives two routes:
+- **Route A, Wi-Fi only:** she can pair and type. It's also the first pairing on a real iPhone.
+- **Route B, Tailscale app on her phone:** she uses the https address your phone already uses, and hands-free works.
+
+If you only have time for one, do B.
+
+Things the brief didn't cover, all checked on the box today:
+- **She has to say "over".** Hands-free only sends a question when it ends with "over". Going quiet sends nothing. "over and out" sends and stops hands-free.
+- **The stop button isn't the mic.** While hands-free is on, the mic button is replaced by moving bars, and tapping them sends the question. To stop, she taps the red square or says "over and out".
+- **Her phone can't reach the box yet.** lk-pwa only listens on the box itself, and the firewall drops port 8080 from the Wi-Fi. The release test never caught this because the "phone" ran on the box. The runbook has the fix and the undo for after.
+- **The app and the voice agent point at different brains.** `pwa/.env.local` says `:4096` and `agent/.env` says `:4100`. That would show up as "no reply", so both must be `:4100` before the test.
+- **Stay in tailnet mode tonight.** Devices mode refuses voice in this build. In tailnet mode the kill-switch doesn't lock anyone out of the app, so the runbook adds `systemctl --user stop lk-pwa` as the real off switch.
+
+Setup that isn't live yet is marked [VERIFY AT DEPLOY]. I didn't touch services, the firewall, env files or `claims.md`. Another session was restarting lk-pwa while I checked; I left it alone.

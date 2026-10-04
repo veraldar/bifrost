@@ -6,10 +6,9 @@ hands-free on your own phone too. About 20 minutes. The contract behind this pag
 `docs/spec-pairing.md`; what is proven and what is not is in `RELEASE-REPORT.md`.
 
 **The box:** omarchy. Wi-Fi address **192.168.1.89**, so her address is
-`http://192.168.1.89:8080`. The router hands out that address and it can change: re-check
+`http://192.168.1.89:8082`. The router hands out that address and it can change: re-check
 with `ip -4 addr show wlp3s0`. Use the Wi-Fi address, never the wired one (that cable only
-goes to the Mac Studio). Lines marked **[VERIFY AT DEPLOY]** depend on setup that is not
-live yet.
+goes to the Mac Studio). Deployment state below was verified live on the box (10-04 evening).
 
 ## Know these two things first
 
@@ -20,7 +19,7 @@ live yet.
    before she starts. The screen says it too: *hands-free · say “over” or tap the bars to send*.
 2. **The mic only opens on an https page.** iPhone Safari blocks the microphone on plain
    `http://` pages, and https on the home network isn't built yet (RELEASE-REPORT, "Skipped
-   or partial" #3). On `http://192.168.1.89:8080` she can pair and type, but she can't talk.
+   or partial" #3). On `http://192.168.1.89:8082` she can pair and type, but she can't talk.
    To talk, her phone uses the https address your phone already uses (the tailnet one):
 
 | route | her iPhone needs | pair | type | talk |
@@ -34,23 +33,23 @@ hands-free is the point of tonight.
 
 ## Before she arrives (at the box, ~10 min)
 
-1. **Running:** `systemctl --user is-active lk-pwa lk-agent yggdrasil` → `active` three
-   times. Bridge: `systemctl --user status bifrost-bridge` → active **[VERIFY AT DEPLOY]**.
-   It isn't installed yet. Without it, pairing still works, `/pair` shows "bridge
-   unreachable — HTTP pairing only", and nothing tonight needs the bridge.
+1. **Running:** `systemctl --user is-active lk-pwa lk-pwa-lan lk-agent yggdrasil` → `active` four
+   times. Bridge: `systemctl --user status bifrost-bridge` → active (installed
+   and running; it serves the pairing transport on :7890 and pins the box key
+   shown on `/pair`).
 2. **One brain for typing and talking:**
    `grep OPENCODE_URL ~/Work/bifrost/pwa/.env.local ~/Work/bifrost/agent/.env` → both say
-   `http://127.0.0.1:4100` (yggdrasil → zai) **[VERIFY AT DEPLOY]**. Today the app says
+   `http://127.0.0.1:4100` (yggdrasil → zai) . Today the app says
    `:4096` and the voice agent says `:4100`. Then what she says goes to one brain while her
    screen reads the other, and she sees "no reply". Fix both lines, then
-   `systemctl --user restart lk-pwa lk-agent`.
-3. **Mode + pairing:** `BIFROST_AUTH=tailnet` **[VERIFY AT DEPLOY]** in `pwa/.env.local`,
+   `systemctl --user restart lk-pwa-lan lk-agent`.
+3. **Mode + pairing:** `BIFROST_AUTH=tailnet`  in `pwa/.env.local`,
    with the pairing endpoints live. Don't switch to `devices` tonight: in devices mode this
    build refuses voice (`/api/token`). Check:
-   `curl -s -X POST http://127.0.0.1:8080/api/pair/code | jq -r .url` → it should start with
-   `http://192.168.1.89:8080/pair#v=1&code=bfnp-`.
-   - Shows `127.0.0.1`? Set `BIFROST_PUBLIC_URL=http://192.168.1.89:8080` in
-     `pwa/.env.local` **[VERIFY AT DEPLOY]** and restart lk-pwa.
+   `curl -s -X POST http://192.168.1.89:8082/api/pair/code | jq -r .url` → it should start with
+   `http://192.168.1.89:8082/pair#v=1&code=bfnp-`.
+   - Shows `127.0.0.1`? Set `BIFROST_PUBLIC_URL=http://192.168.1.89:8082` in
+     `pwa/.env.local`  and restart lk-pwa.
    - Error or blank? lk-pwa is down, or the deployed build has no pairing yet.
 
    The check mints a spare code, which expires unused after 5 minutes.
@@ -62,7 +61,7 @@ hands-free is the point of tonight.
      `ss -tln | grep ':8080 '` should now show `0.0.0.0:8080`.
    - Open the firewall: `sudo ufw allow from 192.168.1.0/24 to any port 8080 proto tcp`.
    - Proof: on your phone, with Tailscale off and on the same Wi-Fi,
-     `http://192.168.1.89:8080` loads.
+     `http://192.168.1.89:8082` loads.
 5. **Route B: her phone joins [VERIFY AT DEPLOY].** Install the Tailscale app on her
    iPhone. In the Tailscale admin page, open Machines → omarchy → Share and send her the
    invite; she accepts it in the app. Proof: your box's https address loads on her phone.
@@ -72,12 +71,12 @@ hands-free is the point of tonight.
 
 ## Pair her phone (route A)
 
-1. Box: open `http://192.168.1.89:8080/pair`. A QR appears: one use, five minutes, and it
+1. Box: open `http://192.168.1.89:8082/pair`. A QR appears: one use, five minutes, and it
    renews itself.
 2. Her iPhone, on the home Wi-Fi: open Camera, point it at the QR, tap the yellow link.
 3. Safari shows "pairing…", then "paired as iPhone — opening MAIN". She's in MAIN without
    typing anything.
-4. Box: `http://192.168.1.89:8080/devices` lists "iPhone".
+4. Box: `http://192.168.1.89:8082/devices` lists "iPhone".
 5. Keep her in Safari. No "Add to Home Screen" tonight: the home-screen app keeps its own
    cookies, and nobody has tested whether the pairing carries over.
 

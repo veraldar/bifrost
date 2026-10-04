@@ -1,7 +1,7 @@
 # worldtree — data system behind veraldar.org's world-tree
 
 Design docs (M1). No code here. The pipeline built from these docs lives in
-`~/Work/lab/worldtree-data/` (git repo, plain files). The page
+`~/Work/bifrost/lab/worldtree-data/` (git repo, plain files). The page
 (`~/Work/veraldar-site/world-tree.html`) never changes: its only seam is
 `realms.json`.
 

@@ -87,3 +87,29 @@ client-side multi-bridge to avoid scope explosion). Not rejected — deferred
 by omission. De-risk path: a [LAB] spike (M0 = two nodes meshed via
 boringtun + one str0m echo test) measuring whether AGI can assemble it.
 Trigger: sovereign-tier demand after v1.0, or the user calls the spike.
+
+## The phone-join gaps (10-03, user questions) — answers + open items
+
+Q: does the onboarding deploy bifrost-net on a VPS? A: NOT in v0.8 — first-run
+is home/tailnet only (simplest). The "access from anywhere" branch comes at
+v0.9 and the onboarding DEPLOYS it agentically: the user picks a provider +
+country, creates the account (their money, their choice), AGI deploys
+bifrost-net via API — the conversation deploys the access point.
+
+Q: when scanning the QR, how does the phone join bifrost-net? A: IT DOESN'T
+— the phone pairs to the BRIDGE, never to the network. The bridge is the
+phone's only peer. Remote access = the BRIDGE joins the access point
+(bifrost-net), and relays for the phone. The phone's world stays one URL.
+
+OPEN (needs decision before v0.9):
+1. RELAY PRIVACY: does bifrost-net relay CIPHERTEXT (E2E by design — keys
+   live on phone+bridge, the VPS routes what it cannot read) or terminate?
+   Proposal: ciphertext-only relay — the privacy story stays intact. Cost:
+   key exchange over the relay must be designed.
+2. VPS ACCOUNT FLOW: user creates the account at a provider of their
+   choice/country; AGI deploys via the provider's API with a scoped token.
+   Which providers at launch: Hetzner, OVH, Infomaniak (CH), plus
+   user-already-has-SSH path.
+3. PHONE WITHOUT TAILSCALE OUTSIDE HOME (pre-bifrost-net interim): the
+   tailscale app on the phone is the interim answer (2-min install) —
+   document it as the official interim remote path in v0.8.

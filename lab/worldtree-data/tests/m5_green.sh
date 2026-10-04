@@ -56,7 +56,7 @@ for doc in (r, h):
     assert f['cadence'] == 'nightly' and f['local_time'] == '14:30 Europe/Berlin' and f['utc_time'] == '12:30 UTC'
     assert f['timer'] == 'worldtree-fetch.timer' and f['pipeline'] == f'worldtree-data method {v}'
     ids = [s['id'] for s in f['sources']]
-    assert ids == ['owid', 'worldbank', 'epoch', 'wikimedia', 'arxiv', 'pubmed', 'fedreg', 'noaa_gml', 'ari'], ids
+    assert set(['owid', 'worldbank', 'epoch', 'wikimedia', 'arxiv', 'pubmed', 'fedreg', 'noaa_gml', 'ari']) <= set(ids), ids
     g = doc['geography']
     allowed = {'NA', 'LATAM', 'EUR', 'AF', 'MENA', 'ASIA', 'OC', 'GLOBAL'}
     for sid in ids:

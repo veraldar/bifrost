@@ -157,18 +157,30 @@ fn cmd_bridge(args: &[String]) -> i32 {
 
 fn selftest_v9() -> i32 {
     println!("bifrost-net v9 — bridge over the real seam");
+    let mut failed = false;
+
     print!("V9.2 bridge : ");
-    let code = match bridge::bridge_test() {
-        Ok(()) => {
-            println!("V9.2 PASS — token-gated channel protocol round-trips against live opencode");
-            0
-        }
-        Err(e) => {
-            println!("V9.2 FAIL — {e}");
-            1
-        }
-    };
-    code
+    if let Err(e) = bridge::bridge_test() {
+        failed = true;
+        println!("V9.2 FAIL — {e}");
+    } else {
+        println!("V9.2 PASS — token-gated channel protocol round-trips against live opencode");
+    }
+
+    print!("V9.3 voice  : ");
+    if let Err(e) = bridge::voice_test() {
+        failed = true;
+        println!("V9.3 FAIL — {e}");
+    } else {
+        println!("V9.3 PASS — mic-format voice pipeline verified against speaches");
+    }
+
+    if failed {
+        1
+    } else {
+        println!("V9 VERDICT: GREEN — bridge seams proven");
+        0
+    }
 }
 
 fn cmd_serve(args: &[String]) -> i32 {

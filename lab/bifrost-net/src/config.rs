@@ -48,7 +48,7 @@ pub struct BridgeConfigSection {
 
 fn default_opencode_url() -> String { "http://127.0.0.1:4096".into() }
 fn default_speaches_url() -> String { "http://127.0.0.1:8000/v1".into() }
-fn default_stt_model() -> String { "speaches-ai/whisper-large-v3-turbo".into() }
+fn default_stt_model() -> String { "Systran/faster-whisper-small".into() }
 fn default_tts_model() -> String { "speaches-ai/Kokoro-82M-v1.0-ONNX".into() }
 fn default_tts_voice() -> String { "af_heart".into() }
 

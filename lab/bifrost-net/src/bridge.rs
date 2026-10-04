@@ -718,7 +718,7 @@ pub fn bridge_test() -> Result<(), String> {
         tokens_file: tokens_path.clone(),
         opencode_url: std::env::var("OPENCODE_URL").unwrap_or_else(|_| "http://127.0.0.1:4096".into()),
         speaches_url: std::env::var("SPEACHES_URL").unwrap_or_else(|_| "http://127.0.0.1:8000/v1".into()),
-        stt_model: "speaches-ai/whisper-large-v3-turbo".into(),
+        stt_model: "Systran/faster-whisper-small".into(),
         tts_model: "speaches-ai/Kokoro-82M-v1.0-ONNX".into(),
         tts_voice: "af_heart".into(),
         candidates: vec![IpAddr::from([127, 0, 0, 1])],
@@ -964,3 +964,85 @@ impl V9Client {
 }
 
 const TIMEOUT_DUR: Duration = Duration::from_secs(12);
+
+/// V9.3: voice pipeline validation WITHOUT a browser —
+/// 1. opus round trip keeps the waveform (correlation)
+/// 2. real STT∘TTS loop against speaches: tts(text) → opus → decode → stt(text')
+pub fn voice_test() -> Result<(), String> {
+    // 1. codec round trip
+    let mut pcm: Vec<i16> = Vec::with_capacity(48000);
+    for n in 0..48000usize {
+        let t = n as f32 / 48000.0;
+        let env = (t * 3.0).sin().abs().min(1.0);
+        let s = (t * 2.0 * std::f32::consts::PI * 440.0).sin() * 12000.0 * env;
+        pcm.push(s as i16);
+    }
+    let packets = encode_opus_stream(&pcm);
+    let decoded = decode_opus_stream(&packets)?;
+    let corr = correlate(&pcm, &decoded);
+    if corr < 0.8 {
+        return Err(format!("opus round trip correlation {corr:.2} < 0.8"));
+    }
+
+    // 2. real speaches loop (skips honestly if the server is absent)
+    let speech = SpeechClient::new(
+        std::env::var("SPEACHES_URL").unwrap_or_else(|_| "http://127.0.0.1:8000/v1".into()),
+        &std::env::var("V9_STT_MODEL")
+            .unwrap_or_else(|_| "Systran/faster-whisper-small".into()),
+        &std::env::var("V9_TTS_MODEL")
+            .unwrap_or_else(|_| "speaches-ai/Kokoro-82M-v1.0-ONNX".into()),
+        "af_heart",
+    );
+    let text_in = "Bifrost bridge voice test";
+    let tts = speech.tts(text_in)?;
+    if tts.samples.is_empty() {
+        return Err("speaches TTS returned no audio".into());
+    }
+    let pcm48 = resample_to_48k(&tts);
+    let packets = encode_opus_stream(&pcm48);
+    let decoded = decode_opus_stream(&packets)?;
+    let heard = speech.transcribe(&Pcm {
+        samples: decoded,
+        rate: 48000,
+    })?;
+    let heard_lower = heard.to_lowercase();
+    if heard_lower.len() < 4 {
+        return Err(format!("STT of TTS audio came back empty ('{heard}')"));
+    }
+    let hits = ["bifrost", "bridge", "voice", "test"]
+        .iter()
+        .filter(|w| heard_lower.contains(**w))
+        .count();
+    if hits == 0 {
+        return Err(format!(
+            "STT∘TTS loop lost the sentence: heard '{heard}' (expected ~'{text_in}')"
+        ));
+    }
+    println!(
+        "    opus corr {corr:.2}; TTS '{text_in}' → {} opus frames → STT heard '{heard}' ({hits}/4 keywords)",
+        packets.len()
+    );
+    Ok(())
+}
+
+fn correlate(a: &[i16], b: &[i16]) -> f64 {
+    let n = a.len().min(b.len());
+    if n == 0 {
+        return 0.0;
+    }
+    let (a, b) = (&a[..n], &b[..n]);
+    let ma: f64 = a.iter().map(|x| *x as f64).sum::<f64>() / n as f64;
+    let mb: f64 = b.iter().map(|x| *x as f64).sum::<f64>() / n as f64;
+    let (mut num, mut da, mut db) = (0.0, 0.0, 0.0);
+    for i in 0..n {
+        let x = a[i] as f64 - ma;
+        let y = b[i] as f64 - mb;
+        num += x * y;
+        da += x * x;
+        db += y * y;
+    }
+    if da == 0.0 || db == 0.0 {
+        return 0.0;
+    }
+    num / (da.sqrt() * db.sqrt())
+}

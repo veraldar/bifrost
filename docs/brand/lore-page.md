@@ -11,6 +11,8 @@ dim it or drop it on prose sections.*
 
 ## The lore
 
+> What AI can simulate, AI can create.
+
 the names are old. the code is new.
 
 **Veraldar** — old norse, "the world". the brand, and the org behind it. we
@@ -18,22 +20,32 @@ build self-hosted tools you own outright, name them from the old myths, and
 release everything AGPL-3.0, free for everyone. the world holds everything
 else on this page.
 
-**Yggdrasil** — the world tree. your box. one trunk that hosts everything:
-the agent, the speech models, the services. the mark draws the tree as
-circuit traces, because that's what it is.
+**Yggdrasil** — the world trees. one per machine: an agent core each. today
+the core is opencode; a lighter one-click core is growing. the mark draws
+the tree as circuit traces, because that's what it is.
 
-**Bifrost** — our first product. a bridge. in the myths it connects midgard,
-where humans live, to asgard, where the gods work. here: midgard is your
-phone in your pocket; asgard is your box with your keys, and the agent
-working on it. you talk across the bridge; the work stays on the tree.
+**Bifrost** — our first product. the bridges. in the myths the bridge
+connects midgard, where humans live, to asgard, where the gods work. here:
+midgard is your phone in your pocket; each bridge reaches a tree — your
+machines, your keys, agents working on them. as many bridges as you want,
+one swipe apart. you talk across a bridge; the work stays on its tree.
+
+**the roots** — one private network (tailscale or its open twin) under all
+of it. everything travels the roots. nothing goes public.
+
+one phone. one network. many trees. the machine by the tv turns on movies.
+the machine at the desk creates games. the machine in the rack builds a
+company. one phone drives them all.
 
 in the myths, bifrost shatters at ragnarök. ours won't — but we'll still tell
 you every limit up front. a bridge you can't trust isn't a bridge.
 
 ```
 veraldar — the world
-  yggdrasil — the tree: hosts
-  bifrost   — the bridge: a veraldar product
+  the roots — one private network: carries
+  yggdrasil — the trees: host
+  bifrost   — the bridges: a veraldar product
+  midgard   — one phone: swipe between worlds
 ```
 
 that's the whole map. no mythology in the code — just names that say what a

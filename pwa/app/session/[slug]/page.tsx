@@ -780,6 +780,7 @@ export default function SessionView({
       unmountedRef.current = true;
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       clearHoldArm();
+      if (holdPillTimerRef.current) clearTimeout(holdPillTimerRef.current);
       roomRef.current?.disconnect();
       roomRef.current = null;
       stopSpeech(); // leaving the page kills the tts deck
@@ -796,50 +797,31 @@ export default function SessionView({
     // runs when the slug lands (and on a slug change): preconnecting with an
     // empty slug minted a random fallback room — see ensureVoice's guard
     if (!slug) return;
+    // mode is component state and this page component SURVIVES a slug change
+    // (same route — next.js keeps the instance): without this reset a session
+    // entered from a hands-free one OPENS hands-free, and the user's first
+    // mic tap exits it — the 'single click at open is a trap' again, one
+    // level deeper (diag 10-02 09:09: 'no I did it again in a new session').
+    // The open rule is absolute: EVERY session starts in keyboard; one tap
+    // on the mic is what turns hands-free on.
+    modeRef.current = 'text';
+    setMode('text');
+    setFreeCycle('listening');
     void (async () => {
       try {
         await ensureVoice();
-        // restore hands-free across refresh (oz-mode written by switchMode/
-        // exitFree): voice ready → arm the mic. If the browser refuses a
-        // gesture-less mic (autoplay policy), fall back to keyboard loudly.
-        let wantFree = false;
-        try {
-          wantFree = localStorage.getItem('oz-mode') === 'free';
-        } catch {
-          /* private mode */
-        }
-        if (wantFree && modeRef.current === 'text' && !unmountedRef.current) {
-          try {
-            modeRef.current = 'free';
-            setMode('free');
-            setFreeCycle('listening');
-            await mic(true);
-            diagEvent('voice', 'hands-free restored after refresh');
-          } catch (e) {
-            modeRef.current = 'text';
-            setMode('text');
-            // a PERMISSION refusal is sticky — storing 'text' keeps every
-            // future navigation from fighting the browser. Anything else
-            // (transient voice failure, flaky link) keeps 'free' stored so
-            // the next session/refresh retries hands-free on its own
-            // (req 09-30: the mode must survive moving between sessions)
-            const denied =
-              e instanceof DOMException && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
-            if (denied) {
-              try {
-                localStorage.setItem('oz-mode', 'text');
-              } catch {
-                /* private mode */
-              }
-            }
-            setError('hands-free needs one tap after a refresh — tap the mic button');
-          }
-        }
       } catch {
         /* preconnect failure — the first press surfaces it */
       }
     })();
   }, [slug]);
+  // NOTE: hands-free used to auto-restore here from localStorage (oz-mode)
+  // across refresh/navigation — req 09-30. Removed 10-02 (req 'single click
+  // at open is a trap'): an opened screen that is already hands-free turns
+  // the user's first mic tap into an EXIT (diag 10-02 08:54 + 09:11: every
+  // opening tap logged 'leave hands-free'), and the gesture-less mic arm
+  // raced the browser's autoplay policy besides. The rule now: a session
+  // ALWAYS opens in keyboard — one tap on the mic turns hands-free ON.
 
   useEffect(() => {
     modeRef.current = mode;
@@ -1078,9 +1060,13 @@ export default function SessionView({
     pttWantRef.current = true;
     pttCancelArmRef.current = false;
     setPttCancelArm(false);
-    // instant feedback: hold UI (equalizer slot) appears on press — the bars
-    // stay flat until the room + mic track are actually live
-    setHolding(true);
+    // hold fires no click either — log the gesture (see micTap)
+    diagEvent('ptt', 'hold — push to talk armed');
+    // hold UI appears only once the press has proven itself a hold (~350ms
+    // physical — see setHoldPill): a slow tap must not flash the pill before
+    // it flips to the hands-free strip (req 10-02). Bars stay flat until the
+    // room + mic track are actually live.
+    setHoldPill(true);
     if (e) pttStartRef.current = { x: e.clientX, y: e.clientY };
     try {
       // lazily connect from any mode (first press pays the connect cost)
@@ -1090,7 +1076,7 @@ export default function SessionView({
         // so nothing was captured: the spoken words are gone. Never silent
         // again (req 09-29 'after refresh push to talk doesn't go through'):
         // the user must know the press was pre-connect, not swallowed.
-        setHolding(false);
+        setHoldPill(false);
         diagEvent('ptt', 'lifted before the voice room was ready — turn not captured');
         setError('was still connecting — hold the mic again');
         return;
@@ -1110,7 +1096,7 @@ export default function SessionView({
       }
       await room.localParticipant.setMicrophoneEnabled(true);
     } catch {
-      setHolding(false); // connect/mic failed — error already surfaced by ensureVoice
+      setHoldPill(false); // connect/mic failed — error already surfaced by ensureVoice
     }
   }
 
@@ -1128,10 +1114,44 @@ export default function SessionView({
   // toggling can't churn the publisher transport (rapid enable/disable
   // killed ICE in the live room 2026-09-30) and a tap can't buffer audio.
   const holdArmRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // when the current press began — classifies a press that armed PTT but
+  // released fast (see the <400ms reinterpret in pttUp)
+  const pttDownAtRef = useRef(0);
+  // entering hands-free replaces the composer with the strip MID-GESTURE: the
+  // same lift's synthesized click lands on whatever now sits under the finger
+  // — the 'leave hands-free' exit — and instantly un-toggles (diag 10-02
+  // 09:38: five mic taps, each followed 30-40ms by a 'leave hands-free'
+  // click; the user saw a flash and 'never hands-free'). Free-dock clicks
+  // within 400ms of the toggle are that ghost, not a user.
+  const freeGhostGuardRef = useRef(0);
   function clearHoldArm() {
     if (holdArmRef.current) {
       clearTimeout(holdArmRef.current);
       holdArmRef.current = null;
+    }
+  }
+  // The PTT pill is the HOLD UI — a slow human tap (250-400ms) must never
+  // flash it before the composer flips to the hands-free strip (req 10-02:
+  // 'a slow tap still flashes the PTT pill'). The pill goes visible only
+  // ~100ms AFTER the 250ms arm (~350ms physical) — the mic still arms at
+  // 250ms exactly as before, only the VISUAL waits; a release that lands
+  // before the pill showed clears the pending timer on its way through
+  // pttUp (which already reinterprets <400ms presses as taps), so the user
+  // sees tap → strip, never tap → pill flash → strip. A real hold (e2e
+  // holds 450ms, thumbs hold for seconds) still gets the pill.
+  const holdPillTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function setHoldPill(on: boolean) {
+    if (holdPillTimerRef.current) {
+      clearTimeout(holdPillTimerRef.current);
+      holdPillTimerRef.current = null;
+    }
+    if (on) {
+      holdPillTimerRef.current = setTimeout(() => {
+        holdPillTimerRef.current = null;
+        setHolding(true);
+      }, 100);
+    } else {
+      setHolding(false);
     }
   }
 
@@ -1161,10 +1181,40 @@ export default function SessionView({
     // invocation just reconnected — the reconnect storm of 2026-09-25
     if (!pttWantRef.current) return;
     const discard = forceDiscard ?? pttCancelArmRef.current;
+    // HUMAN taps run 250-400ms — slower than the 250ms PTT arm, so every
+    // 'single click' armed PTT and hands-free never toggled (diag 10-02
+    // 09:16: the user's tap logged 'hold — push to talk armed'; their words:
+    // 'I can push the talk, but nothing happened if I single click'). A press
+    // that armed PTT but released this fast held ~0-150ms of room tone, not
+    // speech: abort that nothing agent-side and treat the gesture as what it
+    // was — a tap (req 09-30 tap-toggle, restored for slow human fingers).
+    const heldMs = Date.now() - pttDownAtRef.current;
+    if (!discard && heldMs < 400) {
+      pttWantRef.current = false;
+      pttCancelArmRef.current = false;
+      setPttCancelArm(false);
+      // a release inside the pill-delay window must also cancel the pill
+      // that was about to show — this WAS a tap, the pill never existed
+      setHoldPill(false);
+      const room = roomRef.current;
+      if (room) {
+        pttDiscardRpc(); // the buffered 0-150ms is noise — die agent-side
+        try {
+          if (modeRef.current !== 'free') await mic(false); // hands-free keeps listening
+        } catch {
+          /* release below still applies */
+        }
+        if (modeRef.current !== 'free') releaseMicDevice(room);
+      }
+      diagEvent('ptt', `released after ${heldMs}ms — short press = tap, toggling hands-free`);
+      freeGhostGuardRef.current = Date.now() + 400;
+      toggleHandsFree();
+      return;
+    }
     pttWantRef.current = false;
     pttCancelArmRef.current = false;
     setPttCancelArm(false);
-    setHolding(false);
+    setHoldPill(false);
     const room = roomRef.current;
     if (!room) {
       // released while the room was still connecting (refresh + immediate
@@ -1645,6 +1695,11 @@ export default function SessionView({
    *  pure tap — toggle hands-free. No mic was touched, nothing to discard. */
   function micTap() {
     clearHoldArm();
+    // mic taps fire no click (pointerdown preventDefault) — invisible in the
+    // tap diag. Log the gesture so a 'the tap did nothing' report is readable
+    // in the log (2026-10-02 hands-free hunt)
+    diagEvent('voice', 'mic tap — toggle hands-free');
+    freeGhostGuardRef.current = Date.now() + 400;
     toggleHandsFree();
   }
 
@@ -1706,6 +1761,9 @@ export default function SessionView({
       e.preventDefault();
       clearHoldArm();
       pttStartRef.current = { x: e.clientX, y: e.clientY };
+      // physical press start — the <400ms tap reinterpret in pttUp measures
+      // from HERE, not from pttDown (which runs 250ms later, at arm time)
+      pttDownAtRef.current = Date.now();
       // PTT arms at 250ms — a shorter press is a tap (see micTap)
       holdArmRef.current = setTimeout(() => {
         holdArmRef.current = null;
@@ -1737,11 +1795,15 @@ export default function SessionView({
         clearHoldArm();
         return;
       }
-      if (holding) pttCancel();
+      // post-arm leave must cancel even while the pill is still pending
+      // (holding only turns true ~350ms in — see setHoldPill): the pointer
+      // is gone, no pointerup will come, and pttUp's pttWantRef guard makes
+      // this a no-op for presses that never armed
+      pttCancel();
     },
     onPointerCancel: () => {
       clearHoldArm();
-      if (holding) pttCancel();
+      pttCancel(); // same pttWantRef-guarded no-op when nothing armed
     },
     onContextMenu: (e: React.MouseEvent<HTMLButtonElement>) => e.preventDefault(),
   };
@@ -2066,7 +2128,7 @@ export default function SessionView({
             </button>
             <span className="flex-1" />
             <div className="oz-rate">
-              {[1, 1.5, 2].map((r) => (
+              {[1, 1.2, 1.5, 2].map((r) => (
                 <button key={r} aria-pressed={speech.rate === r} onClick={() => rateSpeech(r)}>
                   {r}x
                 </button>
@@ -2086,7 +2148,10 @@ export default function SessionView({
           <button
             data-testid="free-strip"
             aria-label="send what you said"
-            onClick={() => void commitFreeTurn()}
+            onClick={() => {
+              if (Date.now() < freeGhostGuardRef.current) return; // gesture ghost — see freeGhostGuardRef
+              void commitFreeTurn();
+            }}
             className={`oz-pill strip ${
               voiceState === 'ready' && freeCycle === 'listening' ? '' : 'wait'
             }`}
@@ -2114,7 +2179,10 @@ export default function SessionView({
             <button
               data-testid="free-exit"
               aria-label="leave hands-free"
-              onClick={toggleHandsFree}
+              onClick={() => {
+                if (Date.now() < freeGhostGuardRef.current) return; // gesture ghost — see freeGhostGuardRef
+                toggleHandsFree();
+              }}
               className="oz-k red"
             >
               <StopSquare size={12} />

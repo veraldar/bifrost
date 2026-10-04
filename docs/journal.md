@@ -68,3 +68,8 @@ Append-only log. One line per decision or incident; newest first. Open decisions
 - **Dreaming defaults**: ~/Work/memory, opencode-run dreamer, LLM-judged importance; build post-v1.
 - **Hands-free pass**: procedure written into plan.md (echo test at 50% volume, ~2.5s commit, latency feel, hf-restart double-speak check, mic release).
 - Remaining that only the USER can do: run the hands-free pass; provide LLM provider keys on new machines.
+
+## 10-03 — Anthropic subscription lock-in (verified, recorded)
+
+- **Fact**: Claude Pro/Max subscription auth is locked to first-party Claude Code — Anthropic ToS prohibits third-party clients, servers validate the client. opencode dropped its bundled plugin in v1.3.0 (1.18.30 source re-confirmed: no anthropic auth plugin, `/connect` → API key only). Community bypass plugins = ToS violation / ban risk. Contrast: OpenAI/Copilot/GitLab subscriptions allow third-party tools. Z.AI coding plan serves GLM only, never Claude. Full notes + revisit trigger: `docs/research/anthropic-lock-in.md`.
+- **Decision**: no multi-agent harness layer under bifrost over this — opencode sessions can delegate to Claude Code when subscription Opus is needed. Revisit only if Anthropic tightens further or orchestration needs grow.

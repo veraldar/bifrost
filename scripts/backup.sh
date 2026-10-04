@@ -35,10 +35,11 @@ RHOME="$(rsh 'echo $HOME')"
 RDEST="$RHOME/$DEST_DIR"
 STAMP="$(date +%F)"
 SNAP="$RDEST/$STAMP"
-RSYNC=(rsync -rlptD --delete --exclude=.DS_Store)
+RSYNC=(rsync -rlptD --delete --exclude=.DS_Store)   # tree pushes (mirror source)
+RSYNC_ADD=(rsync -rlptD --exclude=.DS_Store)        # additive pushes (db, meta)
 
-# newest snapshot that is not today's → hardlink base
-PREV="$(rsh "ls -1d '$RDEST'/* 2>/dev/null | grep -v \"/$STAMP\$\" | sort | tail -1 || true")"
+# newest snapshot that is not today's → hardlink base (find: no shell globs)
+PREV="$(rsh "find '$RDEST' -maxdepth 1 -mindepth 1 -type d ! -name '$STAMP' 2>/dev/null | sort | tail -1")"
 
 log "destination: $DEST_HOST:$SNAP"
 if [ -n "$PREV" ]; then log "incremental base: ${PREV##*/}"; else log "incremental base: none (full copy)"; fi
@@ -66,13 +67,17 @@ push() { # push <local-src/> <remote-subdir> [excludes...]
 }
 
 # --- the sets -------------------------------------------------------------------
-# 1) opencode sessions/store: data dir with the live db trio replaced by the
-#    staged consistent copy, plus state dir
+# 1) opencode sessions/store: data dir mirrored (--delete) with the live db
+#    trio excluded; the consistent staged copy lands separately in db/ —
+#    OUTSIDE the mirrored tree (an in-tree db re-triggers --delete daily)
 if [ -d "$HOME/.local/share/opencode" ]; then
   push "$HOME/.local/share/opencode/" "store" \
     opencode.db opencode.db-wal opencode.db-shm
-  [ -f "$STAGE/opencode.db" ] && \
-    "${RSYNC[@]}" -e "ssh ${SSH_OPTS[*]}" "$STAGE/opencode.db" "$DEST_HOST:$SNAP/store/opencode.db"
+  if [ -f "$STAGE/opencode.db" ]; then
+    seed_from_prev "db"
+    mkdir -p "$STAGE/dbout" && mv "$STAGE/opencode.db" "$STAGE/dbout/"
+    "${RSYNC_ADD[@]}" -e "ssh ${SSH_OPTS[*]}" "$STAGE/dbout/" "$DEST_HOST:$SNAP/db/"
+  fi
 fi
 [ -d "$HOME/.local/state/opencode" ] && push "$HOME/.local/state/opencode/" "state"
 
@@ -112,14 +117,18 @@ find "$HOME/Work" -maxdepth 1 -type f \( -name '*.md' -o -name 'opencode.json' \
   fi
 } > "$STAGE/manifest.txt"
 mkdir -p "$STAGE/meta" && mv "$STAGE/manifest.txt" "$STAGE/meta/"
-push "$STAGE/meta/" "meta"
+seed_from_prev "meta"
+"${RSYNC_ADD[@]}" -e "ssh ${SSH_OPTS[*]}" "$STAGE/meta/" "$DEST_HOST:$SNAP/meta/"
 
 # --- prune old snapshots (BSD-safe) ---------------------------------------------
 rsh "cd '$RDEST' 2>/dev/null && ls -1d */ 2>/dev/null | sort | awk 'NR>$KEEP' | sed 's:/$::' | while read -r d; do rm -rf \"\$d\"; done" || true
 
 # --- verify + report --------------------------------------------------------------
-rsh "test -d '$SNAP/store' && test -f '$SNAP/work/bifrost/AGENTS.md' && test -f '$SNAP/meta/manifest.txt'" \
-  || fail "post-run verification failed on $DEST_HOST"
+rsh "test -d '$SNAP/store'"      || fail "verify: store/ missing on $DEST_HOST"
+rsh "test -f '$SNAP/db/opencode.db'" || fail "verify: db/opencode.db missing"
+rsh "test -d '$SNAP/work'"       || fail "verify: work/ missing on $DEST_HOST"
+rsh "test -f '$SNAP/work/AGENTS.md'" || fail "verify: bifrost tree incomplete (AGENTS.md)"
+rsh "test -f '$SNAP/meta/manifest.txt'" || fail "verify: meta/manifest.txt missing"
 log "verified snapshot contents:"
 rsh "ls -1 '$SNAP' | sed 's/^/  - /'"
 log "snapshot size: $(rsh "du -sh '$SNAP' | cut -f1")   all snapshots: $(rsh "du -sh '$RDEST' | cut -f1")"

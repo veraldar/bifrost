@@ -1,0 +1,3054 @@
+day 0 topic voice-agent
+Omar revisited the voice-agent folder, nothing merged.
+day 0 topic trading-bot
+read trading-bot issue tracker, slippage closed, position stale, feed new.
+day 1 topic trading-bot
+chat with Tessa about trading-bot, mostly queue gossip.
+day 1 topic trading-bot
+Gus documented the trading-bot folder, nothing merged.
+day 1 topic trading-bot
+chat with Ben about trading-bot, mostly slippage gossip.
+day 1 topic trading-bot
+trim backlog in trading-bot: kept order, dropped signal, parked slippage.
+day 2 topic trading-bot
+quick trading-bot sync with Sami, fill and queue discussed, no decisions.
+day 2 topic trading-bot
+chat with Sami about trading-bot, mostly candle gossip.
+day 2 topic voice-agent
+voice-agent weekly notes: turn stable, transcript noisy, turn pending.
+day 2 topic trading-bot
+quick trading-bot sync with Dara, feed and risk discussed, no decisions.
+day 2 topic trading-bot
+chat with Omar about trading-bot, mostly risk gossip.
+day 3 topic voice-agent
+voice-agent weekly notes: utterance stable, transcript noisy, prompt pending.
+day 3 topic trading-bot
+chat with Pia about trading-bot, mostly hedge gossip.
+day 3 topic trading-bot
+cleanup day in trading-bot, hedge renamed, fill deleted.
+day 3 topic voice-agent
+Ivo documented the voice-agent folder, nothing merged.
+day 3 topic voice-agent
+quick voice-agent sync with Pia, utterance and agent discussed, no decisions.
+day 4 topic voice-agent
+quick voice-agent sync with Ben, utterance and prompt discussed, no decisions.
+day 4 topic voice-agent
+cleanup day in voice-agent, turn renamed, barge-in deleted.
+day 4 topic trading-bot
+cleanup day in trading-bot, feed renamed, slippage deleted.
+day 5 topic trading-bot
+read trading-bot issue tracker, risk closed, slippage stale, order new.
+day 5 topic voice-agent
+Lena asked about voice-agent stream, answered with the usual agent doc.
+day 5 topic trading-bot
+cleanup day in trading-bot, slippage renamed, order deleted.
+day 5 topic trading-bot
+cleanup day in trading-bot, signal renamed, order deleted.
+day 6 topic voice-agent
+quick voice-agent sync with Rosa, transcript and stream discussed, no decisions.
+day 6 topic voice-agent
+Lena asked about voice-agent vad, answered with the usual agent doc.
+day 6 topic trading-bot
+trading-bot weekly notes: hedge stable, order noisy, risk pending.
+day 8 topic trading-bot
+Quin asked about trading-bot candle, answered with the usual risk doc.
+day 9 topic trading-bot
+quick trading-bot sync with Dara, hedge and candle discussed, no decisions.
+day 10 topic trading-bot
+cleanup day in trading-bot, signal renamed, signal deleted.
+day 10 topic trading-bot
+Pia asked about trading-bot queue, answered with the usual risk doc.
+day 11 topic trading-bot
+Lena asked about trading-bot queue, answered with the usual hedge doc.
+day 11 topic trading-bot
+trading-bot weekly notes: candle stable, position noisy, slippage pending.
+day 12 topic voice-agent
+voice-agent weekly notes: stream stable, vad noisy, barge-in pending.
+day 12 topic trading-bot
+trading-bot weekly notes: hedge stable, queue noisy, order pending.
+day 12 topic trading-bot
+cleanup day in trading-bot, signal renamed, queue deleted.
+day 12 topic trading-bot
+quick trading-bot sync with Ivo, slippage and position discussed, no decisions.
+day 12 topic voice-agent
+trim backlog in voice-agent: kept vad, dropped utterance, parked latency.
+day 12 topic trading-bot
+trading-bot weekly notes: position stable, slippage noisy, position pending.
+day 12 topic trading-bot
+quick trading-bot sync with Rosa, risk and queue discussed, no decisions.
+day 13 topic voice-agent
+read voice-agent issue tracker, utterance closed, latency stale, barge-in new.
+day 13 topic voice-agent
+trim backlog in voice-agent: kept turn, dropped stream, parked latency.
+day 14 topic voice-agent
+trim backlog in voice-agent: kept utterance, dropped barge-in, parked transcript.
+day 15 topic trading-bot
+read trading-bot issue tracker, hedge closed, hedge stale, signal new.
+day 15 topic voice-agent
+Tessa refactored the voice-agent folder, nothing merged.
+day 16 topic voice-agent
+voice-agent weekly notes: transcript stable, latency noisy, prompt pending.
+day 16 topic voice-agent
+trim backlog in voice-agent: kept agent, dropped transcript, parked agent.
+day 17 topic voice-agent
+chat with Sami about voice-agent, mostly agent gossip.
+day 17 topic trading-bot
+read trading-bot issue tracker, slippage closed, hedge stale, fill new.
+day 17 topic trading-bot
+trim backlog in trading-bot: kept fill, dropped fill, parked signal.
+day 17 topic voice-agent
+chat with Tessa about voice-agent, mostly vad gossip.
+day 18 topic voice-agent
+quick voice-agent sync with Omar, pipeline and vad discussed, no decisions.
+day 18 topic voice-agent
+trim backlog in voice-agent: kept pipeline, dropped pipeline, parked agent.
+day 20 topic voice-agent
+read voice-agent issue tracker, utterance closed, prompt stale, agent new.
+day 21 topic trading-bot
+chat with Nia about trading-bot, mostly position gossip.
+day 21 topic voice-agent
+read voice-agent issue tracker, utterance closed, utterance stale, agent new.
+day 21 topic trading-bot
+trading-bot weekly notes: position stable, position noisy, position pending.
+day 23 topic trading-bot
+Dara reviewed the trading-bot folder, nothing merged.
+day 23 topic trading-bot
+cleanup day in trading-bot, hedge renamed, signal deleted.
+day 23 topic voice-agent
+quick voice-agent sync with Omar, transcript and agent discussed, no decisions.
+day 23 topic voice-agent
+voice-agent weekly notes: prompt stable, transcript noisy, barge-in pending.
+day 24 topic trading-bot
+quick trading-bot sync with Quin, signal and queue discussed, no decisions.
+day 24 topic voice-agent
+Quin asked about voice-agent agent, answered with the usual agent doc.
+day 25 topic voice-agent
+voice-agent weekly notes: vad stable, vad noisy, pipeline pending.
+day 26 topic trading-bot
+read trading-bot issue tracker, slippage closed, candle stale, feed new.
+day 27 topic trading-bot
+quick trading-bot sync with Dara, fill and feed discussed, no decisions.
+day 27 topic voice-agent
+cleanup day in voice-agent, latency renamed, turn deleted.
+day 27 topic trading-bot
+trim backlog in trading-bot: kept slippage, dropped fill, parked position.
+day 27 topic voice-agent
+voice-agent weekly notes: pipeline stable, vad noisy, transcript pending.
+day 28 topic voice-agent
+quick voice-agent sync with Lena, agent and pipeline discussed, no decisions.
+day 28 topic voice-agent
+trim backlog in voice-agent: kept agent, dropped utterance, parked latency.
+day 30 topic voice-agent
+chat with Omar about voice-agent, mostly turn gossip.
+day 30 topic trading-bot
+trading-bot weekly notes: order stable, risk noisy, candle pending.
+day 30 topic trading-bot
+Ivo asked about trading-bot candle, answered with the usual feed doc.
+day 30 topic voice-agent
+trim backlog in voice-agent: kept agent, dropped vad, parked vad.
+day 30 topic trading-bot
+quick trading-bot sync with Rosa, risk and queue discussed, no decisions.
+day 32 topic voice-agent
+voice-agent weekly notes: latency stable, vad noisy, agent pending.
+day 33 topic trading-bot
+cleanup day in trading-bot, signal renamed, queue deleted.
+day 33 topic voice-agent
+voice-agent weekly notes: turn stable, pipeline noisy, latency pending.
+day 33 topic trading-bot
+Quin asked about trading-bot order, answered with the usual feed doc.
+day 33 topic trading-bot
+Nia asked about trading-bot position, answered with the usual fill doc.
+day 34 topic voice-agent
+Lena asked about voice-agent barge-in, answered with the usual pipeline doc.
+day 34 topic trading-bot
+chat with Quin about trading-bot, mostly hedge gossip.
+day 34 topic trading-bot
+trim backlog in trading-bot: kept position, dropped feed, parked candle.
+day 34 topic voice-agent
+quick voice-agent sync with Lena, barge-in and prompt discussed, no decisions.
+day 34 topic trading-bot
+cleanup day in trading-bot, position renamed, feed deleted.
+day 34 topic voice-agent
+voice-agent weekly notes: utterance stable, utterance noisy, transcript pending.
+day 35 topic voice-agent
+cleanup day in voice-agent, vad renamed, barge-in deleted.
+day 35 topic voice-agent
+chat with Dara about voice-agent, mostly barge-in gossip.
+day 35 topic voice-agent
+cleanup day in voice-agent, latency renamed, utterance deleted.
+day 35 topic voice-agent
+Tessa asked about voice-agent prompt, answered with the usual agent doc.
+day 35 topic trading-bot
+trading-bot weekly notes: slippage stable, slippage noisy, hedge pending.
+day 36 topic trading-bot
+Ben documented the trading-bot folder, nothing merged.
+day 36 topic voice-agent
+Gus archived the voice-agent folder, nothing merged.
+day 36 topic trading-bot
+chat with Omar about trading-bot, mostly slippage gossip.
+day 37 topic voice-agent
+trim backlog in voice-agent: kept transcript, dropped turn, parked transcript.
+day 38 topic trading-bot
+Omar asked about trading-bot queue, answered with the usual candle doc.
+day 39 topic voice-agent
+read voice-agent issue tracker, pipeline closed, turn stale, agent new.
+day 39 topic trading-bot
+trim backlog in trading-bot: kept signal, dropped fill, parked signal.
+day 39 topic voice-agent
+read voice-agent issue tracker, transcript closed, vad stale, pipeline new.
+day 39 topic voice-agent
+cleanup day in voice-agent, turn renamed, prompt deleted.
+day 40 topic voice-agent
+chat with Gus about voice-agent, mostly prompt gossip.
+day 40 topic voice-agent
+read voice-agent issue tracker, stream closed, prompt stale, transcript new.
+day 40 topic trading-bot
+Tessa queued the trading-bot folder, nothing merged.
+day 41 topic trading-bot
+quick trading-bot sync with Dara, position and order discussed, no decisions.
+day 41 topic voice-agent
+chat with Ivo about voice-agent, mostly latency gossip.
+day 41 topic voice-agent
+read voice-agent issue tracker, pipeline closed, agent stale, agent new.
+day 42 topic trading-bot
+trading-bot weekly notes: position stable, feed noisy, slippage pending.
+day 42 topic voice-agent
+Quin archived the voice-agent folder, nothing merged.
+day 43 topic voice-agent
+cleanup day in voice-agent, agent renamed, vad deleted.
+day 43 topic trading-bot
+Tessa asked about trading-bot position, answered with the usual slippage doc.
+day 43 topic trading-bot
+chat with Rosa about trading-bot, mostly signal gossip.
+day 44 topic trading-bot
+trading-bot weekly notes: risk stable, signal noisy, position pending.
+day 44 topic voice-agent
+Sami asked about voice-agent turn, answered with the usual barge-in doc.
+day 44 topic voice-agent
+trim backlog in voice-agent: kept barge-in, dropped barge-in, parked latency.
+day 44 topic trading-bot
+trim backlog in trading-bot: kept risk, dropped fill, parked feed.
+day 45 topic trading-bot
+Rosa asked about trading-bot fill, answered with the usual signal doc.
+day 45 topic trading-bot
+read trading-bot issue tracker, fill closed, queue stale, hedge new.
+day 45 topic trading-bot
+trading-bot weekly notes: fill stable, order noisy, candle pending.
+day 45 topic trading-bot
+Omar asked about trading-bot candle, answered with the usual feed doc.
+day 46 topic voice-agent
+quick voice-agent sync with Nia, utterance and agent discussed, no decisions.
+day 46 topic voice-agent
+chat with Ben about voice-agent, mostly stream gossip.
+day 47 topic voice-agent
+trim backlog in voice-agent: kept agent, dropped prompt, parked utterance.
+day 47 topic trading-bot
+trim backlog in trading-bot: kept candle, dropped candle, parked hedge.
+day 48 topic voice-agent
+voice-agent weekly notes: transcript stable, latency noisy, latency pending.
+day 48 topic trading-bot
+quick trading-bot sync with Nia, fill and risk discussed, no decisions.
+day 48 topic voice-agent
+Rosa asked about voice-agent utterance, answered with the usual barge-in doc.
+day 48 topic trading-bot
+read trading-bot issue tracker, queue closed, candle stale, queue new.
+day 49 topic trading-bot
+quick trading-bot sync with Quin, fill and fill discussed, no decisions.
+day 49 topic voice-agent
+chat with Ben about voice-agent, mostly turn gossip.
+day 49 topic trading-bot
+trading-bot weekly notes: order stable, order noisy, hedge pending.
+day 50 topic trading-bot
+Nia asked about trading-bot feed, answered with the usual queue doc.
+day 50 topic voice-agent
+chat with Quin about voice-agent, mostly stream gossip.
+day 50 topic voice-agent
+chat with Ben about voice-agent, mostly agent gossip.
+day 51 topic voice-agent
+voice-agent weekly notes: stream stable, utterance noisy, utterance pending.
+day 51 topic trading-bot
+quick trading-bot sync with Rosa, risk and slippage discussed, no decisions.
+day 51 topic trading-bot
+trim backlog in trading-bot: kept order, dropped order, parked signal.
+day 52 topic trading-bot
+chat with Tessa about trading-bot, mostly risk gossip.
+day 52 topic trading-bot
+trading-bot weekly notes: queue stable, risk noisy, risk pending.
+day 52 topic trading-bot
+chat with Omar about trading-bot, mostly feed gossip.
+day 53 topic voice-agent
+read voice-agent issue tracker, latency closed, transcript stale, latency new.
+day 54 topic trading-bot
+quick trading-bot sync with Gus, queue and slippage discussed, no decisions.
+day 54 topic voice-agent
+Tessa asked about voice-agent transcript, answered with the usual agent doc.
+day 55 topic voice-agent
+quick voice-agent sync with Sami, barge-in and transcript discussed, no decisions.
+day 55 topic voice-agent
+voice-agent weekly notes: transcript stable, turn noisy, transcript pending.
+day 55 topic voice-agent
+Tessa tested the voice-agent folder, nothing merged.
+day 56 topic voice-agent
+voice-agent weekly notes: turn stable, pipeline noisy, stream pending.
+day 56 topic trading-bot
+Lena documented the trading-bot folder, nothing merged.
+day 56 topic trading-bot
+read trading-bot issue tracker, queue closed, hedge stale, hedge new.
+day 56 topic voice-agent
+voice-agent weekly notes: turn stable, latency noisy, barge-in pending.
+day 57 topic trading-bot
+quick trading-bot sync with Pia, candle and hedge discussed, no decisions.
+day 57 topic voice-agent
+trim backlog in voice-agent: kept turn, dropped barge-in, parked latency.
+day 57 topic voice-agent
+trim backlog in voice-agent: kept utterance, dropped barge-in, parked barge-in.
+day 57 topic trading-bot
+quick trading-bot sync with Omar, risk and risk discussed, no decisions.
+day 57 topic voice-agent
+quick voice-agent sync with Ivo, prompt and latency discussed, no decisions.
+day 57 topic trading-bot
+cleanup day in trading-bot, candle renamed, candle deleted.
+day 58 topic trading-bot
+trading-bot weekly notes: signal stable, signal noisy, order pending.
+day 59 topic trading-bot
+trading-bot weekly notes: signal stable, order noisy, hedge pending.
+day 59 topic trading-bot
+quick trading-bot sync with Sami, fill and slippage discussed, no decisions.
+day 61 topic trading-bot
+read trading-bot issue tracker, signal closed, feed stale, hedge new.
+day 61 topic trading-bot
+cleanup day in trading-bot, order renamed, order deleted.
+day 61 topic trading-bot
+Dara documented the trading-bot folder, nothing merged.
+day 61 topic voice-agent
+chat with Nia about voice-agent, mostly stream gossip.
+day 62 topic trading-bot
+Quin asked about trading-bot feed, answered with the usual feed doc.
+day 63 topic voice-agent
+chat with Ivo about voice-agent, mostly agent gossip.
+day 64 topic voice-agent
+cleanup day in voice-agent, agent renamed, turn deleted.
+day 64 topic trading-bot
+trim backlog in trading-bot: kept feed, dropped position, parked position.
+day 65 topic trading-bot
+trading-bot weekly notes: candle stable, feed noisy, slippage pending.
+day 65 topic trading-bot
+trim backlog in trading-bot: kept feed, dropped order, parked position.
+day 65 topic trading-bot
+trim backlog in trading-bot: kept fill, dropped fill, parked position.
+day 66 topic trading-bot
+read trading-bot issue tracker, queue closed, risk stale, slippage new.
+day 66 topic trading-bot
+quick trading-bot sync with Pia, slippage and order discussed, no decisions.
+day 66 topic voice-agent
+cleanup day in voice-agent, utterance renamed, prompt deleted.
+day 66 topic trading-bot
+read trading-bot issue tracker, position closed, feed stale, queue new.
+day 66 topic trading-bot
+cleanup day in trading-bot, order renamed, slippage deleted.
+day 66 topic voice-agent
+trim backlog in voice-agent: kept latency, dropped vad, parked utterance.
+day 66 topic trading-bot
+Tessa reviewed the trading-bot folder, nothing merged.
+day 67 topic trading-bot
+Omar asked about trading-bot risk, answered with the usual fill doc.
+day 67 topic voice-agent
+Tessa revisited the voice-agent folder, nothing merged.
+day 67 topic voice-agent
+Quin tested the voice-agent folder, nothing merged.
+day 67 topic trading-bot
+Tessa asked about trading-bot order, answered with the usual slippage doc.
+day 68 topic trading-bot
+cleanup day in trading-bot, feed renamed, hedge deleted.
+day 69 topic voice-agent
+cleanup day in voice-agent, prompt renamed, stream deleted.
+day 69 topic trading-bot
+Ben renamed the trading-bot folder, nothing merged.
+day 69 topic voice-agent
+Lena asked about voice-agent latency, answered with the usual pipeline doc.
+day 69 topic voice-agent
+trim backlog in voice-agent: kept utterance, dropped stream, parked agent.
+day 69 topic voice-agent
+quick voice-agent sync with Ivo, prompt and prompt discussed, no decisions.
+day 70 topic trading-bot
+trading-bot weekly notes: fill stable, fill noisy, risk pending.
+day 70 topic trading-bot
+cleanup day in trading-bot, position renamed, feed deleted.
+day 70 topic voice-agent
+quick voice-agent sync with Omar, barge-in and prompt discussed, no decisions.
+day 70 topic voice-agent
+Nia moved the voice-agent folder, nothing merged.
+day 71 topic voice-agent
+voice-agent weekly notes: vad stable, utterance noisy, vad pending.
+day 72 topic voice-agent
+trim backlog in voice-agent: kept prompt, dropped latency, parked utterance.
+day 72 topic trading-bot
+read trading-bot issue tracker, queue closed, candle stale, queue new.
+day 73 topic trading-bot
+trim backlog in trading-bot: kept hedge, dropped queue, parked candle.
+day 74 topic trading-bot
+read trading-bot issue tracker, position closed, feed stale, signal new.
+day 74 topic voice-agent
+read voice-agent issue tracker, stream closed, agent stale, stream new.
+day 75 topic trading-bot
+Quin asked about trading-bot queue, answered with the usual queue doc.
+day 75 topic trading-bot
+read trading-bot issue tracker, hedge closed, fill stale, candle new.
+day 75 topic voice-agent
+read voice-agent issue tracker, vad closed, prompt stale, utterance new.
+day 75 topic voice-agent
+read voice-agent issue tracker, turn closed, prompt stale, vad new.
+day 75 topic voice-agent
+cleanup day in voice-agent, barge-in renamed, transcript deleted.
+day 75 topic voice-agent
+voice-agent weekly notes: prompt stable, barge-in noisy, agent pending.
+day 75 topic voice-agent
+voice-agent weekly notes: vad stable, vad noisy, stream pending.
+day 76 topic voice-agent
+Lena skimmed the voice-agent folder, nothing merged.
+day 77 topic trading-bot
+cleanup day in trading-bot, position renamed, feed deleted.
+day 77 topic voice-agent
+voice-agent weekly notes: stream stable, turn noisy, pipeline pending.
+day 77 topic trading-bot
+cleanup day in trading-bot, signal renamed, hedge deleted.
+day 78 topic voice-agent
+quick voice-agent sync with Tessa, transcript and pipeline discussed, no decisions.
+day 79 topic trading-bot
+Dara asked about trading-bot position, answered with the usual hedge doc.
+day 79 topic trading-bot
+Omar asked about trading-bot fill, answered with the usual hedge doc.
+day 79 topic voice-agent
+trim backlog in voice-agent: kept stream, dropped turn, parked pipeline.
+day 79 topic voice-agent
+chat with Rosa about voice-agent, mostly utterance gossip.
+day 79 topic voice-agent
+Nia asked about voice-agent stream, answered with the usual transcript doc.
+day 80 topic trading-bot
+trim backlog in trading-bot: kept risk, dropped candle, parked slippage.
+day 80 topic voice-agent
+Gus asked about voice-agent stream, answered with the usual utterance doc.
+day 81 topic trading-bot
+trading-bot weekly notes: fill stable, fill noisy, feed pending.
+day 82 topic voice-agent
+trim backlog in voice-agent: kept barge-in, dropped utterance, parked turn.
+day 84 topic voice-agent
+voice-agent weekly notes: utterance stable, agent noisy, agent pending.
+day 84 topic voice-agent
+quick voice-agent sync with Lena, stream and barge-in discussed, no decisions.
+day 84 topic trading-bot
+chat with Gus about trading-bot, mostly order gossip.
+day 86 topic trading-bot
+trim backlog in trading-bot: kept fill, dropped fill, parked order.
+day 86 topic voice-agent
+read voice-agent issue tracker, prompt closed, latency stale, barge-in new.
+day 86 topic voice-agent
+trim backlog in voice-agent: kept turn, dropped utterance, parked agent.
+day 86 topic trading-bot
+Tessa documented the trading-bot folder, nothing merged.
+day 87 topic trading-bot
+trading-bot weekly notes: risk stable, feed noisy, position pending.
+day 88 topic voice-agent
+trim backlog in voice-agent: kept agent, dropped utterance, parked transcript.
+day 88 topic voice-agent
+read voice-agent issue tracker, vad closed, prompt stale, agent new.
+day 89 topic trading-bot
+chat with Pia about trading-bot, mostly order gossip.
+day 89 topic trading-bot
+read trading-bot issue tracker, queue closed, fill stale, risk new.
+day 90 topic trading-bot
+chat with Ivo about trading-bot, mostly hedge gossip.
+day 90 topic trading-bot
+Rosa tested the trading-bot folder, nothing merged.
+day 91 topic trading-bot
+trading-bot weekly notes: risk stable, slippage noisy, signal pending.
+day 91 topic trading-bot
+chat with Sami about trading-bot, mostly position gossip.
+day 91 topic trading-bot
+Omar asked about trading-bot signal, answered with the usual position doc.
+day 91 topic voice-agent
+Lena asked about voice-agent barge-in, answered with the usual transcript doc.
+day 92 topic voice-agent
+voice-agent weekly notes: turn stable, turn noisy, agent pending.
+day 92 topic trading-bot
+read trading-bot issue tracker, order closed, order stale, feed new.
+day 92 topic trading-bot
+cleanup day in trading-bot, position renamed, position deleted.
+day 92 topic trading-bot
+read trading-bot issue tracker, fill closed, order stale, signal new.
+day 92 topic voice-agent
+trim backlog in voice-agent: kept transcript, dropped stream, parked transcript.
+day 93 topic trading-bot
+trading-bot weekly notes: candle stable, candle noisy, hedge pending.
+day 93 topic trading-bot
+Pia refactored the trading-bot folder, nothing merged.
+day 93 topic trading-bot
+Ben moved the trading-bot folder, nothing merged.
+day 94 topic trading-bot
+trading-bot weekly notes: order stable, position noisy, fill pending.
+day 94 topic voice-agent
+cleanup day in voice-agent, barge-in renamed, prompt deleted.
+day 94 topic voice-agent
+voice-agent weekly notes: stream stable, prompt noisy, vad pending.
+day 94 topic trading-bot
+cleanup day in trading-bot, feed renamed, fill deleted.
+day 94 topic trading-bot
+cleanup day in trading-bot, feed renamed, fill deleted.
+day 94 topic voice-agent
+voice-agent weekly notes: vad stable, stream noisy, pipeline pending.
+day 95 topic voice-agent
+read voice-agent issue tracker, turn closed, barge-in stale, transcript new.
+day 95 topic trading-bot
+cleanup day in trading-bot, feed renamed, position deleted.
+day 95 topic trading-bot
+cleanup day in trading-bot, hedge renamed, candle deleted.
+day 95 topic trading-bot
+cleanup day in trading-bot, candle renamed, order deleted.
+day 96 topic voice-agent
+quick voice-agent sync with Dara, agent and utterance discussed, no decisions.
+day 96 topic voice-agent
+Rosa moved the voice-agent folder, nothing merged.
+day 97 topic voice-agent
+Pia asked about voice-agent transcript, answered with the usual pipeline doc.
+day 97 topic voice-agent
+quick voice-agent sync with Ben, barge-in and transcript discussed, no decisions.
+day 97 topic trading-bot
+Sami asked about trading-bot queue, answered with the usual position doc.
+day 97 topic voice-agent
+quick voice-agent sync with Lena, turn and stream discussed, no decisions.
+day 98 topic trading-bot
+chat with Quin about trading-bot, mostly signal gossip.
+day 98 topic trading-bot
+chat with Nia about trading-bot, mostly slippage gossip.
+day 98 topic trading-bot
+Quin asked about trading-bot fill, answered with the usual fill doc.
+day 99 topic trading-bot
+read trading-bot issue tracker, feed closed, position stale, risk new.
+day 99 topic trading-bot
+chat with Quin about trading-bot, mostly hedge gossip.
+day 99 topic trading-bot
+Dara archived the trading-bot folder, nothing merged.
+day 99 topic voice-agent
+Dara asked about voice-agent vad, answered with the usual pipeline doc.
+day 100 topic trading-bot
+read trading-bot issue tracker, risk closed, candle stale, slippage new.
+day 100 topic voice-agent
+chat with Dara about voice-agent, mostly stream gossip.
+day 101 topic voice-agent
+Gus tested the voice-agent folder, nothing merged.
+day 101 topic voice-agent
+Gus asked about voice-agent vad, answered with the usual stream doc.
+day 101 topic trading-bot
+read trading-bot issue tracker, order closed, fill stale, signal new.
+day 101 topic trading-bot
+Nia moved the trading-bot folder, nothing merged.
+day 102 topic trading-bot
+cleanup day in trading-bot, position renamed, risk deleted.
+day 102 topic voice-agent
+trim backlog in voice-agent: kept utterance, dropped barge-in, parked vad.
+day 102 topic voice-agent
+cleanup day in voice-agent, barge-in renamed, utterance deleted.
+day 102 topic trading-bot
+read trading-bot issue tracker, position closed, queue stale, position new.
+day 102 topic trading-bot
+chat with Dara about trading-bot, mostly order gossip.
+day 102 topic trading-bot
+trading-bot weekly notes: feed stable, hedge noisy, signal pending.
+day 103 topic voice-agent
+trim backlog in voice-agent: kept utterance, dropped barge-in, parked transcript.
+day 104 topic voice-agent
+cleanup day in voice-agent, turn renamed, turn deleted.
+day 104 topic voice-agent
+cleanup day in voice-agent, agent renamed, utterance deleted.
+day 104 topic trading-bot
+Lena queued the trading-bot folder, nothing merged.
+day 105 topic trading-bot
+quick trading-bot sync with Rosa, hedge and order discussed, no decisions.
+day 105 topic voice-agent
+chat with Ben about voice-agent, mostly transcript gossip.
+day 106 topic trading-bot
+Tessa refactored the trading-bot folder, nothing merged.
+day 106 topic voice-agent
+cleanup day in voice-agent, barge-in renamed, utterance deleted.
+day 107 topic voice-agent
+Tessa asked about voice-agent stream, answered with the usual agent doc.
+day 108 topic trading-bot
+cleanup day in trading-bot, hedge renamed, queue deleted.
+day 108 topic trading-bot
+trading-bot weekly notes: order stable, position noisy, candle pending.
+day 108 topic trading-bot
+read trading-bot issue tracker, feed closed, order stale, feed new.
+day 109 topic voice-agent
+Pia archived the voice-agent folder, nothing merged.
+day 109 topic voice-agent
+voice-agent weekly notes: transcript stable, barge-in noisy, transcript pending.
+day 109 topic voice-agent
+quick voice-agent sync with Dara, agent and pipeline discussed, no decisions.
+day 109 topic trading-bot
+chat with Nia about trading-bot, mostly candle gossip.
+day 109 topic voice-agent
+cleanup day in voice-agent, latency renamed, stream deleted.
+day 109 topic voice-agent
+Ben asked about voice-agent latency, answered with the usual agent doc.
+day 110 topic voice-agent
+chat with Omar about voice-agent, mostly stream gossip.
+day 110 topic voice-agent
+chat with Lena about voice-agent, mostly vad gossip.
+day 111 topic voice-agent
+trim backlog in voice-agent: kept stream, dropped latency, parked stream.
+day 111 topic voice-agent
+Gus asked about voice-agent utterance, answered with the usual transcript doc.
+day 111 topic voice-agent
+voice-agent weekly notes: latency stable, agent noisy, utterance pending.
+day 112 topic trading-bot
+cleanup day in trading-bot, risk renamed, slippage deleted.
+day 113 topic voice-agent
+quick voice-agent sync with Tessa, barge-in and stream discussed, no decisions.
+day 113 topic voice-agent
+quick voice-agent sync with Rosa, pipeline and transcript discussed, no decisions.
+day 113 topic voice-agent
+read voice-agent issue tracker, transcript closed, barge-in stale, turn new.
+day 113 topic trading-bot
+trim backlog in trading-bot: kept hedge, dropped hedge, parked risk.
+day 113 topic voice-agent
+voice-agent weekly notes: agent stable, stream noisy, transcript pending.
+day 114 topic voice-agent
+chat with Pia about voice-agent, mostly utterance gossip.
+day 115 topic voice-agent
+Gus moved the voice-agent folder, nothing merged.
+day 115 topic voice-agent
+voice-agent weekly notes: pipeline stable, transcript noisy, stream pending.
+day 116 topic voice-agent
+cleanup day in voice-agent, stream renamed, utterance deleted.
+day 116 topic voice-agent
+voice-agent weekly notes: vad stable, latency noisy, stream pending.
+day 118 topic trading-bot
+read trading-bot issue tracker, signal closed, hedge stale, feed new.
+day 118 topic trading-bot
+cleanup day in trading-bot, order renamed, hedge deleted.
+day 118 topic voice-agent
+cleanup day in voice-agent, turn renamed, utterance deleted.
+day 119 topic trading-bot
+trim backlog in trading-bot: kept risk, dropped slippage, parked fill.
+day 119 topic trading-bot
+chat with Rosa about trading-bot, mostly hedge gossip.
+day 119 topic voice-agent
+read voice-agent issue tracker, barge-in closed, prompt stale, turn new.
+day 119 topic voice-agent
+quick voice-agent sync with Ben, latency and barge-in discussed, no decisions.
+day 121 topic trading-bot
+trading-bot weekly notes: slippage stable, candle noisy, slippage pending.
+day 123 topic trading-bot
+quick trading-bot sync with Pia, signal and hedge discussed, no decisions.
+day 123 topic voice-agent
+Gus asked about voice-agent utterance, answered with the usual agent doc.
+day 124 topic voice-agent
+trim backlog in voice-agent: kept utterance, dropped utterance, parked prompt.
+day 124 topic voice-agent
+Dara asked about voice-agent transcript, answered with the usual agent doc.
+day 124 topic trading-bot
+trading-bot weekly notes: signal stable, fill noisy, position pending.
+day 124 topic trading-bot
+Ben archived the trading-bot folder, nothing merged.
+day 124 topic trading-bot
+Rosa revisited the trading-bot folder, nothing merged.
+day 125 topic trading-bot
+Tessa asked about trading-bot hedge, answered with the usual signal doc.
+day 125 topic voice-agent
+voice-agent weekly notes: latency stable, agent noisy, prompt pending.
+day 126 topic trading-bot
+chat with Tessa about trading-bot, mostly position gossip.
+day 126 topic voice-agent
+quick voice-agent sync with Sami, pipeline and stream discussed, no decisions.
+day 127 topic voice-agent
+cleanup day in voice-agent, vad renamed, stream deleted.
+day 127 topic voice-agent
+read voice-agent issue tracker, utterance closed, agent stale, latency new.
+day 128 topic voice-agent
+trim backlog in voice-agent: kept pipeline, dropped utterance, parked vad.
+day 129 topic trading-bot
+read trading-bot issue tracker, order closed, queue stale, fill new.
+day 130 topic voice-agent
+voice-agent weekly notes: pipeline stable, vad noisy, turn pending.
+day 130 topic trading-bot
+Lena asked about trading-bot signal, answered with the usual hedge doc.
+day 131 topic trading-bot
+trading-bot weekly notes: position stable, feed noisy, hedge pending.
+day 131 topic trading-bot
+chat with Omar about trading-bot, mostly position gossip.
+day 131 topic voice-agent
+trim backlog in voice-agent: kept barge-in, dropped agent, parked agent.
+day 132 topic voice-agent
+cleanup day in voice-agent, stream renamed, stream deleted.
+day 132 topic voice-agent
+voice-agent weekly notes: transcript stable, barge-in noisy, latency pending.
+day 132 topic trading-bot
+trim backlog in trading-bot: kept queue, dropped slippage, parked hedge.
+day 132 topic trading-bot
+read trading-bot issue tracker, risk closed, signal stale, candle new.
+day 133 topic voice-agent
+chat with Pia about voice-agent, mostly turn gossip.
+day 133 topic trading-bot
+read trading-bot issue tracker, candle closed, queue stale, fill new.
+day 134 topic voice-agent
+voice-agent weekly notes: barge-in stable, prompt noisy, vad pending.
+day 134 topic voice-agent
+trim backlog in voice-agent: kept turn, dropped latency, parked barge-in.
+day 134 topic trading-bot
+chat with Ben about trading-bot, mostly slippage gossip.
+day 135 topic voice-agent
+cleanup day in voice-agent, stream renamed, transcript deleted.
+day 135 topic trading-bot
+trim backlog in trading-bot: kept fill, dropped queue, parked candle.
+day 136 topic trading-bot
+trim backlog in trading-bot: kept feed, dropped risk, parked signal.
+day 136 topic trading-bot
+trim backlog in trading-bot: kept order, dropped risk, parked fill.
+day 136 topic voice-agent
+cleanup day in voice-agent, prompt renamed, prompt deleted.
+day 137 topic voice-agent
+chat with Ivo about voice-agent, mostly latency gossip.
+day 137 topic voice-agent
+chat with Gus about voice-agent, mostly transcript gossip.
+day 137 topic trading-bot
+trim backlog in trading-bot: kept slippage, dropped hedge, parked feed.
+day 138 topic trading-bot
+read trading-bot issue tracker, risk closed, risk stale, order new.
+day 138 topic trading-bot
+trading-bot weekly notes: fill stable, risk noisy, fill pending.
+day 138 topic trading-bot
+quick trading-bot sync with Gus, slippage and hedge discussed, no decisions.
+day 138 topic trading-bot
+chat with Rosa about trading-bot, mostly queue gossip.
+day 139 topic trading-bot
+Nia asked about trading-bot slippage, answered with the usual queue doc.
+day 139 topic voice-agent
+read voice-agent issue tracker, barge-in closed, pipeline stale, latency new.
+day 139 topic voice-agent
+chat with Dara about voice-agent, mostly latency gossip.
+day 139 topic trading-bot
+trim backlog in trading-bot: kept fill, dropped hedge, parked slippage.
+day 139 topic trading-bot
+trading-bot weekly notes: candle stable, signal noisy, position pending.
+day 139 topic voice-agent
+quick voice-agent sync with Sami, utterance and stream discussed, no decisions.
+day 140 topic voice-agent
+Nia asked about voice-agent turn, answered with the usual prompt doc.
+day 141 topic trading-bot
+read trading-bot issue tracker, position closed, feed stale, risk new.
+day 141 topic voice-agent
+cleanup day in voice-agent, pipeline renamed, agent deleted.
+day 141 topic voice-agent
+trim backlog in voice-agent: kept utterance, dropped stream, parked stream.
+day 141 topic voice-agent
+chat with Ben about voice-agent, mostly utterance gossip.
+day 142 topic voice-agent
+read voice-agent issue tracker, utterance closed, stream stale, turn new.
+day 142 topic voice-agent
+voice-agent weekly notes: latency stable, turn noisy, stream pending.
+day 142 topic voice-agent
+voice-agent weekly notes: prompt stable, vad noisy, agent pending.
+day 142 topic voice-agent
+quick voice-agent sync with Sami, stream and latency discussed, no decisions.
+day 143 topic trading-bot
+Omar skimmed the trading-bot folder, nothing merged.
+day 143 topic trading-bot
+cleanup day in trading-bot, position renamed, signal deleted.
+day 144 topic voice-agent
+Tessa asked about voice-agent barge-in, answered with the usual turn doc.
+day 145 topic voice-agent
+chat with Quin about voice-agent, mostly pipeline gossip.
+day 146 topic trading-bot
+chat with Ben about trading-bot, mostly queue gossip.
+day 146 topic voice-agent
+quick voice-agent sync with Ben, turn and stream discussed, no decisions.
+day 147 topic trading-bot
+chat with Omar about trading-bot, mostly candle gossip.
+day 147 topic trading-bot
+Ben moved the trading-bot folder, nothing merged.
+day 147 topic voice-agent
+Dara tested the voice-agent folder, nothing merged.
+day 147 topic trading-bot
+quick trading-bot sync with Nia, signal and hedge discussed, no decisions.
+day 148 topic trading-bot
+chat with Ben about trading-bot, mostly fill gossip.
+day 149 topic trading-bot
+Gus asked about trading-bot slippage, answered with the usual queue doc.
+day 149 topic voice-agent
+Omar archived the voice-agent folder, nothing merged.
+day 149 topic trading-bot
+trading-bot weekly notes: fill stable, feed noisy, queue pending.
+day 150 topic voice-agent
+Nia reviewed the voice-agent folder, nothing merged.
+day 150 topic voice-agent
+read voice-agent issue tracker, turn closed, transcript stale, turn new.
+day 151 topic trading-bot
+Nia archived the trading-bot folder, nothing merged.
+day 151 topic trading-bot
+chat with Lena about trading-bot, mostly candle gossip.
+day 151 topic voice-agent
+read voice-agent issue tracker, stream closed, transcript stale, barge-in new.
+day 151 topic trading-bot
+trim backlog in trading-bot: kept order, dropped signal, parked signal.
+day 151 topic voice-agent
+cleanup day in voice-agent, stream renamed, stream deleted.
+day 151 topic trading-bot
+read trading-bot issue tracker, position closed, position stale, queue new.
+day 152 topic trading-bot
+chat with Gus about trading-bot, mostly queue gossip.
+day 152 topic trading-bot
+trading-bot weekly notes: hedge stable, slippage noisy, signal pending.
+day 152 topic trading-bot
+read trading-bot issue tracker, slippage closed, candle stale, position new.
+day 153 topic voice-agent
+Tessa revisited the voice-agent folder, nothing merged.
+day 153 topic voice-agent
+voice-agent weekly notes: vad stable, latency noisy, vad pending.
+day 154 topic trading-bot
+read trading-bot issue tracker, candle closed, candle stale, queue new.
+day 154 topic trading-bot
+read trading-bot issue tracker, risk closed, queue stale, position new.
+day 154 topic trading-bot
+Ivo asked about trading-bot candle, answered with the usual order doc.
+day 155 topic trading-bot
+cleanup day in trading-bot, candle renamed, risk deleted.
+day 155 topic trading-bot
+read trading-bot issue tracker, candle closed, order stale, queue new.
+day 155 topic trading-bot
+quick trading-bot sync with Rosa, position and candle discussed, no decisions.
+day 156 topic trading-bot
+chat with Pia about trading-bot, mostly slippage gossip.
+day 156 topic voice-agent
+Lena asked about voice-agent utterance, answered with the usual pipeline doc.
+day 156 topic trading-bot
+read trading-bot issue tracker, feed closed, candle stale, risk new.
+day 157 topic trading-bot
+trading-bot weekly notes: slippage stable, signal noisy, feed pending.
+day 157 topic voice-agent
+chat with Rosa about voice-agent, mostly latency gossip.
+day 158 topic voice-agent
+voice-agent weekly notes: turn stable, pipeline noisy, prompt pending.
+day 158 topic voice-agent
+Ivo asked about voice-agent barge-in, answered with the usual turn doc.
+day 158 topic trading-bot
+read trading-bot issue tracker, slippage closed, signal stale, risk new.
+day 159 topic trading-bot
+trading-bot weekly notes: signal stable, signal noisy, position pending.
+day 159 topic trading-bot
+chat with Ben about trading-bot, mostly slippage gossip.
+day 159 topic trading-bot
+quick trading-bot sync with Pia, position and hedge discussed, no decisions.
+day 160 topic trading-bot
+trim backlog in trading-bot: kept candle, dropped queue, parked signal.
+day 160 topic trading-bot
+quick trading-bot sync with Pia, candle and hedge discussed, no decisions.
+day 160 topic trading-bot
+trading-bot weekly notes: feed stable, queue noisy, signal pending.
+day 160 topic voice-agent
+read voice-agent issue tracker, latency closed, transcript stale, barge-in new.
+day 160 topic voice-agent
+Pia renamed the voice-agent folder, nothing merged.
+day 160 topic voice-agent
+quick voice-agent sync with Lena, pipeline and latency discussed, no decisions.
+day 160 topic voice-agent
+Sami queued the voice-agent folder, nothing merged.
+day 161 topic voice-agent
+cleanup day in voice-agent, vad renamed, stream deleted.
+day 162 topic trading-bot
+read trading-bot issue tracker, risk closed, candle stale, order new.
+day 162 topic voice-agent
+voice-agent weekly notes: barge-in stable, agent noisy, stream pending.
+day 163 topic trading-bot
+quick trading-bot sync with Tessa, fill and feed discussed, no decisions.
+day 163 topic voice-agent
+voice-agent weekly notes: transcript stable, prompt noisy, turn pending.
+day 163 topic voice-agent
+trim backlog in voice-agent: kept latency, dropped pipeline, parked prompt.
+day 164 topic trading-bot
+cleanup day in trading-bot, slippage renamed, position deleted.
+day 164 topic voice-agent
+Pia moved the voice-agent folder, nothing merged.
+day 164 topic trading-bot
+trim backlog in trading-bot: kept candle, dropped fill, parked position.
+day 164 topic voice-agent
+read voice-agent issue tracker, stream closed, stream stale, stream new.
+day 164 topic trading-bot
+trim backlog in trading-bot: kept feed, dropped feed, parked queue.
+day 165 topic trading-bot
+cleanup day in trading-bot, slippage renamed, risk deleted.
+day 165 topic voice-agent
+trim backlog in voice-agent: kept prompt, dropped transcript, parked barge-in.
+day 166 topic trading-bot
+quick trading-bot sync with Rosa, slippage and order discussed, no decisions.
+day 167 topic voice-agent
+quick voice-agent sync with Ivo, latency and agent discussed, no decisions.
+day 168 topic trading-bot
+quick trading-bot sync with Gus, order and position discussed, no decisions.
+day 168 topic trading-bot
+chat with Sami about trading-bot, mostly hedge gossip.
+day 168 topic voice-agent
+Ben asked about voice-agent utterance, answered with the usual latency doc.
+day 168 topic voice-agent
+quick voice-agent sync with Lena, turn and stream discussed, no decisions.
+day 169 topic trading-bot
+Nia refactored the trading-bot folder, nothing merged.
+day 169 topic trading-bot
+Pia revisited the trading-bot folder, nothing merged.
+day 170 topic voice-agent
+read voice-agent issue tracker, transcript closed, latency stale, vad new.
+day 172 topic voice-agent
+chat with Rosa about voice-agent, mostly vad gossip.
+day 172 topic trading-bot
+trading-bot weekly notes: queue stable, candle noisy, fill pending.
+day 173 topic trading-bot
+trading-bot weekly notes: risk stable, position noisy, position pending.
+day 173 topic voice-agent
+chat with Dara about voice-agent, mostly stream gossip.
+day 173 topic trading-bot
+Nia asked about trading-bot candle, answered with the usual order doc.
+day 174 topic trading-bot
+quick trading-bot sync with Quin, signal and fill discussed, no decisions.
+day 175 topic voice-agent
+voice-agent weekly notes: prompt stable, transcript noisy, transcript pending.
+day 175 topic trading-bot
+trading-bot weekly notes: order stable, slippage noisy, feed pending.
+day 175 topic voice-agent
+read voice-agent issue tracker, prompt closed, turn stale, turn new.
+day 176 topic voice-agent
+read voice-agent issue tracker, latency closed, latency stale, pipeline new.
+day 176 topic trading-bot
+chat with Lena about trading-bot, mostly order gossip.
+day 177 topic voice-agent
+quick voice-agent sync with Omar, stream and vad discussed, no decisions.
+day 177 topic voice-agent
+Lena refactored the voice-agent folder, nothing merged.
+day 178 topic voice-agent
+cleanup day in voice-agent, stream renamed, agent deleted.
+day 179 topic voice-agent
+chat with Rosa about voice-agent, mostly latency gossip.
+day 179 topic voice-agent
+read voice-agent issue tracker, latency closed, barge-in stale, stream new.
+day 179 topic trading-bot
+Omar archived the trading-bot folder, nothing merged.
+day 179 topic voice-agent
+trim backlog in voice-agent: kept pipeline, dropped stream, parked utterance.
+day 179 topic voice-agent
+read voice-agent issue tracker, stream closed, turn stale, utterance new.
+day 180 topic trading-bot
+quick trading-bot sync with Quin, hedge and slippage discussed, no decisions.
+day 181 topic trading-bot
+cleanup day in trading-bot, slippage renamed, signal deleted.
+day 181 topic trading-bot
+Tessa tested the trading-bot folder, nothing merged.
+day 182 topic voice-agent
+quick voice-agent sync with Tessa, prompt and prompt discussed, no decisions.
+day 182 topic trading-bot
+trading-bot weekly notes: feed stable, order noisy, signal pending.
+day 182 topic voice-agent
+read voice-agent issue tracker, turn closed, pipeline stale, utterance new.
+day 182 topic voice-agent
+read voice-agent issue tracker, barge-in closed, transcript stale, agent new.
+day 182 topic trading-bot
+read trading-bot issue tracker, slippage closed, risk stale, candle new.
+day 183 topic trading-bot
+cleanup day in trading-bot, position renamed, candle deleted.
+day 183 topic voice-agent
+chat with Dara about voice-agent, mostly prompt gossip.
+day 184 topic trading-bot
+Pia queued the trading-bot folder, nothing merged.
+day 184 topic trading-bot
+Pia asked about trading-bot queue, answered with the usual risk doc.
+day 185 topic trading-bot
+trim backlog in trading-bot: kept risk, dropped order, parked hedge.
+day 185 topic voice-agent
+Dara reviewed the voice-agent folder, nothing merged.
+day 186 topic trading-bot
+cleanup day in trading-bot, hedge renamed, candle deleted.
+day 186 topic voice-agent
+quick voice-agent sync with Dara, barge-in and agent discussed, no decisions.
+day 187 topic trading-bot
+Ben asked about trading-bot fill, answered with the usual position doc.
+day 188 topic trading-bot
+trim backlog in trading-bot: kept signal, dropped risk, parked candle.
+day 189 topic voice-agent
+Pia revisited the voice-agent folder, nothing merged.
+day 189 topic voice-agent
+cleanup day in voice-agent, transcript renamed, turn deleted.
+day 189 topic voice-agent
+voice-agent weekly notes: latency stable, turn noisy, prompt pending.
+day 192 topic trading-bot
+Omar skimmed the trading-bot folder, nothing merged.
+day 192 topic voice-agent
+voice-agent weekly notes: turn stable, transcript noisy, stream pending.
+day 192 topic trading-bot
+quick trading-bot sync with Ivo, candle and slippage discussed, no decisions.
+day 193 topic trading-bot
+quick trading-bot sync with Quin, slippage and queue discussed, no decisions.
+day 193 topic voice-agent
+read voice-agent issue tracker, barge-in closed, vad stale, agent new.
+day 193 topic trading-bot
+cleanup day in trading-bot, queue renamed, queue deleted.
+day 194 topic voice-agent
+chat with Ivo about voice-agent, mostly pipeline gossip.
+day 194 topic trading-bot
+Omar asked about trading-bot order, answered with the usual feed doc.
+day 194 topic voice-agent
+trim backlog in voice-agent: kept agent, dropped agent, parked vad.
+day 195 topic trading-bot
+Nia archived the trading-bot folder, nothing merged.
+day 195 topic voice-agent
+cleanup day in voice-agent, turn renamed, pipeline deleted.
+day 195 topic trading-bot
+trim backlog in trading-bot: kept order, dropped feed, parked signal.
+day 196 topic trading-bot
+Sami renamed the trading-bot folder, nothing merged.
+day 196 topic voice-agent
+trim backlog in voice-agent: kept agent, dropped vad, parked pipeline.
+day 196 topic voice-agent
+chat with Rosa about voice-agent, mostly stream gossip.
+day 197 topic trading-bot
+trading-bot weekly notes: position stable, candle noisy, order pending.
+day 198 topic trading-bot
+trim backlog in trading-bot: kept order, dropped feed, parked signal.
+day 199 topic voice-agent
+cleanup day in voice-agent, vad renamed, vad deleted.
+day 199 topic trading-bot
+quick trading-bot sync with Tessa, position and hedge discussed, no decisions.
+day 200 topic trading-bot
+cleanup day in trading-bot, signal renamed, signal deleted.
+day 200 topic trading-bot
+Tessa documented the trading-bot folder, nothing merged.
+day 200 topic voice-agent
+quick voice-agent sync with Gus, agent and prompt discussed, no decisions.
+day 201 topic trading-bot
+quick trading-bot sync with Ben, feed and risk discussed, no decisions.
+day 201 topic voice-agent
+Dara asked about voice-agent pipeline, answered with the usual stream doc.
+day 202 topic trading-bot
+Pia asked about trading-bot hedge, answered with the usual candle doc.
+day 203 topic voice-agent
+Ben queued the voice-agent folder, nothing merged.
+day 203 topic trading-bot
+trading-bot weekly notes: risk stable, signal noisy, position pending.
+day 204 topic trading-bot
+cleanup day in trading-bot, queue renamed, queue deleted.
+day 204 topic trading-bot
+trading-bot weekly notes: order stable, hedge noisy, position pending.
+day 206 topic trading-bot
+cleanup day in trading-bot, fill renamed, hedge deleted.
+day 206 topic voice-agent
+voice-agent weekly notes: prompt stable, stream noisy, transcript pending.
+day 206 topic voice-agent
+chat with Quin about voice-agent, mostly vad gossip.
+day 207 topic trading-bot
+Ivo asked about trading-bot risk, answered with the usual hedge doc.
+day 207 topic voice-agent
+voice-agent weekly notes: pipeline stable, transcript noisy, transcript pending.
+day 208 topic trading-bot
+quick trading-bot sync with Gus, order and order discussed, no decisions.
+day 209 topic voice-agent
+voice-agent weekly notes: pipeline stable, transcript noisy, stream pending.
+day 210 topic trading-bot
+cleanup day in trading-bot, feed renamed, feed deleted.
+day 210 topic trading-bot
+read trading-bot issue tracker, position closed, hedge stale, signal new.
+day 210 topic voice-agent
+trim backlog in voice-agent: kept turn, dropped latency, parked transcript.
+day 211 topic voice-agent
+chat with Gus about voice-agent, mostly turn gossip.
+day 211 topic voice-agent
+Pia asked about voice-agent utterance, answered with the usual latency doc.
+day 212 topic trading-bot
+cleanup day in trading-bot, queue renamed, candle deleted.
+day 212 topic trading-bot
+chat with Ben about trading-bot, mostly feed gossip.
+day 212 topic voice-agent
+read voice-agent issue tracker, agent closed, prompt stale, transcript new.
+day 212 topic trading-bot
+quick trading-bot sync with Pia, fill and fill discussed, no decisions.
+day 212 topic trading-bot
+read trading-bot issue tracker, risk closed, feed stale, risk new.
+day 213 topic trading-bot
+trading-bot weekly notes: signal stable, position noisy, order pending.
+day 213 topic voice-agent
+voice-agent weekly notes: vad stable, stream noisy, agent pending.
+day 213 topic trading-bot
+Nia queued the trading-bot folder, nothing merged.
+day 215 topic voice-agent
+chat with Ivo about voice-agent, mostly vad gossip.
+day 216 topic voice-agent
+voice-agent weekly notes: prompt stable, prompt noisy, agent pending.
+day 216 topic voice-agent
+trim backlog in voice-agent: kept transcript, dropped turn, parked utterance.
+day 216 topic trading-bot
+read trading-bot issue tracker, feed closed, queue stale, risk new.
+day 217 topic voice-agent
+quick voice-agent sync with Rosa, latency and pipeline discussed, no decisions.
+day 217 topic voice-agent
+read voice-agent issue tracker, barge-in closed, pipeline stale, latency new.
+day 217 topic voice-agent
+chat with Sami about voice-agent, mostly barge-in gossip.
+day 217 topic trading-bot
+trading-bot weekly notes: candle stable, order noisy, feed pending.
+day 217 topic voice-agent
+quick voice-agent sync with Omar, latency and transcript discussed, no decisions.
+day 217 topic voice-agent
+cleanup day in voice-agent, stream renamed, prompt deleted.
+day 218 topic voice-agent
+cleanup day in voice-agent, prompt renamed, agent deleted.
+day 219 topic voice-agent
+voice-agent weekly notes: stream stable, agent noisy, prompt pending.
+day 220 topic voice-agent
+quick voice-agent sync with Ben, turn and transcript discussed, no decisions.
+day 220 topic trading-bot
+trading-bot weekly notes: signal stable, feed noisy, slippage pending.
+day 221 topic trading-bot
+trim backlog in trading-bot: kept signal, dropped feed, parked risk.
+day 221 topic trading-bot
+trim backlog in trading-bot: kept risk, dropped hedge, parked feed.
+day 221 topic voice-agent
+chat with Tessa about voice-agent, mostly barge-in gossip.
+day 222 topic trading-bot
+chat with Lena about trading-bot, mostly signal gossip.
+day 222 topic voice-agent
+trim backlog in voice-agent: kept barge-in, dropped transcript, parked utterance.
+day 222 topic voice-agent
+Gus documented the voice-agent folder, nothing merged.
+day 223 topic voice-agent
+trim backlog in voice-agent: kept agent, dropped barge-in, parked barge-in.
+day 223 topic voice-agent
+chat with Nia about voice-agent, mostly barge-in gossip.
+day 223 topic voice-agent
+quick voice-agent sync with Tessa, latency and latency discussed, no decisions.
+day 223 topic voice-agent
+chat with Nia about voice-agent, mostly prompt gossip.
+day 223 topic trading-bot
+trading-bot weekly notes: signal stable, position noisy, candle pending.
+day 224 topic voice-agent
+Ivo tested the voice-agent folder, nothing merged.
+day 224 topic voice-agent
+voice-agent weekly notes: pipeline stable, turn noisy, prompt pending.
+day 224 topic trading-bot
+Omar asked about trading-bot order, answered with the usual risk doc.
+day 225 topic trading-bot
+trim backlog in trading-bot: kept risk, dropped slippage, parked risk.
+day 225 topic voice-agent
+cleanup day in voice-agent, agent renamed, barge-in deleted.
+day 225 topic trading-bot
+trim backlog in trading-bot: kept position, dropped queue, parked slippage.
+day 225 topic voice-agent
+Nia asked about voice-agent barge-in, answered with the usual vad doc.
+day 225 topic voice-agent
+voice-agent weekly notes: latency stable, agent noisy, prompt pending.
+day 225 topic trading-bot
+trading-bot weekly notes: feed stable, order noisy, position pending.
+day 226 topic voice-agent
+read voice-agent issue tracker, pipeline closed, latency stale, stream new.
+day 227 topic voice-agent
+read voice-agent issue tracker, utterance closed, transcript stale, vad new.
+day 228 topic trading-bot
+Gus revisited the trading-bot folder, nothing merged.
+day 228 topic voice-agent
+Omar reviewed the voice-agent folder, nothing merged.
+day 228 topic trading-bot
+read trading-bot issue tracker, queue closed, signal stale, order new.
+day 228 topic voice-agent
+chat with Sami about voice-agent, mostly pipeline gossip.
+day 229 topic trading-bot
+chat with Ivo about trading-bot, mostly risk gossip.
+day 229 topic trading-bot
+chat with Rosa about trading-bot, mostly hedge gossip.
+day 229 topic trading-bot
+quick trading-bot sync with Sami, candle and position discussed, no decisions.
+day 229 topic voice-agent
+quick voice-agent sync with Pia, utterance and transcript discussed, no decisions.
+day 229 topic voice-agent
+cleanup day in voice-agent, pipeline renamed, turn deleted.
+day 229 topic trading-bot
+quick trading-bot sync with Dara, queue and position discussed, no decisions.
+day 230 topic voice-agent
+cleanup day in voice-agent, utterance renamed, stream deleted.
+day 230 topic voice-agent
+quick voice-agent sync with Sami, agent and pipeline discussed, no decisions.
+day 231 topic trading-bot
+Pia queued the trading-bot folder, nothing merged.
+day 231 topic voice-agent
+trim backlog in voice-agent: kept turn, dropped prompt, parked transcript.
+day 231 topic voice-agent
+cleanup day in voice-agent, vad renamed, transcript deleted.
+day 231 topic voice-agent
+Omar skimmed the voice-agent folder, nothing merged.
+day 232 topic trading-bot
+cleanup day in trading-bot, candle renamed, risk deleted.
+day 233 topic trading-bot
+trim backlog in trading-bot: kept queue, dropped candle, parked candle.
+day 233 topic trading-bot
+trading-bot weekly notes: order stable, position noisy, risk pending.
+day 234 topic voice-agent
+quick voice-agent sync with Quin, transcript and prompt discussed, no decisions.
+day 234 topic voice-agent
+read voice-agent issue tracker, transcript closed, vad stale, turn new.
+day 234 topic voice-agent
+Tessa refactored the voice-agent folder, nothing merged.
+day 235 topic trading-bot
+chat with Gus about trading-bot, mostly slippage gossip.
+day 235 topic voice-agent
+trim backlog in voice-agent: kept utterance, dropped utterance, parked prompt.
+day 235 topic trading-bot
+Lena asked about trading-bot position, answered with the usual feed doc.
+day 235 topic voice-agent
+trim backlog in voice-agent: kept vad, dropped pipeline, parked pipeline.
+day 235 topic voice-agent
+quick voice-agent sync with Dara, latency and pipeline discussed, no decisions.
+day 236 topic voice-agent
+quick voice-agent sync with Lena, agent and prompt discussed, no decisions.
+day 236 topic trading-bot
+trim backlog in trading-bot: kept feed, dropped risk, parked queue.
+day 236 topic voice-agent
+read voice-agent issue tracker, pipeline closed, pipeline stale, agent new.
+day 236 topic trading-bot
+read trading-bot issue tracker, feed closed, hedge stale, risk new.
+day 237 topic trading-bot
+Tessa asked about trading-bot feed, answered with the usual signal doc.
+day 237 topic voice-agent
+Quin refactored the voice-agent folder, nothing merged.
+day 237 topic voice-agent
+read voice-agent issue tracker, stream closed, utterance stale, utterance new.
+day 237 topic trading-bot
+read trading-bot issue tracker, queue closed, signal stale, fill new.
+day 237 topic voice-agent
+trim backlog in voice-agent: kept prompt, dropped prompt, parked latency.
+day 238 topic trading-bot
+chat with Quin about trading-bot, mostly risk gossip.
+day 239 topic trading-bot
+Rosa revisited the trading-bot folder, nothing merged.
+day 239 topic trading-bot
+Omar asked about trading-bot fill, answered with the usual slippage doc.
+day 240 topic voice-agent
+voice-agent weekly notes: barge-in stable, utterance noisy, stream pending.
+day 241 topic trading-bot
+cleanup day in trading-bot, queue renamed, feed deleted.
+day 241 topic voice-agent
+quick voice-agent sync with Rosa, prompt and stream discussed, no decisions.
+day 241 topic voice-agent
+Tessa asked about voice-agent latency, answered with the usual prompt doc.
+day 241 topic trading-bot
+read trading-bot issue tracker, feed closed, position stale, signal new.
+day 241 topic trading-bot
+trim backlog in trading-bot: kept slippage, dropped hedge, parked fill.
+day 241 topic voice-agent
+trim backlog in voice-agent: kept transcript, dropped transcript, parked utterance.
+day 242 topic voice-agent
+read voice-agent issue tracker, prompt closed, agent stale, transcript new.
+day 242 topic voice-agent
+read voice-agent issue tracker, vad closed, turn stale, agent new.
+day 242 topic voice-agent
+trim backlog in voice-agent: kept barge-in, dropped turn, parked utterance.
+day 242 topic trading-bot
+trim backlog in trading-bot: kept risk, dropped slippage, parked slippage.
+day 243 topic trading-bot
+cleanup day in trading-bot, risk renamed, order deleted.
+day 243 topic voice-agent
+chat with Nia about voice-agent, mostly turn gossip.
+day 243 topic trading-bot
+quick trading-bot sync with Pia, signal and order discussed, no decisions.
+day 244 topic trading-bot
+trading-bot weekly notes: feed stable, candle noisy, order pending.
+day 244 topic trading-bot
+trim backlog in trading-bot: kept signal, dropped position, parked order.
+day 245 topic trading-bot
+Ivo asked about trading-bot hedge, answered with the usual slippage doc.
+day 245 topic voice-agent
+cleanup day in voice-agent, stream renamed, turn deleted.
+day 246 topic voice-agent
+voice-agent weekly notes: transcript stable, utterance noisy, barge-in pending.
+day 246 topic voice-agent
+Rosa asked about voice-agent latency, answered with the usual vad doc.
+day 247 topic trading-bot
+chat with Nia about trading-bot, mostly slippage gossip.
+day 248 topic voice-agent
+quick voice-agent sync with Ben, turn and barge-in discussed, no decisions.
+day 248 topic trading-bot
+quick trading-bot sync with Tessa, order and candle discussed, no decisions.
+day 248 topic trading-bot
+Tessa renamed the trading-bot folder, nothing merged.
+day 248 topic voice-agent
+Rosa queued the voice-agent folder, nothing merged.
+day 249 topic trading-bot
+cleanup day in trading-bot, order renamed, queue deleted.
+day 249 topic trading-bot
+trading-bot weekly notes: position stable, position noisy, signal pending.
+day 250 topic voice-agent
+Dara documented the voice-agent folder, nothing merged.
+day 251 topic voice-agent
+quick voice-agent sync with Tessa, prompt and turn discussed, no decisions.
+day 251 topic voice-agent
+Lena asked about voice-agent vad, answered with the usual utterance doc.
+day 252 topic trading-bot
+read trading-bot issue tracker, feed closed, risk stale, signal new.
+day 254 topic voice-agent
+read voice-agent issue tracker, vad closed, prompt stale, pipeline new.
+day 254 topic trading-bot
+Dara refactored the trading-bot folder, nothing merged.
+day 254 topic voice-agent
+trim backlog in voice-agent: kept barge-in, dropped vad, parked pipeline.
+day 255 topic trading-bot
+chat with Omar about trading-bot, mostly candle gossip.
+day 256 topic trading-bot
+chat with Lena about trading-bot, mostly risk gossip.
+day 256 topic voice-agent
+trim backlog in voice-agent: kept turn, dropped agent, parked utterance.
+day 256 topic voice-agent
+Pia asked about voice-agent latency, answered with the usual transcript doc.
+day 256 topic trading-bot
+Ben refactored the trading-bot folder, nothing merged.
+day 257 topic trading-bot
+cleanup day in trading-bot, risk renamed, candle deleted.
+day 258 topic voice-agent
+quick voice-agent sync with Dara, transcript and latency discussed, no decisions.
+day 258 topic voice-agent
+Pia asked about voice-agent prompt, answered with the usual agent doc.
+day 259 topic trading-bot
+trading-bot weekly notes: risk stable, fill noisy, order pending.
+day 259 topic voice-agent
+chat with Gus about voice-agent, mostly turn gossip.
+day 260 topic voice-agent
+Nia asked about voice-agent utterance, answered with the usual transcript doc.
+day 260 topic trading-bot
+Quin asked about trading-bot fill, answered with the usual slippage doc.
+day 260 topic trading-bot
+Ivo asked about trading-bot signal, answered with the usual position doc.
+day 260 topic trading-bot
+quick trading-bot sync with Omar, fill and feed discussed, no decisions.
+day 260 topic trading-bot
+quick trading-bot sync with Sami, order and fill discussed, no decisions.
+day 262 topic trading-bot
+cleanup day in trading-bot, slippage renamed, hedge deleted.
+day 262 topic trading-bot
+trading-bot weekly notes: order stable, feed noisy, fill pending.
+day 262 topic voice-agent
+voice-agent weekly notes: prompt stable, stream noisy, vad pending.
+day 262 topic voice-agent
+Pia documented the voice-agent folder, nothing merged.
+day 262 topic trading-bot
+Ivo renamed the trading-bot folder, nothing merged.
+day 263 topic voice-agent
+cleanup day in voice-agent, turn renamed, vad deleted.
+day 264 topic voice-agent
+read voice-agent issue tracker, stream closed, barge-in stale, stream new.
+day 264 topic voice-agent
+Ben asked about voice-agent prompt, answered with the usual barge-in doc.
+day 265 topic voice-agent
+quick voice-agent sync with Ben, agent and latency discussed, no decisions.
+day 265 topic voice-agent
+cleanup day in voice-agent, barge-in renamed, pipeline deleted.
+day 266 topic trading-bot
+cleanup day in trading-bot, fill renamed, position deleted.
+day 267 topic trading-bot
+read trading-bot issue tracker, position closed, hedge stale, position new.
+day 267 topic voice-agent
+Dara revisited the voice-agent folder, nothing merged.
+day 267 topic voice-agent
+read voice-agent issue tracker, pipeline closed, barge-in stale, transcript new.
+day 268 topic voice-agent
+quick voice-agent sync with Gus, pipeline and vad discussed, no decisions.
+day 268 topic trading-bot
+Ben asked about trading-bot position, answered with the usual position doc.
+day 269 topic trading-bot
+trim backlog in trading-bot: kept position, dropped hedge, parked order.
+day 269 topic voice-agent
+Gus asked about voice-agent turn, answered with the usual turn doc.
+day 270 topic voice-agent
+quick voice-agent sync with Ivo, barge-in and barge-in discussed, no decisions.
+day 270 topic voice-agent
+read voice-agent issue tracker, pipeline closed, utterance stale, barge-in new.
+day 270 topic trading-bot
+trading-bot weekly notes: slippage stable, risk noisy, queue pending.
+day 270 topic voice-agent
+voice-agent weekly notes: turn stable, agent noisy, latency pending.
+day 270 topic voice-agent
+quick voice-agent sync with Rosa, stream and pipeline discussed, no decisions.
+day 270 topic trading-bot
+Dara skimmed the trading-bot folder, nothing merged.
+day 270 topic trading-bot
+trim backlog in trading-bot: kept feed, dropped fill, parked queue.
+day 271 topic voice-agent
+Ben asked about voice-agent latency, answered with the usual stream doc.
+day 272 topic voice-agent
+cleanup day in voice-agent, utterance renamed, agent deleted.
+day 272 topic voice-agent
+Quin asked about voice-agent turn, answered with the usual prompt doc.
+day 273 topic trading-bot
+Nia refactored the trading-bot folder, nothing merged.
+day 273 topic voice-agent
+cleanup day in voice-agent, utterance renamed, barge-in deleted.
+day 274 topic voice-agent
+cleanup day in voice-agent, agent renamed, latency deleted.
+day 274 topic voice-agent
+trim backlog in voice-agent: kept barge-in, dropped stream, parked transcript.
+day 275 topic trading-bot
+trading-bot weekly notes: order stable, order noisy, candle pending.
+day 276 topic voice-agent
+quick voice-agent sync with Pia, transcript and barge-in discussed, no decisions.
+day 276 topic trading-bot
+cleanup day in trading-bot, candle renamed, feed deleted.
+day 277 topic trading-bot
+cleanup day in trading-bot, signal renamed, position deleted.
+day 277 topic trading-bot
+Gus asked about trading-bot fill, answered with the usual position doc.
+day 278 topic voice-agent
+quick voice-agent sync with Omar, barge-in and turn discussed, no decisions.
+day 278 topic voice-agent
+trim backlog in voice-agent: kept latency, dropped stream, parked prompt.
+day 278 topic voice-agent
+trim backlog in voice-agent: kept barge-in, dropped barge-in, parked prompt.
+day 278 topic trading-bot
+read trading-bot issue tracker, candle closed, slippage stale, candle new.
+day 279 topic trading-bot
+cleanup day in trading-bot, queue renamed, hedge deleted.
+day 279 topic trading-bot
+cleanup day in trading-bot, signal renamed, hedge deleted.
+day 279 topic trading-bot
+Nia archived the trading-bot folder, nothing merged.
+day 280 topic trading-bot
+chat with Sami about trading-bot, mostly queue gossip.
+day 281 topic voice-agent
+quick voice-agent sync with Nia, barge-in and prompt discussed, no decisions.
+day 281 topic voice-agent
+voice-agent weekly notes: prompt stable, agent noisy, agent pending.
+day 281 topic voice-agent
+chat with Lena about voice-agent, mostly barge-in gossip.
+day 281 topic voice-agent
+Dara revisited the voice-agent folder, nothing merged.
+day 281 topic voice-agent
+Rosa asked about voice-agent vad, answered with the usual transcript doc.
+day 282 topic trading-bot
+cleanup day in trading-bot, position renamed, queue deleted.
+day 282 topic trading-bot
+read trading-bot issue tracker, signal closed, feed stale, hedge new.
+day 283 topic trading-bot
+trim backlog in trading-bot: kept slippage, dropped order, parked slippage.
+day 283 topic trading-bot
+cleanup day in trading-bot, signal renamed, feed deleted.
+day 283 topic trading-bot
+trading-bot weekly notes: signal stable, slippage noisy, queue pending.
+day 284 topic trading-bot
+trading-bot weekly notes: hedge stable, fill noisy, risk pending.
+day 285 topic trading-bot
+chat with Nia about trading-bot, mostly hedge gossip.
+day 285 topic trading-bot
+cleanup day in trading-bot, slippage renamed, candle deleted.
+day 285 topic voice-agent
+chat with Tessa about voice-agent, mostly agent gossip.
+day 285 topic trading-bot
+trim backlog in trading-bot: kept position, dropped hedge, parked slippage.
+day 285 topic trading-bot
+quick trading-bot sync with Quin, queue and slippage discussed, no decisions.
+day 285 topic trading-bot
+read trading-bot issue tracker, signal closed, risk stale, signal new.
+day 285 topic trading-bot
+trading-bot weekly notes: feed stable, hedge noisy, signal pending.
+day 286 topic trading-bot
+Dara asked about trading-bot hedge, answered with the usual fill doc.
+day 286 topic trading-bot
+trading-bot weekly notes: candle stable, fill noisy, position pending.
+day 287 topic trading-bot
+trading-bot weekly notes: fill stable, feed noisy, hedge pending.
+day 287 topic trading-bot
+quick trading-bot sync with Ben, order and slippage discussed, no decisions.
+day 287 topic trading-bot
+trading-bot weekly notes: queue stable, position noisy, signal pending.
+day 287 topic trading-bot
+read trading-bot issue tracker, queue closed, order stale, position new.
+day 287 topic trading-bot
+read trading-bot issue tracker, risk closed, signal stale, fill new.
+day 288 topic trading-bot
+chat with Ivo about trading-bot, mostly signal gossip.
+day 288 topic trading-bot
+chat with Tessa about trading-bot, mostly candle gossip.
+day 289 topic voice-agent
+voice-agent weekly notes: vad stable, prompt noisy, agent pending.
+day 289 topic trading-bot
+Omar asked about trading-bot position, answered with the usual feed doc.
+day 289 topic voice-agent
+quick voice-agent sync with Lena, vad and turn discussed, no decisions.
+day 290 topic trading-bot
+quick trading-bot sync with Gus, risk and hedge discussed, no decisions.
+day 290 topic voice-agent
+quick voice-agent sync with Lena, pipeline and utterance discussed, no decisions.
+day 291 topic trading-bot
+chat with Rosa about trading-bot, mostly candle gossip.
+day 291 topic voice-agent
+chat with Sami about voice-agent, mostly agent gossip.
+day 292 topic trading-bot
+quick trading-bot sync with Pia, slippage and fill discussed, no decisions.
+day 292 topic voice-agent
+read voice-agent issue tracker, turn closed, agent stale, latency new.
+day 292 topic voice-agent
+voice-agent weekly notes: pipeline stable, turn noisy, agent pending.
+day 293 topic trading-bot
+chat with Rosa about trading-bot, mostly signal gossip.
+day 293 topic trading-bot
+cleanup day in trading-bot, position renamed, signal deleted.
+day 293 topic trading-bot
+read trading-bot issue tracker, position closed, hedge stale, position new.
+day 294 topic trading-bot
+Tessa reviewed the trading-bot folder, nothing merged.
+day 295 topic voice-agent
+Tessa revisited the voice-agent folder, nothing merged.
+day 295 topic trading-bot
+chat with Quin about trading-bot, mostly risk gossip.
+day 296 topic voice-agent
+Ben asked about voice-agent turn, answered with the usual barge-in doc.
+day 296 topic voice-agent
+trim backlog in voice-agent: kept barge-in, dropped transcript, parked latency.
+day 296 topic trading-bot
+quick trading-bot sync with Ben, feed and candle discussed, no decisions.
+day 296 topic voice-agent
+cleanup day in voice-agent, transcript renamed, pipeline deleted.
+day 297 topic voice-agent
+Rosa renamed the voice-agent folder, nothing merged.
+day 297 topic trading-bot
+cleanup day in trading-bot, candle renamed, hedge deleted.
+day 297 topic voice-agent
+cleanup day in voice-agent, latency renamed, barge-in deleted.
+day 297 topic trading-bot
+cleanup day in trading-bot, risk renamed, slippage deleted.
+day 298 topic trading-bot
+Lena renamed the trading-bot folder, nothing merged.
+day 298 topic trading-bot
+Ivo asked about trading-bot queue, answered with the usual slippage doc.
+day 298 topic trading-bot
+read trading-bot issue tracker, slippage closed, feed stale, candle new.
+day 298 topic trading-bot
+cleanup day in trading-bot, hedge renamed, order deleted.
+day 300 topic trading-bot
+Dara revisited the trading-bot folder, nothing merged.
+day 301 topic trading-bot
+read trading-bot issue tracker, fill closed, hedge stale, slippage new.
+day 301 topic trading-bot
+trim backlog in trading-bot: kept queue, dropped queue, parked candle.
+day 301 topic trading-bot
+chat with Dara about trading-bot, mostly queue gossip.
+day 301 topic trading-bot
+Ben asked about trading-bot signal, answered with the usual slippage doc.
+day 302 topic trading-bot
+read trading-bot issue tracker, risk closed, position stale, position new.
+day 303 topic trading-bot
+quick trading-bot sync with Quin, hedge and order discussed, no decisions.
+day 304 topic voice-agent
+chat with Dara about voice-agent, mostly latency gossip.
+day 304 topic voice-agent
+voice-agent weekly notes: pipeline stable, utterance noisy, stream pending.
+day 305 topic trading-bot
+trim backlog in trading-bot: kept slippage, dropped position, parked risk.
+day 305 topic voice-agent
+quick voice-agent sync with Ivo, vad and utterance discussed, no decisions.
+day 306 topic trading-bot
+read trading-bot issue tracker, risk closed, fill stale, risk new.
+day 306 topic voice-agent
+read voice-agent issue tracker, agent closed, vad stale, barge-in new.
+day 306 topic voice-agent
+Lena asked about voice-agent turn, answered with the usual stream doc.
+day 307 topic voice-agent
+Nia asked about voice-agent utterance, answered with the usual prompt doc.
+day 307 topic voice-agent
+read voice-agent issue tracker, latency closed, latency stale, utterance new.
+day 308 topic trading-bot
+Gus renamed the trading-bot folder, nothing merged.
+day 308 topic voice-agent
+read voice-agent issue tracker, pipeline closed, latency stale, vad new.
+day 309 topic trading-bot
+trading-bot weekly notes: candle stable, candle noisy, slippage pending.
+day 309 topic voice-agent
+trim backlog in voice-agent: kept turn, dropped pipeline, parked pipeline.
+day 310 topic voice-agent
+Ben asked about voice-agent vad, answered with the usual utterance doc.
+day 310 topic voice-agent
+cleanup day in voice-agent, transcript renamed, prompt deleted.
+day 310 topic voice-agent
+cleanup day in voice-agent, pipeline renamed, barge-in deleted.
+day 311 topic voice-agent
+Ivo renamed the voice-agent folder, nothing merged.
+day 311 topic voice-agent
+trim backlog in voice-agent: kept stream, dropped transcript, parked transcript.
+day 311 topic trading-bot
+trim backlog in trading-bot: kept risk, dropped risk, parked feed.
+day 311 topic trading-bot
+trading-bot weekly notes: position stable, feed noisy, candle pending.
+day 312 topic trading-bot
+chat with Ivo about trading-bot, mostly risk gossip.
+day 312 topic voice-agent
+chat with Ben about voice-agent, mostly prompt gossip.
+day 313 topic voice-agent
+Rosa reviewed the voice-agent folder, nothing merged.
+day 313 topic voice-agent
+voice-agent weekly notes: utterance stable, barge-in noisy, turn pending.
+day 314 topic trading-bot
+trim backlog in trading-bot: kept position, dropped order, parked position.
+day 314 topic trading-bot
+chat with Ben about trading-bot, mostly feed gossip.
+day 314 topic voice-agent
+Lena asked about voice-agent prompt, answered with the usual turn doc.
+day 314 topic trading-bot
+quick trading-bot sync with Omar, order and risk discussed, no decisions.
+day 314 topic trading-bot
+trading-bot weekly notes: position stable, hedge noisy, signal pending.
+day 315 topic trading-bot
+Pia asked about trading-bot hedge, answered with the usual signal doc.
+day 315 topic voice-agent
+chat with Tessa about voice-agent, mostly prompt gossip.
+day 315 topic trading-bot
+quick trading-bot sync with Ben, risk and order discussed, no decisions.
+day 316 topic voice-agent
+trim backlog in voice-agent: kept latency, dropped stream, parked vad.
+day 316 topic trading-bot
+quick trading-bot sync with Ben, queue and fill discussed, no decisions.
+day 317 topic voice-agent
+Tessa archived the voice-agent folder, nothing merged.
+day 317 topic trading-bot
+chat with Omar about trading-bot, mostly queue gossip.
+day 318 topic trading-bot
+trim backlog in trading-bot: kept hedge, dropped queue, parked hedge.
+day 319 topic trading-bot
+Nia moved the trading-bot folder, nothing merged.
+day 319 topic trading-bot
+read trading-bot issue tracker, feed closed, hedge stale, order new.
+day 320 topic trading-bot
+read trading-bot issue tracker, risk closed, hedge stale, hedge new.
+day 321 topic trading-bot
+Ben tested the trading-bot folder, nothing merged.
+day 321 topic trading-bot
+Lena documented the trading-bot folder, nothing merged.
+day 321 topic trading-bot
+quick trading-bot sync with Nia, slippage and queue discussed, no decisions.
+day 322 topic trading-bot
+read trading-bot issue tracker, order closed, slippage stale, risk new.
+day 322 topic trading-bot
+read trading-bot issue tracker, position closed, fill stale, slippage new.
+day 322 topic voice-agent
+chat with Ivo about voice-agent, mostly vad gossip.
+day 323 topic trading-bot
+quick trading-bot sync with Quin, queue and fill discussed, no decisions.
+day 323 topic voice-agent
+read voice-agent issue tracker, turn closed, barge-in stale, vad new.
+day 323 topic voice-agent
+voice-agent weekly notes: vad stable, transcript noisy, transcript pending.
+day 324 topic voice-agent
+Gus asked about voice-agent vad, answered with the usual transcript doc.
+day 325 topic trading-bot
+cleanup day in trading-bot, fill renamed, hedge deleted.
+day 325 topic voice-agent
+read voice-agent issue tracker, prompt closed, prompt stale, transcript new.
+day 326 topic trading-bot
+Lena archived the trading-bot folder, nothing merged.
+day 327 topic voice-agent
+read voice-agent issue tracker, pipeline closed, prompt stale, stream new.
+day 327 topic voice-agent
+voice-agent weekly notes: agent stable, agent noisy, utterance pending.
+day 327 topic voice-agent
+trim backlog in voice-agent: kept utterance, dropped vad, parked transcript.
+day 328 topic voice-agent
+voice-agent weekly notes: barge-in stable, latency noisy, latency pending.
+day 328 topic voice-agent
+trim backlog in voice-agent: kept transcript, dropped stream, parked stream.
+day 329 topic trading-bot
+Ben asked about trading-bot candle, answered with the usual order doc.
+day 329 topic voice-agent
+voice-agent weekly notes: pipeline stable, vad noisy, transcript pending.
+day 329 topic voice-agent
+trim backlog in voice-agent: kept utterance, dropped prompt, parked pipeline.
+day 330 topic voice-agent
+cleanup day in voice-agent, transcript renamed, turn deleted.
+day 330 topic trading-bot
+quick trading-bot sync with Pia, risk and order discussed, no decisions.
+day 331 topic trading-bot
+trading-bot weekly notes: fill stable, hedge noisy, candle pending.
+day 331 topic trading-bot
+cleanup day in trading-bot, candle renamed, slippage deleted.
+day 331 topic voice-agent
+quick voice-agent sync with Sami, pipeline and stream discussed, no decisions.
+day 331 topic voice-agent
+quick voice-agent sync with Lena, turn and utterance discussed, no decisions.
+day 331 topic trading-bot
+trading-bot weekly notes: queue stable, slippage noisy, risk pending.
+day 332 topic trading-bot
+chat with Ivo about trading-bot, mostly order gossip.
+day 332 topic voice-agent
+read voice-agent issue tracker, latency closed, utterance stale, utterance new.
+day 332 topic trading-bot
+Ivo asked about trading-bot slippage, answered with the usual fill doc.
+day 333 topic trading-bot
+read trading-bot issue tracker, candle closed, signal stale, candle new.
+day 333 topic trading-bot
+Quin asked about trading-bot hedge, answered with the usual candle doc.
+day 333 topic voice-agent
+Omar tested the voice-agent folder, nothing merged.
+day 333 topic voice-agent
+cleanup day in voice-agent, utterance renamed, turn deleted.
+day 334 topic trading-bot
+quick trading-bot sync with Tessa, fill and position discussed, no decisions.
+day 335 topic trading-bot
+Gus asked about trading-bot position, answered with the usual slippage doc.
+day 336 topic voice-agent
+Ben asked about voice-agent latency, answered with the usual prompt doc.
+day 336 topic trading-bot
+quick trading-bot sync with Lena, position and order discussed, no decisions.
+day 337 topic trading-bot
+chat with Rosa about trading-bot, mostly candle gossip.
+day 337 topic voice-agent
+voice-agent weekly notes: prompt stable, barge-in noisy, utterance pending.
+day 339 topic voice-agent
+Tessa asked about voice-agent stream, answered with the usual stream doc.
+day 339 topic voice-agent
+quick voice-agent sync with Gus, agent and transcript discussed, no decisions.
+day 340 topic trading-bot
+Ivo moved the trading-bot folder, nothing merged.
+day 340 topic voice-agent
+chat with Rosa about voice-agent, mostly pipeline gossip.
+day 340 topic voice-agent
+quick voice-agent sync with Rosa, turn and utterance discussed, no decisions.
+day 341 topic trading-bot
+read trading-bot issue tracker, candle closed, candle stale, candle new.
+day 342 topic voice-agent
+voice-agent weekly notes: turn stable, pipeline noisy, barge-in pending.
+day 342 topic voice-agent
+trim backlog in voice-agent: kept latency, dropped stream, parked latency.
+day 342 topic voice-agent
+Tessa revisited the voice-agent folder, nothing merged.
+day 343 topic trading-bot
+Dara documented the trading-bot folder, nothing merged.
+day 343 topic voice-agent
+chat with Pia about voice-agent, mostly latency gossip.
+day 343 topic trading-bot
+Omar tested the trading-bot folder, nothing merged.
+day 344 topic trading-bot
+Nia asked about trading-bot order, answered with the usual order doc.
+day 344 topic trading-bot
+quick trading-bot sync with Quin, risk and candle discussed, no decisions.
+day 344 topic voice-agent
+Lena renamed the voice-agent folder, nothing merged.
+day 344 topic voice-agent
+quick voice-agent sync with Ben, prompt and latency discussed, no decisions.
+day 344 topic voice-agent
+Ivo asked about voice-agent prompt, answered with the usual transcript doc.
+day 344 topic trading-bot
+cleanup day in trading-bot, hedge renamed, risk deleted.
+day 345 topic trading-bot
+trim backlog in trading-bot: kept order, dropped fill, parked hedge.
+day 345 topic trading-bot
+trim backlog in trading-bot: kept fill, dropped hedge, parked signal.
+day 346 topic voice-agent
+cleanup day in voice-agent, utterance renamed, stream deleted.
+day 346 topic voice-agent
+quick voice-agent sync with Quin, prompt and stream discussed, no decisions.
+day 346 topic voice-agent
+quick voice-agent sync with Quin, prompt and vad discussed, no decisions.
+day 347 topic trading-bot
+chat with Gus about trading-bot, mostly queue gossip.
+day 348 topic voice-agent
+voice-agent weekly notes: transcript stable, barge-in noisy, stream pending.
+day 348 topic trading-bot
+Dara asked about trading-bot candle, answered with the usual candle doc.
+day 348 topic trading-bot
+chat with Quin about trading-bot, mostly candle gossip.
+day 349 topic trading-bot
+trading-bot weekly notes: signal stable, signal noisy, hedge pending.
+day 349 topic trading-bot
+Pia asked about trading-bot position, answered with the usual signal doc.
+day 350 topic voice-agent
+chat with Gus about voice-agent, mostly stream gossip.
+day 351 topic voice-agent
+trim backlog in voice-agent: kept agent, dropped vad, parked prompt.
+day 351 topic trading-bot
+read trading-bot issue tracker, order closed, fill stale, feed new.
+day 351 topic voice-agent
+voice-agent weekly notes: prompt stable, prompt noisy, prompt pending.
+day 351 topic voice-agent
+chat with Rosa about voice-agent, mostly vad gossip.
+day 352 topic voice-agent
+read voice-agent issue tracker, stream closed, stream stale, stream new.
+day 352 topic voice-agent
+cleanup day in voice-agent, agent renamed, transcript deleted.
+day 353 topic voice-agent
+trim backlog in voice-agent: kept latency, dropped vad, parked agent.
+day 355 topic trading-bot
+Rosa asked about trading-bot order, answered with the usual hedge doc.
+day 355 topic voice-agent
+trim backlog in voice-agent: kept transcript, dropped stream, parked vad.
+day 356 topic voice-agent
+Omar asked about voice-agent stream, answered with the usual latency doc.
+day 356 topic trading-bot
+quick trading-bot sync with Omar, queue and feed discussed, no decisions.
+day 356 topic voice-agent
+Sami asked about voice-agent stream, answered with the usual utterance doc.
+day 356 topic voice-agent
+cleanup day in voice-agent, utterance renamed, latency deleted.
+day 358 topic voice-agent
+voice-agent weekly notes: latency stable, turn noisy, utterance pending.
+day 359 topic trading-bot
+chat with Omar about trading-bot, mostly order gossip.
+day 359 topic trading-bot
+quick trading-bot sync with Omar, slippage and hedge discussed, no decisions.
+day 359 topic voice-agent
+Quin moved the voice-agent folder, nothing merged.
+day 359 topic trading-bot
+read trading-bot issue tracker, signal closed, feed stale, signal new.
+day 360 topic voice-agent
+Pia asked about voice-agent transcript, answered with the usual latency doc.
+day 360 topic trading-bot
+quick trading-bot sync with Gus, risk and signal discussed, no decisions.
+day 360 topic trading-bot
+quick trading-bot sync with Pia, risk and order discussed, no decisions.
+day 361 topic voice-agent
+cleanup day in voice-agent, stream renamed, stream deleted.
+day 361 topic voice-agent
+Pia asked about voice-agent turn, answered with the usual prompt doc.
+day 361 topic voice-agent
+cleanup day in voice-agent, prompt renamed, latency deleted.
+day 361 topic voice-agent
+trim backlog in voice-agent: kept pipeline, dropped agent, parked stream.
+day 361 topic trading-bot
+trim backlog in trading-bot: kept slippage, dropped queue, parked queue.
+day 362 topic trading-bot
+cleanup day in trading-bot, candle renamed, position deleted.
+day 362 topic trading-bot
+trim backlog in trading-bot: kept risk, dropped signal, parked position.
+day 362 topic trading-bot
+trading-bot weekly notes: position stable, queue noisy, queue pending.
+day 362 topic trading-bot
+trim backlog in trading-bot: kept position, dropped order, parked order.
+day 363 topic voice-agent
+read voice-agent issue tracker, prompt closed, turn stale, stream new.
+day 363 topic voice-agent
+Ben asked about voice-agent turn, answered with the usual pipeline doc.
+day 363 topic trading-bot
+Dara reviewed the trading-bot folder, nothing merged.
+day 364 topic trading-bot
+cleanup day in trading-bot, fill renamed, feed deleted.
+day 364 topic trading-bot
+quick trading-bot sync with Quin, hedge and signal discussed, no decisions.
+day 364 topic trading-bot
+trim backlog in trading-bot: kept risk, dropped risk, parked risk.
+day 365 topic trading-bot
+quick trading-bot sync with Ben, risk and risk discussed, no decisions.
+day 365 topic voice-agent
+chat with Quin about voice-agent, mostly utterance gossip.
+day 366 topic voice-agent
+Lena tested the voice-agent folder, nothing merged.
+day 366 topic voice-agent
+Ivo documented the voice-agent folder, nothing merged.
+day 366 topic voice-agent
+cleanup day in voice-agent, prompt renamed, agent deleted.
+day 366 topic trading-bot
+trim backlog in trading-bot: kept candle, dropped position, parked order.
+day 366 topic trading-bot
+cleanup day in trading-bot, signal renamed, order deleted.
+day 366 topic voice-agent
+chat with Pia about voice-agent, mostly utterance gossip.
+day 367 topic voice-agent
+voice-agent weekly notes: turn stable, barge-in noisy, turn pending.
+day 368 topic trading-bot
+trading-bot weekly notes: risk stable, feed noisy, fill pending.
+day 368 topic voice-agent
+chat with Pia about voice-agent, mostly agent gossip.
+day 368 topic voice-agent
+quick voice-agent sync with Pia, transcript and prompt discussed, no decisions.
+day 368 topic voice-agent
+Tessa tested the voice-agent folder, nothing merged.
+day 368 topic trading-bot
+quick trading-bot sync with Sami, candle and feed discussed, no decisions.
+day 368 topic trading-bot
+Lena asked about trading-bot candle, answered with the usual candle doc.
+day 368 topic trading-bot
+trading-bot weekly notes: slippage stable, signal noisy, risk pending.
+day 369 topic voice-agent
+read voice-agent issue tracker, barge-in closed, turn stale, barge-in new.
+day 369 topic trading-bot
+chat with Dara about trading-bot, mostly signal gossip.
+day 369 topic trading-bot
+cleanup day in trading-bot, order renamed, hedge deleted.
+day 369 topic voice-agent
+Ivo moved the voice-agent folder, nothing merged.
+day 369 topic voice-agent
+quick voice-agent sync with Lena, utterance and latency discussed, no decisions.
+day 370 topic voice-agent
+Dara asked about voice-agent turn, answered with the usual transcript doc.
+day 370 topic voice-agent
+quick voice-agent sync with Nia, latency and stream discussed, no decisions.
+day 370 topic voice-agent
+read voice-agent issue tracker, latency closed, barge-in stale, vad new.
+day 370 topic trading-bot
+Omar asked about trading-bot signal, answered with the usual queue doc.
+day 371 topic trading-bot
+read trading-bot issue tracker, fill closed, feed stale, candle new.
+day 371 topic trading-bot
+Gus refactored the trading-bot folder, nothing merged.
+day 371 topic voice-agent
+Sami queued the voice-agent folder, nothing merged.
+day 371 topic trading-bot
+cleanup day in trading-bot, fill renamed, signal deleted.
+day 372 topic voice-agent
+quick voice-agent sync with Omar, stream and barge-in discussed, no decisions.
+day 372 topic trading-bot
+trading-bot weekly notes: signal stable, hedge noisy, order pending.
+day 373 topic trading-bot
+trading-bot weekly notes: order stable, position noisy, queue pending.
+day 373 topic voice-agent
+trim backlog in voice-agent: kept utterance, dropped agent, parked vad.
+day 373 topic trading-bot
+cleanup day in trading-bot, fill renamed, candle deleted.
+day 374 topic voice-agent
+read voice-agent issue tracker, latency closed, latency stale, turn new.
+day 374 topic voice-agent
+quick voice-agent sync with Ivo, latency and vad discussed, no decisions.
+day 376 topic voice-agent
+quick voice-agent sync with Lena, barge-in and transcript discussed, no decisions.
+day 377 topic trading-bot
+Ben asked about trading-bot signal, answered with the usual risk doc.
+day 378 topic trading-bot
+quick trading-bot sync with Lena, queue and signal discussed, no decisions.
+day 378 topic trading-bot
+Ivo asked about trading-bot candle, answered with the usual slippage doc.
+day 378 topic voice-agent
+chat with Ben about voice-agent, mostly pipeline gossip.
+day 378 topic trading-bot
+trading-bot weekly notes: candle stable, feed noisy, order pending.
+day 379 topic trading-bot
+cleanup day in trading-bot, position renamed, candle deleted.
+day 379 topic trading-bot
+trading-bot weekly notes: hedge stable, feed noisy, risk pending.
+day 380 topic trading-bot
+Lena asked about trading-bot position, answered with the usual risk doc.
+day 380 topic trading-bot
+chat with Nia about trading-bot, mostly hedge gossip.
+day 380 topic trading-bot
+Lena asked about trading-bot position, answered with the usual order doc.
+day 380 topic voice-agent
+Gus tested the voice-agent folder, nothing merged.
+day 380 topic trading-bot
+cleanup day in trading-bot, risk renamed, slippage deleted.
+day 380 topic voice-agent
+Ben asked about voice-agent pipeline, answered with the usual barge-in doc.
+day 380 topic trading-bot
+trim backlog in trading-bot: kept order, dropped candle, parked risk.
+day 380 topic voice-agent
+cleanup day in voice-agent, prompt renamed, transcript deleted.
+day 381 topic trading-bot
+Tessa asked about trading-bot signal, answered with the usual hedge doc.
+day 381 topic voice-agent
+voice-agent weekly notes: vad stable, turn noisy, latency pending.
+day 382 topic voice-agent
+Ivo asked about voice-agent utterance, answered with the usual transcript doc.
+day 382 topic voice-agent
+read voice-agent issue tracker, agent closed, turn stale, stream new.
+day 382 topic voice-agent
+Tessa asked about voice-agent pipeline, answered with the usual utterance doc.
+day 383 topic voice-agent
+chat with Dara about voice-agent, mostly agent gossip.
+day 383 topic voice-agent
+Sami asked about voice-agent transcript, answered with the usual prompt doc.
+day 383 topic trading-bot
+trading-bot weekly notes: queue stable, feed noisy, fill pending.
+day 383 topic voice-agent
+read voice-agent issue tracker, turn closed, prompt stale, transcript new.
+day 384 topic trading-bot
+trim backlog in trading-bot: kept candle, dropped queue, parked fill.
+day 385 topic voice-agent
+Gus asked about voice-agent pipeline, answered with the usual agent doc.
+day 385 topic trading-bot
+cleanup day in trading-bot, order renamed, signal deleted.
+day 386 topic voice-agent
+Ben asked about voice-agent latency, answered with the usual utterance doc.
+day 386 topic trading-bot
+Tessa asked about trading-bot signal, answered with the usual risk doc.
+day 388 topic voice-agent
+read voice-agent issue tracker, turn closed, pipeline stale, utterance new.
+day 389 topic voice-agent
+trim backlog in voice-agent: kept turn, dropped turn, parked barge-in.
+day 390 topic voice-agent
+chat with Tessa about voice-agent, mostly prompt gossip.
+day 390 topic trading-bot
+trim backlog in trading-bot: kept feed, dropped risk, parked order.
+day 390 topic trading-bot
+trim backlog in trading-bot: kept order, dropped signal, parked queue.
+day 390 topic voice-agent
+trim backlog in voice-agent: kept transcript, dropped stream, parked vad.
+day 391 topic voice-agent
+quick voice-agent sync with Lena, latency and pipeline discussed, no decisions.
+day 391 topic trading-bot
+read trading-bot issue tracker, signal closed, feed stale, slippage new.
+day 392 topic voice-agent
+read voice-agent issue tracker, vad closed, utterance stale, agent new.
+day 393 topic trading-bot
+quick trading-bot sync with Pia, signal and slippage discussed, no decisions.
+day 393 topic voice-agent
+chat with Sami about voice-agent, mostly latency gossip.
+day 394 topic trading-bot
+read trading-bot issue tracker, signal closed, hedge stale, queue new.
+day 394 topic voice-agent
+chat with Lena about voice-agent, mostly pipeline gossip.
+day 394 topic voice-agent
+quick voice-agent sync with Lena, utterance and barge-in discussed, no decisions.
+day 395 topic voice-agent
+trim backlog in voice-agent: kept transcript, dropped barge-in, parked vad.
+day 395 topic voice-agent
+voice-agent weekly notes: prompt stable, pipeline noisy, utterance pending.
+day 398 topic voice-agent
+chat with Nia about voice-agent, mostly prompt gossip.
+day 398 topic trading-bot
+trim backlog in trading-bot: kept queue, dropped risk, parked fill.
+day 399 topic voice-agent
+chat with Pia about voice-agent, mostly agent gossip.
+day 399 topic voice-agent
+read voice-agent issue tracker, latency closed, prompt stale, vad new.
+day 399 topic voice-agent
+trim backlog in voice-agent: kept agent, dropped pipeline, parked transcript.
+day 399 topic trading-bot
+Dara asked about trading-bot candle, answered with the usual signal doc.
+day 399 topic voice-agent
+voice-agent weekly notes: transcript stable, vad noisy, latency pending.
+day 400 topic voice-agent
+read voice-agent issue tracker, vad closed, pipeline stale, stream new.
+day 401 topic trading-bot
+cleanup day in trading-bot, signal renamed, candle deleted.
+day 401 topic voice-agent
+trim backlog in voice-agent: kept barge-in, dropped utterance, parked vad.
+day 401 topic voice-agent
+cleanup day in voice-agent, pipeline renamed, prompt deleted.
+day 401 topic voice-agent
+read voice-agent issue tracker, barge-in closed, prompt stale, prompt new.
+day 402 topic trading-bot
+quick trading-bot sync with Omar, candle and signal discussed, no decisions.
+day 402 topic trading-bot
+Lena asked about trading-bot queue, answered with the usual hedge doc.
+day 403 topic trading-bot
+cleanup day in trading-bot, fill renamed, feed deleted.
+day 404 topic trading-bot
+trading-bot weekly notes: slippage stable, position noisy, candle pending.
+day 404 topic trading-bot
+trading-bot weekly notes: risk stable, feed noisy, order pending.
+day 404 topic trading-bot
+Ben reviewed the trading-bot folder, nothing merged.
+day 405 topic voice-agent
+quick voice-agent sync with Nia, pipeline and barge-in discussed, no decisions.
+day 405 topic trading-bot
+trim backlog in trading-bot: kept signal, dropped hedge, parked order.
+day 405 topic trading-bot
+chat with Lena about trading-bot, mostly order gossip.
+day 406 topic voice-agent
+chat with Nia about voice-agent, mostly stream gossip.
+day 406 topic trading-bot
+Quin skimmed the trading-bot folder, nothing merged.
+day 407 topic voice-agent
+chat with Rosa about voice-agent, mostly stream gossip.
+day 407 topic voice-agent
+quick voice-agent sync with Omar, transcript and pipeline discussed, no decisions.
+day 409 topic trading-bot
+quick trading-bot sync with Quin, signal and hedge discussed, no decisions.
+day 409 topic voice-agent
+voice-agent weekly notes: latency stable, barge-in noisy, agent pending.
+day 409 topic trading-bot
+trading-bot weekly notes: order stable, candle noisy, hedge pending.
+day 409 topic trading-bot
+trading-bot weekly notes: feed stable, risk noisy, order pending.
+day 409 topic trading-bot
+read trading-bot issue tracker, slippage closed, fill stale, fill new.
+day 410 topic trading-bot
+chat with Gus about trading-bot, mostly slippage gossip.
+day 411 topic voice-agent
+Pia revisited the voice-agent folder, nothing merged.
+day 411 topic trading-bot
+quick trading-bot sync with Ben, position and feed discussed, no decisions.
+day 412 topic voice-agent
+trim backlog in voice-agent: kept prompt, dropped barge-in, parked stream.
+day 412 topic voice-agent
+chat with Quin about voice-agent, mostly utterance gossip.
+day 413 topic trading-bot
+chat with Rosa about trading-bot, mostly candle gossip.
+day 413 topic trading-bot
+Ivo reviewed the trading-bot folder, nothing merged.
+day 414 topic voice-agent
+Rosa asked about voice-agent vad, answered with the usual barge-in doc.
+day 414 topic voice-agent
+quick voice-agent sync with Dara, latency and utterance discussed, no decisions.
+day 415 topic voice-agent
+Gus asked about voice-agent pipeline, answered with the usual barge-in doc.
+day 415 topic voice-agent
+Pia tested the voice-agent folder, nothing merged.
+day 415 topic trading-bot
+chat with Lena about trading-bot, mostly hedge gossip.
+day 415 topic voice-agent
+Dara renamed the voice-agent folder, nothing merged.
+day 415 topic trading-bot
+quick trading-bot sync with Lena, feed and queue discussed, no decisions.
+day 416 topic trading-bot
+trim backlog in trading-bot: kept hedge, dropped queue, parked candle.
+day 416 topic trading-bot
+trim backlog in trading-bot: kept position, dropped position, parked order.
+day 417 topic voice-agent
+voice-agent weekly notes: pipeline stable, prompt noisy, barge-in pending.
+day 417 topic trading-bot
+quick trading-bot sync with Quin, risk and queue discussed, no decisions.
+day 417 topic voice-agent
+read voice-agent issue tracker, barge-in closed, pipeline stale, prompt new.
+day 417 topic voice-agent
+cleanup day in voice-agent, barge-in renamed, transcript deleted.
+day 418 topic voice-agent
+voice-agent weekly notes: transcript stable, turn noisy, barge-in pending.
+day 418 topic trading-bot
+cleanup day in trading-bot, risk renamed, fill deleted.
+day 419 topic trading-bot
+Rosa reviewed the trading-bot folder, nothing merged.
+day 419 topic voice-agent
+chat with Tessa about voice-agent, mostly barge-in gossip.
+day 419 topic trading-bot
+read trading-bot issue tracker, slippage closed, feed stale, risk new.
+day 419 topic voice-agent
+read voice-agent issue tracker, pipeline closed, turn stale, pipeline new.
+day 419 topic voice-agent
+Ivo asked about voice-agent latency, answered with the usual prompt doc.
+day 419 topic voice-agent
+quick voice-agent sync with Sami, prompt and pipeline discussed, no decisions.
+day 420 topic trading-bot
+Tessa asked about trading-bot queue, answered with the usual position doc.
+day 420 topic voice-agent
+cleanup day in voice-agent, latency renamed, stream deleted.
+day 421 topic voice-agent
+quick voice-agent sync with Rosa, barge-in and pipeline discussed, no decisions.
+day 421 topic trading-bot
+cleanup day in trading-bot, candle renamed, hedge deleted.
+day 421 topic trading-bot
+chat with Lena about trading-bot, mostly position gossip.
+day 421 topic trading-bot
+cleanup day in trading-bot, signal renamed, hedge deleted.
+day 421 topic voice-agent
+Lena asked about voice-agent latency, answered with the usual pipeline doc.
+day 421 topic trading-bot
+read trading-bot issue tracker, slippage closed, hedge stale, slippage new.
+day 421 topic voice-agent
+quick voice-agent sync with Gus, utterance and latency discussed, no decisions.
+day 422 topic voice-agent
+Omar asked about voice-agent pipeline, answered with the usual transcript doc.
+day 422 topic trading-bot
+chat with Tessa about trading-bot, mostly order gossip.
+day 423 topic voice-agent
+chat with Dara about voice-agent, mostly transcript gossip.
+day 423 topic trading-bot
+trading-bot weekly notes: order stable, risk noisy, slippage pending.
+day 425 topic voice-agent
+trim backlog in voice-agent: kept barge-in, dropped agent, parked agent.
+day 426 topic voice-agent
+Lena documented the voice-agent folder, nothing merged.
+day 426 topic voice-agent
+Ben renamed the voice-agent folder, nothing merged.
+day 427 topic trading-bot
+Pia renamed the trading-bot folder, nothing merged.
+day 427 topic voice-agent
+cleanup day in voice-agent, barge-in renamed, vad deleted.
+day 427 topic trading-bot
+trading-bot weekly notes: slippage stable, slippage noisy, slippage pending.
+day 428 topic voice-agent
+cleanup day in voice-agent, agent renamed, pipeline deleted.
+day 428 topic trading-bot
+cleanup day in trading-bot, order renamed, queue deleted.
+day 428 topic trading-bot
+trading-bot weekly notes: hedge stable, hedge noisy, fill pending.
+day 429 topic trading-bot
+Omar refactored the trading-bot folder, nothing merged.
+day 429 topic trading-bot
+trading-bot weekly notes: hedge stable, hedge noisy, signal pending.
+day 429 topic voice-agent
+trim backlog in voice-agent: kept utterance, dropped pipeline, parked prompt.
+day 429 topic trading-bot
+cleanup day in trading-bot, signal renamed, queue deleted.
+day 430 topic trading-bot
+read trading-bot issue tracker, candle closed, hedge stale, risk new.
+day 431 topic voice-agent
+voice-agent weekly notes: turn stable, transcript noisy, prompt pending.
+day 431 topic voice-agent
+voice-agent weekly notes: agent stable, stream noisy, prompt pending.
+day 431 topic voice-agent
+voice-agent weekly notes: prompt stable, agent noisy, vad pending.
+day 431 topic trading-bot
+cleanup day in trading-bot, position renamed, feed deleted.
+day 432 topic voice-agent
+Ivo asked about voice-agent barge-in, answered with the usual prompt doc.
+day 433 topic voice-agent
+Ivo asked about voice-agent vad, answered with the usual agent doc.
+day 433 topic voice-agent
+trim backlog in voice-agent: kept prompt, dropped vad, parked prompt.
+day 433 topic voice-agent
+chat with Dara about voice-agent, mostly barge-in gossip.
+day 433 topic trading-bot
+trim backlog in trading-bot: kept order, dropped hedge, parked signal.
+day 434 topic voice-agent
+chat with Sami about voice-agent, mostly prompt gossip.
+day 435 topic voice-agent
+quick voice-agent sync with Omar, turn and latency discussed, no decisions.
+day 435 topic trading-bot
+Nia asked about trading-bot order, answered with the usual signal doc.
+day 436 topic trading-bot
+trim backlog in trading-bot: kept hedge, dropped candle, parked hedge.
+day 436 topic trading-bot
+read trading-bot issue tracker, hedge closed, risk stale, order new.
+day 436 topic voice-agent
+Pia refactored the voice-agent folder, nothing merged.
+day 436 topic trading-bot
+Gus asked about trading-bot candle, answered with the usual hedge doc.
+day 438 topic voice-agent
+Ivo asked about voice-agent latency, answered with the usual turn doc.
+day 438 topic voice-agent
+quick voice-agent sync with Nia, utterance and utterance discussed, no decisions.
+day 439 topic trading-bot
+cleanup day in trading-bot, order renamed, candle deleted.
+day 439 topic voice-agent
+chat with Nia about voice-agent, mostly agent gossip.
+day 439 topic trading-bot
+trading-bot weekly notes: risk stable, candle noisy, queue pending.
+day 439 topic trading-bot
+cleanup day in trading-bot, feed renamed, hedge deleted.
+day 439 topic voice-agent
+cleanup day in voice-agent, prompt renamed, latency deleted.
+day 440 topic voice-agent
+voice-agent weekly notes: vad stable, latency noisy, agent pending.
+day 440 topic voice-agent
+Dara asked about voice-agent transcript, answered with the usual pipeline doc.
+day 440 topic voice-agent
+Ivo asked about voice-agent prompt, answered with the usual agent doc.
+day 440 topic voice-agent
+read voice-agent issue tracker, prompt closed, agent stale, vad new.
+day 441 topic voice-agent
+voice-agent weekly notes: prompt stable, turn noisy, prompt pending.
+day 441 topic trading-bot
+cleanup day in trading-bot, position renamed, queue deleted.
+day 442 topic trading-bot
+quick trading-bot sync with Ivo, hedge and order discussed, no decisions.
+day 442 topic voice-agent
+quick voice-agent sync with Omar, prompt and vad discussed, no decisions.
+day 443 topic voice-agent
+read voice-agent issue tracker, transcript closed, pipeline stale, barge-in new.
+day 443 topic trading-bot
+Rosa queued the trading-bot folder, nothing merged.
+day 443 topic trading-bot
+quick trading-bot sync with Gus, candle and position discussed, no decisions.
+day 444 topic voice-agent
+cleanup day in voice-agent, utterance renamed, prompt deleted.
+day 445 topic trading-bot
+chat with Sami about trading-bot, mostly signal gossip.
+day 445 topic trading-bot
+read trading-bot issue tracker, risk closed, hedge stale, risk new.
+day 446 topic voice-agent
+cleanup day in voice-agent, transcript renamed, turn deleted.
+day 446 topic voice-agent
+quick voice-agent sync with Tessa, stream and prompt discussed, no decisions.
+day 447 topic voice-agent
+read voice-agent issue tracker, utterance closed, pipeline stale, turn new.
+day 447 topic trading-bot
+chat with Quin about trading-bot, mostly feed gossip.
+day 447 topic voice-agent
+Pia asked about voice-agent agent, answered with the usual turn doc.
+day 447 topic trading-bot
+chat with Sami about trading-bot, mostly queue gossip.
+day 448 topic trading-bot
+Gus tested the trading-bot folder, nothing merged.
+day 448 topic voice-agent
+Ivo asked about voice-agent vad, answered with the usual vad doc.
+day 448 topic voice-agent
+chat with Omar about voice-agent, mostly stream gossip.
+day 449 topic voice-agent
+chat with Tessa about voice-agent, mostly prompt gossip.
+day 449 topic voice-agent
+trim backlog in voice-agent: kept prompt, dropped prompt, parked turn.
+day 450 topic trading-bot
+Ben documented the trading-bot folder, nothing merged.
+day 450 topic voice-agent
+cleanup day in voice-agent, utterance renamed, vad deleted.
+day 451 topic trading-bot
+chat with Dara about trading-bot, mostly position gossip.
+day 451 topic voice-agent
+trim backlog in voice-agent: kept agent, dropped pipeline, parked pipeline.
+day 452 topic voice-agent
+chat with Pia about voice-agent, mostly utterance gossip.
+day 452 topic voice-agent
+cleanup day in voice-agent, barge-in renamed, utterance deleted.
+day 452 topic voice-agent
+cleanup day in voice-agent, utterance renamed, turn deleted.
+day 453 topic trading-bot
+quick trading-bot sync with Ben, candle and feed discussed, no decisions.
+day 453 topic voice-agent
+quick voice-agent sync with Lena, stream and utterance discussed, no decisions.
+day 455 topic trading-bot
+cleanup day in trading-bot, candle renamed, feed deleted.
+day 456 topic voice-agent
+read voice-agent issue tracker, prompt closed, utterance stale, vad new.
+day 458 topic voice-agent
+quick voice-agent sync with Nia, pipeline and barge-in discussed, no decisions.
+day 458 topic voice-agent
+quick voice-agent sync with Sami, utterance and prompt discussed, no decisions.
+day 459 topic voice-agent
+Tessa asked about voice-agent prompt, answered with the usual transcript doc.
+day 460 topic trading-bot
+read trading-bot issue tracker, feed closed, signal stale, queue new.
+day 461 topic trading-bot
+cleanup day in trading-bot, position renamed, queue deleted.
+day 462 topic voice-agent
+Dara asked about voice-agent agent, answered with the usual barge-in doc.
+day 463 topic trading-bot
+chat with Rosa about trading-bot, mostly hedge gossip.
+day 463 topic voice-agent
+read voice-agent issue tracker, prompt closed, vad stale, utterance new.
+day 464 topic voice-agent
+chat with Ben about voice-agent, mostly latency gossip.
+day 465 topic trading-bot
+quick trading-bot sync with Ivo, position and slippage discussed, no decisions.
+day 465 topic trading-bot
+Omar revisited the trading-bot folder, nothing merged.
+day 466 topic trading-bot
+trim backlog in trading-bot: kept fill, dropped position, parked position.
+day 466 topic trading-bot
+read trading-bot issue tracker, queue closed, position stale, order new.
+day 467 topic voice-agent
+cleanup day in voice-agent, turn renamed, prompt deleted.
+day 468 topic voice-agent
+chat with Ben about voice-agent, mostly stream gossip.
+day 468 topic trading-bot
+cleanup day in trading-bot, hedge renamed, queue deleted.
+day 470 topic voice-agent
+voice-agent weekly notes: agent stable, turn noisy, vad pending.
+day 470 topic voice-agent
+read voice-agent issue tracker, prompt closed, agent stale, pipeline new.
+day 470 topic voice-agent
+Sami asked about voice-agent barge-in, answered with the usual stream doc.
+day 470 topic voice-agent
+Ivo tested the voice-agent folder, nothing merged.
+day 470 topic voice-agent
+cleanup day in voice-agent, prompt renamed, agent deleted.
+day 471 topic trading-bot
+Pia moved the trading-bot folder, nothing merged.
+day 471 topic voice-agent
+read voice-agent issue tracker, turn closed, turn stale, turn new.
+day 472 topic voice-agent
+Pia asked about voice-agent barge-in, answered with the usual barge-in doc.
+day 472 topic trading-bot
+Quin refactored the trading-bot folder, nothing merged.
+day 472 topic trading-bot
+chat with Omar about trading-bot, mostly hedge gossip.
+day 473 topic voice-agent
+read voice-agent issue tracker, barge-in closed, utterance stale, turn new.
+day 473 topic trading-bot
+trading-bot weekly notes: slippage stable, hedge noisy, candle pending.
+day 473 topic trading-bot
+Tessa asked about trading-bot feed, answered with the usual queue doc.
+day 473 topic trading-bot
+trim backlog in trading-bot: kept fill, dropped candle, parked fill.
+day 473 topic trading-bot
+trim backlog in trading-bot: kept queue, dropped risk, parked position.
+day 474 topic trading-bot
+read trading-bot issue tracker, slippage closed, order stale, hedge new.
+day 474 topic voice-agent
+quick voice-agent sync with Gus, prompt and agent discussed, no decisions.
+day 474 topic voice-agent
+read voice-agent issue tracker, stream closed, barge-in stale, latency new.
+day 474 topic voice-agent
+quick voice-agent sync with Sami, vad and turn discussed, no decisions.
+day 474 topic trading-bot
+read trading-bot issue tracker, signal closed, queue stale, hedge new.
+day 476 topic trading-bot
+chat with Nia about trading-bot, mostly candle gossip.
+day 477 topic trading-bot
+Tessa moved the trading-bot folder, nothing merged.
+day 478 topic trading-bot
+quick trading-bot sync with Gus, hedge and feed discussed, no decisions.
+day 478 topic voice-agent
+chat with Rosa about voice-agent, mostly agent gossip.
+day 478 topic trading-bot
+cleanup day in trading-bot, slippage renamed, signal deleted.
+day 479 topic voice-agent
+Rosa refactored the voice-agent folder, nothing merged.
+day 479 topic trading-bot
+quick trading-bot sync with Pia, feed and signal discussed, no decisions.
+day 480 topic voice-agent
+voice-agent weekly notes: pipeline stable, utterance noisy, stream pending.
+day 480 topic trading-bot
+quick trading-bot sync with Dara, fill and position discussed, no decisions.
+day 481 topic voice-agent
+trim backlog in voice-agent: kept stream, dropped transcript, parked latency.
+day 481 topic trading-bot
+Gus reviewed the trading-bot folder, nothing merged.
+day 481 topic voice-agent
+quick voice-agent sync with Omar, barge-in and prompt discussed, no decisions.
+day 481 topic voice-agent
+Gus asked about voice-agent prompt, answered with the usual latency doc.
+day 481 topic trading-bot
+trim backlog in trading-bot: kept signal, dropped candle, parked fill.
+day 481 topic trading-bot
+trading-bot weekly notes: position stable, fill noisy, hedge pending.
+day 482 topic trading-bot
+trim backlog in trading-bot: kept candle, dropped slippage, parked queue.
+day 482 topic voice-agent
+quick voice-agent sync with Ivo, latency and vad discussed, no decisions.
+day 482 topic trading-bot
+read trading-bot issue tracker, candle closed, risk stale, position new.
+day 483 topic voice-agent
+quick voice-agent sync with Tessa, pipeline and stream discussed, no decisions.
+day 483 topic voice-agent
+Dara asked about voice-agent agent, answered with the usual turn doc.
+day 483 topic voice-agent
+chat with Sami about voice-agent, mostly transcript gossip.
+day 484 topic voice-agent
+chat with Nia about voice-agent, mostly transcript gossip.
+day 484 topic voice-agent
+voice-agent weekly notes: transcript stable, turn noisy, turn pending.
+day 485 topic voice-agent
+Ben asked about voice-agent vad, answered with the usual pipeline doc.
+day 485 topic trading-bot
+chat with Quin about trading-bot, mostly feed gossip.
+day 486 topic voice-agent
+read voice-agent issue tracker, transcript closed, stream stale, utterance new.
+day 486 topic voice-agent
+cleanup day in voice-agent, latency renamed, transcript deleted.
+day 486 topic trading-bot
+read trading-bot issue tracker, order closed, risk stale, feed new.
+day 486 topic voice-agent
+voice-agent weekly notes: prompt stable, agent noisy, transcript pending.
+day 486 topic trading-bot
+cleanup day in trading-bot, fill renamed, queue deleted.
+day 487 topic voice-agent
+chat with Sami about voice-agent, mostly pipeline gossip.
+day 487 topic voice-agent
+quick voice-agent sync with Lena, stream and utterance discussed, no decisions.
+day 488 topic voice-agent
+Lena asked about voice-agent vad, answered with the usual pipeline doc.
+day 488 topic trading-bot
+chat with Quin about trading-bot, mostly candle gossip.
+day 489 topic voice-agent
+trim backlog in voice-agent: kept pipeline, dropped barge-in, parked latency.
+day 489 topic trading-bot
+cleanup day in trading-bot, hedge renamed, queue deleted.
+day 489 topic trading-bot
+trading-bot weekly notes: candle stable, position noisy, order pending.
+day 490 topic voice-agent
+chat with Sami about voice-agent, mostly transcript gossip.
+day 490 topic voice-agent
+chat with Dara about voice-agent, mostly turn gossip.
+day 491 topic trading-bot
+read trading-bot issue tracker, position closed, slippage stale, feed new.
+day 491 topic trading-bot
+trading-bot weekly notes: signal stable, fill noisy, signal pending.
+day 491 topic voice-agent
+chat with Rosa about voice-agent, mostly latency gossip.
+day 492 topic trading-bot
+cleanup day in trading-bot, queue renamed, risk deleted.
+day 492 topic voice-agent
+cleanup day in voice-agent, stream renamed, turn deleted.
+day 493 topic voice-agent
+Lena asked about voice-agent turn, answered with the usual agent doc.
+day 493 topic voice-agent
+voice-agent weekly notes: turn stable, barge-in noisy, utterance pending.
+day 494 topic trading-bot
+chat with Tessa about trading-bot, mostly feed gossip.
+day 494 topic voice-agent
+trim backlog in voice-agent: kept prompt, dropped turn, parked barge-in.
+day 495 topic trading-bot
+quick trading-bot sync with Tessa, signal and candle discussed, no decisions.
+day 495 topic trading-bot
+Quin asked about trading-bot feed, answered with the usual order doc.
+day 496 topic voice-agent
+read voice-agent issue tracker, stream closed, latency stale, vad new.
+day 496 topic voice-agent
+trim backlog in voice-agent: kept prompt, dropped latency, parked pipeline.
+day 496 topic trading-bot
+cleanup day in trading-bot, candle renamed, position deleted.
+day 496 topic trading-bot
+Nia asked about trading-bot queue, answered with the usual order doc.
+day 496 topic trading-bot
+quick trading-bot sync with Ben, fill and hedge discussed, no decisions.
+day 497 topic trading-bot
+cleanup day in trading-bot, signal renamed, order deleted.
+day 497 topic voice-agent
+Ben renamed the voice-agent folder, nothing merged.
+day 498 topic trading-bot
+trading-bot weekly notes: signal stable, order noisy, risk pending.
+day 498 topic trading-bot
+Dara asked about trading-bot position, answered with the usual slippage doc.
+day 498 topic trading-bot
+read trading-bot issue tracker, hedge closed, position stale, position new.
+day 498 topic voice-agent
+chat with Dara about voice-agent, mostly stream gossip.
+day 498 topic trading-bot
+read trading-bot issue tracker, position closed, slippage stale, feed new.
+day 498 topic voice-agent
+cleanup day in voice-agent, utterance renamed, latency deleted.
+day 499 topic voice-agent
+chat with Lena about voice-agent, mostly agent gossip.
+day 499 topic voice-agent
+voice-agent weekly notes: utterance stable, stream noisy, vad pending.
+day 500 topic voice-agent
+trim backlog in voice-agent: kept transcript, dropped turn, parked stream.
+day 500 topic voice-agent
+Nia asked about voice-agent transcript, answered with the usual pipeline doc.
+day 500 topic voice-agent
+trim backlog in voice-agent: kept prompt, dropped turn, parked vad.
+day 501 topic trading-bot
+trading-bot weekly notes: feed stable, candle noisy, order pending.
+day 502 topic trading-bot
+trading-bot weekly notes: slippage stable, signal noisy, fill pending.
+day 502 topic voice-agent
+cleanup day in voice-agent, barge-in renamed, latency deleted.
+day 503 topic trading-bot
+trim backlog in trading-bot: kept signal, dropped signal, parked risk.
+day 503 topic trading-bot
+cleanup day in trading-bot, position renamed, candle deleted.
+day 503 topic voice-agent
+chat with Rosa about voice-agent, mostly vad gossip.
+day 504 topic voice-agent
+trim backlog in voice-agent: kept pipeline, dropped latency, parked prompt.
+day 504 topic voice-agent
+chat with Quin about voice-agent, mostly stream gossip.
+day 505 topic trading-bot
+Gus refactored the trading-bot folder, nothing merged.
+day 505 topic trading-bot
+cleanup day in trading-bot, slippage renamed, candle deleted.
+day 506 topic trading-bot
+cleanup day in trading-bot, candle renamed, position deleted.
+day 506 topic trading-bot
+cleanup day in trading-bot, fill renamed, order deleted.
+day 506 topic trading-bot
+cleanup day in trading-bot, fill renamed, queue deleted.
+day 507 topic voice-agent
+chat with Pia about voice-agent, mostly pipeline gossip.
+day 507 topic trading-bot
+chat with Dara about trading-bot, mostly risk gossip.
+day 510 topic trading-bot
+quick trading-bot sync with Lena, signal and order discussed, no decisions.
+day 510 topic voice-agent
+Sami asked about voice-agent pipeline, answered with the usual barge-in doc.
+day 510 topic voice-agent
+chat with Lena about voice-agent, mostly prompt gossip.
+day 511 topic voice-agent
+quick voice-agent sync with Pia, pipeline and turn discussed, no decisions.
+day 512 topic voice-agent
+cleanup day in voice-agent, turn renamed, prompt deleted.
+day 512 topic trading-bot
+trim backlog in trading-bot: kept risk, dropped risk, parked risk.
+day 514 topic trading-bot
+cleanup day in trading-bot, order renamed, order deleted.
+day 514 topic trading-bot
+trim backlog in trading-bot: kept feed, dropped feed, parked candle.
+day 514 topic trading-bot
+trim backlog in trading-bot: kept signal, dropped hedge, parked risk.
+day 514 topic trading-bot
+chat with Dara about trading-bot, mostly signal gossip.
+day 514 topic voice-agent
+chat with Lena about voice-agent, mostly turn gossip.
+day 514 topic voice-agent
+quick voice-agent sync with Quin, vad and barge-in discussed, no decisions.
+day 515 topic trading-bot
+Rosa asked about trading-bot slippage, answered with the usual signal doc.
+day 515 topic trading-bot
+trading-bot weekly notes: candle stable, slippage noisy, signal pending.
+day 515 topic trading-bot
+quick trading-bot sync with Gus, candle and feed discussed, no decisions.
+day 516 topic trading-bot
+read trading-bot issue tracker, feed closed, candle stale, risk new.
+day 516 topic trading-bot
+trading-bot weekly notes: order stable, hedge noisy, order pending.
+day 517 topic voice-agent
+cleanup day in voice-agent, vad renamed, vad deleted.
+day 517 topic voice-agent
+chat with Omar about voice-agent, mostly stream gossip.
+day 518 topic trading-bot
+Quin reviewed the trading-bot folder, nothing merged.
+day 518 topic voice-agent
+voice-agent weekly notes: transcript stable, prompt noisy, vad pending.
+day 518 topic voice-agent
+chat with Omar about voice-agent, mostly barge-in gossip.
+day 519 topic voice-agent
+trim backlog in voice-agent: kept transcript, dropped barge-in, parked vad.
+day 519 topic trading-bot
+trading-bot weekly notes: order stable, slippage noisy, queue pending.
+day 519 topic voice-agent
+chat with Ben about voice-agent, mostly turn gossip.
+day 519 topic voice-agent
+voice-agent weekly notes: latency stable, vad noisy, stream pending.
+day 520 topic trading-bot
+quick trading-bot sync with Gus, position and candle discussed, no decisions.
+day 520 topic trading-bot
+trading-bot weekly notes: signal stable, queue noisy, fill pending.
+day 520 topic voice-agent
+quick voice-agent sync with Omar, stream and transcript discussed, no decisions.
+day 520 topic trading-bot
+trading-bot weekly notes: candle stable, fill noisy, candle pending.
+day 521 topic trading-bot
+chat with Quin about trading-bot, mostly candle gossip.
+day 522 topic trading-bot
+trading-bot weekly notes: candle stable, position noisy, queue pending.
+day 522 topic voice-agent
+chat with Ivo about voice-agent, mostly prompt gossip.
+day 522 topic voice-agent
+read voice-agent issue tracker, latency closed, vad stale, transcript new.
+day 522 topic voice-agent
+Pia asked about voice-agent utterance, answered with the usual barge-in doc.
+day 522 topic trading-bot
+Quin asked about trading-bot candle, answered with the usual queue doc.
+day 522 topic trading-bot
+cleanup day in trading-bot, slippage renamed, hedge deleted.
+day 523 topic trading-bot
+trim backlog in trading-bot: kept queue, dropped slippage, parked candle.
+day 523 topic voice-agent
+Lena archived the voice-agent folder, nothing merged.
+day 523 topic trading-bot
+read trading-bot issue tracker, fill closed, candle stale, queue new.
+day 523 topic trading-bot
+trim backlog in trading-bot: kept order, dropped candle, parked position.
+day 523 topic voice-agent
+cleanup day in voice-agent, vad renamed, transcript deleted.
+day 523 topic voice-agent
+chat with Ivo about voice-agent, mostly barge-in gossip.
+day 523 topic voice-agent
+read voice-agent issue tracker, utterance closed, transcript stale, stream new.
+day 523 topic voice-agent
+quick voice-agent sync with Quin, prompt and prompt discussed, no decisions.
+day 524 topic trading-bot
+quick trading-bot sync with Ben, feed and signal discussed, no decisions.
+day 525 topic trading-bot
+quick trading-bot sync with Quin, fill and candle discussed, no decisions.
+day 525 topic trading-bot
+Lena revisited the trading-bot folder, nothing merged.
+day 526 topic trading-bot
+Gus asked about trading-bot candle, answered with the usual slippage doc.
+day 527 topic trading-bot
+trim backlog in trading-bot: kept slippage, dropped candle, parked risk.
+day 527 topic voice-agent
+chat with Dara about voice-agent, mostly stream gossip.
+day 527 topic trading-bot
+read trading-bot issue tracker, candle closed, risk stale, position new.
+day 527 topic trading-bot
+trim backlog in trading-bot: kept hedge, dropped signal, parked hedge.
+day 528 topic voice-agent
+read voice-agent issue tracker, turn closed, barge-in stale, stream new.
+day 528 topic trading-bot
+trading-bot weekly notes: signal stable, slippage noisy, signal pending.
+day 528 topic voice-agent
+Ivo asked about voice-agent agent, answered with the usual stream doc.
+day 529 topic trading-bot
+trim backlog in trading-bot: kept signal, dropped position, parked risk.
+day 529 topic voice-agent
+read voice-agent issue tracker, vad closed, stream stale, pipeline new.
+day 529 topic voice-agent
+quick voice-agent sync with Ivo, latency and stream discussed, no decisions.
+day 529 topic voice-agent
+cleanup day in voice-agent, transcript renamed, stream deleted.
+day 530 topic voice-agent
+voice-agent weekly notes: barge-in stable, latency noisy, vad pending.
+day 530 topic trading-bot
+cleanup day in trading-bot, position renamed, fill deleted.
+day 530 topic voice-agent
+quick voice-agent sync with Dara, latency and turn discussed, no decisions.
+day 531 topic trading-bot
+quick trading-bot sync with Lena, signal and feed discussed, no decisions.
+day 531 topic voice-agent
+Quin asked about voice-agent latency, answered with the usual utterance doc.
+day 532 topic voice-agent
+Rosa asked about voice-agent pipeline, answered with the usual transcript doc.
+day 532 topic voice-agent
+Sami asked about voice-agent latency, answered with the usual agent doc.
+day 533 topic voice-agent
+voice-agent weekly notes: stream stable, latency noisy, prompt pending.
+day 533 topic voice-agent
+chat with Ben about voice-agent, mostly prompt gossip.
+day 533 topic trading-bot
+quick trading-bot sync with Lena, hedge and fill discussed, no decisions.
+day 534 topic trading-bot
+Lena tested the trading-bot folder, nothing merged.
+day 534 topic trading-bot
+cleanup day in trading-bot, signal renamed, order deleted.
+day 534 topic trading-bot
+trim backlog in trading-bot: kept candle, dropped order, parked signal.
+day 534 topic voice-agent
+Dara asked about voice-agent prompt, answered with the usual utterance doc.
+day 535 topic trading-bot
+quick trading-bot sync with Gus, slippage and position discussed, no decisions.
+day 536 topic trading-bot
+Nia asked about trading-bot candle, answered with the usual hedge doc.
+day 537 topic trading-bot
+Gus queued the trading-bot folder, nothing merged.
+day 537 topic voice-agent
+quick voice-agent sync with Ivo, pipeline and agent discussed, no decisions.
+day 538 topic trading-bot
+trim backlog in trading-bot: kept fill, dropped candle, parked queue.
+day 539 topic trading-bot
+Sami skimmed the trading-bot folder, nothing merged.
+day 540 topic voice-agent
+Quin queued the voice-agent folder, nothing merged.
+day 541 topic voice-agent
+Omar documented the voice-agent folder, nothing merged.
+day 541 topic trading-bot
+Omar asked about trading-bot candle, answered with the usual position doc.
+day 542 topic voice-agent
+cleanup day in voice-agent, stream renamed, transcript deleted.
+day 542 topic trading-bot
+trim backlog in trading-bot: kept signal, dropped position, parked order.
+day 542 topic trading-bot
+Omar asked about trading-bot slippage, answered with the usual hedge doc.
+day 543 topic voice-agent
+quick voice-agent sync with Omar, pipeline and pipeline discussed, no decisions.
+day 543 topic voice-agent
+chat with Ben about voice-agent, mostly utterance gossip.
+day 543 topic voice-agent
+Omar queued the voice-agent folder, nothing merged.
+day 544 topic voice-agent
+cleanup day in voice-agent, utterance renamed, vad deleted.
+day 544 topic trading-bot
+read trading-bot issue tracker, order closed, position stale, candle new.
+day 544 topic voice-agent
+chat with Dara about voice-agent, mostly stream gossip.
+day 545 topic trading-bot
+quick trading-bot sync with Sami, slippage and signal discussed, no decisions.
+day 545 topic trading-bot
+quick trading-bot sync with Lena, order and fill discussed, no decisions.
+day 546 topic voice-agent
+read voice-agent issue tracker, turn closed, stream stale, stream new.
+day 547 topic trading-bot
+Ivo asked about trading-bot position, answered with the usual signal doc.
+day 547 topic voice-agent
+voice-agent weekly notes: vad stable, agent noisy, barge-in pending.
+day 547 topic voice-agent
+trim backlog in voice-agent: kept utterance, dropped prompt, parked vad.
+day 547 topic trading-bot
+Dara asked about trading-bot order, answered with the usual order doc.
+day 548 topic trading-bot
+Quin documented the trading-bot folder, nothing merged.
+day 548 topic voice-agent
+cleanup day in voice-agent, stream renamed, pipeline deleted.
+day 548 topic trading-bot
+Sami asked about trading-bot position, answered with the usual position doc.
+day 549 topic voice-agent
+Gus reviewed the voice-agent folder, nothing merged.
+day 550 topic trading-bot
+trading-bot weekly notes: hedge stable, candle noisy, order pending.
+day 550 topic trading-bot
+quick trading-bot sync with Lena, position and feed discussed, no decisions.
+day 550 topic voice-agent
+quick voice-agent sync with Sami, barge-in and agent discussed, no decisions.
+day 550 topic trading-bot
+trading-bot weekly notes: position stable, queue noisy, slippage pending.
+day 552 topic trading-bot
+chat with Quin about trading-bot, mostly candle gossip.
+day 553 topic voice-agent
+Omar asked about voice-agent turn, answered with the usual barge-in doc.
+day 553 topic trading-bot
+cleanup day in trading-bot, signal renamed, order deleted.
+day 553 topic voice-agent
+voice-agent weekly notes: latency stable, utterance noisy, latency pending.
+day 553 topic trading-bot
+read trading-bot issue tracker, feed closed, fill stale, signal new.
+day 554 topic trading-bot
+Lena reviewed the trading-bot folder, nothing merged.
+day 554 topic trading-bot
+Gus asked about trading-bot position, answered with the usual candle doc.
+day 555 topic voice-agent
+read voice-agent issue tracker, pipeline closed, transcript stale, stream new.
+day 555 topic voice-agent
+quick voice-agent sync with Rosa, stream and latency discussed, no decisions.
+day 556 topic trading-bot
+trim backlog in trading-bot: kept queue, dropped signal, parked order.
+day 557 topic trading-bot
+trading-bot weekly notes: position stable, queue noisy, position pending.
+day 557 topic voice-agent
+quick voice-agent sync with Sami, barge-in and agent discussed, no decisions.
+day 558 topic voice-agent
+Gus asked about voice-agent barge-in, answered with the usual utterance doc.
+day 558 topic trading-bot
+quick trading-bot sync with Gus, slippage and order discussed, no decisions.
+day 559 topic voice-agent
+Lena skimmed the voice-agent folder, nothing merged.
+day 559 topic trading-bot
+Tessa asked about trading-bot slippage, answered with the usual queue doc.
+day 559 topic trading-bot
+trading-bot weekly notes: position stable, queue noisy, candle pending.
+day 560 topic voice-agent
+read voice-agent issue tracker, stream closed, vad stale, pipeline new.
+day 562 topic voice-agent
+Gus asked about voice-agent latency, answered with the usual turn doc.
+day 562 topic trading-bot
+Sami asked about trading-bot risk, answered with the usual hedge doc.
+day 563 topic voice-agent
+Nia refactored the voice-agent folder, nothing merged.
+day 563 topic trading-bot
+trim backlog in trading-bot: kept fill, dropped queue, parked fill.
+day 564 topic trading-bot
+trim backlog in trading-bot: kept position, dropped fill, parked order.
+day 564 topic voice-agent
+read voice-agent issue tracker, pipeline closed, barge-in stale, latency new.
+day 564 topic trading-bot
+trading-bot weekly notes: signal stable, feed noisy, hedge pending.
+day 565 topic trading-bot
+trim backlog in trading-bot: kept position, dropped risk, parked feed.
+day 566 topic voice-agent
+chat with Lena about voice-agent, mostly turn gossip.
+day 567 topic voice-agent
+chat with Ivo about voice-agent, mostly prompt gossip.
+day 567 topic voice-agent
+trim backlog in voice-agent: kept turn, dropped pipeline, parked stream.
+day 568 topic voice-agent
+Quin asked about voice-agent utterance, answered with the usual transcript doc.
+day 569 topic trading-bot
+trading-bot weekly notes: signal stable, hedge noisy, risk pending.
+day 569 topic trading-bot
+quick trading-bot sync with Dara, signal and fill discussed, no decisions.
+day 570 topic voice-agent
+read voice-agent issue tracker, pipeline closed, barge-in stale, prompt new.
+day 571 topic trading-bot
+Ben documented the trading-bot folder, nothing merged.
+day 571 topic trading-bot
+trim backlog in trading-bot: kept fill, dropped hedge, parked risk.
+day 571 topic voice-agent
+Omar tested the voice-agent folder, nothing merged.
+day 571 topic trading-bot
+Dara skimmed the trading-bot folder, nothing merged.
+day 571 topic trading-bot
+cleanup day in trading-bot, position renamed, position deleted.
+day 572 topic voice-agent
+voice-agent weekly notes: utterance stable, stream noisy, pipeline pending.
+day 572 topic voice-agent
+read voice-agent issue tracker, stream closed, prompt stale, agent new.
+day 572 topic trading-bot
+Ben revisited the trading-bot folder, nothing merged.
+day 572 topic voice-agent
+read voice-agent issue tracker, vad closed, pipeline stale, turn new.
+day 572 topic voice-agent
+chat with Ben about voice-agent, mostly pipeline gossip.
+day 572 topic voice-agent
+Sami renamed the voice-agent folder, nothing merged.
+day 572 topic voice-agent
+voice-agent weekly notes: agent stable, agent noisy, agent pending.
+day 573 topic trading-bot
+trading-bot weekly notes: signal stable, queue noisy, feed pending.
+day 573 topic voice-agent
+quick voice-agent sync with Gus, latency and latency discussed, no decisions.
+day 573 topic voice-agent
+read voice-agent issue tracker, vad closed, transcript stale, turn new.
+day 573 topic trading-bot
+chat with Lena about trading-bot, mostly order gossip.
+day 575 topic voice-agent
+cleanup day in voice-agent, turn renamed, stream deleted.
+day 575 topic trading-bot
+trading-bot weekly notes: candle stable, candle noisy, fill pending.
+day 575 topic voice-agent
+Ben asked about voice-agent vad, answered with the usual pipeline doc.
+day 576 topic voice-agent
+voice-agent weekly notes: barge-in stable, pipeline noisy, latency pending.
+day 576 topic voice-agent
+cleanup day in voice-agent, agent renamed, utterance deleted.
+day 576 topic trading-bot
+chat with Tessa about trading-bot, mostly position gossip.
+day 578 topic voice-agent
+voice-agent weekly notes: turn stable, agent noisy, transcript pending.
+day 578 topic voice-agent
+Nia asked about voice-agent pipeline, answered with the usual barge-in doc.
+day 579 topic trading-bot
+Rosa tested the trading-bot folder, nothing merged.
+day 579 topic trading-bot
+trading-bot weekly notes: order stable, signal noisy, fill pending.
+day 580 topic voice-agent
+read voice-agent issue tracker, stream closed, prompt stale, turn new.
+day 580 topic trading-bot
+chat with Ivo about trading-bot, mostly slippage gossip.
+day 580 topic voice-agent
+voice-agent weekly notes: agent stable, transcript noisy, turn pending.
+day 581 topic trading-bot
+trim backlog in trading-bot: kept fill, dropped slippage, parked signal.
+day 582 topic voice-agent
+chat with Gus about voice-agent, mostly stream gossip.
+day 582 topic trading-bot
+chat with Dara about trading-bot, mostly feed gossip.
+day 582 topic trading-bot
+read trading-bot issue tracker, risk closed, fill stale, slippage new.
+day 583 topic voice-agent
+Rosa reviewed the voice-agent folder, nothing merged.
+day 584 topic voice-agent
+voice-agent weekly notes: stream stable, latency noisy, stream pending.
+day 584 topic trading-bot
+Quin documented the trading-bot folder, nothing merged.
+day 584 topic trading-bot
+trading-bot weekly notes: hedge stable, feed noisy, candle pending.
+day 585 topic voice-agent
+Ben asked about voice-agent pipeline, answered with the usual turn doc.
+day 585 topic trading-bot
+chat with Nia about trading-bot, mostly risk gossip.
+day 585 topic voice-agent
+cleanup day in voice-agent, vad renamed, barge-in deleted.
+day 585 topic voice-agent
+trim backlog in voice-agent: kept prompt, dropped barge-in, parked latency.
+day 585 topic trading-bot
+Gus archived the trading-bot folder, nothing merged.
+day 585 topic voice-agent
+Rosa moved the voice-agent folder, nothing merged.
+day 586 topic voice-agent
+read voice-agent issue tracker, pipeline closed, transcript stale, agent new.
+day 588 topic voice-agent
+trim backlog in voice-agent: kept transcript, dropped vad, parked prompt.
+day 589 topic voice-agent
+trim backlog in voice-agent: kept agent, dropped turn, parked transcript.
+day 589 topic voice-agent
+Ben asked about voice-agent stream, answered with the usual stream doc.
+day 589 topic voice-agent
+voice-agent weekly notes: pipeline stable, pipeline noisy, stream pending.
+day 589 topic trading-bot
+read trading-bot issue tracker, position closed, signal stale, queue new.
+day 589 topic trading-bot
+chat with Sami about trading-bot, mostly signal gossip.
+day 590 topic trading-bot
+Gus asked about trading-bot feed, answered with the usual signal doc.
+day 590 topic voice-agent
+read voice-agent issue tracker, transcript closed, turn stale, transcript new.
+day 591 topic trading-bot
+read trading-bot issue tracker, position closed, signal stale, hedge new.
+day 592 topic voice-agent
+quick voice-agent sync with Quin, turn and transcript discussed, no decisions.
+day 592 topic trading-bot
+trim backlog in trading-bot: kept slippage, dropped feed, parked slippage.
+day 593 topic voice-agent
+chat with Omar about voice-agent, mostly stream gossip.
+day 593 topic voice-agent
+Pia asked about voice-agent latency, answered with the usual utterance doc.
+day 593 topic trading-bot
+trading-bot weekly notes: queue stable, hedge noisy, slippage pending.
+day 594 topic voice-agent
+Rosa reviewed the voice-agent folder, nothing merged.
+day 595 topic voice-agent
+voice-agent weekly notes: turn stable, vad noisy, pipeline pending.
+day 596 topic voice-agent
+quick voice-agent sync with Tessa, turn and utterance discussed, no decisions.
+day 596 topic voice-agent
+Rosa revisited the voice-agent folder, nothing merged.
+day 597 topic trading-bot
+trim backlog in trading-bot: kept slippage, dropped position, parked position.
+day 597 topic trading-bot
+cleanup day in trading-bot, risk renamed, hedge deleted.
+day 597 topic trading-bot
+quick trading-bot sync with Quin, signal and signal discussed, no decisions.
+day 597 topic trading-bot
+trim backlog in trading-bot: kept fill, dropped queue, parked signal.
+day 597 topic trading-bot
+quick trading-bot sync with Gus, signal and risk discussed, no decisions.
+day 598 topic trading-bot
+Tessa asked about trading-bot risk, answered with the usual risk doc.
+day 598 topic voice-agent
+Ben archived the voice-agent folder, nothing merged.
+day 598 topic voice-agent
+chat with Quin about voice-agent, mostly stream gossip.
+day 598 topic trading-bot
+quick trading-bot sync with Omar, order and order discussed, no decisions.
+day 598 topic voice-agent
+chat with Ben about voice-agent, mostly prompt gossip.
+day 598 topic voice-agent
+Lena asked about voice-agent stream, answered with the usual utterance doc.
+day 598 topic voice-agent
+trim backlog in voice-agent: kept transcript, dropped transcript, parked barge-in.
+day 600 topic voice-agent
+cleanup day in voice-agent, latency renamed, stream deleted.
+day 600 topic voice-agent
+cleanup day in voice-agent, agent renamed, agent deleted.
+day 600 topic trading-bot
+Gus asked about trading-bot hedge, answered with the usual order doc.
+day 601 topic voice-agent
+Ivo asked about voice-agent latency, answered with the usual utterance doc.
+day 601 topic trading-bot
+Nia asked about trading-bot slippage, answered with the usual order doc.
+day 602 topic voice-agent
+Gus reviewed the voice-agent folder, nothing merged.
+day 602 topic voice-agent
+Quin refactored the voice-agent folder, nothing merged.
+day 602 topic trading-bot
+trading-bot weekly notes: hedge stable, feed noisy, feed pending.
+day 603 topic trading-bot
+trim backlog in trading-bot: kept candle, dropped queue, parked signal.
+day 603 topic trading-bot
+trim backlog in trading-bot: kept position, dropped order, parked feed.
+day 603 topic voice-agent
+Lena asked about voice-agent turn, answered with the usual turn doc.
+day 604 topic voice-agent
+voice-agent weekly notes: transcript stable, barge-in noisy, agent pending.
+day 604 topic trading-bot
+Tessa reviewed the trading-bot folder, nothing merged.
+day 605 topic voice-agent
+trim backlog in voice-agent: kept vad, dropped pipeline, parked agent.
+day 605 topic voice-agent
+voice-agent weekly notes: latency stable, barge-in noisy, latency pending.
+day 605 topic trading-bot
+quick trading-bot sync with Quin, candle and feed discussed, no decisions.
+day 606 topic voice-agent
+trim backlog in voice-agent: kept pipeline, dropped agent, parked latency.
+day 606 topic trading-bot
+Nia asked about trading-bot slippage, answered with the usual candle doc.
+day 606 topic trading-bot
+cleanup day in trading-bot, slippage renamed, slippage deleted.
+day 606 topic trading-bot
+Gus asked about trading-bot order, answered with the usual queue doc.
+day 606 topic trading-bot
+read trading-bot issue tracker, order closed, candle stale, queue new.
+day 607 topic voice-agent
+voice-agent weekly notes: barge-in stable, latency noisy, turn pending.
+day 607 topic voice-agent
+Rosa archived the voice-agent folder, nothing merged.
+day 607 topic voice-agent
+Lena moved the voice-agent folder, nothing merged.
+day 608 topic trading-bot
+Sami queued the trading-bot folder, nothing merged.
+day 609 topic voice-agent
+voice-agent weekly notes: agent stable, prompt noisy, agent pending.
+day 609 topic voice-agent
+voice-agent weekly notes: latency stable, pipeline noisy, latency pending.
+day 609 topic trading-bot
+trim backlog in trading-bot: kept signal, dropped risk, parked risk.
+day 610 topic trading-bot
+Omar moved the trading-bot folder, nothing merged.
+day 610 topic trading-bot
+trim backlog in trading-bot: kept slippage, dropped risk, parked hedge.
+day 611 topic trading-bot
+chat with Ivo about trading-bot, mostly slippage gossip.
+day 611 topic voice-agent
+cleanup day in voice-agent, stream renamed, agent deleted.
+day 611 topic trading-bot
+cleanup day in trading-bot, feed renamed, order deleted.
+day 611 topic voice-agent
+Ivo skimmed the voice-agent folder, nothing merged.
+day 612 topic voice-agent
+trim backlog in voice-agent: kept vad, dropped prompt, parked latency.
+day 612 topic trading-bot
+quick trading-bot sync with Pia, position and feed discussed, no decisions.
+day 612 topic voice-agent
+read voice-agent issue tracker, utterance closed, utterance stale, latency new.
+day 612 topic trading-bot
+read trading-bot issue tracker, hedge closed, hedge stale, signal new.
+day 613 topic voice-agent
+read voice-agent issue tracker, transcript closed, pipeline stale, prompt new.
+day 613 topic voice-agent
+Ivo reviewed the voice-agent folder, nothing merged.
+day 613 topic trading-bot
+quick trading-bot sync with Lena, signal and slippage discussed, no decisions.
+day 614 topic voice-agent
+read voice-agent issue tracker, latency closed, turn stale, prompt new.
+day 614 topic voice-agent
+quick voice-agent sync with Pia, turn and vad discussed, no decisions.
+day 615 topic voice-agent
+cleanup day in voice-agent, vad renamed, transcript deleted.
+day 616 topic trading-bot
+Tessa asked about trading-bot position, answered with the usual candle doc.
+day 616 topic voice-agent
+Sami documented the voice-agent folder, nothing merged.
+day 617 topic voice-agent
+read voice-agent issue tracker, utterance closed, agent stale, pipeline new.
+day 617 topic voice-agent
+voice-agent weekly notes: transcript stable, turn noisy, vad pending.
+day 617 topic trading-bot
+chat with Ivo about trading-bot, mostly candle gossip.
+day 618 topic voice-agent
+cleanup day in voice-agent, prompt renamed, pipeline deleted.
+day 618 topic trading-bot
+cleanup day in trading-bot, slippage renamed, queue deleted.
+day 619 topic voice-agent
+read voice-agent issue tracker, prompt closed, agent stale, stream new.

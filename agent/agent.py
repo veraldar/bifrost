@@ -259,8 +259,24 @@ async def entrypoint(ctx: JobContext) -> None:
     # remote_participants is empty any earlier (verified live: the check at
     # entrypoint start never saw the sibling).
     human_identity = f"user_{ctx.room.name}"
-    if any(p.identity != human_identity for p in ctx.room.remote_participants.values()):
-        logger.warning("another agent already in room '%s' — shutting down", ctx.room.name)
+    # A page refresh re-dispatches a job while the previous one is still
+    # draining (its session survives the disconnect through the commit
+    # grace). Yielding instantly strands the room agentless: the phone
+    # already holds its token and never re-mints, so nobody dispatches a
+    # replacement — live 2026-10-02 room 'review': the duplicate kill plus
+    # the old job's exit left ~30s of dead air and every hold/tap failed
+    # with "no voice agent in the room". Wait out the drain; only a
+    # sibling that will not leave is a real duplicate.
+    for i in range(80):  # ~20s at 250ms — drain tail is commit grace + 4s
+        if not any(p.identity != human_identity for p in ctx.room.remote_participants.values()):
+            break
+        if i == 0:
+            logger.info(
+                "previous agent draining in room '%s' — waiting for it to leave", ctx.room.name
+            )
+        await asyncio.sleep(0.25)
+    else:
+        logger.warning("another agent still in room '%s' after 20s — shutting down", ctx.room.name)
         ctx.shutdown("duplicate agent")
         return
 

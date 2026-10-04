@@ -1,0 +1,13 @@
+[node]
+name = "omarchy"
+private_key = "by3zBogbztPBj58LtYNyXzC12IGj+0acqV7sWG6Ee9s="
+
+[mesh]
+listen = "0.0.0.0:51820"
+address = "10.7.0.2/24"
+
+[[mesh.peers]]
+name = "veraldar-vps"
+public_key = "go7f7UKFFUSTDjClyFS4XtBKgt/VgDVmM8YemdXhawk="
+endpoint = "179.237.67.146:51820"
+allowed_ips = ["10.7.0.1/32"]

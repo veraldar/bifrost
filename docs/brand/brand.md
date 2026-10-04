@@ -12,11 +12,15 @@ this structure; don't fork Part 1 per product.
 | File | Part | What | Status |
 |---|---|---|---|
 | `docs/brand/brand.md` | 1 + 2 | lore, voice, word list, do/dont + namespacing | done — this file |
-| `docs/brand/tokens.md` | 1 | color/type/space/motion system | done — pre-rework snapshot |
-| `docs/brand/visual.md` | 1 | mark, iconography, backdrop direction | done — pre-rework snapshot |
+| `docs/brand/tokens.md` | 1 | color/type/space/motion system | done — v2 dialects pointer |
+| `docs/brand/realms.md` | 1 | **the eight-world palette canon (dialects, user pick)** | done — v2 canon |
+| `docs/brand/visual.md` | 1 | mark, iconography, backdrop direction | done |
 | `docs/brand/lore-page.md` | copy | landing lore draft for LAUNCH | drafted |
-| `docs/brand/rework-brief.md` | handoff | design rework, v2 freedom-first: 3 propositions → user picks → build with freedom | **next: executing model starts here** |
-| `docs/brand/review-checklist.md` | review | part 1: pick a direction; part 2: ship gate | ready |
+| `docs/brand/narration.md` | vision | the structural story as a movie/report script | drafted |
+| `docs/brand/tree-door.md` | copy | hold-to-start wording options (comms request) | done |
+| `docs/brand/social-preview.png` | asset | GitHub social preview 1280×640 (wave 1 need) | done |
+| `docs/brand/rework-brief.md` | handoff | design rework brief v2 | **shipped** — cohesive-2 built in v0.6.0, user-approved |
+| `docs/brand/review-checklist.md` | review | part 1 direction pick; part 2 ship gate | part 2 = ongoing law |
 
 Coordination contract:
 
@@ -38,31 +42,64 @@ own outright. Its products take Norse names — but the myth is a naming map,
 not decoration. Every name must say what the thing *is*.
 
 ```
-veraldar — the world (the org; the brand; everything lives inside it)
-  yggdrasil — the tree (your box; the trunk everything runs on)
-  bifrost   — the bridge (a product: phone ⇄ voice ⇄ box)
+veraldar — the world (the org; the brand)
+  roots     — one private network (tailscale or its open twin)
+  yggdrasil — the trees: one per PC — the agent cores
+  bifrost   — the bridges: phone ⇄ tree, as many as you want
+  midgard   — one phone, one PWA — swipe between bridges
 ```
 
+The manifesto (believed, canonical, said plainly):
+
+> **What AI can simulate, AI can create.**
+
+It is the candidate tagline, the opening line of the lore page, and the
+closing line of the movie. Simulation is the rehearsal; creation is the
+point. The tools exist to hand that power to whoever runs them — not to rent
+it back.
+
+The structural story — told everywhere: website, landing, the movie
+(`narration.md`). One phone. One network. Many trees.
+
+- **One phone runs the Bifrost app.** Every bridge lives in the same PWA,
+  swiped between like worlds.
+- **One private network is the roots** (Tailscale or its open twin).
+  Everything travels the roots; nothing goes public.
+- **Many PCs, each growing a Yggdrasil** — an agent core per machine. Today
+  the core is opencode; a lighter one-click core is growing.
+- **What the trees do:** the machine by the TV turns on movies. The machine
+  at the desk creates games. The machine in the rack builds a company. One
+  phone drives them all.
+- **Veraldar is the world that holds it** — trees host, bridges connect,
+  roots carry, Midgard holds the whole grove in a pocket.
+- **The tree is the door** (canon, v0.6.0 ladder): veraldar.org's tree is
+  hold-to-start vocal onboarding that hands over a personalized install; the
+  PWA first-run is tree-centered main creation. Wording options:
+  `tree-door.md`.
+
 - **Veraldar** — Old Norse, "the world". The organisation and its brand. The
-  world contains the tree and everything built on it. When we speak with one
+  world contains the trees and everything built on them. When we speak with one
   voice — READMEs, landing pages, releases — it is Veraldar speaking.
-- **Yggdrasil** — the world tree, the ash that holds the nine worlds. Your
-  box: the one trunk that hosts the agent, the speech models, the services.
-  The circuit-tree mark (`pwa/public/yggdrasil_final.svg` — tree drawn as
-  circuit traces) is the Veraldar brand image: hardware and myth, one drawing.
-- **Bifrost** — the first product: the bridge between Midgard (where you are:
-  a phone in a pocket) and Asgard (where the agent works: your box, your keys).
-  In the myths the bridge shatters at Ragnarök. Ours won't — but we still
-  state every limit up front, because a bridge you can't trust isn't a bridge.
+- **Yggdrasil** — the world tree, the ash that holds the nine worlds. Not one
+  tree: many — one per PC, an agent core each. The circuit-tree mark
+  (`pwa/public/yggdrasil_final.svg` — tree drawn as circuit traces) is the
+  Veraldar brand image: hardware and myth, one drawing.
+- **Bifrost** — the first product: the bridges between Midgard (where you are:
+  a phone in a pocket) and the trees (where agents work: your boxes, your
+  keys). As many bridges as you want, one swipe apart. In the myths the
+  bridge shatters at Ragnarök. Ours won't — but we still state every limit up
+  front, because a bridge you can't trust isn't a bridge.
 
 Rules of the lore:
 
 1. **The myth is a map.** We never sell mythology; we sell ownership of *your*
-   tools on *your* hardware. Names only explain relationships.
+   tools on *your* hardware. Names only explain relationships: trees host,
+   bridges connect, roots carry, the world holds.
 2. **Future products are future Norse names** (see Part 2), each with a
    one-line meaning written down before any code ships under it.
-3. **Midgard/Asgard are lore-copy only** — landing lore pages and prose that
-   explains the architecture metaphor. Never in UI, errors, or behavior docs.
+3. **Midgard/Asgard are lore-copy only** — landing lore pages, the movie,
+   prose that explains the architecture metaphor. Never in UI, errors, or
+   behavior docs.
 
 ## 2. Tone of voice
 
@@ -245,9 +282,9 @@ line that says what it is.
   `veraldar/bifrost`. No family prefixes (`veraldar-product-bifrost` — never).
 - Shared infrastructure repos follow the same pattern: `veraldar/theme`
   (the DTCG source), `veraldar/brand` (this book, if split out).
-- Migration note: the current repo `yggdrasil-bifrost` predates the rule.
-  Rename to `veraldar/bifrost` when the org lands; keep the old slug as a
-  GitHub redirect; no doc rewrites before then.
+- Migration note: DONE — the repo lives at `veraldar/bifrost` since v0.6.0
+  (10-02). Ship as **Bifrost only**; Yggdrasil is the internal name of the
+  trunk layer — never a shipped product name.
 
 ## Attribution patterns
 

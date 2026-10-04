@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bifrost — architecture now → next</title>
+<style>
+  :root{--bg:#080810;--surface:#0e0e1a;--border:#26263a;--green:#4ade80;--amber:#fbbf24;--red:#f87171;--blue:#38bdf8;--dim:#8b8ba3;--text:#e8e8f2;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-snap-type:y mandatory}
+  body{background:var(--bg);color:var(--text);font:14px/1.55 ui-monospace,'Cascadia Mono','JetBrains Mono',Menlo,monospace;}
+  section{min-height:100vh;scroll-snap-align:start;padding:48px 22px 60px;max-width:860px;margin:0 auto;display:flex;flex-direction:column;justify-content:center;border-bottom:1px dashed var(--border)}
+  h1{font-size:34px;letter-spacing:.06em;margin-bottom:8px}
+  h1 .b{color:var(--green)}
+  h2{font-size:19px;color:var(--green);letter-spacing:.12em;text-transform:uppercase;margin-bottom:18px}
+  h2::before{content:'▚ ';color:var(--dim)}
+  .sub{color:var(--dim);margin-bottom:28px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:12px}
+  .card b{color:var(--green)}
+  .row{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}
+  .box{flex:1 1 150px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;min-width:140px}
+  .box h3{font-size:13px;color:var(--text);margin-bottom:4px}
+  .box p{font-size:11.5px;color:var(--dim)}
+  .box.hot{border-color:var(--green)}
+  .box.hot h3{color:var(--green)}
+  .arrow{align-self:center;color:var(--amber);font-size:18px;padding:0 2px}
+  .flow{margin:10px 0 22px}
+  .flow .tag{display:inline-block;font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--amber);border:1px solid var(--border);border-radius:99px;padding:2px 10px;margin-bottom:8px}
+  ul{list-style:none}
+  li{padding:5px 0 5px 20px;position:relative;font-size:13px}
+  li::before{content:'▸';position:absolute;left:2px;color:var(--green)}
+  li b{color:var(--green)}
+  .new li::before{content:'★';color:var(--amber)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
+  td,th{border:1px solid var(--border);padding:7px 10px;text-align:left}
+  th{color:var(--dim);font-weight:normal;text-transform:uppercase;letter-spacing:.1em;font-size:10.5px}
+  td:first-child{color:var(--green);white-space:nowrap}
+  .code{background:#050510;border:1px solid var(--border);border-radius:10px;padding:14px;font-size:12px;overflow-x:auto;white-space:pre;color:#c9c9de}
+  .code .k{color:var(--green)} .code .c{color:var(--dim)} .code .n{color:var(--amber)}
+  .pill{display:inline-block;background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:3px 12px;font-size:11px;color:var(--dim);margin:2px 4px 2px 0}
+  .pill.g{color:var(--green);border-color:rgba(74,222,128,.4)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:640px){.grid2{grid-template-columns:1fr}}
+  .footer{color:var(--dim);font-size:11px;margin-top:26px}
+  .num{position:fixed;top:14px;right:18px;color:var(--dim);font-size:11px;letter-spacing:.2em}
+  .warn{color:var(--red)}
+  .vs{display:flex;align-items:center;gap:10px;margin:14px 0;color:var(--amber);font-size:12px;letter-spacing:.3em}
+  .vs::before,.vs::after{content:'';flex:1;border-top:1px dashed var(--border)}
+</style>
+</head>
+<body>
+
+<section>
+  <div class="num">01 / 11</div>
+  <h1><span class="b">Bifrost</span> — architecture now → next</h1>
+  <p class="sub">talk + type to your coding agent from the phone · v0.3.0 · AGPL-3.0</p>
+  <div>
+    <span class="pill g">self-hosted</span><span class="pill g">tailnet-only, nothing public</span><span class="pill g">local-first speech</span><span class="pill g">15 API routes</span><span class="pill g">9 e2e specs · 29 tests</span>
+  </div>
+  <p class="footer">what exists today → what the <b>connectors</b> phase adds (pluggable harness: opencode · claude-code · copilot)</p>
+</section>
+
+<section>
+  <div class="num">02 / 11</div>
+  <h2>Today — the map</h2>
+  <div class="row">
+    <div class="box"><h3>📱 Phone PWA</h3><p>Next.js 15 + Tailwind 4 — sessions, transcript, attachments, PTT + hands-free. :8080 via tailscale serve</p></div>
+    <div class="arrow">⇄</div>
+    <div class="box hot"><h3>proxy seam</h3><p><b>the only path</b> to the backend — 15 routes under /api/*: sessions, messages, token, push, tts, search, diag</p></div>
+    <div class="arrow">⇄</div>
+    <div class="box"><h3>opencode serve</h3><p>coding agent REST — sessions, prompts, streaming. 127.0.0.1:4096, never exposed</p></div>
+  </div>
+  <div class="row" style="margin-top:12px">
+    <div class="box"><h3>LiveKit</h3><p>WebRTC media, docker host-net, ICE pinned to tailnet+LAN. :7880</p></div>
+    <div class="arrow">⇄</div>
+    <div class="box"><h3>voice agent</h3><p>Python livekit-agents worker — room slug = session slug, OpenCodeLLM adapter. agent/agent.py</p></div>
+    <div class="arrow">⇄</div>
+    <div class="box"><h3>speech (local)</h3><p>Mac MLX Qwen3-ASR/TTS :8001 · speaches CPU fallback :8000 — no cloud speech</p></div>
+  </div>
+  <p class="footer">everything sits inside the tailnet — tailscale is the security boundary</p>
+</section>
+
+<section>
+  <div class="num">03 / 11</div>
+  <h2>Today — three flows</h2>
+  <div class="flow"><span class="tag">text</span>
+    <div class="code">phone → <span class="k">POST /api/session/[id]/messages</span> → resolveId (slug→sess_*)
+  → live run? <span class="n">queue</span> (.oc-queue.json, proxy owns pickup)
+  : <span class="k">forward()</span> → POST opencode /message → on end: push + dequeue next
+  → swallowed run? <span class="n">verify & re-fire once</span> (oc-forward)</div>
+  </div>
+  <div class="flow"><span class="tag">voice</span>
+    <div class="code">phone mic → LiveKit → agent (STT → opencode → text reply)
+  → reply lands in transcript → <span class="k">phone speaks it via /api/tts</span> (one voice path, no echo)
+  → PTT: ptt_begin (manual turns) … commit_turn · radio words: over / over and out</div>
+  </div>
+  <div class="flow"><span class="tag">reliability</span>
+    <div class="code">watchdog: SSE /event → per-session last-event clock
+  → <span class="n">10 min silence</span> on a live run = wedged → abort → queue pickup
+  → push notification on run done (VAPID, sw.js)</div>
+  </div>
+</section>
+
+<section>
+  <div class="num">04 / 11</div>
+  <h2>Hard rules (spec.md)</h2>
+  <ul>
+    <li><b>base integrity over features</b> — the invariants are the product</li>
+    <li><b>one seam</b> — phone ⇄ proxy only; tailnet is the boundary</li>
+    <li><b>opencode is the source of truth</b> for sessions <span class="warn">(this rule changes with connectors)</span></li>
+    <li><b>local-first</b> — speech on LAN, no cloud speech APIs</li>
+    <li><b>degrade, don't break</b> — bounded silent retries, log-only diagnostics, no auto-fix loops</li>
+  </ul>
+</section>
+
+<section>
+  <div class="num">05 / 11</div>
+  <h2>Next — harness connectors</h2>
+  <p class="sub">the coding-agent backend becomes pluggable: <b>opencode</b> · <b>claude-code</b> · <b>copilot</b> — per session or global default</p>
+  <div class="code">connector interface <span class="c">(proxy is the only caller)</span>
+  <span class="k">createSession</span>(title) → externalId
+  <span class="k">transcript</span>(externalId) → Msg[]
+  <span class="k">send</span>(externalId, parts) → run handle      <span class="c">// async, resolves at run end</span>
+  <span class="k">abort</span>(externalId)
+  <span class="k">liveness</span>(externalId) → live | ended       <span class="c">// drives queue + busy dot</span>
+  <span class="k">models</span>() → [{id, label}]
+  <span class="k">health</span>() → ok | why-not</div>
+  <div class="grid2" style="margin-top:12px">
+    <div class="box hot"><h3>http driver</h3><p>opencode — today's lib/oc.ts becomes connector #1 (pure refactor, zero behavior change)</p></div>
+    <div class="box hot"><h3>process driver</h3><p>headless CLIs — claude -p --output-format stream-json --resume &lt;id&gt; · Copilot CLI; spawned, parsed, aborted by PID</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="num">06 / 11</div>
+  <h2>Next — identity & UX</h2>
+  <ul class="new">
+    <li><b>registry</b> <span class="pill">.harness-sessions.json</span> — bifrost session → {harness, externalId, title}; lazy, same pattern as the live-run registry</li>
+    <li><b>global default</b> harness — server config, surfaced in /settings</li>
+    <li><b>per-session override</b> — harness selector above model/agent; model + agent lists become harness-scoped</li>
+    <li><b>switch = new external session</b> under the same slug — confirm dialog (context is lost); no history copy in v1</li>
+    <li><b>queue stays proxy-owned</b> (harness-agnostic); liveness per connector</li>
+    <li><b>voice stays opencode-only until phase 5</b> — other harnesses are text-only first, composer shows a hint</li>
+    <li><b>spec rule 3 amended</b>: <i>"the session's active harness is the source of truth"</i> — needs your approval</li>
+  </ul>
+</section>
+
+<section>
+  <div class="num">07 / 11</div>
+  <h2>Roadmap — 5 phases</h2>
+  <table>
+    <tr><th>phase</th><th>what</th><th>risk</th></tr>
+    <tr><td>1 refactor</td><td>extract interface; opencode as connector #1</td><td>none visible — e2e must stay green</td></tr>
+    <tr><td>2 plumbing UI</td><td>global default + per-session selector (opencode only)</td><td>low</td></tr>
+    <tr><td>3 claude-code</td><td>headless stream-json process driver</td><td>medium — parsing, auth reuse</td></tr>
+    <tr><td>4 copilot</td><td>same shape, CLI format spike first</td><td>medium</td></tr>
+    <tr><td>5 voice</td><td>voice agent → harness-agnostic endpoint</td><td>medium</td></tr>
+  </table>
+  <p class="footer">full spec: docs/spec-connectors.md · onboard lane: docs/spec-onboard.md</p>
+</section>
+
+
+<section>
+  <div class="num">08 / 11</div>
+  <h2>Path to one-click ready PWA (Android)</h2>
+  <p class="sub">spec: docs/spec-onboard.md — the goal: link + one phrase → working stack; phone scans one QR</p>
+  <div class="row">
+    <div class="box hot"><h3>1 · bootstrap.sh</h3><p>fresh VPS or own box: mints every secret, generates configs, starts the stack — zero judgment calls (phase 1: <b>shipped</b>, cross-harness proven)</p></div>
+    <div class="arrow">→</div>
+    <div class="box"><h3>2 · /pair QR</h3><p>terminal prints a QR — phone camera pairs: URL + config + push registration, no typing (concept → build)</p></div>
+    <div class="arrow">→</div>
+    <div class="box"><h3>3 · install</h3><p>Android: browser menu → install app → home-screen icon, standalone, theme; iOS: Safari → Add to Home Screen</p></div>
+  </div>
+  <ul class="new" style="margin-top:12px">
+    <li><b>skill-driven</b>: any harness (opencode / Claude Code / Codex) can run the install from the raw SKILL.md link — proven on cold containers + real hardware</li>
+    <li><b>one manual step by design</b>: <span class="pill">opencode auth login</span> — your LLM key is the one thing no bootstrap may mint</li>
+    <li><b>update story</b>: same skill, section 5 — git pull + idempotent bootstrap, secrets persist</li>
+  </ul>
+</section>
+
+<section>
+  <div class="num">09 / 11</div>
+  <h2>Your plugins stay yours</h2>
+  <p class="sub">concept (name reserved: <b>local plugins</b>) — user-owned extensions that never leave the instance</p>
+  <ul class="new">
+    <li><b>gitignored plugins/ dir</b> next to the instance config — created empty by bootstrap, survives every update</li>
+    <li><b>loaded by the proxy seam</b> — route hooks / middleware list, same trust boundary as the seam itself</li>
+    <li><b>never upstream</b>: your plugin folder is not in the repo, not in releases, not in issues — it is yours</li>
+    <li>open shape decision: connector-contract plugins vs UI/route extensions vs both</li>
+  </ul>
+</section>
+
+<section>
+  <div class="num">10 / 11</div>
+  <h2>Concept board — the names</h2>
+  <table>
+    <tr><th>name</th><th>concept</th><th>state</th></tr>
+    <tr><td>connectors</td><td>pluggable harness: opencode · claude-code · codex · copilot</td><td>spec'd, phased</td></tr>
+    <tr><td>harness registry</td><td>session → {harness, externalId} mapping store</td><td>spec'd</td></tr>
+    <tr><td>pairing</td><td>QR one-tap phone join (URL + config + push)</td><td>concept → build</td></tr>
+    <tr><td>local plugins</td><td>per-instance extensions, gitignored, never upstream</td><td>concept</td></tr>
+    <tr><td>skills / workflows</td><td>named agent instruction packs (SKILL.md) — install skill already proves the pattern; reusable multi-step flows are the same shape</td><td>pattern live, workflow runner = concept</td></tr>
+    <tr><td>one-click onboard</td><td>bootstrap + pair + install, link + "set it up"</td><td>phase 1 shipped</td></tr>
+  </table>
+</section>
+
+<section>
+  <div class="num">08 / 11</div>
+  <h2>Numbers</h2>
+  <table>
+    <tr><td>15</td><td>API routes in the proxy seam</td></tr>
+    <tr><td>9 / 29</td><td>e2e spec files / tests, all green at v0.3.0</td></tr>
+    <tr><td>:8080</td><td>PWA — tailscale serve, tailnet-only</td></tr>
+    <tr><td>:4096</td><td>opencode serve, 127.0.0.1 only</td></tr>
+    <tr><td>:7880</td><td>LiveKit WebRTC (ICE pinned)</td></tr>
+    <tr><td>:8001 / :8000</td><td>Mac MLX speech / CPU fallback</td></tr>
+    <tr><td>10 min</td><td>watchdog stall limit (30 s scan)</td></tr>
+  </table>
+  <p class="footer">bifrost · veraldar/yggdrasil-bifrost · AGPL-3.0</p>
+</section>
+
+</body>
+</html>

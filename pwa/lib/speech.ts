@@ -82,6 +82,50 @@ let stallTimer: ReturnType<typeof setTimeout> | null = null;
 let gen = 0;
 let msgLang: 'fr' | 'en' = 'fr';
 let curSlug = '';
+// ---- stutter diagnostics (M0) ----
+// One reply = one sid, shared with the route's tts-*.log line so both legs
+// (box: Mac→box→phone, client: read gaps + swap deltas + stalls + rtt) can be
+// joined in the diag files.
+let sid = '';
+let rttTimer: ReturnType<typeof setInterval> | null = null;
+let rttSamples: number[] = [];
+// boundary mechanics: swap = ended→next piece actually sounding; a swap that
+// takes longer than ~50ms is an audible hitch — this is the stutter metric.
+let swapCount = 0;
+let swapMsTotal = 0;
+let swapMsMax = 0;
+let boundaryStallT0 = 0; // 'ended' with no next piece — waiting on the stream
+let boundaryStallTimer: ReturnType<typeof setTimeout> | null = null;
+let stallCount = 0;
+let bufMinSec = Infinity; // min buffer depth (received − played) while playing
+
+function recordRttProbe(): void {
+  const t0 = performance.now();
+  fetch('/api/ping', { cache: 'no-store' })
+    .then(() => {
+      rttSamples.push(Math.round(performance.now() - t0));
+      if (rttSamples.length > 60) rttSamples = rttSamples.slice(-60);
+    })
+    .catch(() => {});
+}
+
+function rttSummary(): { n: number; min: number; avg: number; max: number } {
+  const n = rttSamples.length;
+  if (!n) return { n: 0, min: 0, avg: 0, max: 0 };
+  const min = Math.min(...rttSamples);
+  const max = Math.max(...rttSamples);
+  const avg = Math.round(rttSamples.reduce((a, b) => a + b, 0) / n);
+  return { n, min, avg, max };
+}
+
+/** Audible hitch at a piece boundary (ended→playing). >50ms is a stutter. */
+function recordSwap(t0: number): void {
+  const ms = Math.round(performance.now() - t0);
+  swapCount++;
+  swapMsTotal += ms;
+  if (ms > swapMsMax) swapMsMax = ms;
+  if (ms > 50) diagEvent('tts-stall', `swap ${ms}ms at piece ${curIdx} (sid ${sid})`);
+}
 
 type Piece = { url: string; startSample: number; samples: number };
 let pieces: Piece[] = []; // every piece, in order — kept for seeks
@@ -121,6 +165,17 @@ function ensureEls(): [HTMLAudioElement, HTMLAudioElement] {
       a.preload = 'auto';
       (a as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
       a.addEventListener('ended', () => onPieceEnded(a));
+      // 'waiting' = the element ran out of audio mid-piece: on blob URLs this
+      // should never happen — if it does, it IS the stutter
+      a.addEventListener('waiting', () => {
+        if (state.phase === 'playing') {
+          stallCount++;
+          diagEvent(
+            'tts-stall',
+            `element waiting at t=${a.currentTime.toFixed(2)} piece ${curIdx} (sid ${sid})`
+          );
+        }
+      });
       return a;
     };
     els = [make(), make()];
@@ -130,13 +185,16 @@ function ensureEls(): [HTMLAudioElement, HTMLAudioElement] {
 
 function onPieceEnded(el: HTMLAudioElement): void {
   if (el !== els![activeEl]) return; // idle twin ended prematurely — ignore
+  const swapT0 = performance.now();
   const nextIdx = curIdx + 1;
   if (nextIdx < pieces.length) {
     activeEl = 1 - activeEl;
     const el2 = els![activeEl];
     el2.playbackRate = state.rate;
     if (!userPaused) {
-      void el2.play().catch((e) => console.warn('tts swap play failed:', String(e)));
+      void el2.play()
+        .then(() => recordSwap(swapT0))
+        .catch((e) => console.warn('tts swap play failed:', String(e)));
     }
     curIdx = nextIdx;
     tick();
@@ -151,7 +209,26 @@ function onPieceEnded(el: HTMLAudioElement): void {
     if (userPaused) setPhase('paused');
     else stopSpeech(); // natural end
   } else {
-    diagEvent('tts', 'boundary stall: stream lagging behind playback');
+    boundaryStallT0 = performance.now();
+    stallCount++;
+    const depth =
+      totalReceived / SAMPLE_RATE - pieces[curIdx].startSample / SAMPLE_RATE - el.currentTime;
+    diagEvent(
+      'tts-stall',
+      `boundary stall: stream lagging behind playback, buffer ${depth.toFixed(1)}s (sid ${sid})`
+    );
+    // bounded escape: a stream that died mid-reply (post-generation-lock this
+    // is rare) must not leave the deck on "synthesizing" forever — end the
+    // reply gracefully after 20s of no recovery, like the first-audio watchdog
+    if (boundaryStallTimer) clearTimeout(boundaryStallTimer);
+    const mySid = sid;
+    boundaryStallTimer = setTimeout(() => {
+      boundaryStallTimer = null;
+      if (state.phase === 'loading' && boundaryStallT0 && sid === mySid) {
+        diagEvent('tts-stall', `boundary stall gave up after ${Math.round(performance.now() - boundaryStallT0)}ms (sid ${mySid})`);
+        stopSpeech();
+      }
+    }, 20_000);
     setPhase('loading'); // stream lagging — enqueue() resumes playback
   }
 }
@@ -161,6 +238,8 @@ function tick(): void {
   if (curIdx >= 0 && pieces[curIdx] && els) {
     const el = els[activeEl];
     const posSec = (pieces[curIdx].startSample + el.currentTime * SAMPLE_RATE) / SAMPLE_RATE;
+    const depth = state.receivedSec - posSec;
+    if (state.phase === 'playing' && depth < bufMinSec) bufMinSec = depth;
     set({
       positionSec: posSec,
       progress: Math.min(1, posSec / Math.max(state.totalEstSec, 0.5)),
@@ -253,6 +332,17 @@ function enqueuePiece(startSample: number, len: number): void {
     // ALWAYS start the chain at the FIRST piece (the beginning of the text) —
     // starting at idx (the latest enqueued) made playback jump to ~12s on open
     const startIdx = curIdx < 0 ? 0 : idx;
+    if (stalledAtBoundary && boundaryStallT0) {
+      diagEvent(
+        'tts-stall',
+        `boundary stall recovered in ${Math.round(performance.now() - boundaryStallT0)}ms (sid ${sid})`
+      );
+      boundaryStallT0 = 0;
+      if (boundaryStallTimer) {
+        clearTimeout(boundaryStallTimer);
+        boundaryStallTimer = null;
+      }
+    }
     let offsetSec = 0;
     if (pendingSkip !== null && pendingSkip > pieces[startIdx].startSample) {
       offsetSec = (pendingSkip - pieces[startIdx].startSample) / SAMPLE_RATE;
@@ -286,20 +376,35 @@ async function run(text: string, myGen: number): Promise<void> {
   // any stream failure must land in stopSpeech, never strand 'loading':
   // the route holds the connection up to 10 min, a mid-stream death
   // otherwise looked exactly like the eternal "synthesizing…" of 09-30
+  const fetchT0 = performance.now();
+  let fetchMs = 0;
   try {
     const res = await fetch('/api/tts/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, lang: msgLang }),
+      body: JSON.stringify({ text, lang: msgLang, sid }),
       signal: abort!.signal,
     });
     if (!res.ok) throw new Error(`tts ${res.status}: ${(await res.text()).slice(0, 120)}`);
+    fetchMs = Math.round(performance.now() - fetchT0);
+    // client-leg chunk metrics: arrival gaps at the phone mirror the route's
+    // Mac→box gaps — if the phone sees gaps the route doesn't, it's the
+    // tailnet; if the ROUTE sees gaps from the Mac, it's synthesis/load
+    let lastRead = 0;
+    let ttfc = 0;
+    let rxBytes = 0;
+    const rxGaps: number[] = [];
     const reader = res.body!.getReader();
     let carry = new Uint8Array(0);
     while (true) {
       const { done, value } = await reader.read();
       if (gen !== myGen) return;
       if (done) break;
+      const now = performance.now();
+      if (!ttfc) ttfc = Math.round(now - fetchT0);
+      else rxGaps.push(Math.round(now - lastRead));
+      lastRead = now;
+      rxBytes += value.length;
       const all = new Uint8Array(carry.length + value.length);
       all.set(carry);
       all.set(value, carry.length);
@@ -317,8 +422,42 @@ async function run(text: string, myGen: number): Promise<void> {
     }
     // if the last piece already ended while we were wrapping, finish now
     if (curIdx >= pieces.length - 1) maybeFinish();
+    // client-leg summary → diag (joined with the route line via sid)
+    const totalMs = Math.round(performance.now() - fetchT0);
+    const audioSec = +(rxBytes / 48_000).toFixed(2);
+    const maxGap = rxGaps.length ? Math.max(...rxGaps) : 0;
+    const avgGap = rxGaps.length
+      ? Math.round(rxGaps.reduce((a, b) => a + b, 0) / rxGaps.length)
+      : 0;
+    diagEvent(
+      'tts-chunk',
+      JSON.stringify({
+        sid,
+        leg: 'phone',
+        chars: text.length,
+        bytes: rxBytes,
+        audioSec,
+        fetchMs,
+        ttfc,
+        totalMs,
+        rtf: audioSec > 0 ? +(totalMs / 1000 / audioSec).toFixed(2) : 0,
+        chunks: rxGaps.length + 1,
+        avgGap,
+        maxGap,
+        gapsOver300: rxGaps.filter((g) => g > 300),
+        rtt: rttSummary(),
+        swaps: {
+          n: swapCount,
+          avgMs: swapCount ? Math.round(swapMsTotal / swapCount) : 0,
+          maxMs: swapMsMax,
+        },
+        stalls: stallCount,
+        bufMinSec: Number.isFinite(bufMinSec) ? +bufMinSec.toFixed(1) : -1,
+      })
+    );
   } catch (e) {
     if (gen !== myGen) return; // superseded by a newer start / deliberate stop
+    diagEvent('tts-chunk', JSON.stringify({ sid, leg: 'phone', error: String(e) }));
     console.warn(`tts stream failed: ${String(e)}`); // diag
     stopSpeech();
   }
@@ -383,6 +522,21 @@ export function startSpeech(text: string, slug = ''): void {
   pendingFloat = null;
   pendingLen = 0;
   totalReceived = 0;
+  // diagnostics reset for this reply
+  sid = (crypto.randomUUID?.() || `s${Date.now().toString(36)}`).slice(0, 8);
+  rttSamples = [];
+  swapCount = 0;
+  swapMsTotal = 0;
+  swapMsMax = 0;
+  boundaryStallT0 = 0;
+  if (boundaryStallTimer) {
+    clearTimeout(boundaryStallTimer);
+    boundaryStallTimer = null;
+  }
+  stallCount = 0;
+  bufMinSec = Infinity;
+  if (rttTimer) clearInterval(rttTimer);
+  rttTimer = setInterval(recordRttProbe, 5_000);
   const totalEstSec = Math.max(3, clean.length * SEC_PER_CHAR);
   set({ phase: 'loading', progress: 0, positionSec: 0, receivedSec: 0, totalEstSec });
   if (tickTimer) clearInterval(tickTimer);
@@ -493,6 +647,14 @@ export function stopSpeech(): void {
   if (tickTimer) {
     clearInterval(tickTimer);
     tickTimer = null;
+  }
+  if (rttTimer) {
+    clearInterval(rttTimer);
+    rttTimer = null;
+  }
+  if (boundaryStallTimer) {
+    clearTimeout(boundaryStallTimer);
+    boundaryStallTimer = null;
   }
   if (state.phase !== 'idle') {
     set({ phase: 'idle', progress: 0, positionSec: 0, receivedSec: 0 });

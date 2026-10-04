@@ -282,6 +282,20 @@ struct ServicePeer {
     endpoint: SocketAddr,
     allowed_ips: Vec<(IpAddr, u8)>,
     known: bool,
+    last_init: Instant,
+}
+
+impl ServicePeer {
+    fn dialable(&self) -> bool {
+        self.endpoint.port() != 0 && !self.endpoint.ip().is_unspecified()
+    }
+
+    /// Has this peer EVER completed a handshake with us?
+    /// (stats age itself proved unreliable for freshness in 0.7, but
+    /// None -> Some on first handshake is a solid bootstrap signal)
+    fn handshaked(&self) -> bool {
+        self.tun.stats().0.is_some()
+    }
 }
 
 /// One decrypted inner packet handed up from the mesh.
@@ -355,7 +369,7 @@ impl MeshService {
                         StaticSecret::from(secret_bytes),
                         p.public,
                         None,
-                        None,
+                        Some(25), // WG-standard keepalive: NAT mappings stay open
                         (i as u32) + 1,
                         None,
                     ),
@@ -364,6 +378,7 @@ impl MeshService {
                         .unwrap_or_else(|| SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0)),
                     allowed_ips: p.allowed_ips,
                     known: p.endpoint.is_some(),
+                    last_init: Instant::now() - Duration::from_millis(200),
                 }
             })
             .collect();
@@ -544,8 +559,16 @@ impl MeshService {
     }    fn run_timers(&mut self) {
         let mut out = vec![0u8; 2000];
         for i in 0..self.peers.len() {
-            if !self.peers[i].known {
-                // never dialed / never heard: initiate handshake ourselves
+            // INITIATOR POLICY (the two-machine bug, 10-03): a configured
+            // endpoint is a DIAL instruction, not a reason to stay quiet.
+            // Dial every ~200ms until the first handshake completes;
+            // format_handshake_initiation self-guards while one is in flight.
+            // Afterwards boringtun's update_timers owns rekeys + keepalives.
+            if self.peers[i].dialable()
+                && !self.peers[i].handshaked()
+                && self.peers[i].last_init.elapsed() > Duration::from_millis(200)
+            {
+                self.peers[i].last_init = Instant::now();
                 match self.peers[i].tun.format_handshake_initiation(&mut out, false) {
                     TunnResult::WriteToNetwork(b) => self.send_wg(i, b),
                     _ => {}
@@ -614,6 +637,10 @@ impl MeshService {
         }
     }
 
+    pub fn peer_names(&self) -> Vec<String> {
+        self.peers.iter().map(|p| p.name.clone()).collect()
+    }
+
     pub fn peer_endpoint_mut(&mut self, peer: &str) -> Option<&mut SocketAddr> {
         self.peers
             .iter_mut()
@@ -644,6 +671,70 @@ impl MeshService {
 /// - forced rekey on A, then 200 more packets each way on the new session
 /// - byte counters on both tunnels match the traffic
 pub fn service_test() -> Result<(), String> {
+    handshake_only_test()?;
+    data_rekey_test()
+}
+
+/// THE TWO-MACHINE CASE (omarchy <-> VPS, 10-03): both nodes serve, both
+/// configs name the other's endpoint, NO data is ever sent. The mesh must
+/// come up purely from the initiator policy + keepalives.
+fn handshake_only_test() -> Result<(), String> {
+    const TIMEOUT: Duration = Duration::from_secs(6);
+    let a_secret = StaticSecret::random_from_rng(OsRng);
+    let b_secret = StaticSecret::random_from_rng(OsRng);
+    let a_pub = PublicKey::from(&a_secret);
+    let b_pub = PublicKey::from(&b_secret);
+
+    let mut a = MeshService::new(
+        "A",
+        a_secret,
+        Ipv4Addr::new(10, 7, 0, 1),
+        "127.0.0.1:0".parse().unwrap(),
+        vec![PeerDesc {
+            name: "B".into(),
+            public: b_pub,
+            endpoint: None, // patched below once B's port exists
+            allowed_ips: vec![(IpAddr::V4(Ipv4Addr::new(10, 7, 0, 2)), 32)],
+        }],
+    )
+    .map_err(|e| e.to_string())?;
+    let mut b = MeshService::new(
+        "B",
+        b_secret,
+        Ipv4Addr::new(10, 7, 0, 2),
+        "127.0.0.1:0".parse().unwrap(),
+        vec![PeerDesc {
+            name: "A".into(),
+            public: a_pub,
+            endpoint: Some(a.local_addr()),
+            allowed_ips: vec![(IpAddr::V4(Ipv4Addr::new(10, 7, 0, 1)), 32)],
+        }],
+    )
+    .map_err(|e| e.to_string())?;
+    *a.peer_endpoint_mut("B").unwrap() = b.local_addr();
+
+    // zero data — pure serve mode, timers only
+    let deadline = Instant::now() + TIMEOUT;
+    while Instant::now() < deadline {
+        a.pump();
+        b.pump();
+        if a.peer_stats("B")?.0.is_some() && b.peer_stats("A")?.0.is_some() {
+            let a_inits = b.handshakes_received;
+            println!(
+                "    both-up from timers alone (no data): A saw {a_inits} init(s), sessions on both sides"
+            );
+            return Ok(());
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    Err(format!(
+        "handshake-only: never came up — a_hs={:?} b_hs={:?} (the two-machine bug)",
+        a.peer_stats("B").map(|s| s.0).unwrap_or(None),
+        b.peer_stats("A").map(|s| s.0).unwrap_or(None),
+    ))
+}
+
+fn data_rekey_test() -> Result<(), String> {
     const N: usize = 200;
     const TIMEOUT: Duration = Duration::from_secs(10);
 

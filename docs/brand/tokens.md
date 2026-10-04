@@ -44,6 +44,12 @@ Color is never the only signal — pair it with motion (see below) or text.
 
 ## The three themes (personalities)
 
+> **v2 canon (2026-10-02):** all eight worlds retuned to the "dialects" set
+> (user pick, `artifacts/themes-alt-2-opus.html`) — each world on its own
+> ground with per-world alive/heard accents. The full eight-world canon
+> lives in `realms.md`; the three below are the founding worlds' current
+> values.
+
 - **aether** — flagship and default (`:root`). Deep-space terminal: near-black
   blue `#080810` bg, pure-black `#000000` surface, white text, `#888` dim.
   Accents are the bright 400-series (green `#4ade80`, amber `#fbbf24`, red

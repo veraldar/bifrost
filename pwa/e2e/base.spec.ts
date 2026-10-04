@@ -98,8 +98,10 @@ test('voice: PTT connects to LiveKit, keyboard mode keeps the room warm', async 
   // a hold shorter than that join dropped the whole turn (req 09-29). The
   // LiveKit socket must therefore STAY open after the switch. The only mode
   // switch is the composer mic (req 09-30): a TAP toggles hands-free —
-  // text → hands-free → text, the button never moves.
+  // text → hands-free → text, the button never moves. Wait out the free-dock
+  // ghost guard (400ms) before the exit tap — see freeGhostGuardRef.
   await micBtn.click();
+  await page.waitForTimeout(450);
   await page.getByRole('button', { name: 'leave hands-free' }).click();
   await expect
     .poll(() => sockets.filter((s) => s.isClosed()).length, {
@@ -116,6 +118,8 @@ test('hands-free mode arms without error', async ({ page }) => {
   await expect(page.getByText(/hands-free/).first()).toBeVisible({
     timeout: 30_000,
   });
+  // wait out the free-dock ghost guard (400ms) — see freeGhostGuardRef
+  await page.waitForTimeout(450);
   await page.getByRole('button', { name: 'leave hands-free' }).click();
   await expect(page.getByTestId('free-phase')).toHaveCount(0);
 });

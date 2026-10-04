@@ -125,13 +125,14 @@ function SwipeRow({
   );
 }
 
-/** Compact row stamp: clock time for today, short date for older — Discord style. */
+/** Compact row stamp: clock time for today, date + time for older — Discord style. */
 function fmtListTime(t?: number): string {
   if (!t) return '';
   const d = new Date(t);
+  const hm = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
   return d.toDateString() === new Date().toDateString()
-    ? d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
-    : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    ? hm
+    : `${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}, ${hm}`;
 }
 
 export default function SessionsPage() {

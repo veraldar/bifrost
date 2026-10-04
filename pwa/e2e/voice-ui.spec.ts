@@ -47,6 +47,10 @@ test('rail, glyph and words follow every voice state', async ({ page }) => {
   await expect(rail).toHaveAttribute('data-s', 'heard');
   await expect(free).toContainText('tap the bars to send');
   await expect(page.getByRole('button', { name: 'send what you said' })).toBeEnabled();
+  // the exit click must be a real gesture: within 400ms of the entering tap
+  // it IS the gesture's ghost and the free-dock guard swallows it (see
+  // freeGhostGuardRef) — wait out the window like a human finger would
+  await page.waitForTimeout(450);
   await page.getByRole('button', { name: 'leave hands-free' }).click();
   await expect(free).toHaveCount(0);
   await expect(rail).toHaveAttribute('data-s', 'idle');

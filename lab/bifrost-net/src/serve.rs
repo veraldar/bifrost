@@ -98,9 +98,18 @@ pub fn run(path: &str) -> Result<(), String> {
                 }
                 if last_report.elapsed() > Duration::from_secs(30) {
                     last_report = Instant::now();
+                    let peers = svc
+                        .peer_names()
+                        .into_iter()
+                        .map(|n| {
+                            let up = svc.peer_stats(&n).map(|s| s.0.is_some()).unwrap_or(false);
+                            format!("{n}={}", if up { "UP" } else { "down" })
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" ");
                     println!(
-                        "  mesh[{}]: alive (inits received: {}, drops: {} garbage / {} spoofed)",
-                        svc.name(), svc.handshakes_received, svc.dropped_garbage, svc.dropped_spoofed
+                        "  mesh[{}]: alive (inits received: {}, drops: {} garbage / {} spoofed) peers: {}",
+                        svc.name(), svc.handshakes_received, svc.dropped_garbage, svc.dropped_spoofed, peers
                     );
                 }
                 std::thread::sleep(Duration::from_millis(5));

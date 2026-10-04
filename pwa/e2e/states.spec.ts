@@ -77,7 +77,9 @@ test('hands-free: keyword protocol status, no cancel button, screenshot', async 
   await expect(phase).toContainText('over');
   await page.screenshot({ path: '../artifacts/e2e-free-listening.png' });
   // leave hands-free quickly — the fake mic never says "over", so nothing
-  // can commit, but short tests keep the shared server state clean
+  // can commit, but short tests keep the shared server state clean. Wait out
+  // the free-dock ghost guard (400ms) first — see freeGhostGuardRef.
+  await page.waitForTimeout(450);
   await page.getByRole('button', { name: 'leave hands-free' }).click();
 });
 

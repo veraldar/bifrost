@@ -1,151 +1,211 @@
-# Channel plan — first public push
+# Channel plan — WAVE 1 techie launch
 
-Draft v1 (LAUNCH session). **Nothing is posted until the v0.4.0 gate closes**
-(tag exists + hands-free human pass ticked in `docs/plan.md`). Every post
-carries the honest-limits line — see `positioning.md`. One person, one account,
-posts; replies within the first 2 hours matter more than polish.
+v3 (10-02 state sync). Reality: v0.6.0 shipped, repo `veraldar/bifrost`,
+Wave 1 gates on **v0.7.0 (the reliable voice)** and fires **by the user's
+hand only**. Brand voice per `docs/brand/brand.md`; delivery rules per
+`trust-viral.md` (the pre-post block below is binding).
 
-Order of play on launch day (all within ~2h of the GitHub release + tag):
+**Links:** repo = `https://github.com/veraldar/bifrost` everywhere, primary.
+`veraldar.org` mentioned once per post as the org name (it is a stub until
+post-v1.0 — never link-sell it). Posts never wait on any site.
 
-1. **Show HN** — anchor post. Everything else references it.
-2. **X** — thread + demo video, link to repo (not HN; HN punishes vote rings).
-3. **r/LocalLLaMA** — local-speech angle, text post.
-4. **r/selfhosted** — self-host angle, text post.
-5. **r/omarchy** — homecoming post; it runs on omarchy and looks like omarchy.
+**Wave 1 shape (adopted ladder):** hook-first Show HN + cold-start video +
+5–10 seeded testers. Order of play on T-day:
+
+1. **Seeded testers** (pre-wave, below) have already installed; their verdicts
+   quote into the HN thread organically, never on cue.
+2. **Show HN** — hook-first title, cold-start video in top comment.
+3. **X** — thread + videos, repo link (never the HN link).
+4. **r/LocalLLaMA → r/selfhosted → r/omarchy**, staggered ~30 min.
 
 ---
 
-## 1. Show HN
+## 0. Seeded testers (before T-day, 5–10 people)
 
-**Title:**
+- **Who**: terminal-comfortable people with a Linux box + Android phone;
+  drawn from opencode community, omarchy-adjacent friends-of-friends. No
+  journalists, no paid amplification.
+- **How**: private invite → they run the install themselves (the agent-native
+  loop is the test, not me installing for them) → entry ticket is the
+  `scripts/selfhost-check.sh` verdict pasted into a shared feedback thread.
+- **Ask**: install friction notes (every spot they hesitated), one hands-free
+  session, one PTT session, one attachment. Honest verdict quote we may
+  publish — with their name, only if they offer.
+- **Rules**: they speak freely and post nowhere on cue; if any of them
+  comments on HN/Reddit they disclose they had early access. No coordinated
+  anything (trust-viral §4 astroturf rules).
+- **Pass bar**: ≥5 clean installs by strangers, every friction point triaged
+  into v0.7.0 or the known-issues issue.
+
+## BEFORE POSTING — required edits (per trust-viral.md §4–5)
+
+Drafts below are **base text**. Required before any of them goes out:
+
+1. **Dictate, don't polish** — the author dictates each post from base text,
+   transcribes, edits lightly. Agent-polished copy reads AI-written.
+2. **Cut on sight**: antithesis slogans ("they sell X / you get Y"),
+   "Honest limits:"/"What it is not:"/"The pitch:" labels, "battle-tested",
+   "fresh off a fix", fragment triplets, em-dash chains.
+3. **Show HN adds**: AI-use disclosure (candidate in trust-viral §4); one
+   real measured number; "the install skill is N lines, pinned to
+   <tag/sha> — read it before you paste it"; how long the build took and
+   what broke.
+4. **No verbatim phrase in two posts.** First person "I", never "we".
+5. Comparative claims only about what we verified.
+
+---
+
+## 1. Show HN (hook-first)
+
+**Title — pick one at fire time (hook first, name after the dash):**
 ```
-Show HN: Bifrost – self-hosted, voice-first remote for your coding agent
+Show HN: Voice-control your self-hosted coding agent from your phone
+Show HN: Bifrost – talk to your coding agent from your phone (self-hosted, local speech)
+Show HN: I drive my coding agent by voice from the couch; the code changes on my own box
 ```
 
-**Body (first comment, by the author — plain, first person, no marketese):**
+**Body (first comment, author voice):**
 
-> Hi HN — I built bifrost because I wanted to talk to my coding agent from the
-> couch without my code passing through anyone else's cloud.
+> Hi HN. I built Bifrost because I wanted to talk to my coding agent from the
+> couch without my code passing through someone else's cloud.
 >
-> It's a self-hosted, voice-first remote for opencode: speak or type on your
-> phone (PWA), a LiveKit voice agent bridges your words to a local opencode
-> server, and the answer comes back as text and speech. STT/TTS run on local
-> models (Qwen3 via MLX, or a CPU whisper/Kokoro fallback in the compose) — no
-> cloud speech API. The default topology is Tailscale-only: nothing public.
+> It's a self-hosted, voice-first remote for opencode. Speak or type on your
+> phone (PWA); a LiveKit voice agent bridges your words to a local opencode
+> server; the answer comes back as text and speech. Voice turns land in the
+> same transcript as text — the LiveKit room name is the opencode session
+> slug, so what you said on the couch is what the agent sees at the desk.
+> Sub-sessions and input recall came out of using it daily.
 >
-> The install is the part I'm proudest of. You paste one link into any coding
-> agent (opencode, Claude Code, Codex) plus the words "set it up", and the
-> agent fetches an install skill, clones the repo, checks prerequisites, mints
-> every secret, boots the stack, verifies each layer, and prints the URL. One
-> manual step remains: `opencode auth login` — your LLM key, which nothing
-> should mint for you.
+> Speech never touches a cloud API: STT/TTS run on local models — Qwen3 via
+> MLX on a spare Mac if you have one, or a CPU fallback (faster-whisper +
+> Kokoro) in the docker compose. One voice mode detail I care about: keyboard
+> mode releases the OS mic instantly, so the phone's mic indicator never lies.
+> Default topology is Tailscale-only. opencode has shell access, so it never
+> gets a public route — the phone talks to a Next.js proxy and that proxy is
+> the only seam. Auth is tailnet-gated; SECURITY.md and pinned install tags
+> shipped with the last release.
 >
-> What it is not: it doesn't make the model smarter. The big AI-coding tools
-> sell model quality; bifrost gives you ownership of the controls — your box,
-> your models, your network, AGPL-3.0.
+> The install took the longest to get right. You paste one link into any
+> coding agent (opencode, Claude Code, Codex) plus the words "set it up".
+> The agent fetches the install skill, clones the repo, checks
+> prerequisites, mints every secret, boots each layer, verifies it, and
+> prints the URL. One manual step: `opencode auth login` — your LLM key;
+> nothing mints that for you. There's also a delegation skill: your sessions
+> can call claude/codex as sub-agents.
 >
-> Honest limits: v0.4.0 is for terminal-comfortable users (one Linux box,
-> docker, Node ≥ 22). Hands-free mode is fresh off a bug fix — push-to-talk is
-> the battle-tested mode. One harness today (opencode); Claude Code/Copilot
-> connectors are on the roadmap. The one-button consumer version is v1.0.
+> Honest state, plainly: I'm one person; most of the code was written by
+> coding agents directed by me, a lot of it by voice through Bifrost itself
+> — the commit log quotes my requests. Requirements: one Linux box
+> (Omarchy/Arch/Debian tested), Docker, Node ≥ 22, your LLM key. CPU voice
+> is usable, not premium — MLX is the quality path. Hands-free is tested on
+> one device (mine); push-to-talk is what I use daily. One harness today:
+> opencode (delegation aside). AGPL-3.0. A Veraldar product — that's a
+> one-person org, veraldar.org is a placeholder for now; the repo is the
+> whole thing.
 >
-> Repo + 30s demo: <links>. Stack: Next.js 15 PWA, Python livekit-agents,
-> LiveKit, docker compose, systemd. Happy to answer architecture questions.
+> Repo: https://github.com/veraldar/bifrost
+> Cold-start video (empty folder → talking phone, one take): <link>
+> 30s demo (phone speaker audio, no overdubs): <link>
+>
+> Stack: Next.js 15 PWA, Python livekit-agents, LiveKit, docker compose,
+> systemd. Architecture diagram in the README. Architecture, install-skill
+> design, and the voice pipeline — ask me anything.
 
-**Notes:** post Tue–Thu, 07:00–09:00 US Pacific. Reply to every comment in the
-first 3 hours. If asked "why not just use X": the answer is ownership + voice +
-local speech, never "better model".
+**Notes:** Tue–Thu 07:00–09:00 US Pacific. Author watches replies 3h minimum.
+Every reply human-written. "Why not X?" → ownership + voice + local speech,
+architecture facts, never "better model".
 
 ## 2. X (thread)
 
-**Tweet 1 (hook, with vertical demo video):**
+**1 (hook, video first):**
 ```
-Your coding agent takes orders by voice now.
+I've been fixing bugs in this app by talking to my phone while walking the dog.
 
-I built bifrost: paste one link into opencode/Claude Code/Codex, say
-"set it up", and your phone becomes a private, self-hosted voice remote
-for the agent on your own box.
+the diff lands on my own box. tests go green. it speaks the result back.
 
-Nothing public. No cloud speech API. AGPL.
+bifrost — self-hosted, voice-first remote for your coding agent. AGPL-3.0.
 
-demo ↓
+actual audio ↓ (including when it misheard me)
 ```
-**Tweet 2:** the 30s video (phone PTT → code changing → agent speaking back).
-**Tweet 3:** install one-liner screenshot + "one manual step: your LLM key. everything else the agent does."
-**Tweet 4 (honesty):** "limits, stated up front: terminal-comfortable users only today (Linux box, docker, Node≥22). hands-free is fresh off a fix — PTT is the proven mode. opencode harness only for now. v1.0 gets one-button onboarding."
-**Tweet 5:** repo link + architecture one-liner + "they sell the model; this is the remote."
+**2:** cold-start video or 30s demo (phone speaker audio).
+**3:** install one-liner + "one manual step: opencode auth login — your LLM key."
+**4 (limits, plain sentences):**
+```
+what it takes today: one linux box (docker + node 22), your LLM key, tailscale.
+
+cpu voice is usable, not premium — mlx on a spare mac is the quality path.
+hands-free is tested on one device so far; push-to-talk is my daily driver.
+one harness today: opencode. AGPL-3.0.
+```
+**5:** repo link + "a Veraldar product" line.
 
 ## 3. r/LocalLLaMA (text post)
 
-**Title:** `I built a self-hosted voice remote for my coding agent — local STT/TTS, nothing leaves my tailnet`
+**Title:** `Local STT/TTS voice remote for my coding agent — Qwen3 MLX or whisper/Kokoro CPU, tailnet-only, AGPL`
 
-> Voice-control for coding agents normally means a cloud speech API. I wanted
-> the speech local too, so bifrost runs Qwen3-ASR/TTS via MLX on a Mac Studio
-> (optional upgrade), with a fully-CPU fallback (faster-whisper + Kokoro) that
-> ships in the docker compose — so one Linux box works with no GPU at all.
+> Lead with the numbers table (MLX Qwen3-ASR/TTS vs faster-whisper/Kokoro
+> CPU, named hardware, round-trip per turn — measured before posting).
 >
-> Flow: phone PWA → LiveKit voice agent → local opencode → answer as text +
-> speech. Same transcript for voice and text; voice turns land in the session.
-> The LLM itself is whatever opencode is configured with (your key or a local
-> model — your choice, not ours).
+> Then: phone PWA (PTT + hands-free) → LiveKit → local opencode → answer as
+> text + speech, voice turns in the same transcript as text. The coding LLM
+> is whatever opencode is configured with — your key or a local model; we
+> don't bundle a model. Local *speech*, user-chosen LLM.
 >
-> Install is agent-native: paste the SKILL.md link into any coding agent + "set
-> it up" — it mints secrets, boots the stack, verifies each layer.
+> Install: paste the SKILL.md link into any coding agent + "set it up"; one
+> manual step (`opencode auth login`). Pinned install tags, SECURITY.md.
+> Tailnet-only; opencode has shell access so it never gets a public route.
 >
-> Honest limits: hobby/enthusiast release. Linux box + docker + Node 22. LLM
-> is not bundled (speech is local; the coding model is yours). Hands-free
-> mode is fresh off a fix — PTT is the reliable path today. AGPL-3.0.
+> Limits: one Linux box (Docker, Node ≥ 22); CPU voice usable-not-premium;
+> hands-free tested on one device; one harness (opencode). AGPL-3.0 — free
+> for everyone. A Veraldar product.
 >
-> Repo: <link>. Happy to share MLX latency numbers on request.
+> Repo: https://github.com/veraldar/bifrost
 
 ## 4. r/selfhosted (text post)
 
-**Title:** `bifrost — voice-control your self-hosted coding agent from your phone (tailnet-only, AGPL)`
+**Title:** `Bifrost — voice-control your self-hosted coding agent from your phone (tailnet-only, AGPL)`
 
-> The pitch: your coding agent is already on your box — bifrost is the remote.
-> Phone PWA (push-to-talk + hands-free) → LiveKit → local opencode. Answer comes
-> back as text and speech; speech models run locally (CPU fallback ships, MLX is
-> the upgrade path). systemd units + docker compose, reboots self-heal, frontend
-> diagnostics are log-only.
+> opencode has shell access, so it never gets a public route: the phone talks
+> to a Next.js proxy, that proxy is the only seam, auth is tailnet-gated
+> (BIFROST_AUTH=tailnet), SECURITY.md + pinned install tags shipped last
+> release. Diagnostics are log-only on your own box — nothing phones home.
 >
-> Privacy model: default topology is Tailscale-only. opencode has shell access,
-> so it never gets a public route — the phone talks to a Next.js proxy, and
-> that's the only seam. Nothing needs to be public, ever.
+> The rest: phone PWA (PTT + hands-free) → LiveKit → local opencode, answer
+> back as text + speech, local speech models (CPU fallback in the compose,
+> MLX as the quality path), systemd user units + docker compose, reboots
+> self-heal. Install: paste one link into any coding agent + "set it up";
+> your LLM key is the only manual step.
 >
-> Install: paste one link into opencode/Claude Code/Codex + "set it up". The
-> agent does the rest; your LLM key is the only manual step.
+> Limits: one Linux box (Docker, Node ≥ 22); CPU voice usable-not-premium;
+> hands-free tested on one device; one harness (opencode) today. AGPL-3.0.
+> A Veraldar product (one person; the org site is a placeholder — the repo
+> is the thing).
 >
-> Honest limits: enthusiast release (v0.4.0) — Linux box, docker, Node ≥ 22.
-> Hands-free fresh off a bug fix, PTT is the proven mode. One harness
-> (opencode) today. AGPL-3.0. Repo: <link>
+> Repo: https://github.com/veraldar/bifrost
 
 ## 5. r/omarchy (text post, casual)
 
-**Title:** `made a voice remote for my coding agent — it runs on my omarchy box and the PWA ships the same dark pixel look`
+**Title:** `voice remote for my coding agent — runs on my omarchy box, the PWA matches the terminal look, and the agent installs it from one link`
 
-> This box runs the whole thing: opencode on the desktop, LiveKit + a Python
-> voice agent, and a pixel-art PWA on my phone — same dark aesthetic as the
-> terminal. Hold-to-talk from the couch: "add a /health endpoint with a test"
-> → diff on the monitor → it speaks the result back. STT/TTS are local models
-> (CPU fallback works, my Mac runs MLX as the quality path).
+> The box runs everything: opencode, LiveKit + a Python voice agent, pixel
+> PWA on the phone (aether/terminus/drift themes now). Hold-to-talk from the
+> couch → diff on the monitor → it speaks the result back. Speech is local:
+> MLX on my Mac as the quality path, CPU fallback in the compose so one box
+> works alone. systemd user units + one docker compose; reboots self-heal.
+> Tailnet-only.
 >
-> Everything is systemd user units + one docker compose, so reboots self-heal.
-> Tailnet-only — nothing public.
+> Install: paste the repo's SKILL.md link into any coding agent + "set it
+> up" — the agent installs it. One manual step: your LLM key.
 >
-> Install is the fun part: paste the repo's SKILL.md link into any coding agent
-> + "set it up" and the agent installs it for you. One manual step: your LLM key.
+> Rough edges: CPU voice usable-not-premium; hands-free tested on one device
+> so far (PTT is my daily); opencode harness only. AGPL-3.0. Photo of the
+> actual desk + box attached.
 >
-> Limits, honestly: enthusiast release — hands-free is fresh off a fix (PTT is
-> solid), opencode harness only for now. AGPL. Repo: <link>
->
-> If the mods prefer, happy to move to a showcase thread.
+> Repo: https://github.com/veraldar/bifrost
 
 ## Cross-cutting rules
 
-- Never cross-post identical text; each channel gets its own angle + voice.
-- Never claim "local LLM" — local *speech*, user's LLM. This distinction will
-  be the #1 nitpick; answer it before it's asked.
-- Never argue "our model is better" — we don't have one; that's the point.
-- Every thread: pin the honest-limits line in the first 10 lines.
-- Log links + timestamps back into `docs/launch/` after posting (a
-  `results.md` gets created on launch day).
+- Never cross-post identical text; no phrase verbatim in two posts.
+- "Local LLM?" misread: correct every time — local *speech*, user's LLM.
+- No comparative claims about products we haven't verified.
+- Log links + timestamps into `docs/launch/results.md` on T-day.

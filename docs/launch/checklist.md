@@ -1,70 +1,79 @@
-# Launch checklist — GATED on v0.4.0
+# Launch checklist — WAVE 1, gated on v0.7.0
 
-Owner: LAUNCH session. **Hard rule: no public post, page publish, or
-"available" wording anywhere until Gate A passes.** Watch `docs/plan.md`
-(release ladder) + `git tag` for the product session's readiness signal.
+Owner: LAUNCH session. Adopted ladder (docs/plan.md, CONDITIONAL GO):
+pre-wave → **v0.7.0 the reliable voice** → **WAVE 1 techie launch** (hook-first
+Show HN + cold-start video + 5–10 seeded testers) → v0.8.0 federation +
+layman onboarding → v0.9 WSL → v1.0 consumer → v1.1 federation deepen.
 
-## Gate A — product readiness (owned by the PRODUCT session, we only verify)
+**All docs/launch/* content is draft — the user publishes everything.**
+Status: **ARMED pending the user go-call.** v0.6.0 shipped; v0.6.0-era trust
+report delivered (`trust-viral.md`) and its decisions folded in.
 
-- [ ] `git tag v0.4.0` exists and GitHub release published
-- [ ] Hands-free human pass ticked in `docs/plan.md` (5-min conversation,
-      turn-taking ≤2.5s, no echo, TTS intelligible, <2s round-trip,
-      no double-speak, keyboard mode drops OS mic)
-- [ ] hf-restart fix confirmed in release notes (`1d34b63`)
-- [ ] Known-limits block present in the v0.4.0 release notes
-- [ ] "What you need" list in release notes (1 box, docker, Node ≥ 22,
-      LLM key, tailscale optional)
+## Gate A — product readiness (product session owns; LAUNCH verifies)
 
-If ANY gate fails → hold. Drafts stay drafts. Re-check `docs/plan.md`.
+- [ ] **v0.7.0 "the reliable voice" tagged and published** — edge sherpa as
+      Linux default (the Wave 1 release; nothing fires before this tag)
+- [ ] Seeded-tester blockers triaged: every friction point from the feedback
+      thread is either fixed in v0.7.0 or listed in the pinned known-issues
+      issue
+- [ ] Security claims true in copy: S2 (pinned tags + SECURITY.md) ✓ S3
+      (BIFROST_AUTH=tailnet) ✓ — S1 device tokens is v0.9, never implied
+- [ ] Install skill pin upgraded tag → commit SHA (trust-viral §4: tags can
+      move); line count stated in the HN post
 
 ## Gate B — assets final
 
-- [ ] Landing page (`docs/launch/landing.html`) hosted — decide: GitHub Pages
-      (zero infra, fits AGPL repo) vs Vercel (already validated for the PWA).
-      Default: GitHub Pages. **OPEN DECISION — see open-questions.**
-- [ ] Landing page version badge updated to v0.4.0 (currently version-neutral)
-- [ ] Landing page "hands-free is fresh off a fix" line re-checked against the
-      actual human-pass result — delete it only if the pass was clean AND the
-      product session agrees
-- [ ] Demo video recorded per `demo-script.md` (30s vertical + 16:9 cut),
-      captions burned in, end card has repo URL
-- [ ] README front page polish: install one-liner is the FIRST thing after the
-      title; honest-limits paragraph present; architecture kept further down
-      (draft of front-page edits below — requires product-session merge)
-- [ ] All channel posts from `channels.md` final-read aloud once (typos +
-      tone); repo link in each post verified in an incognito window
-- [ ] Skill raw URL resolves for a logged-out visitor (the HN crowd will paste
-      it before cloning)
+- [x] Positioning (`positioning.md`) — v3, version reality + honest limits
+- [x] Channel drafts (`channels.md`) — hook-first HN titles, X thread, three
+      subreddits, seeded-tester section, repo-first links
+- [x] Video plans (`demo-script.md`) — cold-start (official Wave 1 artifact)
+      + 30s cutdown
+- [ ] **Dictation pass** on every post (trust-viral tactic #2 — base text is
+      agent-written; the dictated human voice is the fix)
+- [ ] Pre-flight repo sweep re-run against v0.7.0 (README clone line ✓ fixed
+      in v0.6.0; re-verify: Vercel button/position, sponsor strings, "any
+      Linux" wording, version consistency repo-wide)
+- [ ] Cold-start video recorded: empty folder → paste link + "set it up" →
+      verdict → phone talks. One take, visible clock, no cuts
+- [ ] 30s demo recorded (phone speaker audio, no overdubs, captions burned)
+- [ ] Latency table measured (MLX vs CPU, named hardware) → into LocalLLaMA
+      post
+- [ ] `AI-USE.md` + `SUPPORT.md` + selfhost-check issue template (product
+      session handoff)
+- [ ] Every post final-read aloud; repo link tested logged-out; SKILL.md raw
+      URL resolves logged-out
 
-## Gate C — launch day (T-day)
+## Seeded testers (Gate B hard requirement — 5–10)
 
-- [ ] Morning: verify live stack healthy on our own box (we demo what we run:
-      `lk-verify.timer` green, PWA up, one real voice turn)
-- [ ] Publish landing page
-- [ ] Show HN posted (07:00–09:00 US Pacific, Tue–Thu) — author watches
-      replies for 3h minimum
-- [ ] X thread + video within the hour (link repo, not the HN post)
-- [ ] r/LocalLLaMA → r/selfhosted → r/omarchy staggered ~30 min apart
-- [ ] Create `docs/launch/results.md`: per-channel links, timestamps, first
-      impressions
+- [ ] 5–10 testers invited privately, install via the agent-native loop
+      themselves
+- [ ] selfhost-check verdicts collected in the feedback thread
+- [ ] ≥5 clean installs by strangers; friction list triaged (see Gate A)
+- [ ] Tester rules acknowledged: free speech, disclosure if they post, no
+      coordinated posting, quotes published only if offered by name
 
-## Post-launch (first week)
+## T-day (the user fires; sequence, all within ~2h)
 
-- [ ] Answer every comment; log recurring questions → `docs/launch/results.md`
-- [ ] If a channel asks for things v1.0 already plans (QR pairing, more
-      harnesses): "on the roadmap, specced" — link the spec, promise nothing
-- [ ] Watch for the #1 misread ("local LLM?") and correct gently, every time
-- [ ] Takedown rule: if a serious install-breaking bug is found post-launch,
-      add a banner to the landing page + top-level comment on HN within 1h
-- [ ] After 7 days: write `docs/launch/retro.md` (what channels moved stars/
-      clones; keep numbers honest, no vanity rounding)
+- [ ] Morning: our own stack healthy — `lk-verify.timer` green, one real
+      voice turn (we demo what we run)
+- [ ] Show HN 07:00–09:00 US Pacific, Tue–Thu; author watches replies 3h min
+- [ ] X thread + videos within the hour (repo link, never the HN link)
+- [ ] r/LocalLLaMA → r/selfhosted → r/omarchy staggered ~30 min
+- [ ] Every reply human-written — no LLM drafts; agent-assisted lookups
+      disclosed in the reply
+- [ ] Aged personal accounts only; no upvote asks; no brand account
+- [ ] `docs/launch/results.md`: links, timestamps, first impressions
 
-## README front-page polish (draft — product session merges, LAUNCH never edits product code)
+## Post-launch (first two weeks)
 
-Move to directly under the title:
-1. One-liner: "Talk to your coding agent from your phone. Self-hosted,
-   voice-first, tailnet-private, AGPL."
-2. The install one-liner block (already there — promote above the fold, it is).
-3. A 4-line "honest limits" callout (enthusiast release; docker + Node ≥ 22 +
-   LLM key; hands-free note per Gate A outcome; opencode harness today).
-4. THEN "Easiest install", architecture, env vars as today.
+- [ ] Feature freeze T+0–14 (product session): fixes + docs only
+- [ ] Pinned "Known issues" issue updated daily, brand voice; fast patch
+      tags, notes name the reporter
+- [ ] "Local LLM?" misread corrected every time (local *speech*, user's LLM)
+- [ ] v0.8.0 questions (federation, /pair, iPhone): "specced, on the ladder"
+      — link the spec, promise nothing
+- [ ] Install-breaking bug → top HN comment within 1h + repo banner same day
+- [ ] Day 7: `retro.md` with unrounded numbers (stars/clones/failed installs)
+      — that retro is the second launch post
+- [ ] Day 14: start trust-viral 90-day tactics #10+ ("Built Bifrost from
+      Bifrost" post, opencode community, install-verdict Discussion)

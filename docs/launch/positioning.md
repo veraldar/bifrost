@@ -1,73 +1,91 @@
-# Launch positioning — bifrost
+# Launch positioning — Bifrost
 
-Draft v1 (LAUNCH session, 09-30). Nothing here is announced anywhere until the
-v0.4.0 gate closes — see `checklist.md`. Coordination contract: product session
-marks readiness in `docs/plan.md` (tag `v0.4.0` + hands-free human pass).
+v3 (LAUNCH session, 10-02 state sync). Reality: **v0.6.0 shipped** (cohesive
+brand rebuild: signal rail, ygg tree, state law, BIFROST caps copy, themes,
+sub-sessions, delegation skill, 1.2x voice speed, female voice verified live;
+repo renamed `veraldar/bifrost`; S2+S3 security done). **WAVE 1 techie launch
+gates on v0.7.0 — the reliable voice** (edge sherpa = Linux default), per the
+adopted ladder in `docs/plan.md`. Drafts only — **the user publishes**.
+Armed pending the go-call.
+
+Brand law: `docs/brand/brand.md` wins on voice/naming. Ship as **Bifrost**
+only; Yggdrasil is internal. "Say I, not we" in prose (trust-viral §1).
+
+## Link policy (binding)
+
+- Primary link everywhere: **https://github.com/veraldar/bifrost** (old
+  `yggdrasil-bifrost` slug redirects; post the new one).
+- `veraldar.org` is a stub until post-v1.0 (except the world-tree data page).
+  Mention it once as the org behind the product; never as the primary link;
+  never promise org-site content.
+- Posts never wait on any site. README + repo are the launch surface.
 
 ## One-liner (primary)
 
-> **Bifrost — talk to your coding agent from your phone. Paste one link, say
-> "set it up", and get a private, self-hosted, voice-first remote for the agent
-> you already run.**
+> **Bifrost — talk to your coding agent from your phone.**
 
-Alternates by channel:
+Support line (claim + limits in the same breath):
 
-- Short (X bio / HN title tail): *a self-hosted, voice-first remote for your coding agent.*
-- LocalLLaMA slant: *voice-control your coding agent with local speech models — nothing leaves your tailnet.*
-- install-first slant: *the install is the demo: paste `<link>` + "set it up" into any agent, get a phone remote.*
+> Paste one link into any coding agent and say "set it up" — a private,
+> self-hosted, voice-first remote for the agent you already run. Speech runs
+> on local models, default topology is tailnet-only, AGPL-3.0. The techie
+> release: one Linux box, Docker, Node ≥ 22, your own LLM key.
 
-## The wedge: what we sell vs what the big dogs sell
+Channel variants:
 
-Every big AI-coding product sells **model quality** (or access to it). Bifrost
-does not sell a model at all — it sells **ownership of the controls**:
+- HN hook-first: *Voice-control your self-hosted coding agent from your phone.*
+- LocalLLaMA: *local speech models (MLX Qwen3 / speaches CPU), tailnet-only.*
+- install-first: *the install is the demo: paste `<link>` + "set it up".*
 
-| | Cursor / Copilot / Windsurf / Claude Code | bifrost |
-|---|---|---|
-| What you buy | access to *their* model, in *their* cloud/IDE | control of *your* agent, on *your* hardware |
-| Where your code lives | their cloud boundaries | your box; tailnet-private, nothing public |
-| Voice | none or an afterthought | voice-first: PTT + hands-free, STT/TTS run locally |
-| Speech privacy | n/a | local speech models (MLX Qwen3 / speaches CPU fallback) — no cloud speech API |
-| Install | signup, IDE extension, subscription | agent-native: one link + "set it up" into opencode/Claude Code/Codex |
-| License | proprietary | AGPL-3.0 — copyleft including network use |
-| Works with | their stack only | your stack: opencode today; claude-code/copilot connectors on the roadmap |
+## Version reality (what we may claim when Wave 1 fires)
 
-Positioning sentence: **"They sell you the model. Bifrost gives you the
-remote."** Never claim bifrost makes the model smarter — it makes *you* able to
-drive it from anywhere, by voice, without handing your code to another cloud.
+- **Shipped (v0.6.0)**: cohesive brand rebuild; themes (aether/terminus/
+  drift); sub-sessions; input recall; 1.2x voice speed; female voice verified
+  live; delegation skill (claude/codex callable from any session); settings
+  page; S2 (pinned tags + SECURITY.md) + S3 (BIFROST_AUTH=tailnet).
+- **Gates Wave 1 (v0.7.0)**: the reliable voice; edge sherpa = Linux default.
+  Wave 1 copy may claim v0.7.0 only after its tag exists.
+- **Specced, never implied shipped**: federation + layman onboarding, /pair
+  QR, iPhone auto-setup (v0.8.0); Windows WSL (v0.9); device tokens S1 (v0.9);
+  consumer v1.0. Roadmap words: shipped / building / specced. No dates.
 
-## Audience line (honest, v0.4.0)
+## The wedge (INTERNAL ONLY — never publish the table or slogan)
 
-> **Built for people who live in a terminal.** If `git clone` and
-> `docker compose up` are things you do without looking them up, bifrost is
-> ready for you today. v0.4.0 is the enthusiast release; the one-button
-> consumer version is v1.0 (QR pairing, `/pair` onboarding). If that's not you
-> yet, star it and come back.
+Big AI-coding products sell model quality. Bifrost sells ownership of the
+controls. Internal shorthand: "they sell you the model; this is the remote."
+Public copy argues architecture facts only (self-hosted, local speech,
+tailnet-only, AGPL, agent-native install) and makes comparative claims only
+about what we verified (trust-viral §4: the antithesis rhythm reads
+AI-written; the Claude Code voice claim was attackable — table pulled).
 
-Not: "for everyone", not "replace your IDE", not "AI for non-coders".
+## Audience line (honest, Wave 1)
 
-## Honest limits — state these in every post, unprompted
+> Built for people who live in a terminal. If `git clone` and
+> `docker compose up` are things you do without looking them up, Bifrost is
+> ready for you. If not — star it, come back at v1.0 (QR pairing, layman
+> onboarding, iPhone path).
 
-1. **One manual install step**: `opencode auth login` — your LLM provider key;
-   nothing may mint that for you. Everything else is agent-done.
-2. **Requirements**: one Linux box (Omarchy/Arch/Debian tested), Docker for the
-   voice stack, Node ≥ 22, your own LLM key. No Mac needed — CPU speech
-   fallback ships in the compose; a Mac running MLX models is an optional
-   quality upgrade.
-3. **The coding model is not ours**: bifrost drives whatever opencode is
-   configured with. Speech (STT/TTS) is local; the LLM is yours to choose
-   (cloud key or a local model via opencode).
-4. **Hands-free had a known bug** (auto-listen restarted per step / stale
-   commits). Fixed (`1d34b63`); a full human hands-free pass is the v0.4.0
-   release gate. Until that box is ticked in `docs/plan.md`, we say
-   "hands-free is fresh off a fix — PTT is the battle-tested mode."
-5. **One harness today**: opencode. Claude Code / Copilot connectors are
-   specced (`docs/spec-connectors.md`), not shipped — never imply otherwise.
-6. **Networking**: default topology is tailnet-only (Tailscale). Vercel PWA
-   button exists but is the advanced path; opencode must never be public.
+## Honest limits — every post, plain sentences, no labels
 
-## Boilerplate (50 words, for footers)
+1. **One manual install step**: `opencode auth login` — your LLM key; nothing
+   mints that for you. Everything else is agent-done.
+2. **Requirements**: one Linux box (Omarchy/Arch/Debian tested), Docker for
+   voice, Node ≥ 22, your own LLM key. CPU speech fallback ships; MLX on a
+   Mac is the quality path.
+3. **CPU voice is usable, not premium**; MLX is where quality lives.
+4. **Hands-free is tested on one device** (mine). PTT is the daily-driver
+   mode. File an issue if yours differs.
+5. **The coding model is not ours** — local *speech*; the LLM is whatever
+   opencode is configured with (your key or a local model).
+6. **One harness today**: opencode drives the phone. The delegation skill
+   calls claude/codex from sessions, but harness-switching is federation
+   territory (v0.8.0, specced). Never imply claude-code-as-harness ships.
+7. **Networking**: tailnet-only by default; opencode (shell access) never
+   gets a public route. Security to date: SECURITY.md, pinned install tags,
+   BIFROST_AUTH=tailnet; device tokens land at v0.9.
 
-Bifrost is an open-source (AGPL-3.0), self-hosted, voice-first remote for your
-coding agent. Speak or type from your phone; a LiveKit voice agent bridges you
-to a local opencode server and answers back as text and speech. Local speech
-models, tailnet-private, installed by your agent from a single link.
+## Attribution
+
+- "bifrost — a Veraldar product." + "AGPL-3.0. Free for everyone."
+- One org line max per post. No lore, no manifesto in Wave 1 copy
+  (trust-viral §3: the myth reads as AI worldbuilding on first contact).

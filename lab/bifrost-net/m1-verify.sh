@@ -19,7 +19,9 @@ KP=$("$BIN" keygen)
 PRIV=$(echo "$KP" | grep private | sed 's/.*"\(.*\)"/\1/')
 PUB=$(echo "$KP" | grep public | sed 's/.*"\(.*\)".*/\1/')
 TMP=$(mktemp -d)
+MPORT=$((21000 + RANDOM % 18000))
 sed -e "s|REPLACE_WITH_bifrost-net_keygen_OUTPUT|$PRIV|" -e "s|REPLACE_WITH_PEER_PUBLIC_KEY|$PUB|" \
+  -e "s|0.0.0.0:51820|127.0.0.1:$MPORT|" \
   config.example.toml > "$TMP/cfg.toml"
 if "$BIN" check -c "$TMP/cfg.toml" | grep -q "VALID" && \
    "$BIN" check -c "$TMP/cfg.toml" | grep -q "WARNING no candidates pinned"; then

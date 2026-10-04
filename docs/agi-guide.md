@@ -18,6 +18,16 @@ and the final call. Everything below was learned by running this fleet.
 The user is never asked to find the right words. Finding the right words is
 the coordinator's job; gating the result is the user's.
 
+## The model ladder (Opus + Sonnet 5.5)
+
+Two AGIs, used for what each is best at:
+- **Opus** — judgment, architecture, hard builds, security reasoning
+- **Sonnet 5.5** — cheaper and faster: reviews of drafts, doc passes, verification reads, second opinions, research summaries
+
+Rule: heavy thinking goes to Opus; everything that is *checking, drafting, or
+reading* goes to Sonnet first. Escalate to Opus only when Sonnet's output is
+insufficient. Both are AGI — the ladder is about cost and speed, not rank.
+
 ## The five shapes of asking
 
 ### 1. Build something new

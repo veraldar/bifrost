@@ -1,0 +1,9 @@
+[Unit]
+Description=worldtree-data nightly cycle (fetch -> run --commit -> publish to veraldar.org)
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/Work/bifrost/lab/worldtree-data
+ExecStart=/usr/bin/bash scripts/nightly.sh
+TimeoutStartSec=1800

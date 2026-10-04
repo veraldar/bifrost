@@ -1,4 +1,4 @@
-"""Method 0.3.0 history (realms-history.json, schema worldtree.history/1): the same method, recomputed per year.
+"""Method 0.3.0+ history (realms-history.json, schema worldtree.history/1): the same method, recomputed per year.
 
 For each year Y in 2015 … as-of year the cut is Y-12-31 (the as-of date itself for the as-of year). compute() sees
 only observations dated ≤ cut — rows after it are dropped before any transform, so adding future data to raw can
@@ -22,6 +22,8 @@ NOTES = [
     "provisional = a realm whose mapped-weight coverage that year is < 0.5; its weight is still normalised into "
     "the 100 (largest remainder). Pre-2018 years are thin on AI-specific series: arXiv/PubMed/Federal Register "
     "start 2019-01, Wikimedia 2015-07, Epoch 2015-01, and 12-month deltas need ≥ 24 reference points.",
+    "Indices that did not exist before their first week (Agent Restriction Index, first week ending 2026-04-12; "
+    "mapping param unborn=drop) are left out of the mapping for every earlier year — those years are unchanged.",
 ]
 
 

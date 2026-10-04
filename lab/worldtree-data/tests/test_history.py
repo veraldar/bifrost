@@ -1,4 +1,4 @@
-"""Method 0.3.0 history: no-lookahead, determinism, sum-to-100, provisional flags (on the frozen 0.3.0 fixture)."""
+"""Method 0.3.0+ history: no-lookahead, determinism, sum-to-100, provisional flags (on the current version's frozen fixture)."""
 import csv
 import io
 import json
@@ -14,9 +14,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from fixture_lib import R  # noqa: E402
 
-from wt.common import REALMS, dumps, sha256_bytes, sha256_file  # noqa: E402
+from wt.common import REALMS, dumps, method_version, sha256_bytes, sha256_file  # noqa: E402
 
-FX = R / "tests" / "fixtures" / "0.3.0"
+FX = R / "tests" / "fixtures" / method_version()
 CUT_YEAR = 2020  # mutate only observations after this year's Dec-31
 
 

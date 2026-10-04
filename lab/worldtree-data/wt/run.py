@@ -45,6 +45,8 @@ def bias_ids(sid, s, transform):
         b += ["B12"]
     if sid.startswith("noaa."):
         b += ["B13"]
+    if sid.startswith("ari."):
+        b += ["B14"]
     if transform.startswith("rank_"):
         b += ["B11"]
     return b
@@ -97,9 +99,18 @@ def compute(as_of, run_id, updated, cut=None):
     sources = load_sources()
     static = json.loads((root() / "catalog" / "realms.static.json").read_text(encoding="utf-8"))
     mapping = [r for r in load_mapping() if r["realm"] in REALMS and r["series_id"] in series]
-    w_map = {k: sum(int(r["weight"]) for r in mapping if r["realm"] == k) for k in REALMS}
     asof_d = dt.date.fromisoformat(as_of)
     cut_d = dt.date.fromisoformat(cut) if cut else asof_d
+    # method 0.3.1: `unborn=drop` rows (an index that did not exist before its first week) are not in the mapping at
+    # all for a cut before their first observation — not counted in W_map, no exclusion; earlier years stay as they were
+    unborn = {}
+    for r in mapping:
+        if parse_params(r["params"]).get("unborn") == "drop" and not cut_rows(r["series_id"], cut)[0]:
+            first = load_rows(r["series_id"])
+            unborn[r["series_id"]] = first[0][1] if first else None
+    feed_ids = list(OrderedDict((r["series_id"], 1) for r in mapping))
+    mapping = [r for r in mapping if r["series_id"] not in unborn]
+    w_map = {k: sum(int(r["weight"]) for r in mapping if r["realm"] == k) for k in REALMS}
     total_rows = cut_rows("wiki.en_total", cut)[0]
     total_meta = snapshot("wikimedia", series["wiki.en_total"]["slug"], "json", as_of)[1]
 
@@ -210,7 +221,10 @@ def compute(as_of, run_id, updated, cut=None):
         t = sources[i["source_id"]]["title"]
         src_count[t] = src_count.get(t, 0) + 1
     feeds = []
-    for sid in OrderedDict((r["series_id"], 1) for r in mapping):
+    for sid in feed_ids:
+        if sid in unborn:
+            feeds.append({"name": series[sid]["label"], "state": f"not yet started (first week {unborn[sid]})"})
+            continue
         uses = [(k, i) for k in REALMS for i in per_realm[k]["used"] if i["series_id"] == sid]
         exs = [x for k in REALMS for x in per_realm[k]["excluded"] if x["series_id"] == sid]
         if uses:

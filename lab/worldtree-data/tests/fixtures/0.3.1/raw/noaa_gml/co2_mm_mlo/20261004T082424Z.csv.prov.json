@@ -1,0 +1,23 @@
+{
+ "attribution": "NOAA Global Monitoring Laboratory, Mauna Loa monthly CO2",
+ "bytes": 38732,
+ "content_type": "text/csv",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv",
+ "http_status": 200,
+ "license": "public domain (US gov)",
+ "license_url": "https://gml.noaa.gov/about/disclaimer.html",
+ "path": "raw/noaa_gml/co2_mm_mlo/20261004T082424Z.csv",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-04T08:24:24Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "dcf0198658c87ebb5e3b2ce807fe3a52e1d5f000aa0479fb1bf334afb7adde4d",
+ "slug": "co2_mm_mlo",
+ "source_id": "noaa_gml",
+ "stored_bytes": true,
+ "upstream_next_update": null,
+ "upstream_updated": null,
+ "url": "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv"
+}

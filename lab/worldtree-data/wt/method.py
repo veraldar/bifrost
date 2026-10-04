@@ -8,7 +8,7 @@ import math
 
 REALMS = ["utopia", "divergence", "drift", "control", "terminus", "stagnation", "transcendence"]
 W_FULL = 6
-FLOOR = {"annual": 8, "monthly": 24}
+FLOOR = {"annual": 8, "monthly": 24, "weekly": 24}  # weekly (0.3.1): same 24-point floor as monthly
 LOGIT_CLAMP = (0.5, 99.5)
 
 
@@ -27,6 +27,8 @@ def pidx(period, cadence):
     if cadence == "monthly":
         y, m = period.split("-")
         return int(y) * 12 + int(m) - 1
+    if cadence == "weekly":  # period = week-end date; consecutive weeks → consecutive integers
+        return dt.date.fromisoformat(period).toordinal() // 7
     return dt.date.fromisoformat(period).toordinal()
 
 

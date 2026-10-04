@@ -1,5 +1,41 @@
 # Method changelog
 
+## 0.3.1 — 2026-10-04
+- Patch (one new indicator; method rules unchanged for every existing series):
+  +1 source `ari` (Mac Studio ARI pipeline — the Agent Restriction Index
+  report, tailnet, keyless, rebuilt daily), +1 series `ari.index` (weekly,
+  date = week end, value = ARI 0-100, meta columns s, n, p + per-component
+  weighted points `pts_*` and event counts `n_*`), +1 mapping row
+  `control,ari.index,+1,2,rank_level,h=104;unborn=drop` (W_map control 4 → 6).
+- Provenance per the report's own methodology (report §method): ARI =
+  100 × (1 − e^(−S/K)), S = Σ component weight over deduplicated events of
+  the week — OS & app-store walls ×3, platform bans ×3, datacenter backlash
+  ×2, safety exits ×2, legal & regulatory walls ×1; K = 5.77 frozen
+  2026-10-04 so the calibration window's median week scores 50; trend =
+  Mann-Kendall on complete weeks. Every raw sidecar carries
+  `methodology_url`, the component weights (from the embedded `cats`), K and
+  its freeze date. Bias B14: event-sourced from news headlines (attention
+  bias, keyword classification, judgment-call weights, one curator).
+- Transform `level`: ARI is already a calibrated index, so it is ranked as a
+  level (`rank_level`, no delta, no log) against its own history like every
+  other indicator. New cadence `weekly`: period = week-end date,
+  pidx = ordinal // 7 (consecutive weeks = consecutive integers), floor 24
+  reference points (same as monthly), h = 104 points (two years of weeks).
+  Today ref_n = 25 ≥ 24 → ARI passes the short_history gate (for contrast,
+  wiki.ai_xrisk stays excluded at 22/24) and only gains points as weeks
+  accumulate.
+- Mapping param `unborn=drop`: at a cut before the series' first observation
+  the row is left out of the mapping (not in W_map, no exclusion, feed state
+  "not yet started"). ARI's first week ends 2026-04-12, so history years
+  2015 … 2025 are byte-identical to 0.3.0 (per-year provenance sha256
+  unchanged, verified); only the as-of year moves. Rows dated after the
+  as-of (the in-progress week) are never read; weeks flagged `p` are left
+  out of the series.
+- Fixture weights: before (`tests/fixtures/0.3.0`) — 14.7 · 10.9 · 16.7 ·
+  13.5 · 18.7 · 10.7 · 14.8; after (`tests/fixtures/0.3.1`, as-of
+  2026-10-04) — 14.2 · 10.5 · 16.1 · 16.8 · 18.0 · 10.2 · 14.2 (control
+  +3.3: ARI 79/100, score 0.90, rank 0.90 of 25 prior weeks).
+
 ## 0.3.0 — 2026-10-04
 - Minor (additive; no weight changes): new output `realms-history.json`
   (schema `worldtree.history/1`) + `realms-history.provenance.json` — the

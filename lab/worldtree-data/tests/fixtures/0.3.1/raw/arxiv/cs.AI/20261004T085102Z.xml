@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/ZXYtNuUOT1QnEZgvZI65jWnGuYY</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202011010000 TO 202011302359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:51:02Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202011010000+TO+202011302359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>861</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2011.01840v1</id>
+    <title>Distributional Reinforcement Learning for mmWave Communications with Intelligent Reflectors on a UAV</title>
+    <updated>2020-11-03T16:50:37Z</updated>
+    <link href="https://arxiv.org/abs/2011.01840v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2011.01840v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>In this paper, a novel communication framework that uses an unmanned aerial vehicle (UAV)-carried intelligent reflector (IR) is proposed to enhance multi-user downlink transmissions over millimeter wave (mmWave) frequencies. In order to maximize the downlink sum-rate, the optimal precoding matrix (at the base station) and reflection coefficient (at the IR) are jointly derived. Next, to address the uncertainty of mmWave channels and maintain line-of-sight links in a real-time manner, a distributional reinforcement learning approach, based on quantile regression optimization, is proposed to learn the propagation environment of mmWave communications, and, then, optimize the location of the UAV-IR so as to maximize the long-term downlink communication capacity. Simulation results show that the proposed learning-based deployment of the UAV-IR yields a significant advantage, compared to a non-learning UAV-IR, a static IR, and a direct transmission schemes, in terms of the average data rate and the achievable line-of-sight probability of downlink mmWave communications.</summary>
+    <category term="cs.IT" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2020-11-03T16:50:37Z</published>
+    <arxiv:primary_category term="cs.IT"/>
+    <author>
+      <name>Qianqian Zhang</name>
+    </author>
+    <author>
+      <name>Walid Saad</name>
+    </author>
+    <author>
+      <name>Mehdi Bennis</name>
+    </author>
+  </entry>
+</feed>

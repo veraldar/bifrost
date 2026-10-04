@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# M2-era gate (method 0.1.0); superseded by m3_green.sh
 # M2 finish line (plan.md step 11): verifies of steps 1, 2, 3 (integrity, no refetch), 5, 6 (PROV-OK), 7, 8, 9, 10.
 set -e
 cd "$(dirname "$0")/.."

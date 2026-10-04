@@ -7,4 +7,4 @@ percentages (`out/realms.json`) with per-number provenance.
 Design docs (spec): `~/Work/bifrost/docs/worldtree/` (README, sources, schema,
 prediction, plan). Code: `wt/` (Python ≥ 3.11, stdlib only), entry
 `python3 -m wt <cmd>`. Method version: `method/VERSION`.
-Green check: `bash tests/m2_green.sh`.
+Green check: `bash tests/m3_green.sh`.

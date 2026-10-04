@@ -202,10 +202,6 @@
     "updated_from": "federalregister.gov/api/v1/documents — documents mentioning \"artificial intelligence\" per month; new complete months + the previous one re-fetched"
    },
    {
-    "id": "github",
-    "pulls": "release lists + last-month commit counts + star snapshots (keyless 60/hr budget)"
-   },
-   {
     "id": "ne",
     "pulls": "Natural Earth 110m country polygons (map asset, fetched when upstream changes)"
    },
@@ -356,6 +352,6 @@
  },
  "history": {
   "file": "realms-history.json",
-  "sha256": "b1b50709cccb09ff4a7e0670d7343e186bcccd7a30682114a9e78352e8d88c52"
+  "sha256": "291c9ab06725241925ba772a9f7fd0bb7656a88afb4be5314d62d100ab8911b0"
  }
 }

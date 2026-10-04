@@ -1,0 +1,28 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/3QwZqC4AsgtNz6kqNUw8GoIj/1s</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202310010000 TO 202310312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:43:41Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202310010000+TO+202310312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>2523</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2310.04443v2</id>
+    <title>Human Mobility Question Answering (Vision Paper)</title>
+    <updated>2023-10-13T05:07:49Z</updated>
+    <link href="https://arxiv.org/abs/2310.04443v2" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2310.04443v2" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Question answering (QA) systems have attracted much attention from the artificial intelligence community as they can learn to answer questions based on the given knowledge source (e.g., images in visual question answering). However, the research into question answering systems with human mobility data remains unexplored. Mining human mobility data is crucial for various applications such as smart city planning, pandemic management, and personalised recommendation system. In this paper, we aim to tackle this gap and introduce a novel task, that is, human mobility question answering (MobQA). The aim of the task is to let the intelligent system learn from mobility data and answer related questions. This task presents a new paradigm change in mobility prediction research and further facilitates the research of human mobility recommendation systems. To better support this novel research topic, this vision paper also proposes an initial design of the dataset and a potential deep learning model framework for the introduced MobQA task. We hope that this paper will provide novel insights and open new directions in human mobility research and question answering research.</summary>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2023-10-02T21:24:26Z</published>
+    <arxiv:primary_category term="cs.CL"/>
+    <author>
+      <name>Hao Xue</name>
+    </author>
+    <author>
+      <name>Flora D. Salim</name>
+    </author>
+  </entry>
+</feed>

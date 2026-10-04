@@ -40,6 +40,9 @@ def main(as_of, now):
         out = run_fixture(fx, Path(tmp))
         shutil.copyfile(out / "realms.json", fx / "realms.json")
         shutil.copyfile(out / "realms.provenance.json", fx / "provenance.json")
+        for f in ("realms-history.json", "realms-history.provenance.json"):
+            if (out / f).exists():
+                shutil.copyfile(out / f, fx / f)
     print("fixture", fx.relative_to(R), json.loads((fx / "realms.json").read_text())["weights"])
 
 

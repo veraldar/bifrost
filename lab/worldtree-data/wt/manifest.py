@@ -68,6 +68,10 @@ def write_manifest(run_id, published, first_fail, as_of, head):
         out["realms"] = {"path": "out/realms.json", "sha256": sha256_file(o / "realms.json"),
                          "run_id": json.loads((o / "realms.provenance.json").read_text())["run_id"]}
         out["provenance"] = {"path": "out/realms.provenance.json", "sha256": sha256_file(o / "realms.provenance.json")}
+    if (o / "realms-history.json").exists():
+        out["realms_history"] = {"path": "out/realms-history.json", "sha256": sha256_file(o / "realms-history.json")}
+        out["realms_history_provenance"] = {"path": "out/realms-history.provenance.json",
+                                            "sha256": sha256_file(o / "realms-history.provenance.json")}
     out["history"] = {"path": "out/history.csv", "rows": len(hist)}
     write_json(root() / "manifest.json", {
         "schema": "worldtree.manifest/1",

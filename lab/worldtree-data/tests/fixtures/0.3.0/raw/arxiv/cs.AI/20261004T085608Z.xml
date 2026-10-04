@@ -1,0 +1,40 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/Va0nq1IhoVZFSQyJ82ENT52eSFA</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202410010000 TO 202410312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:56:08Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202410010000+TO+202410312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>3815</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2410.02950v1</id>
+    <title>LLMCO2: Advancing Accurate Carbon Footprint Prediction for LLM Inferences</title>
+    <updated>2024-10-03T19:48:45Z</updated>
+    <link href="https://arxiv.org/abs/2410.02950v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2410.02950v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Throughout its lifecycle, a large language model (LLM) generates a substantially larger carbon footprint during inference than training. LLM inference requests vary in batch size, prompt length, and token generation number, while cloud providers employ different GPU types and quantities to meet diverse service-level objectives for accuracy and latency. It is crucial for both users and cloud providers to have a tool that quickly and accurately estimates the carbon impact of LLM inferences based on a combination of inference request and hardware configurations before execution. Estimating the carbon footprint of LLM inferences is more complex than training due to lower and highly variable model FLOPS utilization, rendering previous equation-based models inaccurate. Additionally, existing machine learning (ML) prediction methods either lack accuracy or demand extensive training data, as they inadequately handle the distinct prefill and decode phases, overlook hardware-specific features, and inefficiently sample uncommon inference configurations. We introduce \coo, a graph neural network (GNN)-based model that greatly improves the accuracy of LLM inference carbon footprint predictions compared to previous methods.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CY" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2024-10-03T19:48:45Z</published>
+    <arxiv:comment>9 pages, 11 figures</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Zhenxiao Fu</name>
+    </author>
+    <author>
+      <name>Fan Chen</name>
+    </author>
+    <author>
+      <name>Shan Zhou</name>
+    </author>
+    <author>
+      <name>Haitong Li</name>
+    </author>
+    <author>
+      <name>Lei Jiang</name>
+    </author>
+  </entry>
+</feed>

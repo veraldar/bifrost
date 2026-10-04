@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/V0/TwE+eAm2eTgu8LbEpkly2VVc</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202206010000 TO 202206302359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:42:44Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202206010000+TO+202206302359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>1362</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2207.03577v1</id>
+    <title>Automatic Synthesis of Neurons for Recurrent Neural Nets</title>
+    <updated>2022-06-29T06:35:06Z</updated>
+    <link href="https://arxiv.org/abs/2207.03577v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2207.03577v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We present a new class of neurons, ARNs, which give a cross entropy on test data that is up to three times lower than the one achieved by carefully optimized LSTM neurons. The explanations for the huge improvements that often are achieved are elaborate skip connections through time, up to four internal memory states per neuron and a number of novel activation functions including small quadratic forms. The new neurons were generated using automatic programming and are formulated as pure functional programs that easily can be transformed. We present experimental results for eight datasets and found excellent improvements for seven of them, but LSTM remained the best for one dataset. The results are so promising that automatic programming to generate new neurons should become part of the standard operating procedure for any machine learning practitioner who works on time series data such as sensor signals.</summary>
+    <category term="cs.NE" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2022-06-29T06:35:06Z</published>
+    <arxiv:primary_category term="cs.NE"/>
+    <author>
+      <name>Roland Olsson</name>
+    </author>
+    <author>
+      <name>Chau Tran</name>
+    </author>
+    <author>
+      <name>Lars Magnusson</name>
+    </author>
+  </entry>
+</feed>

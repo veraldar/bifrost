@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/jEuYEuJpzZczY3f2qZipEDbtBYw</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202112010000 TO 202112312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:42:23Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202112010000+TO+202112312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>1083</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2112.03670v3</id>
+    <title>Hybrid Self-Attention NEAT: A novel evolutionary approach to improve the NEAT algorithm</title>
+    <updated>2022-08-14T18:36:14Z</updated>
+    <link href="https://arxiv.org/abs/2112.03670v3" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2112.03670v3" rel="related" type="application/pdf" title="pdf"/>
+    <summary>This article presents a "Hybrid Self-Attention NEAT" method to improve the original NeuroEvolution of Augmenting Topologies (NEAT) algorithm in high-dimensional inputs. Although the NEAT algorithm has shown a significant result in different challenging tasks, as input representations are high dimensional, it cannot create a well-tuned network. Our study addresses this limitation by using self-attention as an indirect encoding method to select the most important parts of the input. In addition, we improve its overall performance with the help of a hybrid method to evolve the final network weights. The main conclusion is that Hybrid Self- Attention NEAT can eliminate the restriction of the original NEAT. The results indicate that in comparison with evolutionary algorithms, our model can get comparable scores in Atari games with raw pixels input with a much lower number of parameters.</summary>
+    <category term="cs.NE" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2021-12-07T13:04:16Z</published>
+    <arxiv:primary_category term="cs.NE"/>
+    <author>
+      <name>Saman Khamesian</name>
+    </author>
+    <author>
+      <name>Hamed Malek</name>
+    </author>
+    <arxiv:doi>10.1007/s12530-023-09510-3</arxiv:doi>
+    <link rel="related" href="https://doi.org/10.1007/s12530-023-09510-3" title="doi"/>
+  </entry>
+</feed>

@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/8vypxn+o3eITD6iWfXXgBf6CW9M</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202004010000 TO 202004302359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:37:27Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202004010000+TO+202004302359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>439</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2004.07353v4</id>
+    <title>Nucleus I: Adjunction spectra in recommender systems and descent</title>
+    <updated>2023-10-21T23:54:42Z</updated>
+    <link href="https://arxiv.org/abs/2004.07353v4" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2004.07353v4" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Recommender systems build user profiles using concept analysis of usage matrices. The concepts are mined as spectra and form Galois connections. Descent is a general method for spectral decomposition in algebraic geometry and topology which also leads to generalized Galois connections. Both recommender systems and descent theory are vast research areas, separated by a technical gap so large that trying to establish a link would seem foolish. Yet a formal link emerged, all on its own, bottom-up, against authors' intentions and better judgment. Familiar problems of data analysis led to a novel solution in category theory. The present paper arose from a series of earlier efforts to provide a top-down account of these developments.</summary>
+    <category term="math.CT" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.IR" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2020-04-15T21:26:53Z</published>
+    <arxiv:comment>46 pages, 40 figures. For readability, the previous longer version has now been split into several papers. This is part I</arxiv:comment>
+    <arxiv:primary_category term="math.CT"/>
+    <author>
+      <name>Dusko Pavlovic</name>
+    </author>
+    <author>
+      <name>Dominic J. D. Hughes</name>
+    </author>
+  </entry>
+</feed>

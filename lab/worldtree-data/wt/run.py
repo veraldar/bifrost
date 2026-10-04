@@ -1,6 +1,8 @@
 """One pipeline run (plan.md `run`): fetch → series → compute → gates → runs/<id>/ → out/ → history."""
+import csv
 import datetime as dt
 import fcntl
+import io
 import json
 import shutil
 import sys
@@ -9,9 +11,11 @@ from collections import OrderedDict
 from . import method as M
 from .catalog import check as catalog_check
 from .common import (LOCK, MONTHLY_SOURCES, REALMS, append_csv, load_mapping, load_series, load_sources, mapping_path,
-                     method_version, parse_params, read_csv, root, series_path, sha256_file, write_json)
+                     method_version, parse_params, read_csv, root, series_path, sha256_bytes, sha256_file, write_json)
 from .contract import check as contract_check
 from .extract import build_all, ext_of, month_snapshots, snapshot
+from . import history as H
+from .history import geography_block, refresh_block
 
 HISTORY_HEADER = ["run_id", "updated", "method_version", "published"] + REALMS + ["first_gate_failure"]
 RUN_GATES = ["catalog", "integrity", "realm_coverage", "global_coverage", "contract"]
@@ -66,8 +70,21 @@ def snap_ref(meta):
     return {"path": meta["path"], "sha256": meta["sha256"], "retrieved_at": meta["retrieved_at"]}
 
 
-def compute(as_of, run_id, updated):
-    """Pure-ish core: reads catalog + series + sidecars, returns (realms_json, provenance, gates, first_fail)."""
+def cut_rows(sid, cut):
+    """Series rows (and the sha256 of that series text) with observation date ≤ cut; cut None ⇒ the whole file."""
+    p = root() / "series" / f"{sid}.csv"
+    if cut is None:
+        return load_rows(sid), sha256_file(p)
+    lines = p.read_text(encoding="utf-8").splitlines(keepends=True)
+    keep = [ln for ln in lines[1:] if ln.split(",", 2)[1] <= cut]
+    rows = [(r["period"], r["date"], float(r["value"])) for r in csv.DictReader(io.StringIO(lines[0] + "".join(keep)))]
+    return rows, sha256_bytes((lines[0] + "".join(keep)).encode("utf-8"))
+
+
+def compute(as_of, run_id, updated, cut=None):
+    """Pure-ish core: reads catalog + series + sidecars, returns (realms_json, provenance, gates, first_fail).
+    cut (method 0.3.0 history): only observations dated ≤ cut are seen; staleness is judged at cut, snapshot
+    selection/age at as_of (raw files carry full history; later rows are dropped, never read)."""
     gates = []
 
     def gate(name, scope, ok, reason=""):
@@ -82,7 +99,8 @@ def compute(as_of, run_id, updated):
     mapping = [r for r in load_mapping() if r["realm"] in REALMS and r["series_id"] in series]
     w_map = {k: sum(int(r["weight"]) for r in mapping if r["realm"] == k) for k in REALMS}
     asof_d = dt.date.fromisoformat(as_of)
-    total_rows = load_rows("wiki.en_total")
+    cut_d = dt.date.fromisoformat(cut) if cut else asof_d
+    total_rows = cut_rows("wiki.en_total", cut)[0]
     total_meta = snapshot("wikimedia", series["wiki.en_total"]["slug"], "json", as_of)[1]
 
     per_realm = {k: {"used": [], "excluded": []} for k in REALMS}
@@ -93,12 +111,14 @@ def compute(as_of, run_id, updated):
         scope = f"{sid}@{realm}"
         params = parse_params(r["params"])
         direction = 1 if r["direction"] == "+1" else -1
-        rows = load_rows(sid)
+        rows, series_sha = cut_rows(sid, cut)
         _, meta = snapshot(s["source_id"], s["slug"], ext_of(s), as_of)
         last_date = rows[-1][1] if rows else None
-        age = (asof_d - dt.date.fromisoformat(last_date)).days if last_date else None
+        age = (cut_d - dt.date.fromisoformat(last_date)).days if last_date else None
         ex = None
-        if age is None or age > int(s["max_age_days"]):
+        if not rows:
+            ex = ("no_data", f"no observation on/before {cut_d.isoformat()}")
+        elif age > int(s["max_age_days"]):
             ex = ("stale", f"latest {last_date}, age {age} d > {s['max_age_days']} d")
         if not gate("stale", scope, ex is None, ex[1] if ex else f"latest {last_date}, age {age} d ≤ {s['max_age_days']} d"):
             per_realm[realm]["excluded"].append({"series_id": sid, "reason": ex[0], "detail": ex[1], "last_date": last_date})
@@ -122,7 +142,9 @@ def compute(as_of, run_id, updated):
             # one raw file per month: cite the latest period's snapshot, verify every month's file the series used
             shas = {x["snapshot_sha256"] for x in read_csv(root() / "series" / f"{sid}.csv")}
             by_month = month_snapshots(s["source_id"], s["slug"], ext_of(s), as_of)
-            for ms in by_month.values():
+            for ym, ms in by_month.items():
+                if ym > (cut_d.year, cut_d.month):  # months after the cut were never read
+                    continue
                 for m in ms:
                     if m["sha256"] in shas:
                         snaps_used[m["path"]] = m
@@ -138,7 +160,7 @@ def compute(as_of, run_id, updated):
             "score": res["score"], "pct": res["pct"], "y_latest": res["y_latest"], "ref_n": res["ref_n"],
             "latest_period": rows[-1][0], "latest_date": rows[-1][1], "latest_value": num_out(rows[-1][2]),
             "unit": s["unit"],
-            "series_path": f"series/{sid}.csv", "series_sha256": sha256_file(root() / "series" / f"{sid}.csv"),
+            "series_path": f"series/{sid}.csv", "series_sha256": series_sha,
             "snapshot": snap_ref(cite), "norm_snapshot": snap_ref(total_meta) if norm else None,
             "source_url": cite["url"], "license": cite["license"], "attribution": cite["attribution"],
             "bias": bias_ids(sid, s, r["transform"]),
@@ -213,13 +235,14 @@ def compute(as_of, run_id, updated):
         "weights": weights, "world_weights": dict(weights),
         "dimensions": dimensions, "top": top, "sources": src_count, "feeds": feeds,
         "method_version": method_version(), "provenance": "realms.provenance.json",
+        "refresh": refresh_block(), "geography": geography_block(),
     }
     v = contract_check(realms, now=dt.datetime.strptime(updated, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=dt.timezone.utc))
     gate("contract", "run", v is None, v or "CONTRACT OK")
 
     # jump warning (never blocks)
     prev = root() / "out" / "realms.json"
-    if prev.exists():
+    if prev.exists() and cut is None:
         try:
             pw = json.loads(prev.read_text())["weights"]
             jumps = [f"{k} {pw[k]}→{weights[k]}" for k in REALMS if abs(weights[k] - pw[k]) > JUMP]
@@ -264,14 +287,19 @@ def main(as_of, now=None, no_fetch=False, commit=False):
         realms, prov, gates, first_fail = compute(as_of, run_id, updated)
         published = first_fail is None
         rd = root() / "runs" / run_id
+        hdoc, hptext = H.build(as_of, run_id, updated)
+        realms["history"] = {"file": H.FILE, "sha256": H.write(hdoc, hptext, rd / H.FILE)}
         write_json(rd / "gates.json", gates)
         write_json(rd / "provenance.json", prov, sort_keys=False)
         write_json(rd / "realms.json", realms, sort_keys=False)
         if published:
-            shutil.copyfile(rd / "realms.json", root() / "out" / "realms.json.tmp")
-            shutil.copyfile(rd / "provenance.json", root() / "out" / "realms.provenance.json.tmp")
-            (root() / "out" / "realms.json.tmp").replace(root() / "out" / "realms.json")
-            (root() / "out" / "realms.provenance.json.tmp").replace(root() / "out" / "realms.provenance.json")
+            # history first: once realms.json is replaced, the history file its sha256 points at is already in place
+            pairs = [(H.PROV_FILE, H.PROV_FILE), (H.FILE, H.FILE),
+                     ("provenance.json", "realms.provenance.json"), ("realms.json", "realms.json")]
+            for src, dst in pairs:
+                shutil.copyfile(rd / src, root() / "out" / (dst + ".tmp"))
+            for _, dst in pairs:
+                (root() / "out" / (dst + ".tmp")).replace(root() / "out" / dst)
         append_csv(root() / "out" / "history.csv", HISTORY_HEADER,
                    [run_id, updated, method_version(), int(published)] + [realms["weights"][k] for k in REALMS]
                    + [first_fail or ""])

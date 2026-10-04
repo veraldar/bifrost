@@ -1,0 +1,692 @@
+{
+ "schema": "worldtree.history/1",
+ "method_version": "0.3.0",
+ "as_of": "2026-10-04",
+ "updated": "2026-10-04T14:00:00Z",
+ "run_id": "20261004T140000Z",
+ "notes": [
+  "Each year = the current method run with observations dated on/before that year's Dec-31 (the as-of date for the current year). No lookahead in observation dates; same transforms, gates and normalisation.",
+  "Vintage: values come from today's source files, so later revisions of a past observation are included and publication lag is not modelled.",
+  "provisional = a realm whose mapped-weight coverage that year is < 0.5; its weight is still normalised into the 100 (largest remainder). Pre-2018 years are thin on AI-specific series: arXiv/PubMed/Federal Register start 2019-01, Wikimedia 2015-07, Epoch 2015-01, and 12-month deltas need ≥ 24 reference points."
+ ],
+ "provenance": {
+  "file": "realms-history.provenance.json",
+  "sha256": "da715ebc8db748aa3b39c3e9db77e3c55dba9962c0017595bd0b5ded96d1a358",
+  "year_sha256": "sha256 of json.dumps(years[<year>], indent=1, ensure_ascii=False) + newline"
+ },
+ "years": [
+  {
+   "year": 2015,
+   "as_of": "2015-12-31",
+   "weights": {
+    "utopia": 11.0,
+    "divergence": 14.2,
+    "drift": 14.2,
+    "control": 12.1,
+    "terminus": 20.1,
+    "stagnation": 14.2,
+    "transcendence": 14.2
+   },
+   "coverage": {
+    "utopia": 0.7778,
+    "divergence": 0.0,
+    "drift": 0.0,
+    "control": 0.25,
+    "terminus": 0.8333,
+    "stagnation": 0.0,
+    "transcendence": 0.0
+   },
+   "provisional": {
+    "utopia": false,
+    "divergence": true,
+    "drift": true,
+    "control": true,
+    "terminus": false,
+    "stagnation": true,
+    "transcendence": true
+   },
+   "ref_n_min": 23,
+   "indicators_used": 7,
+   "sources_used": 3,
+   "gates": {
+    "catalog": true,
+    "integrity": true,
+    "realm_coverage": false,
+    "global_coverage": false,
+    "contract": true
+   },
+   "first_gate_failure": "realm_coverage",
+   "provenance": {
+    "key": "2015",
+    "sha256": "cd64364bed331efe27811c109c505373e27fa1a2a239f2cb5ba6a4a854060a18"
+   }
+  },
+  {
+   "year": 2016,
+   "as_of": "2016-12-31",
+   "weights": {
+    "utopia": 9.1,
+    "divergence": 15.0,
+    "drift": 14.9,
+    "control": 13.0,
+    "terminus": 18.2,
+    "stagnation": 14.9,
+    "transcendence": 14.9
+   },
+   "coverage": {
+    "utopia": 0.7778,
+    "divergence": 0.0,
+    "drift": 0.0,
+    "control": 0.25,
+    "terminus": 0.8333,
+    "stagnation": 0.0,
+    "transcendence": 0.0
+   },
+   "provisional": {
+    "utopia": false,
+    "divergence": true,
+    "drift": true,
+    "control": true,
+    "terminus": false,
+    "stagnation": true,
+    "transcendence": true
+   },
+   "ref_n_min": 24,
+   "indicators_used": 7,
+   "sources_used": 3,
+   "gates": {
+    "catalog": true,
+    "integrity": true,
+    "realm_coverage": false,
+    "global_coverage": false,
+    "contract": true
+   },
+   "first_gate_failure": "realm_coverage",
+   "provenance": {
+    "key": "2016",
+    "sha256": "724808ddae4f20121fac8a1314a10bc8b447b543ab068859b020384a907baf31"
+   }
+  },
+  {
+   "year": 2017,
+   "as_of": "2017-12-31",
+   "weights": {
+    "utopia": 10.7,
+    "divergence": 15.1,
+    "drift": 15.0,
+    "control": 12.9,
+    "terminus": 16.3,
+    "stagnation": 15.0,
+    "transcendence": 15.0
+   },
+   "coverage": {
+    "utopia": 0.7778,
+    "divergence": 0.0,
+    "drift": 0.0,
+    "control": 0.25,
+    "terminus": 0.8333,
+    "stagnation": 0.0,
+    "transcendence": 0.0
+   },
+   "provisional": {
+    "utopia": false,
+    "divergence": true,
+    "drift": true,
+    "control": true,
+    "terminus": false,
+    "stagnation": true,
+    "transcendence": true
+   },
+   "ref_n_min": 25,
+   "indicators_used": 7,
+   "sources_used": 3,
+   "gates": {
+    "catalog": true,
+    "integrity": true,
+    "realm_coverage": false,
+    "global_coverage": false,
+    "contract": true
+   },
+   "first_gate_failure": "realm_coverage",
+   "provenance": {
+    "key": "2017",
+    "sha256": "359dde7014d211d7fa413bc35f6e53ecd90c5998d91d02850358a31f0e3cd86e"
+   }
+  },
+  {
+   "year": 2018,
+   "as_of": "2018-12-31",
+   "weights": {
+    "utopia": 15.2,
+    "divergence": 8.9,
+    "drift": 16.3,
+    "control": 14.7,
+    "terminus": 14.8,
+    "stagnation": 12.3,
+    "transcendence": 17.8
+   },
+   "coverage": {
+    "utopia": 0.7778,
+    "divergence": 0.5714,
+    "drift": 0.0,
+    "control": 0.25,
+    "terminus": 0.8333,
+    "stagnation": 0.2857,
+    "transcendence": 0.75
+   },
+   "provisional": {
+    "utopia": false,
+    "divergence": false,
+    "drift": true,
+    "control": true,
+    "terminus": false,
+    "stagnation": true,
+    "transcendence": false
+   },
+   "ref_n_min": 26,
+   "indicators_used": 12,
+   "sources_used": 5,
+   "gates": {
+    "catalog": true,
+    "integrity": true,
+    "realm_coverage": false,
+    "global_coverage": true,
+    "contract": true
+   },
+   "first_gate_failure": "realm_coverage",
+   "provenance": {
+    "key": "2018",
+    "sha256": "e94df1537c003e3dd75758075fdf267ef297ab5b0dfa432e88e07a73a870c66a"
+   }
+  },
+  {
+   "year": 2019,
+   "as_of": "2019-12-31",
+   "weights": {
+    "utopia": 6.4,
+    "divergence": 18.8,
+    "drift": 15.8,
+    "control": 13.8,
+    "terminus": 12.5,
+    "stagnation": 11.6,
+    "transcendence": 21.1
+   },
+   "coverage": {
+    "utopia": 0.7778,
+    "divergence": 1.0,
+    "drift": 0.0,
+    "control": 0.25,
+    "terminus": 0.8333,
+    "stagnation": 0.2857,
+    "transcendence": 0.75
+   },
+   "provisional": {
+    "utopia": false,
+    "divergence": false,
+    "drift": true,
+    "control": true,
+    "terminus": false,
+    "stagnation": true,
+    "transcendence": false
+   },
+   "ref_n_min": 27,
+   "indicators_used": 13,
+   "sources_used": 5,
+   "gates": {
+    "catalog": true,
+    "integrity": true,
+    "realm_coverage": false,
+    "global_coverage": true,
+    "contract": true
+   },
+   "first_gate_failure": "realm_coverage",
+   "provenance": {
+    "key": "2019",
+    "sha256": "e4934f056d3b5ef486991ded089a97933e0411c64b61b4689ae8231e94b32a0e"
+   }
+  },
+  {
+   "year": 2020,
+   "as_of": "2020-12-31",
+   "weights": {
+    "utopia": 0.0,
+    "divergence": 17.7,
+    "drift": 15.9,
+    "control": 13.3,
+    "terminus": 23.0,
+    "stagnation": 18.0,
+    "transcendence": 12.1
+   },
+   "coverage": {
+    "utopia": 0.7778,
+    "divergence": 1.0,
+    "drift": 0.0,
+    "control": 0.25,
+    "terminus": 0.8333,
+    "stagnation": 0.2857,
+    "transcendence": 0.75
+   },
+   "provisional": {
+    "utopia": false,
+    "divergence": false,
+    "drift": true,
+    "control": true,
+    "terminus": false,
+    "stagnation": true,
+    "transcendence": false
+   },
+   "ref_n_min": 28,
+   "indicators_used": 13,
+   "sources_used": 5,
+   "gates": {
+    "catalog": true,
+    "integrity": true,
+    "realm_coverage": false,
+    "global_coverage": true,
+    "contract": true
+   },
+   "first_gate_failure": "realm_coverage",
+   "provenance": {
+    "key": "2020",
+    "sha256": "0816bf4c18aed13536831ea85bde02edb0264a3a8419f7f16aff159f3138a5d6"
+   }
+  },
+  {
+   "year": 2021,
+   "as_of": "2021-12-31",
+   "weights": {
+    "utopia": 9.9,
+    "divergence": 15.6,
+    "drift": 14.1,
+    "control": 13.1,
+    "terminus": 15.6,
+    "stagnation": 14.1,
+    "transcendence": 17.6
+   },
+   "coverage": {
+    "utopia": 0.7778,
+    "divergence": 1.0,
+    "drift": 0.3333,
+    "control": 0.25,
+    "terminus": 0.8333,
+    "stagnation": 0.2857,
+    "transcendence": 0.75
+   },
+   "provisional": {
+    "utopia": false,
+    "divergence": false,
+    "drift": true,
+    "control": true,
+    "terminus": false,
+    "stagnation": true,
+    "transcendence": false
+   },
+   "ref_n_min": 29,
+   "indicators_used": 14,
+   "sources_used": 5,
+   "gates": {
+    "catalog": true,
+    "integrity": true,
+    "realm_coverage": false,
+    "global_coverage": true,
+    "contract": true
+   },
+   "first_gate_failure": "realm_coverage",
+   "provenance": {
+    "key": "2021",
+    "sha256": "ec47d4aab8a1e5d4930d4b8f7bbbc09b46938091baf7c1783c3f1d22733e0de7"
+   }
+  },
+  {
+   "year": 2022,
+   "as_of": "2022-12-31",
+   "weights": {
+    "utopia": 12.7,
+    "divergence": 7.8,
+    "drift": 14.3,
+    "control": 15.1,
+    "terminus": 12.8,
+    "stagnation": 23.3,
+    "transcendence": 14.0
+   },
+   "coverage": {
+    "utopia": 1.0,
+    "divergence": 1.0,
+    "drift": 0.3333,
+    "control": 0.75,
+    "terminus": 0.8333,
+    "stagnation": 1.0,
+    "transcendence": 0.75
+   },
+   "provisional": {
+    "utopia": false,
+    "divergence": false,
+    "drift": true,
+    "control": false,
+    "terminus": false,
+    "stagnation": false,
+    "transcendence": false
+   },
+   "ref_n_min": 8,
+   "indicators_used": 19,
+   "sources_used": 8,
+   "gates": {
+    "catalog": true,
+    "integrity": true,
+    "realm_coverage": false,
+    "global_coverage": true,
+    "contract": true
+   },
+   "first_gate_failure": "realm_coverage",
+   "provenance": {
+    "key": "2022",
+    "sha256": "08d47141ccf0533b6e06048515fcb7429733ea6628420825351d5707fc478adf"
+   }
+  },
+  {
+   "year": 2023,
+   "as_of": "2023-12-31",
+   "weights": {
+    "utopia": 12.5,
+    "divergence": 16.8,
+    "drift": 16.7,
+    "control": 10.9,
+    "terminus": 14.1,
+    "stagnation": 10.4,
+    "transcendence": 18.6
+   },
+   "coverage": {
+    "utopia": 1.0,
+    "divergence": 1.0,
+    "drift": 0.6667,
+    "control": 1.0,
+    "terminus": 0.8333,
+    "stagnation": 1.0,
+    "transcendence": 0.75
+   },
+   "provisional": {
+    "utopia": false,
+    "divergence": false,
+    "drift": false,
+    "control": false,
+    "terminus": false,
+    "stagnation": false,
+    "transcendence": false
+   },
+   "ref_n_min": 9,
+   "indicators_used": 21,
+   "sources_used": 8,
+   "gates": {
+    "catalog": true,
+    "integrity": true,
+    "realm_coverage": true,
+    "global_coverage": true,
+    "contract": true
+   },
+   "first_gate_failure": null,
+   "provenance": {
+    "key": "2023",
+    "sha256": "bc25831b1617f118ef874e9aa1d066ce4f65a438a00390a8bc9cb9db955e9a03"
+   }
+  },
+  {
+   "year": 2024,
+   "as_of": "2024-12-31",
+   "weights": {
+    "utopia": 16.1,
+    "divergence": 9.0,
+    "drift": 10.7,
+    "control": 15.6,
+    "terminus": 22.0,
+    "stagnation": 15.8,
+    "transcendence": 10.8
+   },
+   "coverage": {
+    "utopia": 1.0,
+    "divergence": 1.0,
+    "drift": 0.6667,
+    "control": 1.0,
+    "terminus": 0.8333,
+    "stagnation": 1.0,
+    "transcendence": 1.0
+   },
+   "provisional": {
+    "utopia": false,
+    "divergence": false,
+    "drift": false,
+    "control": false,
+    "terminus": false,
+    "stagnation": false,
+    "transcendence": false
+   },
+   "ref_n_min": 10,
+   "indicators_used": 22,
+   "sources_used": 8,
+   "gates": {
+    "catalog": true,
+    "integrity": true,
+    "realm_coverage": true,
+    "global_coverage": true,
+    "contract": true
+   },
+   "first_gate_failure": null,
+   "provenance": {
+    "key": "2024",
+    "sha256": "cd423541e38ebe027684a9f66d2feeb763983939fb36000435dce536d3059067"
+   }
+  },
+  {
+   "year": 2025,
+   "as_of": "2025-12-31",
+   "weights": {
+    "utopia": 16.8,
+    "divergence": 10.2,
+    "drift": 13.4,
+    "control": 11.2,
+    "terminus": 18.8,
+    "stagnation": 9.2,
+    "transcendence": 20.4
+   },
+   "coverage": {
+    "utopia": 1.0,
+    "divergence": 1.0,
+    "drift": 0.6667,
+    "control": 1.0,
+    "terminus": 0.8333,
+    "stagnation": 1.0,
+    "transcendence": 1.0
+   },
+   "provisional": {
+    "utopia": false,
+    "divergence": false,
+    "drift": false,
+    "control": false,
+    "terminus": false,
+    "stagnation": false,
+    "transcendence": false
+   },
+   "ref_n_min": 11,
+   "indicators_used": 22,
+   "sources_used": 8,
+   "gates": {
+    "catalog": true,
+    "integrity": true,
+    "realm_coverage": true,
+    "global_coverage": true,
+    "contract": true
+   },
+   "first_gate_failure": null,
+   "provenance": {
+    "key": "2025",
+    "sha256": "e2b5ca4afb7b97213d46be0d6c5ec9cd0401d1c56dd1c2c5c95a230d235540de"
+   }
+  },
+  {
+   "year": 2026,
+   "as_of": "2026-10-04",
+   "weights": {
+    "utopia": 14.7,
+    "divergence": 10.9,
+    "drift": 16.7,
+    "control": 13.5,
+    "terminus": 18.7,
+    "stagnation": 10.7,
+    "transcendence": 14.8
+   },
+   "coverage": {
+    "utopia": 1.0,
+    "divergence": 1.0,
+    "drift": 1.0,
+    "control": 1.0,
+    "terminus": 0.8333,
+    "stagnation": 1.0,
+    "transcendence": 1.0
+   },
+   "provisional": {
+    "utopia": false,
+    "divergence": false,
+    "drift": false,
+    "control": false,
+    "terminus": false,
+    "stagnation": false,
+    "transcendence": false
+   },
+   "ref_n_min": 11,
+   "indicators_used": 23,
+   "sources_used": 8,
+   "gates": {
+    "catalog": true,
+    "integrity": true,
+    "realm_coverage": true,
+    "global_coverage": true,
+    "contract": true
+   },
+   "first_gate_failure": null,
+   "provenance": {
+    "key": "2026",
+    "sha256": "e56e1a3bf7fefba66f5e2970becb41b9a48665c9529fb15f2de6cd7a745685a0"
+   }
+  }
+ ],
+ "refresh": {
+  "cadence": "nightly",
+  "local_time": "14:30 Europe/Berlin",
+  "utc_time": "12:30 UTC",
+  "utc_note": "12:30 UTC while Central European Summer Time applies; 13:30 UTC in winter (CET) — the timer fires at 14:30 local",
+  "timer": "worldtree-fetch.timer",
+  "sources": [
+   {
+    "id": "owid",
+    "updated_from": "ourworldindata.org/grapher/<slug>.csv + .metadata.json — full history re-downloaded each night (9 charts)"
+   },
+   {
+    "id": "worldbank",
+    "updated_from": "api.worldbank.org/v2/country/WLD/indicator/{NY.GDP.PCAP.KD,SL.UEM.TOTL.ZS} — full annual history"
+   },
+   {
+    "id": "epoch",
+    "updated_from": "epoch.ai/data/notable_ai_models.csv — full model list, 12-month windows derived locally"
+   },
+   {
+    "id": "wikimedia",
+    "updated_from": "wikimedia.org/api/rest_v1/metrics/pageviews — monthly en.wikipedia user views since 2015-07 (5 articles + all-pages total)"
+   },
+   {
+    "id": "arxiv",
+    "updated_from": "export.arxiv.org/api/query — cs.AI submission count per month; new complete months + the previous one re-fetched"
+   },
+   {
+    "id": "pubmed",
+    "updated_from": "eutils.ncbi.nlm.nih.gov esearch — AI×biomed paper count per month; new complete months + the previous one re-fetched"
+   },
+   {
+    "id": "fedreg",
+    "updated_from": "federalregister.gov/api/v1/documents — documents mentioning \"artificial intelligence\" per month; new complete months + the previous one re-fetched"
+   },
+   {
+    "id": "noaa_gml",
+    "updated_from": "gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv — Mauna Loa monthly mean CO₂, full record since 1958-03"
+   }
+  ],
+  "pipeline": "worldtree-data method 0.3.0"
+ },
+ "geography": {
+  "regions": {
+   "NA": "North America",
+   "LATAM": "Latin America & Caribbean",
+   "EUR": "Europe",
+   "AF": "Sub-Saharan Africa",
+   "MENA": "Middle East & North Africa",
+   "ASIA": "Asia",
+   "OC": "Oceania",
+   "GLOBAL": "world aggregate / not regionally split"
+  },
+  "owid": {
+   "regions": [
+    "GLOBAL"
+   ],
+   "detail": "World aggregates only (entity World / All geographies) — OWID compiles UN WPP, World Bank PIP, V-Dem, UCDP, Stanford AI Index; no regional series used",
+   "license": "CC BY 4.0",
+   "source_doc": "https://ourworldindata.org/faqs#how-is-the-data-for-world-calculated"
+  },
+  "worldbank": {
+   "regions": [
+    "GLOBAL"
+   ],
+   "detail": "WLD aggregate over the 217 economies in World Development Indicators",
+   "license": "CC BY 4.0",
+   "source_doc": "https://datahelpdesk.worldbank.org/knowledgebase/articles/906519-world-bank-country-and-lending-groups"
+  },
+  "epoch": {
+   "regions": [
+    "NA",
+    "ASIA",
+    "EUR",
+    "GLOBAL"
+   ],
+   "detail": "notable AI models attributed to the developer organisation's country (mostly US, CN, UK, EU, CA, KR, JP) — global industry, concentrated in a few countries",
+   "license": "CC BY 4.0",
+   "source_doc": "https://epoch.ai/data/notable-ai-models"
+  },
+  "wikimedia": {
+   "regions": [
+    "GLOBAL"
+   ],
+   "detail": "English-Wikipedia page views from readers worldwide — English-language skew disclosed (bias B1)",
+   "license": "CC0 1.0",
+   "source_doc": "https://wikitech.wikimedia.org/wiki/Analytics/AQS/Pageviews"
+  },
+  "arxiv": {
+   "regions": [
+    "GLOBAL"
+   ],
+   "detail": "cs.AI preprints submitted worldwide (US, CN, EU authors largest); counts not split by country",
+   "license": "CC0 1.0 (metadata)",
+   "source_doc": "https://info.arxiv.org/help/api/"
+  },
+  "pubmed": {
+   "regions": [
+    "GLOBAL"
+   ],
+   "detail": "biomedical literature indexed by the US National Library of Medicine from journals worldwide",
+   "license": "public domain (NLM; US gov)",
+   "source_doc": "https://www.nlm.nih.gov/bsd/difference.html"
+  },
+  "fedreg": {
+   "regions": [
+    "NA"
+   ],
+   "detail": "US federal rulemaking and notices only — no other government is covered",
+   "license": "public domain (US gov work)",
+   "source_doc": "https://www.federalregister.gov/reader-aids/using-federalregister-gov/understanding-the-federal-register"
+  },
+  "noaa_gml": {
+   "regions": [
+    "GLOBAL"
+   ],
+   "detail": "one station: Mauna Loa Observatory (US-HI), the long-running reference for well-mixed global background CO₂ (bias B13)",
+   "license": "public domain (US gov)",
+   "source_doc": "https://gml.noaa.gov/ccgg/trends/data.html"
+  }
+ }
+}

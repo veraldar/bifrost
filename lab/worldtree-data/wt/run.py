@@ -8,10 +8,10 @@ from collections import OrderedDict
 
 from . import method as M
 from .catalog import check as catalog_check
-from .common import (LOCK, REALMS, append_csv, load_mapping, load_series, load_sources, mapping_path,
+from .common import (LOCK, MONTHLY_SOURCES, REALMS, append_csv, load_mapping, load_series, load_sources, mapping_path,
                      method_version, parse_params, read_csv, root, series_path, sha256_file, write_json)
 from .contract import check as contract_check
-from .extract import build_all, ext_of, snapshot
+from .extract import build_all, ext_of, month_snapshots, snapshot
 
 HISTORY_HEADER = ["run_id", "updated", "method_version", "published"] + REALMS + ["first_gate_failure"]
 RUN_GATES = ["catalog", "integrity", "realm_coverage", "global_coverage", "contract"]
@@ -113,7 +113,18 @@ def compute(as_of, run_id, updated):
             continue
         gate("short_history", scope, True, f"ref_n {res['ref_n']}")
         gate("no_value", scope, True, f"y {res['y_latest']}")
-        snaps_used[meta["path"]] = meta
+        cite = meta
+        if s["source_id"] in MONTHLY_SOURCES:
+            # one raw file per month: cite the latest period's snapshot, verify every month's file the series used
+            shas = {x["snapshot_sha256"] for x in read_csv(root() / "series" / f"{sid}.csv")}
+            by_month = month_snapshots(s["source_id"], s["slug"], ext_of(s), as_of)
+            for ms in by_month.values():
+                for m in ms:
+                    if m["sha256"] in shas:
+                        snaps_used[m["path"]] = m
+            y, mo = map(int, rows[-1][0].split("-"))
+            cite = next(m for m in reversed(by_month[(y, mo)]) if m["sha256"] in shas)
+        snaps_used[cite["path"]] = cite
         if norm:
             snaps_used[total_meta["path"]] = total_meta
         per_realm[realm]["used"].append({
@@ -124,8 +135,8 @@ def compute(as_of, run_id, updated):
             "latest_period": rows[-1][0], "latest_date": rows[-1][1], "latest_value": num_out(rows[-1][2]),
             "unit": s["unit"],
             "series_path": f"series/{sid}.csv", "series_sha256": sha256_file(root() / "series" / f"{sid}.csv"),
-            "snapshot": snap_ref(meta), "norm_snapshot": snap_ref(total_meta) if norm else None,
-            "source_url": meta["url"], "license": meta["license"], "attribution": meta["attribution"],
+            "snapshot": snap_ref(cite), "norm_snapshot": snap_ref(total_meta) if norm else None,
+            "source_url": cite["url"], "license": cite["license"], "attribution": cite["attribution"],
             "bias": bias_ids(sid, s, r["transform"]),
         })
 

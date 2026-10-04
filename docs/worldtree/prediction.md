@@ -71,6 +71,8 @@ poverty 2026). Drop empty/non-numeric values. Rows sorted by `date`.
 | `wb:WLD` | page-1 array element `[1]`; rows with `value != null`; `period` = `date` (year) |
 | `wiki:monthly` / `wiki:aggregate` | `items[]`: `period` = `timestamp[0:4]-timestamp[4:6]`, value = `views` |
 | `epoch:*` | see below; window for month end M = models with `Publication date` in (M − 12 months, M]; months from 2015-01 to the month of the newest `Publication date` |
+| `arxiv:monthly` / `pubmed:monthly` / `fedreg:monthly` | one raw file per (slug, month) — the month is parsed from the sidecar `url`, never the filename; all snapshots with `retrieved_at ≤ as_of` are read and the **newest parseable snapshot per month wins**; count = arxiv `<opensearch:totalResults>` (ns `http://a9.com/-/spec/opensearch/1.1/`; requests use `https`, `max_results=1` — `max_results=0` returns HTTP 500 since 10-04), pubmed `esearchresult.count`, fedreg top-level `count`; unparseable/empty dropped; `period` = `YYYY-MM`, `date` = month end |
+| `noaa:monthly` | newest single snapshot; `#` comment lines skipped; columns `year,month,decimal date,average,…`; value = `average`; rows with value < 0 (−99.99 missing sentinel) or non-numeric dropped; `period` = `YYYY-MM`, `date` = month end |
 
 Epoch derivations (CSV columns observed on 10-03: `Publication date`,
 `Organization`, `Country (of organization)`, `Training compute (FLOP)`,

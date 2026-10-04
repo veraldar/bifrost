@@ -5,9 +5,12 @@ import datetime as dt
 import io
 import json
 import math
+import xml.etree.ElementTree as ET
 from collections import defaultdict
 
-from .common import csv_text, load_series, root, sha256_file, write_text
+from .common import csv_text, load_series, month_of_url, root, sha256_file, write_text
+
+OPENSEARCH = "{http://a9.com/-/spec/opensearch/1.1/}"
 
 HEADER = ["period", "date", "value", "snapshot_sha256"]
 
@@ -49,16 +52,33 @@ def parse_extract(e):
     return kind, opts
 
 
-def snapshot(source_id, slug, ext, as_of):
-    """Newest stored raw file of this kind retrieved on/before as_of → (path, sidecar dict)."""
+def snapshots(source_id, slug, ext, as_of):
+    """Every stored raw file of this kind retrieved on/before as_of → [sidecar dict], oldest first."""
     d = root() / "raw" / source_id / slug
-    best = None
+    out = []
     for sc in sorted(d.glob("*.prov.json")):
         if sc.name.split(".", 1)[1] != f"{ext}.prov.json":
             continue
         meta = json.loads(sc.read_text())
         if meta["retrieved_at"][:10] <= as_of:
-            best = meta
+            out.append(meta)
+    return sorted(out, key=lambda m: (m["retrieved_at"], m["path"]))
+
+
+def month_snapshots(source_id, slug, ext, as_of):
+    """Per-month count sources: {(y, m): [sidecars, oldest first]}; month from the sidecar url, never the filename."""
+    best = {}
+    for meta in snapshots(source_id, slug, ext, as_of):
+        ym = month_of_url(source_id, meta["url"])
+        if ym:
+            best.setdefault(ym, []).append(meta)
+    return best
+
+
+def snapshot(source_id, slug, ext, as_of):
+    """Newest stored raw file of this kind retrieved on/before as_of → (path, sidecar dict)."""
+    metas = snapshots(source_id, slug, ext, as_of)
+    best = metas[-1] if metas else None
     if best is None:
         raise FileNotFoundError(f"no {ext} snapshot for {source_id}/{slug} on/before {as_of}")
     return root() / best["path"], best
@@ -70,7 +90,8 @@ def read_rows(path):
 
 
 def ext_of(s):
-    return {"owid": "csv", "worldbank": "json", "epoch": "csv", "wikimedia": "json"}[s["source_id"]]
+    return {"owid": "csv", "worldbank": "json", "epoch": "csv", "wikimedia": "json",
+            "arxiv": "xml", "pubmed": "json", "fedreg": "json", "noaa_gml": "csv"}[s["source_id"]]
 
 
 # --- extractors: return list of (period, date, value) -------------------------------------------
@@ -187,11 +208,57 @@ def x_epoch(s, path, opts):
     return out
 
 
-EXTRACTORS = {"owid": x_owid, "wb": x_wb, "wiki": x_wiki, "epoch": x_epoch}
+def x_noaa(s, path, opts):
+    lines = [ln for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip() and not ln.lstrip().startswith("#")]
+    out = []
+    for r in csv.DictReader(lines):
+        v = num((r.get("average") or "").strip())
+        if v is None or v < 0:  # −99.99 = missing
+            continue
+        y, m = int(r["year"]), int(r["month"])
+        out.append((f"{y:04d}-{m:02d}", month_end(y, m).isoformat(), v))
+    return out
+
+
+def parse_count(kind, body: bytes):
+    """Count from one per-month response (arxiv Atom XML / pubmed / fedreg JSON); None if unparseable."""
+    try:
+        if kind == "arxiv":
+            el = ET.fromstring(body).find(f"{OPENSEARCH}totalResults")
+            v = num(el.text.strip()) if el is not None and el.text else None
+        elif kind == "pubmed":
+            v = num(json.loads(body)["esearchresult"]["count"])
+        elif kind == "fedreg":
+            v = num(json.loads(body)["count"])
+        else:
+            raise ValueError(f"unknown count kind {kind}")
+    except (ET.ParseError, ValueError, KeyError, TypeError, AttributeError):
+        return None
+    return v if v is not None and v >= 0 else None
+
+
+def x_counts(s, metas_by_month, kind):
+    """Newest parseable snapshot per month wins → [(period, date, value, sha256)]."""
+    out = []
+    for (y, m), metas in sorted(metas_by_month.items()):
+        for meta in reversed(metas):  # newest retrieved_at first
+            v = parse_count(kind, (root() / meta["path"]).read_bytes())
+            if v is not None:
+                out.append((f"{y:04d}-{m:02d}", month_end(y, m).isoformat(), v, meta["sha256"]))
+                break
+    return out
+
+
+EXTRACTORS = {"owid": x_owid, "wb": x_wb, "wiki": x_wiki, "epoch": x_epoch, "noaa": x_noaa}
+COUNT_KINDS = ("arxiv", "pubmed", "fedreg")
 
 
 def build(s, as_of):
     kind, opts = parse_extract(s["extract"])
+    if kind in COUNT_KINDS:
+        rows = [r for r in x_counts(s, month_snapshots(s["source_id"], s["slug"], ext_of(s), as_of), kind) if r[1] <= as_of]
+        rows.sort(key=lambda r: (r[1], r[0]))
+        return [(p, d, fmt(v), sha) for p, d, v, sha in rows]
     path, meta = snapshot(s["source_id"], s["slug"], ext_of(s), as_of)
     rows = [r for r in EXTRACTORS[kind](s, path, opts) if r[1] <= as_of]
     rows.sort(key=lambda r: (r[1], r[0]))

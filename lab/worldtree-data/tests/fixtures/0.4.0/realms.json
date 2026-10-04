@@ -184,138 +184,178 @@
  "refresh": {
   "cadence": "nightly",
   "local_time": "14:30 Europe/Berlin",
-  "utc_time": "12:30 UTC",
-  "utc_note": "12:30 UTC while Central European Summer Time applies; 13:30 UTC in winter (CET) — the timer fires at 14:30 local",
-  "timer": "worldtree-fetch.timer",
   "sources": [
    {
-    "id": "owid",
-    "updated_from": "ourworldindata.org/grapher/<slug>.csv + .metadata.json — full history re-downloaded each night (9 charts)"
-   },
-   {
-    "id": "worldbank",
-    "updated_from": "api.worldbank.org/v2/country/WLD/indicator/{NY.GDP.PCAP.KD,SL.UEM.TOTL.ZS} — full annual history"
-   },
-   {
-    "id": "epoch",
-    "updated_from": "epoch.ai/data/notable_ai_models.csv — full model list, 12-month windows derived locally"
-   },
-   {
-    "id": "wikimedia",
-    "updated_from": "wikimedia.org/api/rest_v1/metrics/pageviews — monthly en.wikipedia user views since 2015-07 (5 articles + all-pages total)"
+    "id": "ari",
+    "updated_from": "Mac Studio ARI report (tailnet) report-ari.html — embedded <script id=\"ari-data\"> JSON block, every week since 2026-04-06; the report is rebuilt daily, weeks dated after the as-of are not read"
    },
    {
     "id": "arxiv",
     "updated_from": "export.arxiv.org/api/query — cs.AI submission count per month; new complete months + the previous one re-fetched"
    },
    {
-    "id": "pubmed",
-    "updated_from": "eutils.ncbi.nlm.nih.gov esearch — AI×biomed paper count per month; new complete months + the previous one re-fetched"
+    "id": "epoch",
+    "updated_from": "epoch.ai/data/notable_ai_models.csv — full model list, 12-month windows derived locally"
    },
    {
     "id": "fedreg",
     "updated_from": "federalregister.gov/api/v1/documents — documents mentioning \"artificial intelligence\" per month; new complete months + the previous one re-fetched"
    },
    {
+    "id": "github",
+    "pulls": "release lists + last-month commit counts + star snapshots (keyless 60/hr budget)"
+   },
+   {
+    "id": "ne",
+    "pulls": "Natural Earth 110m country polygons (map asset, fetched when upstream changes)"
+   },
+   {
     "id": "noaa_gml",
     "updated_from": "gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv — Mauna Loa monthly mean CO₂, full record since 1958-03"
    },
    {
-    "id": "ari",
-    "updated_from": "Mac Studio ARI report (tailnet) report-ari.html — embedded <script id=\"ari-data\"> JSON block, every week since 2026-04-06; the report is rebuilt daily, weeks dated after the as-of are not read"
+    "id": "owid",
+    "updated_from": "ourworldindata.org/grapher/<slug>.csv + .metadata.json — full history re-downloaded each night (9 charts)"
+   },
+   {
+    "id": "pubmed",
+    "updated_from": "eutils.ncbi.nlm.nih.gov esearch — AI×biomed paper count per month; new complete months + the previous one re-fetched"
+   },
+   {
+    "id": "unsdg",
+    "pulls": "SDG series values (country×year, all areas, one request per series)"
+   },
+   {
+    "id": "who_gho",
+    "pulls": "GHO indicator values (country×year, keyless OData)"
+   },
+   {
+    "id": "wikimedia",
+    "updated_from": "wikimedia.org/api/rest_v1/metrics/pageviews — monthly en.wikipedia user views since 2015-07 (5 articles + all-pages total)"
+   },
+   {
+    "id": "worldbank",
+    "updated_from": "api.worldbank.org/v2/country/WLD/indicator/{NY.GDP.PCAP.KD,SL.UEM.TOTL.ZS} — full annual history"
    }
   ],
+  "timer": "worldtree-fetch.timer",
+  "utc_note": "12:30 UTC while Central European Summer Time applies; 13:30 UTC in winter (CET) — the timer fires at 14:30 local",
+  "utc_time": "12:30 UTC",
   "pipeline": "worldtree-data method 0.4.0"
  },
  "geography": {
   "regions": {
-   "NA": "North America",
-   "LATAM": "Latin America & Caribbean",
-   "EUR": "Europe",
    "AF": "Sub-Saharan Africa",
-   "MENA": "Middle East & North Africa",
    "ASIA": "Asia",
-   "OC": "Oceania",
-   "GLOBAL": "world aggregate / not regionally split"
+   "EUR": "Europe",
+   "GLOBAL": "world aggregate / not regionally split",
+   "LATAM": "Latin America & Caribbean",
+   "MENA": "Middle East & North Africa",
+   "NA": "North America",
+   "OC": "Oceania"
   },
-  "owid": {
+  "ari": {
+   "detail": "event-sourced restriction pressure on AI agents — global platforms, scored weekly (English-language tech news + HN + OS-vendor blogs; bias B14)",
+   "license": "dweeb.xyz Agent Restriction Index — verbatim capture, © pipeline output, methodology at report §method",
    "regions": [
     "GLOBAL"
    ],
-   "detail": "World aggregates only (entity World / All geographies) — OWID compiles UN WPP, World Bank PIP, V-Dem, UCDP, Stanford AI Index; no regional series used",
-   "license": "CC BY 4.0",
-   "source_doc": "https://ourworldindata.org/faqs#how-is-the-data-for-world-calculated"
+   "source_doc": "https://dweeb-xzys-mac-studio.tail5435b1.ts.net/api/artifact/report-ari.html"
   },
-  "worldbank": {
+  "arxiv": {
+   "detail": "cs.AI preprints submitted worldwide (US, CN, EU authors largest); counts not split by country",
+   "license": "CC0 1.0 (metadata)",
    "regions": [
     "GLOBAL"
    ],
-   "detail": "WLD aggregate over the 217 economies in World Development Indicators",
-   "license": "CC BY 4.0",
-   "source_doc": "https://datahelpdesk.worldbank.org/knowledgebase/articles/906519-world-bank-country-and-lending-groups"
+   "source_doc": "https://info.arxiv.org/help/api/"
   },
   "epoch": {
+   "detail": "notable AI models attributed to the developer organisation's country (mostly US, CN, UK, EU, CA, KR, JP) — global industry, concentrated in a few countries",
+   "license": "CC BY 4.0",
    "regions": [
     "NA",
     "ASIA",
     "EUR",
     "GLOBAL"
    ],
-   "detail": "notable AI models attributed to the developer organisation's country (mostly US, CN, UK, EU, CA, KR, JP) — global industry, concentrated in a few countries",
-   "license": "CC BY 4.0",
    "source_doc": "https://epoch.ai/data/notable-ai-models"
   },
-  "wikimedia": {
-   "regions": [
-    "GLOBAL"
-   ],
-   "detail": "English-Wikipedia page views from readers worldwide — English-language skew disclosed (bias B1)",
-   "license": "CC0 1.0",
-   "source_doc": "https://wikitech.wikimedia.org/wiki/Analytics/AQS/Pageviews"
-  },
-  "arxiv": {
-   "regions": [
-    "GLOBAL"
-   ],
-   "detail": "cs.AI preprints submitted worldwide (US, CN, EU authors largest); counts not split by country",
-   "license": "CC0 1.0 (metadata)",
-   "source_doc": "https://info.arxiv.org/help/api/"
-  },
-  "pubmed": {
-   "regions": [
-    "GLOBAL"
-   ],
-   "detail": "biomedical literature indexed by the US National Library of Medicine from journals worldwide",
-   "license": "public domain (NLM; US gov)",
-   "source_doc": "https://www.nlm.nih.gov/bsd/difference.html"
-  },
   "fedreg": {
+   "detail": "US federal rulemaking and notices only — no other government is covered",
+   "license": "public domain (US gov work)",
    "regions": [
     "NA"
    ],
-   "detail": "US federal rulemaking and notices only — no other government is covered",
-   "license": "public domain (US gov work)",
    "source_doc": "https://www.federalregister.gov/reader-aids/using-federalregister-gov/understanding-the-federal-register"
   },
-  "ari": {
+  "ne": {
+   "detail": "country polygons for the map layer — geometry only, no indicators",
+   "license": "public domain",
    "regions": [
     "GLOBAL"
    ],
-   "detail": "event-sourced restriction pressure on AI agents — global platforms, scored weekly (English-language tech news + HN + OS-vendor blogs; bias B14)",
-   "license": "dweeb.xyz Agent Restriction Index — verbatim capture, © pipeline output, methodology at report §method",
-   "source_doc": "https://dweeb-xzys-mac-studio.tail5435b1.ts.net/api/artifact/report-ari.html"
+   "source_doc": "https://www.naturalearthdata.com"
   },
   "noaa_gml": {
+   "detail": "one station: Mauna Loa Observatory (US-HI), the long-running reference for well-mixed global background CO₂ (bias B13)",
+   "license": "public domain (US gov)",
    "regions": [
     "GLOBAL"
    ],
-   "detail": "one station: Mauna Loa Observatory (US-HI), the long-running reference for well-mixed global background CO₂ (bias B13)",
-   "license": "public domain (US gov)",
    "source_doc": "https://gml.noaa.gov/ccgg/trends/data.html"
+  },
+  "owid": {
+   "detail": "World aggregates only (entity World / All geographies) — OWID compiles UN WPP, World Bank PIP, V-Dem, UCDP, Stanford AI Index; no regional series used",
+   "license": "CC BY 4.0",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://ourworldindata.org/faqs#how-is-the-data-for-world-calculated"
+  },
+  "pubmed": {
+   "detail": "biomedical literature indexed by the US National Library of Medicine from journals worldwide",
+   "license": "public domain (NLM; US gov)",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://www.nlm.nih.gov/bsd/difference.html"
+  },
+  "unsdg": {
+   "detail": "UN member-state reporting — ~250 areas, country×year SDG series",
+   "license": "UN terms — free reuse with attribution",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://unstats.un.org/sdgapi"
+  },
+  "who_gho": {
+   "detail": "194 WHO member states reporting health indicators",
+   "license": "public domain (WHO)",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://www.who.int/data/gho"
+  },
+  "wikimedia": {
+   "detail": "English-Wikipedia page views from readers worldwide — English-language skew disclosed (bias B1)",
+   "license": "CC0 1.0",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://wikitech.wikimedia.org/wiki/Analytics/AQS/Pageviews"
+  },
+  "worldbank": {
+   "detail": "WLD aggregate over the 217 economies in World Development Indicators",
+   "license": "CC BY 4.0",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://datahelpdesk.worldbank.org/knowledgebase/articles/906519-world-bank-country-and-lending-groups"
   }
  },
  "history": {
   "file": "realms-history.json",
-  "sha256": "adb73f1ae484f61e2f451ac146f3334b09da4107090aab7d9e393585f04f099c"
+  "sha256": "b1b50709cccb09ff4a7e0670d7343e186bcccd7a30682114a9e78352e8d88c52"
  }
 }

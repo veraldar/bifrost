@@ -19,6 +19,13 @@ SCHEMA = "worldtree.countries/1"
 STALE_YEARS = 7
 
 
+def _iso_rows():
+    import csv
+    p = root() / "catalog" / "iso_map.csv"
+    with open(p, newline="", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
 def _mapping_sha():
     p = root() / "catalog" / "mapping_geo.csv"
     return sha256_file(p) if p.exists() else None
@@ -125,6 +132,7 @@ def main(as_of, now=None, no_commit=False):
         "as_of": as_of,
         "now": now,
         "stale_years": STALE_YEARS,
+        "names": {r["iso3"]: r["name"] for r in _iso_rows()},
         "note": ("Per-country realm levels 0-100 = weighted cross-sectional percentile of mapping_geo.csv "
                  "indicators (country vs all reporting countries, latest value within stale_years; no lookahead; "
                  "provisional where indicator coverage < 0.5). World tree percentages are computed separately "

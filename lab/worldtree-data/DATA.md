@@ -92,3 +92,9 @@ sqlite3 :memory: -cmd '.mode csv' -cmd '.import series/owid.extreme_poverty.csv 
 # duckdb
 uv run --quiet --with duckdb python -c "import duckdb; print(duckdb.sql(\"select realm, count(*) n, sum(weight) w from 'catalog/mapping.csv' group by realm order by realm\"))"
 ```
+
+## Country layer (expansion 2026-10-04, method 0.4.0)
+- `countries.json` (also at https://veraldar.org/countries.json): per-country realm levels 0-100 = weighted cross-sectional percentile (country vs all reporting countries; latest value within 7y; no lookahead; provisional where coverage < 0.5). World tree percentages in realms.json are computed separately.
+- New geo series (prefix `geo` column): `wb.*` (World Bank, country=all), `owid_geo.*` (OWID grapher country panels), `unsdg.*` (UN SDG API), `who.*` (WHO GHO OData). 25 indicators, ~190 countries.
+- Map outlines: `countries-paths.json` — Natural Earth 110m (public domain), simplified to 57KB.
+- Honest limits: WB WGI (.EST) not served by API v2; SM.POP.REFG archived; SDG 2.1.2 code returns 0 rows; WHO MMR_4 404; small states with data but no 110m outline (HKG, LUX, PRI, CPV, …) are scored and listed, not drawn. Full ceiling: docs/worldtree/expansion-ceiling.md.

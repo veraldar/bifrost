@@ -27,14 +27,14 @@ print(f'<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title
       f'</channel></rss>')
 PY
 
-# /data/: repo-relative layout so DATA.md's query commands run unchanged on a download
+# /data/: repo-relative layout (budget 20MB per expansion-ceiling.md §5) so DATA.md's query commands run unchanged on a download
 D=/tmp/wt-data
 rm -rf "$D"; mkdir -p "$D/out"
 cp -r series catalog method "$D/"
 cp manifest.json DATA.md "$D/"
 cp out/realms.provenance.json out/realms-history.json out/realms-history.provenance.json "$D/out/"
 BYTES=$(du -sb "$D" | cut -f1)
-[ "$BYTES" -lt 1000000 ] || { echo "data payload $BYTES B ≥ 1 MB — refusing"; exit 1; }
+[ "$BYTES" -lt 20000000 ] || { echo "data payload $BYTES B ≥ 20 MB — refusing"; exit 1; }
 # Caddy serves index.txt for /data/ (no directory browsing): DATA.md + file list with sha256
 { cat DATA.md; echo; echo "## Files (sha256  path)"; (cd "$D" && find . -type f ! -name index.txt | sort | sed 's|^\./||' | xargs sha256sum); } > "$D/index.txt"
 ssh "$H" "rm -rf $W/data.new"
@@ -49,5 +49,8 @@ scp -q out/realms-history.json "$H:$W/"
 scp -q out/realms.provenance.json "$H:$W/"
 scp -q out/realms.json "$H:$W/"
 scp -q /tmp/wt-feed.xml "$H:$W/feed.xml"
-ssh "$H" "chmod 644 $W/realms.json $W/realms.provenance.json $W/realms-history.json $W/feed.xml"
+# country layer (expansion E3/E4): per-country scores next to realms.json, map paths under /data/
+[ -f out/countries.json ] && scp -q out/countries.json "$H:$W/countries.json"
+[ -f data/countries-paths.json ] && scp -q data/countries-paths.json "$H:$W/data/countries-paths.json"
+ssh "$H" "chmod 644 $W/realms.json $W/realms.provenance.json $W/realms-history.json $W/feed.xml && chmod 644 $W/countries.json $W/data/countries-paths.json 2>/dev/null || true"
 echo "published: $(python3 -c "import json;print(json.load(open('out/realms.json'))['updated'])")"

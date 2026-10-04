@@ -93,6 +93,14 @@ fi
 
 if [[ -f pwa/.env.local ]]; then
   SKIP+=("pwa/.env.local (exists)")
+  # security S3: the token route refuses without a declared auth layer in
+  # production — an install minted before S3 would silently 500 on voice.
+  # Heal the live env instead of failing (the declared tailnet boundary
+  # is this box's actual model; see pwa/.env.example + SECURITY.md).
+  if ! grep -q '^BIFROST_AUTH=' pwa/.env.local; then
+    echo "BIFROST_AUTH=tailnet" >> pwa/.env.local
+    OK+=("pwa/.env.local (BIFROST_AUTH=tailnet healed in)")
+  fi
 else
   VAPID_PUB=""; VAPID_PRIV=""
   if have npx; then
@@ -105,6 +113,7 @@ else
     echo "LIVEKIT_API_KEY=devkey"
     echo "LIVEKIT_API_SECRET=$SECRET"
     echo "OPENCODE_URL=http://127.0.0.1:4096"
+    echo "BIFROST_AUTH=tailnet"
     echo "VAPID_PUBLIC_KEY=$VAPID_PUB"
     echo "VAPID_PRIVATE_KEY=$VAPID_PRIV"
   } > pwa/.env.local
@@ -148,8 +157,37 @@ else
   SKIP+=("opencode (not installed; export BOOTSTRAP_INSTALL_OPENCODE=1 to auto-install, then 'opencode auth login')")
 fi
 
-# ---- 4. LiveKit + speaches (docker) -----------------------------------------
-if have docker && docker compose version >/dev/null 2>&1; then
+# ---- 4. LiveKit + speaches ---------------------------------------------------
+# macOS trap (skills/install/SKILL.md §1a): dockerized LiveKit's "host network"
+# is the VM's, and a published 127.0.0.1:7880 makes the colima forwarder grab
+# the port `tailscale serve /livekit` targets — signal lands in the VM, UDP
+# media dies, joins hang at the phone's 12s timeout (2026-10-01 incident).
+# On macOS LiveKit must run NATIVELY (launchd); docker keeps only speaches.
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  # a dockerized livekit squatting :7880 (a pre-fix install or a stray compose
+  # override) must be removed even when compose no longer defines it
+  if have docker; then
+    run "stop dockerized livekit (macOS: native only)" bash -c "cd deploy && docker compose rm -sf livekit 2>/dev/null || true"
+  fi
+  if [[ -x /opt/homebrew/bin/livekit-server ]] || command -v livekit-server >/dev/null 2>&1; then
+    LK_BIN="$(command -v livekit-server || echo /opt/homebrew/bin/livekit-server)"
+    if curl -sf -m 3 http://127.0.0.1:7880/ >/dev/null 2>&1; then
+      SKIP+=("livekit (native, already answering :7880)")
+    elif [[ -f ~/Library/LaunchAgents/com.yggdrasil.livekit.plist ]]; then
+      run "livekit (launchd unit)" bash -c "launchctl kickstart -k gui/$(id -u)/com.yggdrasil.livekit && sleep 2"
+    else
+      SKIP+=("livekit (native binary present but no launchd unit at ~/Library/LaunchAgents/com.yggdrasil.livekit.plist — see SKILL.md §1a)")
+    fi
+  else
+    SKIP+=("livekit (no native binary — install: brew install livekit, then SKILL.md §1a)")
+  fi
+  if have docker && docker compose version >/dev/null 2>&1; then
+    run "docker compose up -d (speaches only)" bash -c "cd deploy && docker compose up -d speaches"
+    sleep 2
+  else
+    SKIP+=("speaches (docker missing)")
+  fi
+elif have docker && docker compose version >/dev/null 2>&1; then
   run "docker compose up -d (LiveKit + speaches)" bash -c "cd deploy && docker compose up -d"
   sleep 4
 else
@@ -157,9 +195,15 @@ else
 fi
 
 # ---- 5. voice agent ----------------------------------------------------------
+# idempotent: a second bootstrap must not stack duplicate workers (the 10-01
+# update run left two agents live — split dispatch between old/new code)
 if have uv && curl -sf -m 3 http://127.0.0.1:7880/ >/dev/null 2>&1; then
   (cd agent && uv sync >>"$LOG" 2>&1) && OK+=("agent deps (uv sync)") || FAIL+=("agent deps")
-  run "voice agent (worker mode)" bash -c "cd agent && nohup uv run agent.py dev >/dev/null 2>&1 & sleep 5"
+  if pgrep -f "agent[.]py dev" >/dev/null 2>&1; then
+    SKIP+=("voice agent (already running)")
+  else
+    run "voice agent (worker mode)" bash -c "cd agent && nohup uv run agent.py dev >/dev/null 2>&1 & sleep 5"
+  fi
 else
   SKIP+=("voice agent (needs uv + LiveKit up)")
 fi
@@ -167,7 +211,13 @@ fi
 # ---- 6. PWA ------------------------------------------------------------------
 if [[ ! -d pwa/node_modules ]]; then run "pwa deps (npm ci)" bash -c "cd pwa && npm ci --no-audit --no-fund"; fi
 run "pwa build (next build)" bash -c "cd pwa && npm run build"
-run "pwa serve :8080" bash -c "cd pwa && nohup npx next start -p 8080 >/dev/null 2>&1 & sleep 5"
+# idempotent: never stack a second next-server on :8080 (launchd unit or a
+# previous bootstrap's nohup may already hold it)
+if curl -sf -m 3 http://127.0.0.1:8080/ >/dev/null 2>&1; then
+  SKIP+=("pwa serve :8080 (already answering)")
+else
+  run "pwa serve :8080" bash -c "cd pwa && nohup npx next start -p 8080 >/dev/null 2>&1 & sleep 5"
+fi
 
 # ---- 7. HTTPS (tailscale, best effort) ---------------------------------------
 if have tailscale && tailscale serve status >/dev/null 2>&1; then
@@ -182,6 +232,18 @@ sleep 2
 VERDICT="PARTIAL"
 probe() { curl -s -m 5 -o /dev/null -w '%{http_code}' "$1" 2>/dev/null; }
 PWA="$(probe http://127.0.0.1:8080/)"; OC="$(probe http://127.0.0.1:4096/)"; LK="$(probe http://127.0.0.1:7880/)"
+# Join canary: an HTTP probe of :7880 cannot tell WHICH LiveKit answers —
+# the 10-01 incident shipped READY with the phone's signal landing on a
+# dockerized LiveKit in the colima VM (UDP media dead, joins timed out).
+# The canary does the phone's join and fails exactly there.
+CANARY=skipped
+if [[ "$LK" != 000 && "$PWA" == 200 ]] && have uv && [[ -d agent/.venv ]]; then
+  if (cd agent && uv run scripts/join_canary.py "canary-$(date +%s)" >>"$LOG" 2>&1); then
+    CANARY=ok; OK+=("voice join canary (phone path: mint → wss join → agent in room)")
+  else
+    CANARY=FAILED; FAIL+=("voice join canary (see bootstrap.log — signal ok but media dead is the macOS dockerized-livekit trap)")
+  fi
+fi
 # CSS probe: a page that returns 200 with a dead stylesheet renders unstyled
 # (seen in the wild: node < 22 breaks tailwind4's native oxide silently)
 CSS_HREF="$(curl -s -m 5 http://127.0.0.1:8080/ 2>/dev/null | grep -o 'href="[^"]*\.css[^"]*"' | head -1 | sed 's/href="//;s/"$//')"
@@ -189,14 +251,15 @@ CSS="${CSS_HREF:+$(probe "http://127.0.0.1:8080$CSS_HREF")}"
 [[ "$PWA" == 200 && "$OC" != 000 && "$LK" != 000 ]] && VERDICT="READY"
 [[ "$PWA" == 200 && "$LK" == 000 && "$OC" != 000 ]] && VERDICT="READY (no docker — media layers skipped)"
 [[ "$PWA" == 200 && "$CSS" != 200 ]] && VERDICT="BROKEN styling (css probe: ${CSS:-no <link> in html}) — check 'node --version' (need ≥22) and re-run npm run build"
-(( ${#FAIL[@]} )) && VERDICT="PARTIAL (with failures)"
+[[ "$CANARY" == FAILED ]] && VERDICT="PARTIAL (voice join canary FAILED — phone voice is broken, see bootstrap.log)"
+(( ${#FAIL[@]:-0} )) && VERDICT="PARTIAL (with failures)"
 
 say "---------------- summary ----------------"
 say "verdict: $VERDICT"
-say "probes: pwa=$PWA opencode=$OC livekit=$LK css=${CSS:-n/a}"
-for s in "${OK[@]}";  do say "  ok:   $s"; done
-for s in "${SKIP[@]}"; do say "  skip: $s"; done
-for s in "${FAIL[@]}"; do say "  FAIL: $s"; done
+say "probes: pwa=$PWA opencode=$OC livekit=$LK css=${CSS:-n/a} voice-join=$CANARY"
+for s in "${OK[@]:-}";  do [[ -n "$s" ]] && say "  ok:   $s"; done
+for s in "${SKIP[@]:-}"; do [[ -n "$s" ]] && say "  skip: $s"; done
+for s in "${FAIL[@]:-}"; do [[ -n "$s" ]] && say "  FAIL: $s"; done
 say "open the PWA: http://$IP:8080  (phone: same tailnet, or install as app)"
 say "log: $LOG"
 [[ "$VERDICT" == READY* ]] && exit 0 || exit 2

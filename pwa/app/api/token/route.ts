@@ -104,10 +104,10 @@ export async function POST(req: Request) {
     });
     return NextResponse.json(data, { headers });
   } catch (error) {
-    if (error instanceof Error) {
-      console.error(error);
-      return new NextResponse(error.message, { status: 500 });
-    }
+    const message = error instanceof Error ? error.message : 'token minting failed';
+    console.error(message);
+    // JSON body so the client can surface the reason (was bare text before)
+    return NextResponse.json({ error: message }, { status: 500, headers: { 'Cache-Control': 'no-store' } });
   }
 }
 

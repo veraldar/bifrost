@@ -36,11 +36,26 @@ say() { echo "[deploy] $*"; }
 # --- build + restart + probes --------------------------------------------------
 build_and_restart() {
   (cd pwa && npm run build >>/tmp/deploy.log 2>&1) || return 1
-  systemctl --user restart lk-pwa && sleep 5
+  # launchd on macOS, systemd elsewhere — the unit holds the live port
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    launchctl kickstart -k gui/$(id -u)/com.yggdrasil.bifrost-pwa
+  else
+    systemctl --user restart lk-pwa
+  fi
+  sleep 5
   [[ "$(probe http://127.0.0.1:8080/)" == "200" ]] || return 1
   local css
   css="$(curl -s -m 5 http://127.0.0.1:8080/ | grep -o 'href="[^"]*\.css[^"]*"' | head -1 | sed 's/href="//;s/"$//')"
   [[ -z "$css" || "$(probe "http://127.0.0.1:8080$css")" == "200" ]] || return 1
+  # voice join canary: the phone's path (mint → wss join → agent in room).
+  # The 10-01 incident: probes+e2e were green while every live join timed
+  # out — the e2e voice spec only saw the signal websocket, never a
+  # completed join. This is the gate that catches that class. Only gated
+  # when the voice stack is expected (LiveKit up + agent venv built) —
+  # a text-only box without uv must not fail deploys.
+  if [[ "$(probe http://127.0.0.1:7880/)" != 000 && -d agent/.venv ]]; then
+    (cd agent && uv run scripts/join_canary.py "deploy-$(date +%s)" >>/tmp/deploy.log 2>&1) || return 1
+  fi
   return 0
 }
 

@@ -93,6 +93,16 @@ test('voice: PTT connects to LiveKit, keyboard mode keeps the room warm', async 
   // compact mic UI: no persistent banner — the opened socket above IS the
   // connect proof; the button just has to stay usable
   await expect(page.getByRole('button', { name: 'push to talk' })).toBeEnabled();
+  // 2026-10-01 incident: the signal websocket opens fine while the join is
+  // dead (signal was landing on a dockerized LiveKit inside the colima VM —
+  // UDP media couldn't route). A COMPLETED JOIN, not an opened socket, is
+  // the invariant. Hold the mic: the pill reads "listening" only when the
+  // room actually connected.
+  await page.getByRole('button', { name: 'push to talk' }).dispatchEvent('pointerdown');
+  await expect(page.getByRole('status', { name: 'listening' })).toBeVisible({
+    timeout: 30_000,
+  });
+  await page.getByRole('button', { name: 'push to talk' }).dispatchEvent('pointerup');
   // keyboard mode releases the mic CAPTURE DEVICE but keeps the room + agent
   // warm: a teardown forced the next press to re-dispatch the voice agent and
   // a hold shorter than that join dropped the whole turn (req 09-29). The
@@ -102,11 +112,11 @@ test('voice: PTT connects to LiveKit, keyboard mode keeps the room warm', async 
   await micBtn.click();
   await page.getByRole('button', { name: 'leave hands-free' }).click();
   await expect
-    .poll(() => sockets.filter((s) => s.isClosed()).length, {
+    .poll(() => sockets.filter((s) => !s.isClosed()).length, {
       timeout: 5_000,
       message: 'keyboard mode must keep the room warm (only the mic device is released)',
     })
-    .toBe(0);
+    .toBeGreaterThan(0);
 });
 
 test('hands-free mode arms without error', async ({ page }) => {

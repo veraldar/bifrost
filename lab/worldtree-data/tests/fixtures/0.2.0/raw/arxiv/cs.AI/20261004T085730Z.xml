@@ -1,0 +1,42 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/Fu6lYXZGPBdbkce6IgUB3Gr7sbo</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202511010000 TO 202511302359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:57:30Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202511010000+TO+202511302359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>3925</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2511.02400v1</id>
+    <title>MammoClean: Toward Reproducible and Bias-Aware AI in Mammography through Dataset Harmonization</title>
+    <updated>2025-11-04T09:29:46Z</updated>
+    <link href="https://arxiv.org/abs/2511.02400v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2511.02400v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>The development of clinically reliable artificial intelligence (AI) systems for mammography is hindered by profound heterogeneity in data quality, metadata standards, and population distributions across public datasets. This heterogeneity introduces dataset-specific biases that severely compromise the generalizability of the model, a fundamental barrier to clinical deployment. We present MammoClean, a public framework for standardization and bias quantification in mammography datasets. MammoClean standardizes case selection, image processing (including laterality and intensity correction), and unifies metadata into a consistent multi-view structure. We provide a comprehensive review of breast anatomy, imaging characteristics, and public mammography datasets to systematically identify key sources of bias. Applying MammoClean to three heterogeneous datasets (CBIS-DDSM, TOMPEI-CMMD, VinDr-Mammo), we quantify substantial distributional shifts in breast density and abnormality prevalence. Critically, we demonstrate the direct impact of data corruption: AI models trained on corrupted datasets exhibit significant performance degradation compared to their curated counterparts. By using MammoClean to identify and mitigate bias sources, researchers can construct unified multi-dataset training corpora that enable development of robust models with superior cross-domain generalization. MammoClean provides an essential, reproducible pipeline for bias-aware AI development in mammography, facilitating fairer comparisons and advancing the creation of safe, effective systems that perform equitably across diverse patient populations and clinical settings. The open-source code is publicly available from: https://github.com/Minds-R-Lab/MammoClean.</summary>
+    <category term="eess.IV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2025-11-04T09:29:46Z</published>
+    <arxiv:primary_category term="eess.IV"/>
+    <author>
+      <name>Yalda Zafari</name>
+    </author>
+    <author>
+      <name>Hongyi Pan</name>
+    </author>
+    <author>
+      <name>Gorkem Durak</name>
+    </author>
+    <author>
+      <name>Ulas Bagci</name>
+    </author>
+    <author>
+      <name>Essam A. Rashed</name>
+    </author>
+    <author>
+      <name>Mohamed Mabrok</name>
+    </author>
+  </entry>
+</feed>

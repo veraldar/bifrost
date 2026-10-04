@@ -1,0 +1,43 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/mj0nx8zyiqPnT2ItkvXK+IdbfpI</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"201906010000 TO 201906302359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:36:46Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22201906010000+TO+201906302359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>467</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/1906.00805v1</id>
+    <title>GazeCorrection:Self-Guided Eye Manipulation in the wild using Self-Supervised Generative Adversarial Networks</title>
+    <updated>2019-06-03T13:43:01Z</updated>
+    <link href="https://arxiv.org/abs/1906.00805v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/1906.00805v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Gaze correction aims to redirect the person's gaze into the camera by manipulating the eye region, and it can be considered as a specific image resynthesis problem. Gaze correction has a wide range of applications in real life, such as taking a picture with staring at the camera. In this paper, we propose a novel method that is based on the inpainting model to learn from the face image to fill in the missing eye regions with new contents representing corrected eye gaze. Moreover, our model does not require the training dataset labeled with the specific head pose and eye angle information, thus, the training data is easy to collect. To retain the identity information of the eye region in the original input, we propose a self-guided pretrained model to learn the angle-invariance feature. Experiments show our model achieves very compelling gaze-corrected results in the wild dataset which is collected from the website and will be introduced in details. Code is available at https://github.com/zhangqianhui/GazeCorrection.</summary>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2019-06-03T13:43:01Z</published>
+    <arxiv:primary_category term="cs.CV"/>
+    <author>
+      <name>Jichao Zhang</name>
+    </author>
+    <author>
+      <name>Meng Sun</name>
+    </author>
+    <author>
+      <name>Jingjing Chen</name>
+    </author>
+    <author>
+      <name>Hao Tang</name>
+    </author>
+    <author>
+      <name>Yan Yan</name>
+    </author>
+    <author>
+      <name>Xueying Qin</name>
+    </author>
+    <author>
+      <name>Nicu Sebe</name>
+    </author>
+  </entry>
+</feed>

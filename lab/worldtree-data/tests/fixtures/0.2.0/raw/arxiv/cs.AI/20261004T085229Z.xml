@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/VqPXUS75kY2m9KIiONE36bnAQBE</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202201010000 TO 202201312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:42:27Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202201010000+TO+202201312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>907</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2201.08619v2</id>
+    <title>Dangerous Cloaking: Natural Trigger based Backdoor Attacks on Object Detectors in the Physical World</title>
+    <updated>2022-05-29T08:34:08Z</updated>
+    <link href="https://arxiv.org/abs/2201.08619v2" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2201.08619v2" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Deep learning models have been shown to be vulnerable to recent backdoor attacks. A backdoored model behaves normally for inputs containing no attacker-secretly-chosen trigger and maliciously for inputs with the trigger. To date, backdoor attacks and countermeasures mainly focus on image classification tasks. And most of them are implemented in the digital world with digital triggers. Besides the classification tasks, object detection systems are also considered as one of the basic foundations of computer vision tasks. However, there is no investigation and understanding of the backdoor vulnerability of the object detector, even in the digital world with digital triggers. For the first time, this work demonstrates that existing object detectors are inherently susceptible to physical backdoor attacks. We use a natural T-shirt bought from a market as a trigger to enable the cloaking effect--the person bounding-box disappears in front of the object detector. We show that such a backdoor can be implanted from two exploitable attack scenarios into the object detector, which is outsourced or fine-tuned through a pretrained model. We have extensively evaluated three popular object detection algorithms: anchor-based Yolo-V3, Yolo-V4, and anchor-free CenterNet. Building upon 19 videos shot in real-world scenes, we confirm that the backdoor attack is robust against various factors: movement, distance, angle, non-rigid deformation, and lighting. Specifically, the attack success rate (ASR) in most videos is 100% or close to it, while the clean data accuracy of the backdoored model is the same as its clean counterpart. The latter implies that it is infeasible to detect the backdoor behavior merely through a validation set. The averaged ASR still remains sufficiently high to be 78% in the transfer learning attack scenarios evaluated on CenterNet. See the demo video on https://youtu.be/Q3HOF4OobbY.</summary>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CR" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2022-01-21T10:11:27Z</published>
+    <arxiv:primary_category term="cs.CV"/>
+    <author>
+      <name>Hua Ma</name>
+    </author>
+    <author>
+      <name>Yinshan Li</name>
+    </author>
+    <author>
+      <name>Yansong Gao</name>
+    </author>
+    <author>
+      <name>Alsharif Abuadbba</name>
+    </author>
+    <author>
+      <name>Zhi Zhang</name>
+    </author>
+    <author>
+      <name>Anmin Fu</name>
+    </author>
+    <author>
+      <name>Hyoungshick Kim</name>
+    </author>
+    <author>
+      <name>Said F. Al-Sarawi</name>
+    </author>
+    <author>
+      <name>Nepal Surya</name>
+    </author>
+    <author>
+      <name>Derek Abbott</name>
+    </author>
+  </entry>
+</feed>

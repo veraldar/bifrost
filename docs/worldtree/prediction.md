@@ -1,12 +1,12 @@
-# Prediction method — v0.1.0
+# Prediction method — v0.2.0
 
 How `series/*.csv` become the seven numbers in `realms.json`. Deterministic:
 same raw snapshots + same `--as-of` date + same method version ⇒ byte-identical
-output. All numbers here are the v0.1.0 values of `catalog/mapping.csv` and
+output. All numbers here are the v0.2.0 values of `catalog/mapping.csv` and
 `catalog/series.csv`; changing any of them follows §6.
 
 Facts quoted below (row counts, last periods, column names) were observed on
-2026-10-03 against the live endpoints in `sources.md`.
+2026-10-03 against the live endpoints in `sources.md` (M3 sources: 2026-10-04).
 
 ## 0. What a number means
 Each realm is a **departure from the historical trend** in one direction.
@@ -16,7 +16,7 @@ indicators). A world moving exactly as usual scores 0.5 everywhere and prints
 14.3 % per realm. The output is an **evidence share** (README), not a
 probability.
 
-## 1. Series registry (`catalog/series.csv`, v0.1.0 core)
+## 1. Series registry (`catalog/series.csv`, v0.2.0 core)
 `series_id` prefix is a short alias (`owid`, `wb`, `epoch`, `wiki`); the
 `source_id` column carries the catalog id (`owid`, `worldbank`, `epoch`,
 `wikimedia`). This keeps `series/wb.unemployment.csv` (schema.md §5) valid.
@@ -87,7 +87,7 @@ Epoch derivations (CSV columns observed on 10-03: `Publication date`,
 - `frontier_compute`: max log10(`Training compute (FLOP)`) over window models
   with a value. Emit only if ≥ 5 such models.
 
-## 2. Mapping table (`catalog/mapping.csv` v0.1.0)
+## 2. Mapping table (`catalog/mapping.csv` v0.2.0)
 (Epoch/OWID derivations referenced by schema.md §3.1 `extract` are in §1.1.)
 realm ← indicator ← transform ← weight. `w`: 1 weak/attention proxy · 2 strong
 proxy · 3 direct measure. Rows using `logistic_delta` are capped at `w=1`
@@ -298,7 +298,7 @@ what changed, why, and the fixture weights before → after.
 ## 7. Known-bias register and the old news pipeline
 
 ### 7.1 Bias register (ids referenced from provenance `bias[]`)
-| id | bias | affects | mitigation in v0.1.0 |
+| id | bias | affects | mitigation in v0.2.0 |
 |---|---|---|---|
 | B1 | English Wikipedia only; Anglophone attention | wiki.* | `norm=total` removes en.wiki's own decline (−18 % user views 2015-07 → 2026-09: 7.67 B → 6.27 B/mo); all wiki rows w=1 |
 | B2 | Attention ≠ realisation (a deepfake scandal spikes views without more deepfakes) | wiki.* | w=1 cap; mean3 smoothing; never the sole indicator of a realm (coverage gate) |

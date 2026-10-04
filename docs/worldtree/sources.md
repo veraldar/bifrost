@@ -128,6 +128,15 @@ Common rules for every fetcher:
 - **License:** public domain; file header: "freely available to the public".
 - **Cadence:** monthly (~5th). **Proof:** `curl -s -o /dev/null -w '%{http_code}\n' https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv` → `200` (38 kB).
 
+### Observed proofs — wired 10-04 (status `core`, method 0.2.0)
+- `arxiv`: `https://export.arxiv.org/api/query?search_query=cat:cs.AI&max_results=1` → `200`.
+  Note: `max_results=0` now returns an HTTP 500 error feed and `http://` 301-redirects;
+  the fetcher uses `https` + `max_results=1`, ≥ 6 s apart. Backfill 2019-01 → 2026-09:
+  93/93 months stored; cs.AI 2026-08 = 5 104, 2026-09 = 5 923.
+- `pubmed`: proof URL above → `200`; 93 months stored; AI×biomed 2026-08 = 536, 2026-09 = 583.
+- `fedreg`: proof URL above → `200`; 93 months stored; 2026-08 = 33, 2026-09 = 29.
+- `noaa_gml`: proof URL above → `200` (38 732 B); last month with a value 2026-08 = 427.55 ppm.
+
 ## candidate
 
 | id | proof (10-03) | why not core yet |

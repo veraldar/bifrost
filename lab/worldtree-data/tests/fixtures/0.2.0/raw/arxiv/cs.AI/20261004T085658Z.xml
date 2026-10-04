@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/dyGWs2WV4U9DbrlaADIeNQUS+M4</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202506010000 TO 202506302359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:56:59Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202506010000+TO+202506302359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>3951</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2506.11402v2</id>
+    <title>LoRA Users Beware: A Few Spurious Tokens Can Manipulate Your Finetuned Model</title>
+    <updated>2025-10-01T02:16:42Z</updated>
+    <link href="https://arxiv.org/abs/2506.11402v2" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2506.11402v2" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Large Language Models (LLMs) are commonly finetuned for a variety of use cases and domains. A common approach is to leverage Low-Rank Adaptation (LoRA) -- known to provide strong performance at low resource costs. In this study, we demonstrate that LoRA actually opens the door to short-cut vulnerabilities -- and the more resource efficient is the LoRA setup, the more vulnerable will be the finetuned model to aggressive attacks. To measure that vulnerability, we introduce Seamless Spurious Token Injection (SSTI), where we find that LoRA exclusively focuses on even just a single token that is spuriously correlated with downstream labels. In short, injection of that spurious token during finetuning ensure that the model's prediction at test-time can be manipulated on-demand. We conducted experiments across model families and datasets to evaluate the impact of SSTI during LoRA finetuning while providing possible mitigations. Our experiments conclude that none of the existing checkers and preprocessors can sanitize a dataset raising new concerns for data quality and AI safety.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2025-06-13T02:02:57Z</published>
+    <arxiv:comment>46 pages, 17 figures, 26 tables. Submitted for publication. for associated blog post, see https://pradyut3501.github.io/lora-spur-corr/</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Marcel Mateos Salles</name>
+    </author>
+    <author>
+      <name>Praney Goyal</name>
+    </author>
+    <author>
+      <name>Pradyut Sekhsaria</name>
+    </author>
+    <author>
+      <name>Hai Huang</name>
+    </author>
+    <author>
+      <name>Randall Balestriero</name>
+    </author>
+  </entry>
+</feed>

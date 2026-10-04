@@ -1,0 +1,178 @@
+{
+ "updated": "2026-10-04T06:00:00Z",
+ "window": "structured indicators · method 0.2.0 · 22 series · data 2023-12-31 → 2026-09-30",
+ "colors": {
+  "utopia": "#4ade80",
+  "divergence": "#38bdf8",
+  "drift": "#a78bfa",
+  "control": "#fbbf24",
+  "terminus": "#f87171",
+  "stagnation": "#94a3b8",
+  "transcendence": "#f0abfc"
+ },
+ "definitions": {
+  "utopia": "AI broadly solves material problems — health, abundance, education",
+  "divergence": "intelligence escapes the few — open weights, local models, many small actors",
+  "drift": "attention eats everything — virality, slop, synthetic media, no direction",
+  "control": "humans keep the leash — regulation, audits, lawsuits, treaties",
+  "terminus": "the leash breaks badly — job losses, weapons, scams, existential risk",
+  "stagnation": "the revolution stalls — winters, plateaus, overpromising, disillusion",
+  "transcendence": "the horizon dissolves — superintelligence, minds beyond minds"
+ },
+ "weights": {
+  "utopia": 14.7,
+  "divergence": 10.9,
+  "drift": 16.7,
+  "control": 13.5,
+  "terminus": 18.7,
+  "stagnation": 10.7,
+  "transcendence": 14.8
+ },
+ "world_weights": {
+  "utopia": 14.7,
+  "divergence": 10.9,
+  "drift": 16.7,
+  "control": 13.5,
+  "terminus": 18.7,
+  "stagnation": 10.7,
+  "transcendence": 14.8
+ },
+ "dimensions": {
+  "economy": 32.4,
+  "environment": 2.5,
+  "geopolitics": 20.4,
+  "society": 18.7,
+  "tech": 25.9
+ },
+ "top": {
+  "utopia": [
+   "Life expectancy: 73.17 years (2023) · score 0.93",
+   "PubMed AI×biomed papers: 583 count (2026-09) · score 0.65"
+  ],
+  "divergence": [],
+  "drift": [
+   "Attention: Synthetic media: 1,846 views (2026-09) · score 0.72",
+   "Share of people using generative AI: 17.8% (2026-03-31) · score 0.67"
+  ],
+  "control": [
+   "US federal AI documents: 29 count (2026-09) · score 0.58"
+  ],
+  "terminus": [
+   "Deaths in armed conflicts (UCDP): 244,579 count (2025) · score 0.97",
+   "Unemployment (ILO modeled): 4.791% (2025) · score 0.57"
+  ],
+  "stagnation": [
+   "Largest training run (12 mo): 27 log10 FLOP (2026-09) · score 0.75"
+  ],
+  "transcendence": [
+   "FrontierMath best score to date: 93.68% (2026-09) · score 0.90",
+   "Attention: AGI: 125,720 views (2026-09) · score 0.63"
+  ]
+ },
+ "sources": {
+  "Our World in Data": 8,
+  "World Bank": 2,
+  "PubMed (NCBI E-utilities)": 1,
+  "Epoch AI": 4,
+  "Wikimedia": 4,
+  "Federal Register": 1,
+  "NOAA GML": 1,
+  "arXiv": 1
+ },
+ "feeds": [
+  {
+   "name": "Extreme poverty ($3/day)",
+   "state": "2025 · score 0.10"
+  },
+  {
+   "name": "Life expectancy",
+   "state": "2023 · score 0.93"
+  },
+  {
+   "name": "GDP per capita (const. 2015 $)",
+   "state": "2025 · score 0.53"
+  },
+  {
+   "name": "PubMed AI×biomed papers",
+   "state": "2026-09 · score 0.65"
+  },
+  {
+   "name": "Open-weights share of notable models (12 mo)",
+   "state": "2026-09 · score 0.35"
+  },
+  {
+   "name": "Organisation diversity of notable models (12 mo)",
+   "state": "2026-09 · score 0.42"
+  },
+  {
+   "name": "Country diversity of notable models (12 mo)",
+   "state": "2026-09 · score 0.37"
+  },
+  {
+   "name": "Share of people using generative AI",
+   "state": "2026-03-31 · score 0.67"
+  },
+  {
+   "name": "Attention: Deepfake",
+   "state": "2026-09 · score 0.55"
+  },
+  {
+   "name": "Attention: Synthetic media",
+   "state": "2026-09 · score 0.72"
+  },
+  {
+   "name": "Attention: AI regulation",
+   "state": "2026-09 · score 0.35"
+  },
+  {
+   "name": "Electoral democracy (V-Dem)",
+   "state": "2025 · score 0.27"
+  },
+  {
+   "name": "US federal AI documents",
+   "state": "2026-09 · score 0.58"
+  },
+  {
+   "name": "Deaths in armed conflicts (UCDP)",
+   "state": "2025 · score 0.97"
+  },
+  {
+   "name": "Unemployment (ILO modeled)",
+   "state": "2025 · score 0.57"
+  },
+  {
+   "name": "Attention: AI existential risk",
+   "state": "excluded: short_history (22/24)"
+  },
+  {
+   "name": "Mauna Loa CO₂ monthly mean",
+   "state": "2026-08 · score 0.28"
+  },
+  {
+   "name": "Private AI investment",
+   "state": "2025 · score 0.00"
+  },
+  {
+   "name": "Companies using AI",
+   "state": "2025 · score 0.12"
+  },
+  {
+   "name": "Largest training run (12 mo)",
+   "state": "2026-09 · stagnation 0.75 · transcendence 0.25"
+  },
+  {
+   "name": "arXiv cs.AI submissions",
+   "state": "2026-09 · score 0.47"
+  },
+  {
+   "name": "FrontierMath best score to date",
+   "state": "2026-09 · score 0.90"
+  },
+  {
+   "name": "Attention: AGI",
+   "state": "2026-09 · score 0.63"
+  }
+ ],
+ "method_version": "0.2.0",
+ "provenance": "realms.provenance.json"
+}

@@ -1,3 +1,12 @@
 __pycache__/
 *.pyc
 *.tmp
+
+# pipeline data: generated, gitignored, but ON DISK inside the repo dir so the
+# box backup (scripts/backup.sh) covers it — git tracks docs/design/code only
+# (relocate decision 10-04; schema.md §1 "plain files" amended by the same rule)
+/raw/
+/series/
+/runs/
+/out/
+/manifest.json

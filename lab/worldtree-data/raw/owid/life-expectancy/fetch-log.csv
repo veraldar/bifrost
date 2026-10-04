@@ -1,9 +1,0 @@
-attempted_at,url,http_status,bytes,sha256,stored,error
-2026-10-03T20:26:17Z,https://ourworldindata.org/grapher/life-expectancy.csv?v=1&csvType=full&useColumnShortNames=true,200,605252,6336e80067d72cd910e5b03a4150bbb203fb8f22c6a9c0c43e91aba07038720b,1,
-2026-10-03T20:26:17Z,https://ourworldindata.org/grapher/life-expectancy.metadata.json?v=1&csvType=full&useColumnShortNames=true,200,4370,e0347362bdab08012bd0cbe1b4909faa3f3b329c9e0ac65da32f7a97b538ba22,1,
-2026-10-03T20:26:28Z,https://ourworldindata.org/grapher/life-expectancy.csv?v=1&csvType=full&useColumnShortNames=true,200,605252,6336e80067d72cd910e5b03a4150bbb203fb8f22c6a9c0c43e91aba07038720b,0,
-2026-10-03T20:26:28Z,https://ourworldindata.org/grapher/life-expectancy.metadata.json?v=1&csvType=full&useColumnShortNames=true,200,4370,e0347362bdab08012bd0cbe1b4909faa3f3b329c9e0ac65da32f7a97b538ba22,0,
-2026-10-03T20:31:36Z,https://ourworldindata.org/grapher/life-expectancy.csv?v=1&csvType=full&useColumnShortNames=true,200,605252,6336e80067d72cd910e5b03a4150bbb203fb8f22c6a9c0c43e91aba07038720b,0,
-2026-10-03T20:31:37Z,https://ourworldindata.org/grapher/life-expectancy.metadata.json?v=1&csvType=full&useColumnShortNames=true,200,4370,e0347362bdab08012bd0cbe1b4909faa3f3b329c9e0ac65da32f7a97b538ba22,0,
-2026-10-03T20:32:04Z,https://ourworldindata.org/grapher/life-expectancy.csv?v=1&csvType=full&useColumnShortNames=true,200,605252,6336e80067d72cd910e5b03a4150bbb203fb8f22c6a9c0c43e91aba07038720b,0,
-2026-10-03T20:32:04Z,https://ourworldindata.org/grapher/life-expectancy.metadata.json?v=1&csvType=full&useColumnShortNames=true,200,4370,e0347362bdab08012bd0cbe1b4909faa3f3b329c9e0ac65da32f7a97b538ba22,0,

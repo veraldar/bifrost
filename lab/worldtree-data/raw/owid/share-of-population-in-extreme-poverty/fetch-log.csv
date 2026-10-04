@@ -1,9 +1,0 @@
-attempted_at,url,http_status,bytes,sha256,stored,error
-2026-10-03T20:26:18Z,https://ourworldindata.org/grapher/share-of-population-in-extreme-poverty.csv?v=1&csvType=full&useColumnShortNames=true,200,2167676,2ec710800ef8b0ec25ddcbd96a880173ed05c5c8319ac8e2db85a020f7ade7bd,1,
-2026-10-03T20:26:18Z,https://ourworldindata.org/grapher/share-of-population-in-extreme-poverty.metadata.json?v=1&csvType=full&useColumnShortNames=true,200,9701,a25bf9e118ce484bb893665e0f7d9205575aeb5fd10578edfd3edccc04b8dc6e,1,
-2026-10-03T20:26:29Z,https://ourworldindata.org/grapher/share-of-population-in-extreme-poverty.csv?v=1&csvType=full&useColumnShortNames=true,200,2167676,2ec710800ef8b0ec25ddcbd96a880173ed05c5c8319ac8e2db85a020f7ade7bd,0,
-2026-10-03T20:26:29Z,https://ourworldindata.org/grapher/share-of-population-in-extreme-poverty.metadata.json?v=1&csvType=full&useColumnShortNames=true,200,9701,a25bf9e118ce484bb893665e0f7d9205575aeb5fd10578edfd3edccc04b8dc6e,0,
-2026-10-03T20:31:37Z,https://ourworldindata.org/grapher/share-of-population-in-extreme-poverty.csv?v=1&csvType=full&useColumnShortNames=true,200,2167676,2ec710800ef8b0ec25ddcbd96a880173ed05c5c8319ac8e2db85a020f7ade7bd,0,
-2026-10-03T20:31:38Z,https://ourworldindata.org/grapher/share-of-population-in-extreme-poverty.metadata.json?v=1&csvType=full&useColumnShortNames=true,200,9701,a25bf9e118ce484bb893665e0f7d9205575aeb5fd10578edfd3edccc04b8dc6e,0,
-2026-10-03T20:32:05Z,https://ourworldindata.org/grapher/share-of-population-in-extreme-poverty.csv?v=1&csvType=full&useColumnShortNames=true,200,2167676,2ec710800ef8b0ec25ddcbd96a880173ed05c5c8319ac8e2db85a020f7ade7bd,0,
-2026-10-03T20:32:06Z,https://ourworldindata.org/grapher/share-of-population-in-extreme-poverty.metadata.json?v=1&csvType=full&useColumnShortNames=true,200,9701,a25bf9e118ce484bb893665e0f7d9205575aeb5fd10578edfd3edccc04b8dc6e,0,

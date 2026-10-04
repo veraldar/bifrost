@@ -1,5 +1,0 @@
-attempted_at,url,http_status,bytes,sha256,stored,error
-2026-10-03T20:26:19Z,https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Artificial_general_intelligence/monthly/20150701/20260930,200,23102,76414d1f40304ad8d8efb5d28be8089d7585d1eb4dcfcce4c4fae71698e0a3eb,1,
-2026-10-03T20:26:30Z,https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Artificial_general_intelligence/monthly/20150701/20260930,200,23102,76414d1f40304ad8d8efb5d28be8089d7585d1eb4dcfcce4c4fae71698e0a3eb,0,
-2026-10-03T20:31:38Z,https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Artificial_general_intelligence/monthly/20150701/20260930,200,23102,76414d1f40304ad8d8efb5d28be8089d7585d1eb4dcfcce4c4fae71698e0a3eb,0,
-2026-10-03T20:32:06Z,https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Artificial_general_intelligence/monthly/20150701/20260930,200,23102,76414d1f40304ad8d8efb5d28be8089d7585d1eb4dcfcce4c4fae71698e0a3eb,0,

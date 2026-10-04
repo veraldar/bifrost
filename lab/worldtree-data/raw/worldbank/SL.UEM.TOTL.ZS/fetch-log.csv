@@ -1,5 +1,0 @@
-attempted_at,url,http_status,bytes,sha256,stored,error
-2026-10-03T20:26:20Z,https://api.worldbank.org/v2/country/WLD/indicator/SL.UEM.TOTL.ZS?format=json&per_page=100,200,16545,043ba91ac5fb5d989495a0f9497f49b76398afb40e590b8912f9dc73b3273e53,1,
-2026-10-03T20:26:31Z,https://api.worldbank.org/v2/country/WLD/indicator/SL.UEM.TOTL.ZS?format=json&per_page=100,200,16545,043ba91ac5fb5d989495a0f9497f49b76398afb40e590b8912f9dc73b3273e53,0,
-2026-10-03T20:31:39Z,https://api.worldbank.org/v2/country/WLD/indicator/SL.UEM.TOTL.ZS?format=json&per_page=100,200,16545,043ba91ac5fb5d989495a0f9497f49b76398afb40e590b8912f9dc73b3273e53,0,
-2026-10-03T20:32:07Z,https://api.worldbank.org/v2/country/WLD/indicator/SL.UEM.TOTL.ZS?format=json&per_page=100,200,16545,043ba91ac5fb5d989495a0f9497f49b76398afb40e590b8912f9dc73b3273e53,0,

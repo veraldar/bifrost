@@ -19,7 +19,38 @@ pub struct Config {
     pub mesh: Option<MeshConfig>,
     #[serde(default)]
     pub webrtc: Option<WebRtcConfig>,
+    #[serde(default)]
+    pub bridge: Option<BridgeConfigSection>,
 }
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BridgeConfigSection {
+    /// HTTP listen (signaling: POST /offer with Bearer device token)
+    pub http: String,
+    /// UDP bind for WebRTC media
+    pub media: String,
+    /// device tokens file (PWA mints, bridge verifies) — S1 seam
+    pub tokens_file: String,
+    #[serde(default = "default_opencode_url")]
+    pub opencode_url: String,
+    #[serde(default = "default_speaches_url")]
+    pub speaches_url: String,
+    #[serde(default = "default_stt_model")]
+    pub stt_model: String,
+    #[serde(default = "default_tts_model")]
+    pub tts_model: String,
+    #[serde(default = "default_tts_voice")]
+    pub tts_voice: String,
+    #[serde(default)]
+    pub candidates: Vec<String>,
+}
+
+fn default_opencode_url() -> String { "http://127.0.0.1:4096".into() }
+fn default_speaches_url() -> String { "http://127.0.0.1:8000/v1".into() }
+fn default_stt_model() -> String { "speaches-ai/whisper-large-v3-turbo".into() }
+fn default_tts_model() -> String { "speaches-ai/Kokoro-82M-v1.0-ONNX".into() }
+fn default_tts_voice() -> String { "af_heart".into() }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -172,8 +203,32 @@ impl Config {
             }
         }
 
-        if self.mesh.is_none() && self.webrtc.is_none() {
-            return Err("config enables nothing: add [mesh] and/or [webrtc]".into());
+        if let Some(b) = &self.bridge {
+            let http: SocketAddr = b
+                .http
+                .parse()
+                .map_err(|e| format!("bridge.http: {e}"))?;
+            let _probe = TcpListener::bind(http).map_err(|e| format!("bridge.http {http}: {e}"))?;
+            let media: SocketAddr = b
+                .media
+                .parse()
+                .map_err(|e| format!("bridge.media: {e}"))?;
+            let _probe = UdpSocket::bind(media).map_err(|e| format!("bridge.media {media}: {e}"))?;
+            let tokens_ok = std::path::Path::new(&b.tokens_file).exists();
+            lines.push(format!(
+                "bridge: http {http} + media {media} bindable, tokens {}",
+                if tokens_ok { "file present" } else { "FILE MISSING (all /offer 401 until the PWA pairs a device)" }
+            ));
+            if !tokens_ok {
+                lines.push("bridge: WARNING tokens file missing — run the PWA /pair first".to_string());
+            }
+            if b.candidates.is_empty() {
+                lines.push("bridge: WARNING no candidates pinned — loopback-only mode".to_string());
+            }
+        }
+
+        if self.mesh.is_none() && self.webrtc.is_none() && self.bridge.is_none() {
+            return Err("config enables nothing: add [mesh], [webrtc] and/or [bridge]".into());
         }
 
         Ok(lines)

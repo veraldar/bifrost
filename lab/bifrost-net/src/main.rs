@@ -9,8 +9,13 @@
 //!   selftest m0|m1      run the verification suites (loopback)
 //!   serve -c CONFIG     run the node (mesh + webrtc in one process)
 
+mod bridge;
+mod bridge_main;
 mod config;
 mod echo;
+mod opencode;
+mod speech;
+mod tokens;
 mod keys;
 mod mesh;
 mod relay;
@@ -23,9 +28,10 @@ fn main() {
         Some("check") => cmd_check(&args[1..]),
         Some("selftest") => cmd_selftest(&args[1..]),
         Some("serve") => cmd_serve(&args[1..]),
+        Some("bridge") => cmd_bridge(&args[1..]),
         _ => {
             eprintln!(
-                "usage: bifrost-net keygen | check -c CONFIG | selftest m0|m1 | serve -c CONFIG"
+                "usage: bifrost-net keygen | check -c CONFIG | selftest m0|m1|v9 | serve -c CONFIG | bridge -c CONFIG"
             );
             2
         }
@@ -67,6 +73,7 @@ fn cmd_selftest(args: &[String]) -> i32 {
     match args.first().map(String::as_str) {
         Some("m0") => selftest_m0(),
         Some("m1") => selftest_m1(),
+        Some("v9") => selftest_v9(),
         _ => {
             eprintln!("selftest: suite must be m0 or m1");
             2
@@ -132,6 +139,36 @@ fn selftest_m1() -> i32 {
         println!("M1 VERDICT: GREEN — full-build seams proven");
         0
     }
+}
+
+fn cmd_bridge(args: &[String]) -> i32 {
+    let Some(path) = config_arg(args) else {
+        eprintln!("bridge: missing -c CONFIG");
+        return 2;
+    };
+    match crate::bridge_main::run(path) {
+        Ok(()) => 0,
+        Err(e) => {
+            eprintln!("bridge: {e}");
+            1
+        }
+    }
+}
+
+fn selftest_v9() -> i32 {
+    println!("bifrost-net v9 — bridge over the real seam");
+    print!("V9.2 bridge : ");
+    let code = match bridge::bridge_test() {
+        Ok(()) => {
+            println!("V9.2 PASS — token-gated channel protocol round-trips against live opencode");
+            0
+        }
+        Err(e) => {
+            println!("V9.2 FAIL — {e}");
+            1
+        }
+    };
+    code
 }
 
 fn cmd_serve(args: &[String]) -> i32 {

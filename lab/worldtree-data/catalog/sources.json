@@ -12,7 +12,7 @@
   "homepage": "https://info.arxiv.org/help/api/",
   "license": "CC0 1.0 (metadata)",
   "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-  "status": "m3",
+  "status": "core",
   "title": "arXiv"
  },
  "epoch": {
@@ -28,7 +28,7 @@
   "homepage": "https://www.federalregister.gov",
   "license": "public domain (US gov work)",
   "license_url": "https://www.federalregister.gov/reader-aids/developer-resources/rest-api",
-  "status": "m3",
+  "status": "core",
   "title": "Federal Register"
  },
  "gdelt": {
@@ -68,7 +68,7 @@
   "homepage": "https://gml.noaa.gov/ccgg/trends/",
   "license": "public domain (US gov)",
   "license_url": "https://gml.noaa.gov/about/disclaimer.html",
-  "status": "m3",
+  "status": "core",
   "title": "NOAA GML"
  },
  "owid": {
@@ -84,7 +84,7 @@
   "homepage": "https://www.ncbi.nlm.nih.gov/books/NBK25501/",
   "license": "public domain (NLM; US gov)",
   "license_url": "https://www.ncbi.nlm.nih.gov/home/about/policies/",
-  "status": "m3",
+  "status": "core",
   "title": "PubMed (NCBI E-utilities)"
  },
  "unsdg": {

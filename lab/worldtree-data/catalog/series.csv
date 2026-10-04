@@ -20,3 +20,7 @@ owid.ai_private_investment,owid,private-investment-in-artificial-intelligence,ow
 owid.ai_company_adoption,owid,share-companies-using-artificial-intelligence,owid:entity=All geographies;col=pct_of_respondents,%,annual,1100,core,Companies using AI
 owid.frontiermath_best,owid,ai-frontiermath-over-time,owid:runmax;col=mean_score,%,monthly,120,core,FrontierMath best score to date
 owid.large_scale_ai_systems,owid,cumulative-number-of-large-scale-ai-systems-by-country,owid:entity=World;col=cumulative_count,count,annual,1100,candidate,"Large-scale AI systems (cumulative; cross-check, unmapped)"
+arxiv.cs_ai,arxiv,cs.AI,arxiv:monthly,count,monthly,100,core,arXiv cs.AI submissions
+pubmed.ai_biomed,pubmed,ai_biomed,pubmed:monthly,count,monthly,100,core,PubMed AI×biomed papers
+fedreg.ai_documents,fedreg,ai_documents,fedreg:monthly,count,monthly,100,core,US federal AI documents
+noaa.co2,noaa_gml,co2_mm_mlo,noaa:monthly,ppm,monthly,100,core,Mauna Loa CO₂ monthly mean

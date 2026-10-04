@@ -43,6 +43,10 @@ probability.
 | owid.ai_private_investment | owid | private-investment-in-artificial-intelligence | `owid:entity=World;col=private_investment` | US$ | annual | 1100 | Private AI investment |
 | owid.ai_company_adoption | owid | share-companies-using-artificial-intelligence | `owid:entity=All geographies;col=pct_of_respondents` | % | annual | 1100 | Companies using AI |
 | owid.frontiermath_best | owid | ai-frontiermath-over-time | `owid:runmax;col=mean_score` | % | monthly | 120 | FrontierMath best score to date |
+| arxiv.cs_ai | arxiv | cs.AI | `arxiv:monthly` | count | monthly | 100 | arXiv cs.AI submissions |
+| pubmed.ai_biomed | pubmed | ai_biomed | `pubmed:monthly` | count | monthly | 100 | PubMed AI×biomed papers |
+| fedreg.ai_documents | fedreg | ai_documents | `fedreg:monthly` | count | monthly | 100 | US federal AI documents |
+| noaa.co2 | noaa_gml | co2_mm_mlo | `noaa:monthly` | ppm | monthly | 100 | Mauna Loa CO₂ monthly mean |
 
 All `stage=core`. Registered `stage=candidate`, unmapped:
 `owid.large_scale_ai_systems` (`cumulative-number-of-large-scale-ai-systems-by-country`
@@ -92,6 +96,7 @@ proxy · 3 direct measure. Rows using `logistic_delta` are capped at `w=1`
 | utopia | owid.extreme_poverty | -1 | 3 | rank_delta | `lag=1;diff=abs;h=30` | economy | poverty falling faster than its trend is the most direct sign of material problems being solved |
 | utopia | owid.life_expectancy | +1 | 2 | rank_delta | `lag=1;diff=abs;h=30` | society | health gains beyond trend |
 | utopia | wb.gdp_per_capita | +1 | 2 | rank_delta | `lag=1;diff=log;h=30` | economy | abundance: real per-capita output growth beyond trend |
+| utopia | pubmed.ai_biomed | +1 | 2 | rank_delta | `lag=12;diff=log;h=60` | society | AI×biomed research volume rising faster than its own trend = tools attacking disease and scarcity |
 | divergence | epoch.open_weights_share | +1 | 3 | rank_delta | `lag=12;diff=abs;h=60` | tech | more notable models shipped with open weights = intelligence escaping the few |
 | divergence | epoch.org_diversity | +1 | 2 | rank_delta | `lag=12;diff=abs;h=60` | tech | notable models spread over more organisations |
 | divergence | epoch.country_diversity | +1 | 2 | rank_delta | `lag=12;diff=abs;h=60` | geopolitics | notable models spread over more countries |
@@ -100,25 +105,28 @@ proxy · 3 direct measure. Rows using `logistic_delta` are capped at `w=1`
 | drift | wiki.synthetic_media | +1 | 1 | rank_delta | `norm=total;agg=mean3;lag=12;diff=log;h=60` | society | public attention to synthetic media |
 | control | wiki.ai_regulation | +1 | 1 | rank_delta | `norm=total;agg=mean3;lag=12;diff=log;h=60` | geopolitics | attention to AI regulation tracks rulemaking pressure |
 | control | owid.electoral_democracy | +1 | 1 | rank_delta | `lag=1;diff=abs;h=30` | geopolitics | accountable institutions are the precondition for keeping the leash |
+| control | fedreg.ai_documents | +1 | 2 | rank_delta | `lag=12;diff=log;h=60` | geopolitics | US rulemaking mentioning AI above its own trend = institutional leash tightening |
 | terminus | owid.conflict_deaths | +1 | 2 | rank_level | `diff=log;h=30` | geopolitics | organised violence at a historic high is the weapons arm of the leash breaking |
 | terminus | wb.unemployment | +1 | 2 | rank_delta | `lag=1;diff=abs;h=30` | economy | job losses beyond trend |
 | terminus | wiki.ai_xrisk | +1 | 1 | rank_level | `norm=total;agg=mean3;h=60` | tech | attention to existential AI risk |
+| terminus | noaa.co2 | +1 | 1 | rank_delta | `lag=12;diff=abs;h=60` | environment | CO₂ year-over-year growth above its own trend = the planetary boundary still receding |
 | stagnation | owid.ai_private_investment | -1 | 2 | rank_delta | `lag=1;diff=log;h=30` | economy | investment growing slower than usual = money losing faith |
 | stagnation | owid.ai_company_adoption | -1 | 1 | logistic_delta | `span_days=365;diff=abs;d0=0;k=5` | economy | companies not adopting = the revolution not landing |
 | stagnation | epoch.frontier_compute | -1 | 2 | rank_delta | `lag=12;diff=abs;h=60` | tech | frontier compute growing slower than its own trend = plateau |
+| stagnation | arxiv.cs_ai | -1 | 2 | rank_delta | `lag=12;diff=log;h=60` | tech | cs.AI submission volume shrinking against its own trend = the research engine stalling |
 | transcendence | owid.frontiermath_best | +1 | 1 | logistic_delta | `span_days=270;diff=logit;d0=0;k=1` | tech | frontier research-maths ability rising = horizon dissolving |
 | transcendence | epoch.frontier_compute | +1 | 2 | rank_delta | `lag=12;diff=abs;h=60` | tech | frontier compute accelerating beyond trend |
 | transcendence | wiki.agi | +1 | 1 | rank_delta | `norm=total;agg=mean3;lag=12;diff=log;h=60` | tech | attention to AGI |
 
-Mapped weight per realm (`W_map`): utopia 7 · divergence 7 · drift 3 ·
-control 2 · terminus 5 · stagnation 5 · transcendence 4.
+Mapped weight per realm (`W_map`, v0.2.0): utopia 9 · divergence 7 · drift 3 ·
+control 4 · terminus 6 · stagnation 7 · transcendence 4 (v0.1.0: 7 · 7 · 3 ·
+2 · 5 · 5 · 4).
 `epoch.frontier_compute` is the only series on two realms (opposite directions,
 allowed by schema.md §3.2) — slow compute growth is stagnation evidence, fast
 is transcendence evidence; never both at once.
 
-Planned for v0.2.0 (M3 sources, `sources.md`): `pubmed` AI×biomed → utopia
-+1 w2; `fedreg` AI documents → control +1 w2; `noaa_gml` CO₂ growth → terminus
-+1 w1 (environment); `arxiv` cs.AI volume → stagnation −1 w2.
+v0.2.0 added the four M3 rows above (`pubmed` → utopia, `fedreg` → control,
+`noaa_gml` → terminus (environment), `arxiv` → stagnation).
 
 ## 3. Normalization: series → score `s ∈ [0,1]`
 Params (from `mapping.csv` `params`, `k=v;…`), applied in this order:

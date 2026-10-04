@@ -43,9 +43,12 @@ def check():
         if r["dimension"] not in DIMENSIONS:
             errs.append(f"{where}: unknown dimension {r['dimension']!r}")
         try:
-            parse_params(r["params"])
+            params = parse_params(r["params"])
         except ValueError:
             errs.append(f"{where}: bad params {r['params']!r}")
+            params = {}
+        if params.get("unborn", "drop") != "drop":
+            errs.append(f"{where}: unborn must be 'drop'")
         if r["realm"] in realms_of[r["series_id"]]:
             errs.append(f"{where}: duplicate {r['realm']}/{r['series_id']}")
         realms_of[r["series_id"]].add(r["realm"])

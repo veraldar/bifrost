@@ -12,6 +12,7 @@ drift,wiki.synthetic_media,+1,1,rank_delta,norm=total;agg=mean3;lag=12;diff=log;
 control,wiki.ai_regulation,+1,1,rank_delta,norm=total;agg=mean3;lag=12;diff=log;h=60,geopolitics,"attention to AI regulation tracks rulemaking pressure"
 control,owid.electoral_democracy,+1,1,rank_delta,lag=1;diff=abs;h=30,geopolitics,"accountable institutions are the precondition for keeping the leash"
 control,fedreg.ai_documents,+1,2,rank_delta,lag=12;diff=log;h=60,geopolitics,"US rulemaking mentioning AI above its own trend = institutional leash tightening"
+control,ari.index,+1,2,rank_level,h=104;unborn=drop,geopolitics,"reported restrictions on AI agents (OS walls, platform bans, datacenter backlash, safety exits, legal action) high against their own weekly history = the leash being pulled; already a calibrated 0-100 index, ranked as a level"
 terminus,owid.conflict_deaths,+1,2,rank_level,diff=log;h=30,geopolitics,"organised violence at a historic high is the weapons arm of the leash breaking"
 terminus,wb.unemployment,+1,2,rank_delta,lag=1;diff=abs;h=30,economy,"job losses beyond trend"
 terminus,wiki.ai_xrisk,+1,1,rank_level,norm=total;agg=mean3;h=60,tech,"attention to existential AI risk"

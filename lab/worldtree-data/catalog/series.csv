@@ -52,3 +52,6 @@ unsdg.sn_itk_dfct,unsdg,SN_ITK_DFCT,unsdg_geo,%,annual,1100,core,Severe food ins
 who.uhc_index_reported,who_gho,UHC_INDEX_REPORTED,who_geo,index,annual,1100,core,UHC service coverage index
 who.whs4_100,who_gho,WHS4_100,who_geo,%,annual,1100,core,DTP3 immunization coverage (%)
 ne.ne110,ne,ne110,ne_static:,,"daily",99999,candidate,Natural Earth 110m country polygons (map asset only)
+github.releases_year,github,releases,github:releases,count,annual,1100,core,AI repos: releases per year (GitHub)
+github.commits_month,github,commits,github:commits,count,monthly,100,core,AI repos: commits per month (GitHub)
+github.stars_snapshot,github,stars,github:stars,stars,daily,30,core,"AI repos: total stars, nightly snapshot (in-repo growth, not mapped)"

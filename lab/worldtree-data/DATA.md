@@ -16,6 +16,8 @@ nightly (14:30 Europe/Berlin). This directory mirrors the pipeline repo layout
 | `out/realms.provenance.json` | per-number trail of today's weights: every indicator's score, contribution, series + raw sha256, source URL, license |
 | `out/realms-history.json` | per-year weights 2015 → now (schema `worldtree.history/1`): coverage, `provisional` flags, gates |
 | `out/realms-history.provenance.json` | the per-year indicator trail; each year's blob sha256 is in `realms-history.json` |
+| `out/github-trends.json` | AI-ecosystem evolution speed (schema `worldtree.github/1`): releases/year, commits/month, star snapshots, per-repo detail |
+| `out/github-trends.provenance.json` | every GitHub raw file those numbers read (path, sha256, url, retrieved_at) |
 
 Today's weights themselves: https://veraldar.org/realms.json (page contract; carries
 `refresh`, `geography` and a `history` {file, sha256} pointer).
@@ -29,6 +31,25 @@ Today's weights themselves: https://veraldar.org/realms.json (page contract; car
 | Wikimedia pageviews | `wiki.*` (6) | monthly | CC0 1.0 |
 | arXiv · PubMed · Federal Register · NOAA GML | `arxiv.cs_ai`, `pubmed.ai_biomed`, `fedreg.ai_documents`, `noaa.co2` | monthly | CC0 1.0 (metadata) / public domain |
 | Mac Studio ARI pipeline | `ari.index` — Agent Restriction Index, weekly 0-100 (control realm) | weekly | dweeb.xyz Agent Restriction Index — verbatim capture, © pipeline output, methodology at report §method |
+
+| GitHub (api.github.com, keyless) | `github.releases_year` (divergence + transcendence), `github.commits_month` (divergence), `github.stars_snapshot` (not mapped) | annual / monthly / nightly | GitHub ToS — counts are facts; metadata via public API |
+
+**GitHub — AI evolution speed** (method 0.4.1). Twelve repos, one reason each (`wt/github.py` `REPOS`):
+tensorflow, pytorch, jax, transformers, vllm, ollama, llama.cpp, openai-python,
+anthropic-sdk-python, llama-models, Qwen3, langchain. `releases_year` = published releases
+per calendar year summed over the repos whose full release history is stored (llama.cpp:
+one release per CI build, langchain: one per package version — excluded from releases,
+kept for commits + stars); extra columns `n_repos`, `n_prerelease`, `median_gap_days`.
+`commits_month` = default-branch commits by committer date via the keyless search API
+(`total_count`, cross-checked equal to the commits-list Link-header count: vllm 2025-01 =
+413 both); a month appears only once all 12 repos have a count. `stars_snapshot` =
+Σ stargazers each night + one column per repo — growth is observed from 2026-10 on;
+star history before that is not reconstructed, so stars are not world-mapped.
+Keyless limits (no token, by design): 60 core req/h + 10 search req/min per IP — the
+nightly fetch spends ≤ 45 core + ≤ 150 search requests; anything left is fetched the next
+night, never left as a hole. Bias B15: the repo set is 2026's winners picked in 2026
+(survivorship) and repos born after 2019 add to totals from their first release —
+ecosystem growth includes repo births by design. Releases ≠ capability.
 
 `series/ari.index.csv` carries extra columns after the standard four: `s` (weighted
 event points of the week), `n` (events), `p` (partial-week flag), `pts_<component>`
@@ -48,7 +69,8 @@ Derived files inherit their source's license — see `catalog/sources.json` and
 the `license` field on every indicator in the provenance files: Our World in
 Data CC BY 4.0, World Bank CC BY 4.0, Epoch AI CC BY 4.0, Wikimedia CC0 1.0,
 arXiv metadata CC0 1.0, PubMed / Federal Register / NOAA GML public domain (US
-gov), Agent Restriction Index © dweeb.xyz pipeline output (attribution above). Attribute the upstream source when you reuse a series. Raw source files
+gov), Agent Restriction Index © dweeb.xyz pipeline output (attribution above),
+GitHub counts = facts via the public API (GitHub ToS). Attribute the upstream source when you reuse a series. Raw source files
 are not mirrored here (size); `manifest.json` lists them with sha256 and URL.
 
 ## History honesty

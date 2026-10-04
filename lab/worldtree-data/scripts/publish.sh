@@ -33,6 +33,7 @@ rm -rf "$D"; mkdir -p "$D/out"
 cp -r series catalog method "$D/"
 cp manifest.json DATA.md "$D/"
 cp out/realms.provenance.json out/realms-history.json out/realms-history.provenance.json "$D/out/"
+[ -f out/github-trends.json ] && cp out/github-trends.json out/github-trends.provenance.json "$D/out/"
 BYTES=$(du -sb "$D" | cut -f1)
 [ "$BYTES" -lt 20000000 ] || { echo "data payload $BYTES B ≥ 20 MB — refusing"; exit 1; }
 # Caddy serves index.txt for /data/ (no directory browsing): DATA.md + file list with sha256
@@ -46,11 +47,14 @@ ssh "$H" "grep -qxF '$LINE' $W/llms.txt || printf '\n%s\n' '$LINE' >> $W/llms.tx
 
 # history before realms.json: the realms.json history.sha256 pointer must never dangle
 scp -q out/realms-history.json "$H:$W/"
+# GitHub evolution-speed lines (method 0.4.1): the rings chart's dashed context, next to realms.json
+[ -f out/github-trends.json ] && scp -q out/github-trends.json "$H:$W/github-trends.json"
 scp -q out/realms.provenance.json "$H:$W/"
 scp -q out/realms.json "$H:$W/"
 scp -q /tmp/wt-feed.xml "$H:$W/feed.xml"
 # country layer (expansion E3/E4): per-country scores next to realms.json, map paths under /data/
 [ -f out/countries.json ] && scp -q out/countries.json "$H:$W/countries.json"
 [ -f data/countries-paths.json ] && scp -q data/countries-paths.json "$H:$W/data/countries-paths.json"
+ssh "$H" "chmod 644 $W/realms.json $W/realms.provenance.json $W/realms-history.json $W/feed.xml && chmod 644 $W/github-trends.json 2>/dev/null; true"
 ssh "$H" "chmod 644 $W/realms.json $W/realms.provenance.json $W/realms-history.json $W/feed.xml && chmod 644 $W/countries.json $W/data/countries-paths.json 2>/dev/null || true"
 echo "published: $(python3 -c "import json;print(json.load(open('out/realms.json'))['updated'])")"

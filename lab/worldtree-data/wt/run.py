@@ -14,6 +14,7 @@ from .common import (LOCK, MONTHLY_SOURCES, REALMS, append_csv, load_mapping, lo
                      method_version, parse_params, read_csv, root, series_path, sha256_bytes, sha256_file, write_json)
 from .contract import check as contract_check
 from .extract import build_all, ext_of, month_snapshots, snapshot
+from . import github as GH
 from . import history as H
 from .history import geography_block, refresh_block
 
@@ -47,6 +48,8 @@ def bias_ids(sid, s, transform):
         b += ["B13"]
     if sid.startswith("ari."):
         b += ["B14"]
+    if sid.startswith("github."):
+        b += ["B15"]
     if transform.startswith("rank_"):
         b += ["B11"]
     return b
@@ -282,6 +285,18 @@ def compute(as_of, run_id, updated, cut=None):
     return realms, prov, gates, first_fail
 
 
+def write_trends(as_of, d):
+    """github-trends.json + its provenance next to it (same as-of cut as the series)."""
+    from .common import dumps, write_text
+    from .extract import month_end, read_raw, snapshots
+    doc, prov = GH.trends(as_of, lambda slug: snapshots("github", slug, "json", as_of), read_raw, month_end,
+                          method_version())
+    ptext = dumps(prov)
+    doc["provenance"]["sha256"] = sha256_bytes(ptext.encode("utf-8"))
+    write_text(d / GH.PROV_FILE, ptext)
+    write_json(d / GH.FILE, doc, sort_keys=False)
+
+
 def main(as_of, now=None, no_fetch=False, commit=False):
     dt.date.fromisoformat(as_of)
     t = (dt.datetime.strptime(now, "%Y-%m-%dT%H:%M:%SZ") if now
@@ -303,12 +318,13 @@ def main(as_of, now=None, no_fetch=False, commit=False):
         rd = root() / "runs" / run_id
         hdoc, hptext = H.build(as_of, run_id, updated)
         realms["history"] = {"file": H.FILE, "sha256": H.write(hdoc, hptext, rd / H.FILE)}
+        write_trends(as_of, rd)
         write_json(rd / "gates.json", gates)
         write_json(rd / "provenance.json", prov, sort_keys=False)
         write_json(rd / "realms.json", realms, sort_keys=False)
         if published:
             # history first: once realms.json is replaced, the history file its sha256 points at is already in place
-            pairs = [(H.PROV_FILE, H.PROV_FILE), (H.FILE, H.FILE),
+            pairs = [(GH.PROV_FILE, GH.PROV_FILE), (GH.FILE, GH.FILE), (H.PROV_FILE, H.PROV_FILE), (H.FILE, H.FILE),
                      ("provenance.json", "realms.provenance.json"), ("realms.json", "realms.json")]
             for src, dst in pairs:
                 shutil.copyfile(rd / src, root() / "out" / (dst + ".tmp"))

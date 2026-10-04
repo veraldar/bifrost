@@ -48,11 +48,11 @@
   "title": "GDELT"
  },
  "github": {
-  "attribution": "GitHub search API",
+  "attribution": "GitHub REST API (api.github.com, keyless: 60 core req/h + 10 search req/min — no token by design)",
   "homepage": "https://api.github.com",
-  "license": "ToS (counts = facts)",
+  "license": "GitHub ToS — counts are facts; metadata via public API",
   "license_url": "https://docs.github.com/site-policy/github-terms/github-terms-of-service",
-  "status": "candidate",
+  "status": "core",
   "title": "GitHub"
  },
  "hf": {

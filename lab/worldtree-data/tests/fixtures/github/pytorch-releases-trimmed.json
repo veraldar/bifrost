@@ -1,0 +1,112 @@
+{
+ "source": "https://api.github.com/repos/pytorch/pytorch/releases?per_page=100&page=1",
+ "source_sha256": "4d57a3f97339d72fcdd413390f4e781cb4f7f72b8c5f4b5660fe69e2433038e2",
+ "retrieved_at": "2026-10-04T17:47:03Z",
+ "note": "trimmed to parser fields; last item synthetic draft",
+ "releases": [
+  {
+   "id": 400360620,
+   "tag_name": "v2.14.1",
+   "draft": false,
+   "prerelease": false,
+   "created_at": "2026-09-30T01:47:31Z",
+   "published_at": "2026-09-30T19:14:48Z"
+  },
+  {
+   "id": 380954849,
+   "tag_name": "v2.14.0",
+   "draft": false,
+   "prerelease": false,
+   "created_at": "2026-08-27T02:23:46Z",
+   "published_at": "2026-09-02T17:40:10Z"
+  },
+  {
+   "id": 350494610,
+   "tag_name": "v2.13.0",
+   "draft": false,
+   "prerelease": false,
+   "created_at": "2026-07-03T20:27:09Z",
+   "published_at": "2026-07-08T17:39:58Z"
+  },
+  {
+   "id": 341109059,
+   "tag_name": "v2.12.1",
+   "draft": false,
+   "prerelease": false,
+   "created_at": "2026-06-09T19:27:18Z",
+   "published_at": "2026-06-18T00:41:17Z"
+  },
+  {
+   "id": 321486546,
+   "tag_name": "v2.12.0",
+   "draft": false,
+   "prerelease": false,
+   "created_at": "2026-05-11T21:33:43Z",
+   "published_at": "2026-05-13T17:38:06Z"
+  },
+  {
+   "id": 300351756,
+   "tag_name": "v2.11.0",
+   "draft": false,
+   "prerelease": false,
+   "created_at": "2026-03-21T03:11:45Z",
+   "published_at": "2026-03-23T18:38:28Z"
+  },
+  {
+   "id": 278259050,
+   "tag_name": "v2.10.0",
+   "draft": false,
+   "prerelease": false,
+   "created_at": "2026-01-16T00:29:35Z",
+   "published_at": "2026-01-21T17:05:16Z"
+  },
+  {
+   "id": 261869057,
+   "tag_name": "v2.9.1",
+   "draft": false,
+   "prerelease": false,
+   "created_at": "2025-11-11T01:02:50Z",
+   "published_at": "2025-11-12T19:27:19Z"
+  },
+  {
+   "id": 253751643,
+   "tag_name": "v2.9.0",
+   "draft": false,
+   "prerelease": false,
+   "created_at": "2025-10-09T01:09:57Z",
+   "published_at": "2025-10-15T17:12:27Z"
+  },
+  {
+   "id": 238050335,
+   "tag_name": "v2.8.0",
+   "draft": false,
+   "prerelease": false,
+   "created_at": "2025-08-04T16:51:07Z",
+   "published_at": "2025-08-06T17:06:10Z"
+  },
+  {
+   "id": 223157547,
+   "tag_name": "v2.7.1",
+   "draft": false,
+   "prerelease": false,
+   "created_at": "2025-05-29T01:18:53Z",
+   "published_at": "2025-06-04T18:13:15Z"
+  },
+  {
+   "id": 213774237,
+   "tag_name": "v2.7.0",
+   "draft": false,
+   "prerelease": false,
+   "created_at": "2025-04-15T22:56:51Z",
+   "published_at": "2025-04-23T16:16:06Z"
+  },
+  {
+   "id": 1,
+   "tag_name": "draft-x",
+   "draft": true,
+   "prerelease": false,
+   "created_at": "2025-01-01T00:00:00Z",
+   "published_at": null
+  }
+ ]
+}

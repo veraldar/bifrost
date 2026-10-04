@@ -56,7 +56,7 @@ for doc in (r, h):
     assert f['cadence'] == 'nightly' and f['local_time'] == '14:30 Europe/Berlin' and f['utc_time'] == '12:30 UTC'
     assert f['timer'] == 'worldtree-fetch.timer' and f['pipeline'] == f'worldtree-data method {v}'
     ids = [s['id'] for s in f['sources']]
-    assert set(['owid', 'worldbank', 'epoch', 'wikimedia', 'arxiv', 'pubmed', 'fedreg', 'noaa_gml', 'ari']) <= set(ids), ids
+    assert set(['owid', 'worldbank', 'epoch', 'wikimedia', 'arxiv', 'pubmed', 'fedreg', 'noaa_gml', 'ari', 'github']) <= set(ids), ids
     g = doc['geography']
     allowed = {'NA', 'LATAM', 'EUR', 'AF', 'MENA', 'ASIA', 'OC', 'GLOBAL'}
     for sid in ids:
@@ -74,8 +74,8 @@ for y in ys:
     assert all(y['provisional'][k] == (y['coverage'][k] < 0.5) for k in K), y['year']
     assert y['as_of'] == (f"{y['year']}-12-31" if y['year'] < asof.year else h['as_of'])
 assert ys[-1]['weights'] == r['weights'], 'as-of year must equal the published weights'
-assert r['sources']['Mac Studio ARI pipeline'] == 1 and len(r['sources']) == 9, r['sources']
-assert len(r['feeds']) == 24 and [f for f in r['feeds'] if f['name'] == 'Agent Restriction Index (ARI)'], len(r['feeds'])
+assert r['sources']['Mac Studio ARI pipeline'] == 1 and len(r['sources']) == 10, r['sources']  # 0.4.1: +GitHub
+assert len(r['feeds']) == 26 and [f for f in r['feeds'] if f['name'] == 'Agent Restriction Index (ARI)'], len(r['feeds'])
 assert any(ys[0]['provisional'].values()) and not any(ys[-1]['provisional'].values())
 print('schema OK ·', len(ys), 'years ·', 'provisional 2015:', ','.join(k for k in K if ys[0]['provisional'][k]))
 PY
@@ -92,7 +92,7 @@ curl -s "$SITE/llms.txt" | grep -qxF "Open data: $SITE/data/ (series CSVs + cata
 
 step "7 live realms.json"
 L=$(curl -s "$SITE/realms.json")
-echo "$L" | jq -e '.refresh.cadence=="nightly" and .refresh.timer=="worldtree-fetch.timer" and .method_version=="0.3.1" and (.geography|has("owid")) and (.geography|has("ari")) and .sources["Mac Studio ARI pipeline"]==1' > /dev/null || fail $LINENO
+echo "$L" | jq -e --arg v "$(cat method/VERSION)" '.refresh.cadence=="nightly" and .refresh.timer=="worldtree-fetch.timer" and .method_version==$v and (.geography|has("owid")) and (.geography|has("ari")) and .sources["Mac Studio ARI pipeline"]==1' > /dev/null || fail $LINENO
 [ "$(echo "$L" | jq -r .history.sha256)" = "$(curl -s "$SITE/realms-history.json" | sha256sum | cut -d' ' -f1)" ] || fail $LINENO
 echo "live refresh block + history pointer OK ($(echo "$L" | jq -r .updated))"
 systemctl --user is-enabled worldtree-fetch.timer | grep -qx enabled || fail $LINENO

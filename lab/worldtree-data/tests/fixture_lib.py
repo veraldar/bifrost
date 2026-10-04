@@ -8,9 +8,16 @@ from pathlib import Path
 R = Path(__file__).resolve().parent.parent
 
 
-def run_fixture(fx: Path, tmp: Path) -> Path:
+def run_fixture(fx: Path, tmp: Path, drop_mapping=()) -> Path:
+    """drop_mapping: series-id prefixes whose world-mapping rows are removed from the copied catalog (a test of an
+    older method's invariant, e.g. 0.3.1 ARI unborn, stays about that method when later sources join the mapping)."""
     shutil.copytree(fx / "raw", tmp / "raw")
     shutil.copytree(R / "catalog", tmp / "catalog")
+    if drop_mapping:
+        m = tmp / "catalog" / "mapping.csv"
+        lines = m.read_text(encoding="utf-8").splitlines(keepends=True)
+        m.write_text("".join(ln for ln in lines if ln.split(",", 2)[1].split(".")[0] + "." not in drop_mapping),
+                     encoding="utf-8")
     shutil.copytree(R / "method", tmp / "method")
     # The catalog is always current (see above); when it gained series after a fixture was
     # frozen (e.g. the 0.4.0 geo layer vs the 0.3.1 tree), copy those series' raw from the

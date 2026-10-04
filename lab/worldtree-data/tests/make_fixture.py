@@ -25,7 +25,7 @@ def main(as_of, now):
     for sid, s in load_series().items():
         if s["stage"] != "core":
             continue
-        if s["source_id"] in MONTHLY_SOURCES:  # one raw file per month: the series reads all of them
+        if s["source_id"] in MONTHLY_SOURCES + ("github",):  # per-url raw files: the series reads all of them
             paths = [root() / m["path"] for m in snapshots(s["source_id"], s["slug"], ext_of(s), as_of)]
         else:
             paths = [snapshot(s["source_id"], s["slug"], ext_of(s), as_of)[0]]

@@ -27,7 +27,7 @@ class TestAri(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tmp = tempfile.TemporaryDirectory()
-        cls.out = run_fixture(FX, Path(cls.tmp.name))
+        cls.out = run_fixture(FX, Path(cls.tmp.name), drop_mapping=("github.",))  # 0.4.1 rows: not this test's method
         cls.series = Path(cls.tmp.name) / "series" / "ari.index.csv"
 
     @classmethod

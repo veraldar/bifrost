@@ -45,6 +45,17 @@
    ],
    "source_doc": "https://www.federalregister.gov/reader-aids/using-federalregister-gov/understanding-the-federal-register"
   },
+  "github": {
+   "detail": "12 AI repositories on GitHub (US labs and companies, Alibaba Qwen, global contributor bases) — activity is not split by country; GitHub itself is US-hosted",
+   "license": "GitHub ToS — counts are facts; metadata via public API",
+   "regions": [
+    "NA",
+    "ASIA",
+    "EUR",
+    "GLOBAL"
+   ],
+   "source_doc": "https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api"
+  },
   "ne": {
    "detail": "country polygons for the map layer — geometry only, no indicators",
    "license": "public domain",

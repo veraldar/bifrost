@@ -3,12 +3,14 @@ import datetime as dt
 import json
 import sys
 import calendar
+import os
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
 
+from . import github as GH
 from .common import FETCHER, MONTHLY_SOURCES, UA, append_csv, month_of_url, load_series, load_sources, rel, root, sha256_bytes, write_json
 
 OWID_Q = "?v=1&csvType=full&useColumnShortNames=true"
@@ -118,6 +120,8 @@ def units():
             out[key] = {"files": [("json", url)]}
         elif src in MONTHLY_SOURCES:
             out[key] = {"files": [month_url(src, y, m) for y, m in month_window(src, slug)], "per_url": True}
+        elif src == "github":  # keyless budget: priority-ordered files, the nightly guard in fetch() stops at the tail
+            out[key] = {"files": GH.unit_files(slug, root() / "raw" / src / slug, wiki_end()), "per_url": True, "github": True}
         elif src == "ari":  # rebuilt daily on the Mac Studio; the embedded <script id="ari-data"> block is the contract
             out[key] = {"files": [("html", ARI_URL)]}
         elif src == "noaa_gml":
@@ -142,6 +146,8 @@ def get(url, log_path):
         except Exception as e:  # network/timeout
             status, err = 0, f"{type(e).__name__}: {e}"[:200]
         append_csv(log_path, LOG_HEADER, [iso(t), url, status, 0, "", 0, err])
+        if status in (403, 422, 429) and url.startswith("https://api.github.com/"):
+            break  # keyless rate limit / bad query: retrying only burns the bucket
         if attempt < TRIES - 1:
             time.sleep(BACKOFF[attempt])
     return None
@@ -158,10 +164,24 @@ def newest_sha(slug_dir: Path, ext: str, url=None):
     return max(metas, key=lambda x: (x["retrieved_at"], x["path"]))["sha256"]
 
 
-def fetch(sources=None):
+GH_ORDER = {"stars": 0, "releases": 1, "commits": 2}  # snapshot first: a missed night is a missing star point forever
+GH_SLEEP = {"core": 1.0, "search": 6.5}  # keyless search: 10 req/min
+
+
+def gh_budget():
+    """Requests per nightly fetch per GitHub bucket (env override only for a supervised one-off backfill)."""
+    return {"core": int(os.environ.get("WT_GH_CORE_BUDGET", GH.CORE_BUDGET)),
+            "search": int(os.environ.get("WT_GH_SEARCH_BUDGET", GH.SEARCH_BUDGET))}
+
+
+def fetch(sources=None, getter=None, sleep=time.sleep):
+    getter = getter or get
     srcmeta = load_sources()
     failed = 0
-    for (src, slug), u in sorted(units().items()):
+    left = gh_budget()
+    deferred = {"core": 0, "search": 0}
+    order = lambda kv: (kv[0][0], GH_ORDER.get(kv[0][1], 0) if kv[0][0] == "github" else 0, kv[0][1])
+    for (src, slug), u in sorted(units().items(), key=order):
         if sources and src not in sources:
             continue
         d = root() / "raw" / src / slug
@@ -171,11 +191,24 @@ def fetch(sources=None):
         for sweep in range(1 + (REPAIR_SWEEPS if u.get("per_url") else 0)):
             skipped = []
             for ext, url in todo:
-                if n and src in SLEEP:
-                    time.sleep(SLEEP[src])
+                if u.get("github"):
+                    b = GH.bucket(url)
+                    if left[b] <= 0:  # budget guard: the rest is retried next night (never holed: window re-lists it)
+                        deferred[b] += 1
+                        continue
+                    left[b] -= 1
+                    if n:
+                        sleep(GH_SLEEP[b])
+                elif n and src in SLEEP:
+                    sleep(SLEEP[src])
                 n += 1
-                r = get(url, log)
+                r = getter(url, log)
                 if r is None:
+                    if u.get("github"):  # keyless 403/429 = bucket exhausted: stop it for tonight, no retry storm
+                        left[GH.bucket(url)] = 0
+                        deferred[GH.bucket(url)] += 1
+                        print(f"fetch DEFER github/{slug} {url} (bucket {GH.bucket(url)} stopped)", file=sys.stderr)
+                        continue
                     skipped.append((ext, url))
                     print(f"fetch {'SKIP' if u.get('per_url') else 'FAIL'} {src}/{slug} {url}", file=sys.stderr)
                     continue
@@ -192,6 +225,9 @@ def fetch(sources=None):
         if u.get("per_url") or not got:
             continue
         store(src, slug, d, log, u, srcmeta, got)
+    if any(deferred.values()):
+        print(f"fetch github: budget used core {gh_budget()['core'] - left['core']}, search {gh_budget()['search'] - left['search']};"
+              f" deferred to next night: core {deferred['core']}, search {deferred['search']}", file=sys.stderr)
     return 1 if failed else 0
 
 

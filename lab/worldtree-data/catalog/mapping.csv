@@ -6,6 +6,8 @@ utopia,pubmed.ai_biomed,+1,2,rank_delta,lag=12;diff=log;h=60,society,"AI×biomed
 divergence,epoch.open_weights_share,+1,3,rank_delta,lag=12;diff=abs;h=60,tech,"more notable models shipped with open weights = intelligence escaping the few"
 divergence,epoch.org_diversity,+1,2,rank_delta,lag=12;diff=abs;h=60,tech,"notable models spread over more organisations"
 divergence,epoch.country_diversity,+1,2,rank_delta,lag=12;diff=abs;h=60,geopolitics,"notable models spread over more countries"
+divergence,github.releases_year,+1,1,rank_delta,lag=1;diff=log;h=30,tech,"releases across the open AI stack (frameworks, open-weights runtimes, lab SDKs) accelerating beyond their own trend = capability shipping to everyone, not held by the few"
+divergence,github.commits_month,+1,1,rank_delta,lag=12;diff=log;h=60,tech,"commit velocity of the open AI stack growing faster than its own trend = more hands building outside the labs"
 drift,owid.genai_user_share,+1,1,logistic_delta,span_days=270;diff=abs;d0=0;k=5,society,"mass generative-AI use is the substrate of synthetic-media drift"
 drift,wiki.deepfake,+1,1,rank_delta,norm=total;agg=mean3;lag=12;diff=log;h=60,society,"public attention to deepfakes"
 drift,wiki.synthetic_media,+1,1,rank_delta,norm=total;agg=mean3;lag=12;diff=log;h=60,society,"public attention to synthetic media"
@@ -24,3 +26,4 @@ stagnation,arxiv.cs_ai,-1,2,rank_delta,lag=12;diff=log;h=60,tech,"cs.AI submissi
 transcendence,owid.frontiermath_best,+1,1,logistic_delta,span_days=270;diff=logit;d0=0;k=1,tech,"frontier research-maths ability rising = horizon dissolving"
 transcendence,epoch.frontier_compute,+1,2,rank_delta,lag=12;diff=abs;h=60,tech,"frontier compute accelerating beyond trend"
 transcendence,wiki.agi,+1,1,rank_delta,norm=total;agg=mean3;lag=12;diff=log;h=60,tech,"attention to AGI"
+transcendence,github.releases_year,+1,1,rank_delta,lag=1;diff=log;h=30,tech,"the shipping rate of the AI ecosystem itself accelerating beyond trend = evolution speed compounding"

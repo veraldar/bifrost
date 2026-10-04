@@ -9,6 +9,7 @@ import re
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 
+from . import github as GH
 from .common import catalog_dir, csv_text, load_series, month_of_url, root, sha256_file, write_text
 
 OPENSEARCH = "{http://a9.com/-/spec/opensearch/1.1/}"
@@ -93,7 +94,7 @@ def read_rows(path):
 def ext_of(s):
     return {"owid": "csv", "worldbank": "json", "epoch": "csv", "wikimedia": "json",
             "arxiv": "xml", "pubmed": "json", "fedreg": "json", "noaa_gml": "csv", "ari": "html",
-            "unsdg": "json", "who_gho": "json", "ne": "geojson"}[s["source_id"]]
+            "unsdg": "json", "who_gho": "json", "ne": "geojson", "github": "json"}[s["source_id"]]
 
 
 GEO_KINDS = ("wb_geo", "owid_geo", "unsdg_geo", "who_geo")
@@ -444,8 +445,29 @@ def dedupe_geo(rows):
     return [best[k] for k in sorted(best)]
 
 
+def read_raw(meta):
+    return (root() / meta["path"]).read_bytes()
+
+
+def build_github(s, as_of):
+    """github:releases|commits|stars → rows with meta columns (wt/github.py); every raw file ≤ as_of is read."""
+    what = parse_extract(s["extract"])[1]
+    metas = snapshots("github", s["slug"], "json", as_of)
+    if "releases" in what:
+        rows = GH.x_releases(metas, read_raw, as_of)
+    elif "commits" in what:
+        rows = GH.x_commits(metas, read_raw, as_of, month_end)
+    elif "stars" in what:
+        rows = GH.x_stars(metas, read_raw, as_of)
+    else:
+        raise ValueError(f"unknown github extract {s['extract']}")
+    return [(p, d, fmt(v), sha, *[x if x == "" else fmt(x) for x in meta]) for p, d, v, sha, meta in rows]
+
+
 def build(s, as_of):
     kind, opts = parse_extract(s["extract"])
+    if kind == "github":
+        return build_github(s, as_of)
     if kind in COUNT_KINDS:
         rows = [r for r in x_counts(s, month_snapshots(s["source_id"], s["slug"], ext_of(s), as_of), kind) if r[1] <= as_of]
         rows.sort(key=lambda r: (r[1], r[0]))
@@ -464,6 +486,9 @@ def header(s):
     kind = parse_extract(s["extract"])[0]
     if kind == "ari":
         return HEADER + ARI_META
+    if kind == "github":
+        what = parse_extract(s["extract"])[1]
+        return HEADER + (GH.RELEASES_META if "releases" in what else GH.COMMITS_META if "commits" in what else GH.STARS_META)
     if kind in GEO_KINDS:
         return ["geo"] + HEADER
     return HEADER

@@ -1,0 +1,77 @@
+[
+ {
+  "voice": "af_heart",
+  "lang": "a",
+  "http": 200,
+  "ttfb_s": 0.0,
+  "wall_s": 0.17,
+  "downloaded_b": 224400,
+  "curl_exit": 0,
+  "bytes": 224400,
+  "first_sound_s": 0.34,
+  "f0_med": 195.1,
+  "clip": "artifacts/lab5-kokoro-af_heart.wav"
+ },
+ {
+  "voice": "onyx",
+  "lang": "a",
+  "http": 200,
+  "ttfb_s": 0.01,
+  "wall_s": 0.22,
+  "downloaded_b": 0,
+  "curl_exit": 18,
+  "error": "stream dead/broken: body=0b != downloaded=0b, curl_exit=18"
+ },
+ {
+  "voice": "am_onyx",
+  "lang": "a",
+  "http": 200,
+  "ttfb_s": 0.0,
+  "wall_s": 0.16,
+  "downloaded_b": 220800,
+  "curl_exit": 0,
+  "bytes": 220800,
+  "first_sound_s": 0.28,
+  "f0_med": 87.9,
+  "clip": "artifacts/lab5-kokoro-am_onyx.wav"
+ },
+ {
+  "voice": "am_michael",
+  "lang": "a",
+  "http": 200,
+  "ttfb_s": 0.0,
+  "wall_s": 0.18,
+  "downloaded_b": 255600,
+  "curl_exit": 0,
+  "bytes": 255600,
+  "first_sound_s": 0.43,
+  "f0_med": 117.6,
+  "clip": "artifacts/lab5-kokoro-am_michael.wav"
+ },
+ {
+  "voice": "bm_george",
+  "lang": "b",
+  "http": 200,
+  "ttfb_s": 0.01,
+  "wall_s": 0.17,
+  "downloaded_b": 242400,
+  "curl_exit": 0,
+  "bytes": 242400,
+  "first_sound_s": 0.27,
+  "f0_med": 148.1,
+  "clip": "artifacts/lab5-kokoro-bm_george.wav"
+ },
+ {
+  "voice": "am_fenrir",
+  "lang": "a",
+  "http": 200,
+  "ttfb_s": 0.01,
+  "wall_s": 0.16,
+  "downloaded_b": 216000,
+  "curl_exit": 0,
+  "bytes": 216000,
+  "first_sound_s": 0.23,
+  "f0_med": 140.4,
+  "clip": "artifacts/lab5-kokoro-am_fenrir.wav"
+ }
+]

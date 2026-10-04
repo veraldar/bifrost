@@ -21,6 +21,7 @@ REPAIR_SWEEPS = 3  # per-month sources: re-try skipped months after the first pa
 PUBMED_QUERY = ('(artificial intelligence[Title/Abstract]) AND (drug discovery[Title/Abstract] OR protein[Title/Abstract] '
                 'OR molecular[Title/Abstract] OR battery[Title/Abstract] OR catalyst[Title/Abstract]) '
                 'AND ("{y:04d}/{m:02d}/01"[PDAT]:"{y:04d}/{m:02d}/{last:02d}"[PDAT])')
+ARI_URL = "https://dweeb-xzys-mac-studio.tail5435b1.ts.net/api/artifact/report-ari.html"  # tailnet; .jsonl is 415 there
 LOG_HEADER = ["attempted_at", "url", "http_status", "bytes", "sha256", "stored", "error"]
 
 
@@ -109,6 +110,8 @@ def units():
             out[key] = {"files": [("json", url)]}
         elif src in MONTHLY_SOURCES:
             out[key] = {"files": [month_url(src, y, m) for y, m in month_window(src, slug)], "per_url": True}
+        elif src == "ari":  # rebuilt daily on the Mac Studio; the embedded <script id="ari-data"> block is the contract
+            out[key] = {"files": [("html", ARI_URL)]}
         elif src == "noaa_gml":
             out[key] = {"files": [("csv", "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv")]}
         else:
@@ -200,6 +203,11 @@ def store(src, slug, d, log, u, srcmeta, got):
             upd = json.loads(by_ext["json"]["body"])[0].get("lastupdated")
         except Exception:
             pass
+    extra = {}
+    if src == "ari" and "html" in by_ext:
+        from .extract import ari_methodology
+        extra = ari_methodology(by_ext["html"]["body"], ARI_URL)
+        upd = extra.get("report_generated")
     for r in got:
         ext = r["ext"]
         body, sha = r["body"], sha256_bytes(r["body"])
@@ -231,6 +239,7 @@ def store(src, slug, d, log, u, srcmeta, got):
                 "upstream_updated": upd,
                 "upstream_next_update": nxt,
                 "fetcher": FETCHER,
+                **extra,
             })
         append_csv(log, LOG_HEADER, [iso(r["t"]), r["url"], r["status"], len(body), sha, int(stored), ""])
         print(f"{'stored' if stored else 'same  '} {src}/{slug} .{ext} {len(body)} B")

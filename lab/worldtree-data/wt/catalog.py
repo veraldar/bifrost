@@ -5,7 +5,7 @@ from .common import REALMS, load_mapping, load_series, load_sources, parse_param
 
 TRANSFORMS = {"rank_delta", "rank_level", "logistic_delta"}
 DIMENSIONS = {"tech", "geopolitics", "economy", "environment", "society"}
-CADENCES = {"annual", "monthly", "daily"}
+CADENCES = {"annual", "monthly", "weekly", "daily"}
 STAGES = {"core", "m3", "candidate"}
 
 

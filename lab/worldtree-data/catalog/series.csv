@@ -24,3 +24,4 @@ arxiv.cs_ai,arxiv,cs.AI,arxiv:monthly,count,monthly,100,core,arXiv cs.AI submiss
 pubmed.ai_biomed,pubmed,ai_biomed,pubmed:monthly,count,monthly,100,core,PubMed AI×biomed papers
 fedreg.ai_documents,fedreg,ai_documents,fedreg:monthly,count,monthly,100,core,US federal AI documents
 noaa.co2,noaa_gml,co2_mm_mlo,noaa:monthly,ppm,monthly,100,core,Mauna Loa CO₂ monthly mean
+ari.index,ari,report,ari:weekly,index 0-100,weekly,21,core,Agent Restriction Index (ARI)

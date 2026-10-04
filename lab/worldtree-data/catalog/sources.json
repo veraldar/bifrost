@@ -7,6 +7,14 @@
   "status": "candidate",
   "title": "AI Incident Database"
  },
+ "ari": {
+  "attribution": "Agent Restriction Index (ARI), dweeb.xyz — weekly 0-100 index of restriction pressure on AI agents, Mac Studio ARI pipeline; methodology at report §method (https://dweeb-xzys-mac-studio.tail5435b1.ts.net/api/artifact/report-ari.html#method)",
+  "homepage": "https://dweeb-xzys-mac-studio.tail5435b1.ts.net/api/artifact/report-ari.html",
+  "license": "dweeb.xyz Agent Restriction Index — verbatim capture, © pipeline output, methodology at report §method",
+  "license_url": "https://dweeb-xzys-mac-studio.tail5435b1.ts.net/api/artifact/report-ari.html#method",
+  "status": "core",
+  "title": "Mac Studio ARI pipeline"
+ },
  "arxiv": {
   "attribution": "arXiv API (metadata CC0 1.0)",
   "homepage": "https://info.arxiv.org/help/api/",

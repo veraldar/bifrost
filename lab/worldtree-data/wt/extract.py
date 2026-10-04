@@ -5,6 +5,7 @@ import datetime as dt
 import io
 import json
 import math
+import re
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 
@@ -91,7 +92,7 @@ def read_rows(path):
 
 def ext_of(s):
     return {"owid": "csv", "worldbank": "json", "epoch": "csv", "wikimedia": "json",
-            "arxiv": "xml", "pubmed": "json", "fedreg": "json", "noaa_gml": "csv"}[s["source_id"]]
+            "arxiv": "xml", "pubmed": "json", "fedreg": "json", "noaa_gml": "csv", "ari": "html"}[s["source_id"]]
 
 
 # --- extractors: return list of (period, date, value) -------------------------------------------
@@ -220,6 +221,61 @@ def x_noaa(s, path, opts):
     return out
 
 
+ARI_BLOCK = re.compile(rb'<script id="ari-data" type="application/json">(.*?)</script>', re.S)
+ARI_CATS = ("os_restriction", "platform_ban", "datacenter_backlash", "safety_exit", "legal_wall")
+ARI_META = ["s", "n", "p"] + [f"pts_{c}" for c in ARI_CATS] + [f"n_{c}" for c in ARI_CATS]
+
+
+def ari_block(body: bytes):
+    """The report's embedded machine contract → dict, or None if the block is missing/unparseable."""
+    m = ARI_BLOCK.search(body)
+    if not m:
+        return None
+    try:
+        d = json.loads(m.group(1))
+    except ValueError:
+        return None
+    return d if isinstance(d, dict) and isinstance(d.get("weeks"), list) else None
+
+
+def ari_methodology(body: bytes, url):
+    """Sidecar provenance from the report itself: §method anchor, component weights (embedded `cats`), K + freeze date."""
+    d = ari_block(body) or {}
+    text = re.sub(r"<[^>]+>", " ", body.decode("utf-8", "replace"))
+    text = re.sub(r"\s+", " ", text)
+    k = re.search(r"K = ([0-9.]+) frozen on (\d{4}-\d\d-\d\d)", text)
+    gen = re.search(r"generated (\d{4}-\d\d-\d\dT[0-9:]+(?:\+00:00|Z))", text)
+    return {
+        "methodology_url": f"{url}#method",
+        "methodology": {
+            "components": [{"id": c.get("k"), "label": c.get("label"), "weight": c.get("w")} for c in d.get("cats", [])],
+            "score": "ARI = 100 × (1 − e^(−S/K)), S = Σ category weight over deduplicated events dated that week (Mon–Sun UTC)",
+            "K": float(k.group(1)) if k else None,
+            "K_frozen_on": k.group(2) if k else None,
+            "calibration": "K fixed so the median week of the calibration window scores 50",
+            "trend_test": "Mann-Kendall on complete weeks + OLS slope",
+        },
+        "report_generated": gen.group(1) if gen else None,
+    }
+
+
+def x_ari(s, path, opts):
+    """One row per week: date = week end `we`, value = ari, meta = s, n, p + weighted points (`by`) and event
+    counts (`nb`) per component. Rows flagged p (partial week) are left out of the series."""
+    d = ari_block(path.read_bytes())
+    if d is None:
+        raise ValueError(f"{path}: no ari-data block")
+    out = []
+    for w in d["weeks"]:
+        v = num(w.get("ari"))
+        if v is None or w.get("p"):
+            continue
+        by, nb = w.get("by") or {}, w.get("nb") or {}
+        meta = [w.get("s"), w.get("n"), int(bool(w.get("p")))] + [by.get(c, 0) for c in ARI_CATS] + [nb.get(c, 0) for c in ARI_CATS]
+        out.append((w["we"], w["we"], v, [fmt(x) for x in meta]))
+    return out
+
+
 def parse_count(kind, body: bytes):
     """Count from one per-month response (arxiv Atom XML / pubmed / fedreg JSON); None if unparseable."""
     try:
@@ -249,7 +305,7 @@ def x_counts(s, metas_by_month, kind):
     return out
 
 
-EXTRACTORS = {"owid": x_owid, "wb": x_wb, "wiki": x_wiki, "epoch": x_epoch, "noaa": x_noaa}
+EXTRACTORS = {"owid": x_owid, "wb": x_wb, "wiki": x_wiki, "epoch": x_epoch, "noaa": x_noaa, "ari": x_ari}
 COUNT_KINDS = ("arxiv", "pubmed", "fedreg")
 
 
@@ -262,7 +318,11 @@ def build(s, as_of):
     path, meta = snapshot(s["source_id"], s["slug"], ext_of(s), as_of)
     rows = [r for r in EXTRACTORS[kind](s, path, opts) if r[1] <= as_of]
     rows.sort(key=lambda r: (r[1], r[0]))
-    return [(p, d, fmt(v), meta["sha256"]) for p, d, v in rows]
+    return [(r[0], r[1], fmt(r[2]), meta["sha256"], *(r[3] if len(r) > 3 else ())) for r in rows]
+
+
+def header(s):
+    return HEADER + ARI_META if parse_extract(s["extract"])[0] == "ari" else HEADER
 
 
 def build_all(as_of):
@@ -272,7 +332,7 @@ def build_all(as_of):
         if s["stage"] != "core":
             continue
         rows = build(s, as_of)
-        write_text(root() / "series" / f"{sid}.csv", csv_text(HEADER, rows))
+        write_text(root() / "series" / f"{sid}.csv", csv_text(header(s), rows))
         n += 1
     print(f"series OK {n} files as of {as_of}")
     return n

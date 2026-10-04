@@ -1,0 +1,512 @@
+[
+ {
+  "gate": "catalog",
+  "pass": true,
+  "reason": "mapping.csv valid",
+  "scope": "run"
+ },
+ {
+  "gate": "stale",
+  "pass": true,
+  "reason": "latest 2025-12-31, age 276 d ≤ 1100 d",
+  "scope": "owid.extreme_poverty@utopia"
+ },
+ {
+  "gate": "snapshot_age",
+  "pass": true,
+  "reason": "snapshot 2026-10-03T20:26:18Z (0 d)",
+  "scope": "owid.extreme_poverty@utopia"
+ },
+ {
+  "gate": "short_history",
+  "pass": true,
+  "reason": "ref_n 30",
+  "scope": "owid.extreme_poverty@utopia"
+ },
+ {
+  "gate": "no_value",
+  "pass": true,
+  "reason": "y -0.1745",
+  "scope": "owid.extreme_poverty@utopia"
+ },
+ {
+  "gate": "stale",
+  "pass": true,
+  "reason": "latest 2023-12-31, age 1007 d ≤ 1100 d",
+  "scope": "owid.life_expectancy@utopia"
+ },
+ {
+  "gate": "snapshot_age",
+  "pass": true,
+  "reason": "snapshot 2026-10-03T20:26:17Z (0 d)",
+  "scope": "owid.life_expectancy@utopia"
+ },
+ {
+  "gate": "short_history",
+  "pass": true,
+  "reason": "ref_n 30",
+  "scope": "owid.life_expectancy@utopia"
+ },
+ {
+  "gate": "no_value",
+  "pass": true,
+  "reason": "y 0.5296",
+  "scope": "owid.life_expectancy@utopia"
+ },
+ {
+  "gate": "stale",
+  "pass": true,
+  "reason": "latest 2025-12-31, age 276 d ≤ 1100 d",
+  "scope": "wb.gdp_per_capita@utopia"
+ },
+ {
+  "gate": "snapshot_age",
+  "pass": true,
+  "reason": "snapshot 2026-10-03T20:26:20Z (0 d)",
+  "scope": "wb.gdp_per_capita@utopia"
+ },
+ {
+  "gate": "short_history",
+  "pass": true,
+  "reason": "ref_n 30",
+  "scope": "wb.gdp_per_capita@utopia"
+ },
+ {
+  "gate": "no_value",
+  "pass": true,
+  "reason": "y 0.0197",
+  "scope": "wb.gdp_per_capita@utopia"
+ },
+ {
+  "gate": "stale",
+  "pass": true,
+  "reason": "latest 2026-09-30, age 3 d ≤ 100 d",
+  "scope": "epoch.open_weights_share@divergence"
+ },
+ {
+  "gate": "snapshot_age",
+  "pass": true,
+  "reason": "snapshot 2026-10-03T20:26:14Z (0 d)",
+  "scope": "epoch.open_weights_share@divergence"
+ },
+ {
+  "gate": "short_history",
+  "pass": true,
+  "reason": "ref_n 60",
+  "scope": "epoch.open_weights_share@divergence"
+ },
+ {
+  "gate": "no_value",
+  "pass": true,
+  "reason": "y -5.6393",
+  "scope": "epoch.open_weights_share@divergence"
+ },
+ {
+  "gate": "stale",
+  "pass": true,
+  "reason": "latest 2026-09-30, age 3 d ≤ 100 d",
+  "scope": "epoch.org_diversity@divergence"
+ },
+ {
+  "gate": "snapshot_age",
+  "pass": true,
+  "reason": "snapshot 2026-10-03T20:26:14Z (0 d)",
+  "scope": "epoch.org_diversity@divergence"
+ },
+ {
+  "gate": "short_history",
+  "pass": true,
+  "reason": "ref_n 60",
+  "scope": "epoch.org_diversity@divergence"
+ },
+ {
+  "gate": "no_value",
+  "pass": true,
+  "reason": "y -0.0124",
+  "scope": "epoch.org_diversity@divergence"
+ },
+ {
+  "gate": "stale",
+  "pass": true,
+  "reason": "latest 2026-09-30, age 3 d ≤ 100 d",
+  "scope": "epoch.country_diversity@divergence"
+ },
+ {
+  "gate": "snapshot_age",
+  "pass": true,
+  "reason": "snapshot 2026-10-03T20:26:14Z (0 d)",
+  "scope": "epoch.country_diversity@divergence"
+ },
+ {
+  "gate": "short_history",
+  "pass": true,
+  "reason": "ref_n 60",
+  "scope": "epoch.country_diversity@divergence"
+ },
+ {
+  "gate": "no_value",
+  "pass": true,
+  "reason": "y -0.0196",
+  "scope": "epoch.country_diversity@divergence"
+ },
+ {
+  "gate": "stale",
+  "pass": true,
+  "reason": "latest 2026-03-31, age 186 d ≤ 300 d",
+  "scope": "owid.genai_user_share@drift"
+ },
+ {
+  "gate": "snapshot_age",
+  "pass": true,
+  "reason": "snapshot 2026-10-03T20:26:16Z (0 d)",
+  "scope": "owid.genai_user_share@drift"
+ },
+ {
+  "gate": "short_history",
+  "pass": true,
+  "reason": "ref_n 1",
+  "scope": "owid.genai_user_share@drift"
+ },
+ {
+  "gate": "no_value",
+  "pass": true,
+  "reason": "y 3.5992",
+  "scope": "owid.genai_user_share@drift"
+ },
+ {
+  "gate": "stale",
+  "pass": true,
+  "reason": "latest 2026-09-30, age 3 d ≤ 100 d",
+  "scope": "wiki.deepfake@drift"
+ },
+ {
+  "gate": "snapshot_age",
+  "pass": true,
+  "reason": "snapshot 2026-10-03T20:26:19Z (0 d)",
+  "scope": "wiki.deepfake@drift"
+ },
+ {
+  "gate": "short_history",
+  "pass": true,
+  "reason": "ref_n 60",
+  "scope": "wiki.deepfake@drift"
+ },
+ {
+  "gate": "no_value",
+  "pass": true,
+  "reason": "y -0.1766",
+  "scope": "wiki.deepfake@drift"
+ },
+ {
+  "gate": "stale",
+  "pass": true,
+  "reason": "latest 2026-09-30, age 3 d ≤ 100 d",
+  "scope": "wiki.synthetic_media@drift"
+ },
+ {
+  "gate": "snapshot_age",
+  "pass": true,
+  "reason": "snapshot 2026-10-03T20:26:19Z (0 d)",
+  "scope": "wiki.synthetic_media@drift"
+ },
+ {
+  "gate": "short_history",
+  "pass": true,
+  "reason": "ref_n 60",
+  "scope": "wiki.synthetic_media@drift"
+ },
+ {
+  "gate": "no_value",
+  "pass": true,
+  "reason": "y 0.1509",
+  "scope": "wiki.synthetic_media@drift"
+ },
+ {
+  "gate": "stale",
+  "pass": true,
+  "reason": "latest 2026-09-30, age 3 d ≤ 100 d",
+  "scope": "wiki.ai_regulation@control"
+ },
+ {
+  "gate": "snapshot_age",
+  "pass": true,
+  "reason": "snapshot 2026-10-03T20:26:19Z (0 d)",
+  "scope": "wiki.ai_regulation@control"
+ },
+ {
+  "gate": "short_history",
+  "pass": true,
+  "reason": "ref_n 60",
+  "scope": "wiki.ai_regulation@control"
+ },
+ {
+  "gate": "no_value",
+  "pass": true,
+  "reason": "y 0.0389",
+  "scope": "wiki.ai_regulation@control"
+ },
+ {
+  "gate": "stale",
+  "pass": true,
+  "reason": "latest 2025-12-31, age 276 d ≤ 1100 d",
+  "scope": "owid.electoral_democracy@control"
+ },
+ {
+  "gate": "snapshot_age",
+  "pass": true,
+  "reason": "snapshot 2026-10-03T20:26:16Z (0 d)",
+  "scope": "owid.electoral_democracy@control"
+ },
+ {
+  "gate": "short_history",
+  "pass": true,
+  "reason": "ref_n 30",
+  "scope": "owid.electoral_democracy@control"
+ },
+ {
+  "gate": "no_value",
+  "pass": true,
+  "reason": "y -0.0022",
+  "scope": "owid.electoral_democracy@control"
+ },
+ {
+  "gate": "stale",
+  "pass": true,
+  "reason": "latest 2025-12-31, age 276 d ≤ 1100 d",
+  "scope": "owid.conflict_deaths@terminus"
+ },
+ {
+  "gate": "snapshot_age",
+  "pass": true,
+  "reason": "snapshot 2026-10-03T20:26:15Z (0 d)",
+  "scope": "owid.conflict_deaths@terminus"
+ },
+ {
+  "gate": "short_history",
+  "pass": true,
+  "reason": "ref_n 30",
+  "scope": "owid.conflict_deaths@terminus"
+ },
+ {
+  "gate": "no_value",
+  "pass": true,
+  "reason": "y 12.4073",
+  "scope": "owid.conflict_deaths@terminus"
+ },
+ {
+  "gate": "stale",
+  "pass": true,
+  "reason": "latest 2025-12-31, age 276 d ≤ 1100 d",
+  "scope": "wb.unemployment@terminus"
+ },
+ {
+  "gate": "snapshot_age",
+  "pass": true,
+  "reason": "snapshot 2026-10-03T20:26:20Z (0 d)",
+  "scope": "wb.unemployment@terminus"
+ },
+ {
+  "gate": "short_history",
+  "pass": true,
+  "reason": "ref_n 30",
+  "scope": "wb.unemployment@terminus"
+ },
+ {
+  "gate": "no_value",
+  "pass": true,
+  "reason": "y -0.0149",
+  "scope": "wb.unemployment@terminus"
+ },
+ {
+  "gate": "stale",
+  "pass": true,
+  "reason": "latest 2026-09-30, age 3 d ≤ 100 d",
+  "scope": "wiki.ai_xrisk@terminus"
+ },
+ {
+  "gate": "snapshot_age",
+  "pass": true,
+  "reason": "snapshot 2026-10-03T20:26:19Z (0 d)",
+  "scope": "wiki.ai_xrisk@terminus"
+ },
+ {
+  "gate": "short_history",
+  "pass": false,
+  "reason": "ref_n 22 < 24",
+  "scope": "wiki.ai_xrisk@terminus"
+ },
+ {
+  "gate": "stale",
+  "pass": true,
+  "reason": "latest 2025-12-31, age 276 d ≤ 1100 d",
+  "scope": "owid.ai_private_investment@stagnation"
+ },
+ {
+  "gate": "snapshot_age",
+  "pass": true,
+  "reason": "snapshot 2026-10-03T20:26:17Z (0 d)",
+  "scope": "owid.ai_private_investment@stagnation"
+ },
+ {
+  "gate": "short_history",
+  "pass": true,
+  "reason": "ref_n 11",
+  "scope": "owid.ai_private_investment@stagnation"
+ },
+ {
+  "gate": "no_value",
+  "pass": true,
+  "reason": "y 0.7961",
+  "scope": "owid.ai_private_investment@stagnation"
+ },
+ {
+  "gate": "stale",
+  "pass": true,
+  "reason": "latest 2025-12-31, age 276 d ≤ 1100 d",
+  "scope": "owid.ai_company_adoption@stagnation"
+ },
+ {
+  "gate": "snapshot_age",
+  "pass": true,
+  "reason": "snapshot 2026-10-03T20:26:17Z (0 d)",
+  "scope": "owid.ai_company_adoption@stagnation"
+ },
+ {
+  "gate": "short_history",
+  "pass": true,
+  "reason": "ref_n 1",
+  "scope": "owid.ai_company_adoption@stagnation"
+ },
+ {
+  "gate": "no_value",
+  "pass": true,
+  "reason": "y 10.0068",
+  "scope": "owid.ai_company_adoption@stagnation"
+ },
+ {
+  "gate": "stale",
+  "pass": true,
+  "reason": "latest 2026-09-30, age 3 d ≤ 100 d",
+  "scope": "epoch.frontier_compute@stagnation"
+ },
+ {
+  "gate": "snapshot_age",
+  "pass": true,
+  "reason": "snapshot 2026-10-03T20:26:14Z (0 d)",
+  "scope": "epoch.frontier_compute@stagnation"
+ },
+ {
+  "gate": "short_history",
+  "pass": true,
+  "reason": "ref_n 60",
+  "scope": "epoch.frontier_compute@stagnation"
+ },
+ {
+  "gate": "no_value",
+  "pass": true,
+  "reason": "y 0.3011",
+  "scope": "epoch.frontier_compute@stagnation"
+ },
+ {
+  "gate": "stale",
+  "pass": true,
+  "reason": "latest 2026-09-30, age 3 d ≤ 120 d",
+  "scope": "owid.frontiermath_best@transcendence"
+ },
+ {
+  "gate": "snapshot_age",
+  "pass": true,
+  "reason": "snapshot 2026-10-03T20:26:15Z (0 d)",
+  "scope": "owid.frontiermath_best@transcendence"
+ },
+ {
+  "gate": "short_history",
+  "pass": true,
+  "reason": "ref_n 1",
+  "scope": "owid.frontiermath_best@transcendence"
+ },
+ {
+  "gate": "no_value",
+  "pass": true,
+  "reason": "y 2.2088",
+  "scope": "owid.frontiermath_best@transcendence"
+ },
+ {
+  "gate": "stale",
+  "pass": true,
+  "reason": "latest 2026-09-30, age 3 d ≤ 100 d",
+  "scope": "epoch.frontier_compute@transcendence"
+ },
+ {
+  "gate": "snapshot_age",
+  "pass": true,
+  "reason": "snapshot 2026-10-03T20:26:14Z (0 d)",
+  "scope": "epoch.frontier_compute@transcendence"
+ },
+ {
+  "gate": "short_history",
+  "pass": true,
+  "reason": "ref_n 60",
+  "scope": "epoch.frontier_compute@transcendence"
+ },
+ {
+  "gate": "no_value",
+  "pass": true,
+  "reason": "y 0.3011",
+  "scope": "epoch.frontier_compute@transcendence"
+ },
+ {
+  "gate": "stale",
+  "pass": true,
+  "reason": "latest 2026-09-30, age 3 d ≤ 100 d",
+  "scope": "wiki.agi@transcendence"
+ },
+ {
+  "gate": "snapshot_age",
+  "pass": true,
+  "reason": "snapshot 2026-10-03T20:26:19Z (0 d)",
+  "scope": "wiki.agi@transcendence"
+ },
+ {
+  "gate": "short_history",
+  "pass": true,
+  "reason": "ref_n 60",
+  "scope": "wiki.agi@transcendence"
+ },
+ {
+  "gate": "no_value",
+  "pass": true,
+  "reason": "y 0.1906",
+  "scope": "wiki.agi@transcendence"
+ },
+ {
+  "gate": "integrity",
+  "pass": true,
+  "reason": "16 snapshots verified",
+  "scope": "run"
+ },
+ {
+  "gate": "realm_coverage",
+  "pass": true,
+  "reason": "all realms ≥ 0.5",
+  "scope": "run"
+ },
+ {
+  "gate": "global_coverage",
+  "pass": true,
+  "reason": "19 indicators from 4 sources (need ≥ 12 from ≥ 2)",
+  "scope": "run"
+ },
+ {
+  "gate": "contract",
+  "pass": true,
+  "reason": "CONTRACT OK",
+  "scope": "run"
+ },
+ {
+  "gate": "jump",
+  "pass": true,
+  "reason": "no realm moved > 10 points",
+  "scope": "run"
+ }
+]

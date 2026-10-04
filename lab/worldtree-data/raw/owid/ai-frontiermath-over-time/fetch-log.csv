@@ -1,0 +1,9 @@
+attempted_at,url,http_status,bytes,sha256,stored,error
+2026-10-03T20:26:15Z,https://ourworldindata.org/grapher/ai-frontiermath-over-time.csv?v=1&csvType=full&useColumnShortNames=true,200,4530,184d1ebfcd3e891941cc3d951c43750859fd7b30cb32f872815517994fb5c95e,1,
+2026-10-03T20:26:15Z,https://ourworldindata.org/grapher/ai-frontiermath-over-time.metadata.json?v=1&csvType=full&useColumnShortNames=true,200,3287,a5718a2d459985df50692f3915ec3748ce2ff5fcf32cf6fda5849ab1b0e15baa,1,
+2026-10-03T20:26:26Z,https://ourworldindata.org/grapher/ai-frontiermath-over-time.csv?v=1&csvType=full&useColumnShortNames=true,200,4530,184d1ebfcd3e891941cc3d951c43750859fd7b30cb32f872815517994fb5c95e,0,
+2026-10-03T20:26:26Z,https://ourworldindata.org/grapher/ai-frontiermath-over-time.metadata.json?v=1&csvType=full&useColumnShortNames=true,200,3287,a5718a2d459985df50692f3915ec3748ce2ff5fcf32cf6fda5849ab1b0e15baa,0,
+2026-10-03T20:31:34Z,https://ourworldindata.org/grapher/ai-frontiermath-over-time.csv?v=1&csvType=full&useColumnShortNames=true,200,4530,184d1ebfcd3e891941cc3d951c43750859fd7b30cb32f872815517994fb5c95e,0,
+2026-10-03T20:31:35Z,https://ourworldindata.org/grapher/ai-frontiermath-over-time.metadata.json?v=1&csvType=full&useColumnShortNames=true,200,3287,a5718a2d459985df50692f3915ec3748ce2ff5fcf32cf6fda5849ab1b0e15baa,0,
+2026-10-03T20:32:02Z,https://ourworldindata.org/grapher/ai-frontiermath-over-time.csv?v=1&csvType=full&useColumnShortNames=true,200,4530,184d1ebfcd3e891941cc3d951c43750859fd7b30cb32f872815517994fb5c95e,0,
+2026-10-03T20:32:02Z,https://ourworldindata.org/grapher/ai-frontiermath-over-time.metadata.json?v=1&csvType=full&useColumnShortNames=true,200,3287,a5718a2d459985df50692f3915ec3748ce2ff5fcf32cf6fda5849ab1b0e15baa,0,

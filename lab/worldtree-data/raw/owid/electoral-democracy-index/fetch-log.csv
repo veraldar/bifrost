@@ -1,0 +1,9 @@
+attempted_at,url,http_status,bytes,sha256,stored,error
+2026-10-03T20:26:16Z,https://ourworldindata.org/grapher/electoral-democracy-index.csv?v=1&csvType=full&useColumnShortNames=true,200,1115453,a0843a64486708e1638e5051be67dde8ddb0c82ae7be264c512173f503445afc,1,
+2026-10-03T20:26:16Z,https://ourworldindata.org/grapher/electoral-democracy-index.metadata.json?v=1&csvType=full&useColumnShortNames=true,200,5538,0e78ff78e76433cf6c962cad461da20bd1e98592911dcb6584efd1f3369e9404,1,
+2026-10-03T20:26:27Z,https://ourworldindata.org/grapher/electoral-democracy-index.csv?v=1&csvType=full&useColumnShortNames=true,200,1115453,a0843a64486708e1638e5051be67dde8ddb0c82ae7be264c512173f503445afc,0,
+2026-10-03T20:26:27Z,https://ourworldindata.org/grapher/electoral-democracy-index.metadata.json?v=1&csvType=full&useColumnShortNames=true,200,5538,0e78ff78e76433cf6c962cad461da20bd1e98592911dcb6584efd1f3369e9404,0,
+2026-10-03T20:31:35Z,https://ourworldindata.org/grapher/electoral-democracy-index.csv?v=1&csvType=full&useColumnShortNames=true,200,1115453,a0843a64486708e1638e5051be67dde8ddb0c82ae7be264c512173f503445afc,0,
+2026-10-03T20:31:36Z,https://ourworldindata.org/grapher/electoral-democracy-index.metadata.json?v=1&csvType=full&useColumnShortNames=true,200,5538,0e78ff78e76433cf6c962cad461da20bd1e98592911dcb6584efd1f3369e9404,0,
+2026-10-03T20:32:03Z,https://ourworldindata.org/grapher/electoral-democracy-index.csv?v=1&csvType=full&useColumnShortNames=true,200,1115453,a0843a64486708e1638e5051be67dde8ddb0c82ae7be264c512173f503445afc,0,
+2026-10-03T20:32:03Z,https://ourworldindata.org/grapher/electoral-democracy-index.metadata.json?v=1&csvType=full&useColumnShortNames=true,200,5538,0e78ff78e76433cf6c962cad461da20bd1e98592911dcb6584efd1f3369e9404,0,

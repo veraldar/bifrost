@@ -197,5 +197,48 @@ C2=$(curl -sk -o /dev/null -w '%{http_code}' "$AP/")
 if [ "$C1" = 503 ] && [ "$C2" = 200 ]; then ok "bridge gone → 503; bridge back → re-registered → 200"
 else fail "relink: down=$C1 up=$C2"; fi
 
+# 14. SNI-passthrough mode (deploy-vps.md option B): nginx `stream { ssl_preread on; proxy_protocol on; }`
+#     in front, the ap on loopback with proxy_protocol = true. No nginx on this box: a python stand-in
+#     plays it. The region must follow the PROXY line's client; a bare connection (no PROXY line) dies.
+t; PP=$((APPORT + 1)); FP=$((APPORT + 2)); P2=$((P + 10))
+{ sed "s|0.0.0.0:$APPORT|127.0.0.1:$PP|" "$TMP/ap.toml"; echo 'proxy_protocol = true'; } > "$TMP/ap-pp.toml"
+sed -e "s|127.0.0.1:$P\"|127.0.0.1:$P2\"|" -e "s|127.0.0.1:$((P + 1))\"|127.0.0.1:$((P2 + 1))\"|" \
+    -e "s|wss://127.0.0.1:$APPORT/ap|wss://127.0.0.1:$FP/ap|" "$TMP/bridge.toml" > "$TMP/bridge-pp.toml"
+python3 - "$FP" "$PP" > /dev/null 2>&1 <<'PY' &
+import socket, sys, threading
+fp, pp = int(sys.argv[1]), int(sys.argv[2])
+s = socket.socket(); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1); s.bind(("0.0.0.0", fp)); s.listen()
+def pipe(a, b):
+    try:
+        while True:
+            d = a.recv(65536)
+            if not d: break
+            b.sendall(d)
+    except OSError: pass
+    try: b.shutdown(socket.SHUT_WR)
+    except OSError: pass
+def h(c, addr):
+    u = socket.create_connection(("127.0.0.1", pp))
+    me = c.getsockname()
+    u.sendall(f"PROXY TCP4 {addr[0]} {me[0]} {addr[1]} {me[1]}\r\n".encode())
+    threading.Thread(target=pipe, args=(c, u), daemon=True).start(); pipe(u, c)
+while True:
+    c, addr = s.accept(); threading.Thread(target=h, args=(c, addr), daemon=True).start()
+PY
+FRONT_PID=$!
+"$BIN" ap -c "$TMP/ap-pp.toml" > "$TMP/ap-pp.log" 2>&1 &
+AP2_PID=$!
+sleep 0.5
+"$BIN" bridge -c "$TMP/bridge-pp.toml" > "$TMP/bridge-pp.log" 2>&1 &
+BR2_PID=$!
+for _ in $(seq 100); do grep -q "channel up" "$TMP/bridge-pp.log" 2>/dev/null && break; sleep 0.1; done
+C1=$(curl -sk --interface "$LANIP" -H "Authorization: Bearer $DEVLAN" -o /dev/null -w '%{http_code}' "https://$LANIP:$FP/api/session")
+R2=$(curl -sk -H "Authorization: Bearer $DEVLAN" -w ' %{http_code}' "https://127.0.0.1:$FP/api/session")
+C3=$(curl -sk -m 5 -o /dev/null -w '%{http_code}' "https://127.0.0.1:$PP/" 2>/dev/null); C3=${C3:-000}
+kill $FRONT_PID $AP2_PID $BR2_PID 2>/dev/null
+if [ "$C1" = 200 ] && [[ "$R2" == *'"why":"region"'*' 401' ]] && [ "$C3" = 000 ]; then
+  ok "SNI/PROXY mode: region from the PROXY line (LAN token 200 via the front from $LANIP; same token from loopback 401 region); bare connection refused"
+else fail "proxy mode: lan=$C1 loop=$R2 bare=$C3"; fi
+
 echo "AP VERIFY: $PASS/$TOTAL PASS"
 [ "$PASS" -eq "$TOTAL" ] && echo "AP VERDICT: GREEN" || exit 1

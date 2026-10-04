@@ -76,6 +76,10 @@ pub struct ApConfig {
     pub channel_path: String,
     #[serde(default = "default_hsts")]
     pub hsts: String,
+    /// nginx `stream { proxy_protocol on; }` in front (SNI passthrough): read the
+    /// real client address from the PROXY v1 line. Listen on loopback ONLY then.
+    #[serde(default)]
+    pub proxy_protocol: bool,
 }
 
 fn default_channel() -> String { "/ap".into() }
@@ -93,6 +97,9 @@ pub fn load(path: &str) -> Result<ApConfig, String> {
     let h = f.ap.bridge_token_sha256.trim().to_ascii_lowercase();
     if h.len() != 64 || !h.chars().all(|c| c.is_ascii_hexdigit()) {
         return Err("ap.bridge_token_sha256 must be 64 hex chars (bifrost-net ap-token)".into());
+    }
+    if f.ap.proxy_protocol && !f.ap.listen.starts_with("127.") && !f.ap.listen.starts_with("[::1]") {
+        return Err("ap.proxy_protocol trusts the PROXY line: listen on loopback (behind nginx) only".into());
     }
     Ok(ApConfig { bridge_token_sha256: h, ..f.ap })
 }
@@ -196,7 +203,8 @@ impl ServerCertVerifier for PinVerifier {
         _now: UnixTime,
     ) -> Result<ServerCertVerified, rustls::Error> {
         let got = pin_of(end_entity).map_err(rustls::Error::General)?;
-        if got.eq_ignore_ascii_case(self.pin.trim()) {
+        // comma-separated = rotation window (old key, new key)
+        if self.pin.split(',').any(|p| got.eq_ignore_ascii_case(p.trim())) {
             Ok(ServerCertVerified::assertion())
         } else {
             Err(rustls::Error::General(format!("ap identity mismatch: pinned {} got {got}", self.pin)))
@@ -492,7 +500,7 @@ async fn serve(cfg: ApConfig, ready: Option<std::sync::mpsc::Sender<Result<(Sock
     let hub = Arc::new(Hub::default());
     let cfg = Arc::new(cfg);
     loop {
-        let (tcp, peer) = match listener.accept().await {
+        let (mut tcp, peer) = match listener.accept().await {
             Ok(x) => x,
             Err(e) => {
                 eprintln!("  ap: accept: {e}");
@@ -503,9 +511,40 @@ async fn serve(cfg: ApConfig, ready: Option<std::sync::mpsc::Sender<Result<(Sock
         let (acceptor, hub, cfg) = (acceptor.clone(), hub.clone(), cfg.clone());
         tokio::spawn(async move {
             let _ = tcp.set_nodelay(true);
+            let peer = if cfg.proxy_protocol {
+                match timeout(Duration::from_secs(5), read_proxy_v1(&mut tcp, peer)).await {
+                    Ok(Ok(p)) => p,
+                    _ => return,
+                }
+            } else {
+                peer
+            };
             let Ok(Ok(tls)) = timeout(Duration::from_secs(10), acceptor.accept(tcp)).await else { return };
             let _ = edge_conn(tls, peer, hub, cfg).await;
         });
+    }
+}
+
+/// PROXY protocol v1 — nginx's `proxy_protocol on` prefix: the real client address.
+async fn read_proxy_v1(tcp: &mut TcpStream, local: SocketAddr) -> io::Result<SocketAddr> {
+    let bad = |m: &str| io::Error::new(io::ErrorKind::InvalidData, m.to_string());
+    let mut line = Vec::with_capacity(108);
+    let mut b = [0u8; 1];
+    while !line.ends_with(b"\r\n") {
+        if line.len() >= 107 {
+            return Err(bad("PROXY line too long"));
+        }
+        tcp.read_exact(&mut b).await?;
+        line.push(b[0]);
+    }
+    let text = std::str::from_utf8(&line).map_err(|_| bad("PROXY line not utf8"))?.trim_end();
+    match text.split(' ').collect::<Vec<_>>().as_slice() {
+        ["PROXY", "UNKNOWN", ..] => Ok(local),
+        ["PROXY", "TCP4" | "TCP6", src, _dst, sport, _dport] => Ok(SocketAddr::new(
+            src.parse().map_err(|_| bad("PROXY src"))?,
+            sport.parse().map_err(|_| bad("PROXY port"))?,
+        )),
+        _ => Err(bad("not a PROXY v1 line")),
     }
 }
 
@@ -940,6 +979,7 @@ pub fn selftest() -> Result<String, String> {
         bridge_token_sha256: bridge_hash,
         channel_path: "/ap".into(),
         hsts: "max-age=31536000".into(),
+        proxy_protocol: false,
     })?;
     if ap_pin != pin {
         return Err("ap announces a different pin".into());

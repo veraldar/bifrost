@@ -276,3 +276,139 @@ The server restarts with `YGG_PROJECT_DIR=$TMP/proj` and `YGG_MAX_STEPS=4`. All 
 - The `task`/child-session tool, plus `skill`, `question` and MCP. Together they're under 0.5% of the tool parts in LIFE.md.
 - Per-step assistant messages and `step-start`/`step-finish` parts, which would only matter if the PWA starts rendering steps.
 - No real-model run in this slice. The mock exercises the OpenAI tool-call wire format, but a live provider may differ in small ways (e.g. sending `id` on every fragment, which the reassembly already tolerates).
+
+# Slice 7 — anthropic upstream dialect
+
+**Status: green against the mock.** `./verify.sh` passed three runs in a row, about 12 s each. The slice 1–6b assertions are unchanged and still pass, and there's a new slice-7 block.
+
+**Not yet run against the real upstream.** This session's environment had no `YGG_UPSTREAM_*` variables, so `./verify-real-upstream.sh` printed `FAIL-AUTH: YGG_UPSTREAM_BASE_URL not set` and exited 3. The script itself is checked against the mock (details under Verification) and is ready for the driver's key.
+
+The bifrost e2e referee (`./run-e2e.sh --grep-invert "voice|hands-free|LiveKit"`, OpenAI dialect, with the refactored mock) gave **38 passed, 1 failed**. The one failure is `context`, the known gap from slice 3: it needs a real model. `theme`, which failed in slice 6a because of build drift, passes again.
+
+What changed:
+- `src/anthropic.rs` (new): the mapping and the block-SSE decoder, with 5 unit tests.
+- `src/main.rs`: the config, a one-line dispatch in `relay` and in `summarize`, and the new `relay_anthropic` and `summarize_anthropic`.
+- `mock/mock_upstream.py`: now speaks both dialects.
+- `verify.sh`: the slice-7 block.
+- `verify-real-upstream.sh` (new).
+- `install/yggdrasil.env.example` and `install/README.md`: document the two new env vars.
+
+No new dependencies.
+
+## Shape
+- **Selecting the dialect.** `YGG_UPSTREAM_STYLE` is `openai` (default) or `anthropic`. Any other value exits 2. At startup the server logs the dialect and the full POST URL.
+- **One internal conversation, translated at the wire.** The run keeps the OpenAI-shaped conversation that `upstream_history`, the agent loop, roll-up and prune already build.
+  - In anthropic style, `anthropic::body` translates that conversation for each request.
+  - The response decoder returns the same two things the OpenAI relay returns: text deltas (forwarded as `message.part.delta` and accumulated) and a list of tool calls.
+  - Everything after that is shared code: tool execution, parts, events, persistence and roll-up. So the dialect can't show up in the transcript.
+  - The OpenAI code path is untouched apart from the dispatch line.
+- **Request.** `POST {base}/v1/messages`. If the base already ends in `/v1`, only `/messages` is appended.
+  - Body: `{model, max_tokens, system?, messages, tools?, stream:true}`.
+  - Headers: `x-api-key` and `Authorization: Bearer`, both with the same key, plus `anthropic-version: 2023-06-01`. The real Anthropic API rejects requests without that version header; providers that don't need it ignore it.
+- **Mapping.** Also documented at the top of `anthropic.rs`.
+  - User text becomes a `text` block.
+  - Assistant text plus `tool_calls` become `text` plus `tool_use` blocks. `input` is the parsed arguments object; arguments that don't parse become `{"raw": ...}`, the same as the stored part.
+  - Each `tool` result becomes a `tool_result` block in the next user turn. Several results from one step share one user turn, and they always come first; a following user prompt goes after them.
+  - Error results keep the `Error: …` text the OpenAI dialect sends.
+  - Empty tool output is sent as `(no output)`, because some providers may reject an empty tool_result.
+  - Consecutive turns with the same role are merged, since the API requires strict alternation.
+  - Empty or whitespace-only text blocks are dropped.
+  - A trailing assistant turn is right-trimmed, because the API rejects trailing whitespace in a prefill.
+  - Tool ids are sanitized to `[A-Za-z0-9_-]`. Ids minted by other providers (e.g. `functions.bash:0`) then still replay after a dialect switch.
+  - Tools: `{type:function, function:{name, description, parameters}}` becomes `{name, description, input_schema}`.
+- **Roll-up: the system prompt goes top-level.** I chose to send `system`-role messages as the top-level `system` field, joined with blank lines and omitted when empty.
+  - Today only the roll-up's summarizer call has one.
+  - The stored summary is not a system message. It stays opencode's pair: a user message with a `compaction` part (sent as "What did we do so far?") and an assistant message with `summary:true`. That maps to two ordinary turns and keeps alternation.
+  - The roll-up call is non-streamed and has no tools, as in the OpenAI dialect. An SSE answer to it is accepted too.
+- **Thresholds are the same in both dialects.** Token estimates are still taken on the internal shape, so both dialects make the same roll-up and prune decisions on the same history.
+- **Response decoding.** Events are handled by `type`: `message_start`, `ping`, `content_block_start/delta/stop`, `message_delta`, `message_stop` and `error`.
+  - `text_delta` becomes a client delta.
+  - `input_json_delta` fragments are reassembled into tool arguments per block index. A `tool_use` whose whole `input` arrives in `content_block_start` works too.
+  - `message_stop` ends the read.
+  - An in-stream `error` event fails the run the same way an HTTP error does.
+  - A plain JSON message is also accepted.
+  - `thinking` blocks are ignored, just as the OpenAI dialect ignores reasoning deltas (passthrough is slice 6c).
+  - `stop_reason: max_tokens` is logged with a hint to raise `YGG_MAX_TOKENS`.
+- **Split characters survive.** SSE lines are split on raw bytes and decoded whole, so a multi-byte character split across network chunks comes through intact (unit-tested with "é"). The OpenAI relay still decodes each chunk with `from_utf8_lossy`; I didn't touch it in this slice.
+- **Tool-use ids are re-keyed.** At the relay, each `tool_use` gets a yggdrasil id (`call_<32 hex>`). The conversation sent back uses that id in both `tool_use` and `tool_result`.
+  - Without this, every stored `callID` would start with Anthropic's `toolu_`, and the transcript would reveal its dialect.
+  - The cost is that the provider's own id isn't kept.
+- **Abort.** Same mechanism and no new code: an abort drops the relay future, which drops the response stream and closes the upstream connection.
+- **`YGG_MAX_TOKENS` defaults to 16384.** That leaves room for a whole-file `write` call, and a truncated tool call is worse than a long answer. It's within the output limit of current Claude 4.x and GLM models. Older models with a smaller limit (e.g. 8192) answer 400; set the env var for those.
+
+## Verification (verify.sh slice-7 block)
+1. **Unit tests.** `cargo test` passes 6 tests: 5 new ones plus the existing 6b prune test. The new tests cover:
+   - the URL rule;
+   - the full tool-loop history mapping, including merged results, sanitized ids, raw arguments, empty output and the system prompt;
+   - the prefill trim;
+   - block-SSE decoding, including thinking blocks, input that arrives whole in `content_block_start`, and the error event;
+   - SSE lines with a character split across chunks.
+2. **The same scenario in both dialects.** Each dialect gets a fresh store and project dir with `YGG_ROLLUP_TOKENS=300` and `KEEP=60`. The scenario:
+   - a chat turn;
+   - a tool loop: bash, then write plus a failing edit in one step, then read, then the final reply;
+   - marathon turns until the roll-up crosses (it crosses on the first one);
+   - one turn after the roll-up.
+
+   Then the checks:
+   - **Stored transcripts are equal**, not just the same shape, after normalizing ids (by order of appearance), timestamps and the project path. That covers parts, tool states, outputs and metadata, the summary text and the replies. Each transcript has 10 messages.
+   - **The client SSE stream of every turn is equal too**: event kinds and payloads, with the same normalization.
+     - One value, the roll-up's `tokensBefore`, is only checked for direction (it must be above `tokensAfter`). It's an estimate over the stored call ids, and their length differs: the mock's OpenAI ids are `call_0_0`, the re-keyed ones are 32 hex characters.
+     - The project dirs have equal-length names, because tool output contains the path and the summary reports a character count.
+   - **No dialect leak.** There is no `toolu_` anywhere in the anthropic transcript or streams, and all 4 callIDs are `call_<32 hex>`.
+   - **Each dialect hit only its own endpoint.** Both made the same number of chat calls (7), plus exactly one summary call without tools, with zero rejections. `YGG_MAX_TOKENS=777` arrived upstream as `max_tokens`.
+3. **The mock checks requests strictly; it doesn't just echo.** Every `/v1/messages` request is validated the way the real API validates it, and anything else gets a 400 `invalid_request_error`. It checks:
+   - both auth headers plus `anthropic-version`;
+   - `max_tokens`;
+   - the conversation starts with a user turn and roles strictly alternate;
+   - no empty text blocks;
+   - every `tool_use` is answered by `tool_result`s placed first in the next user turn;
+   - tools are declared whenever tool blocks appear;
+   - tool definitions have the `{name, description, input_schema}` shape.
+
+   A valid request is mapped back to the OpenAI shape and answered by the same reply logic, so equal histories get equal replies. That is what makes the transcript comparison exact.
+
+   It answers in real block SSE, with `toolu_` ids, a `ping`, and arguments split across two `input_json_delta` events. The OpenAI dialect's output is unchanged: the slice 1–6b assertions and the e2e referee pass against it.
+4. **Abort mid-SSE in the anthropic dialect.**
+   - The abort returns `true` and the stream closes in under 1 s.
+   - The client gets `message.aborted` and no completion.
+   - The stored partial text equals the deltas the client received, flagged `MessageAbortedError`.
+   - The mock's disconnect counter shows the upstream connection really was dropped.
+5. **Real-upstream script self-test.**
+   - Against the mock, `verify-real-upstream.sh` prints `PASS-REAL`.
+   - Key `mock-429` (a zai-style "Insufficient balance" 429), key `mock-401`, and no key each print `FAIL-AUTH` and exit 3 without crashing.
+
+## Real upstream (`verify-real-upstream.sh`)
+- **Env.**
+  - `YGG_UPSTREAM_BASE_URL` and `YGG_UPSTREAM_API_KEY` are required.
+  - `YGG_UPSTREAM_STYLE` defaults to **anthropic** in this script.
+  - `YGG_UPSTREAM_MODEL` defaults to `glm-5.3-flash`, the model opencode uses on this box through `zai-coding-plan`.
+  - `YGG_MAX_TOKENS` defaults to 4096 here, to keep the bill small.
+- **Isolation.** It runs its own yggdrasil on `127.0.0.1:14199` with a throwaway store and project dir, and contacts nothing but the provider.
+- **Hard checks:**
+  1. The chat turn completes.
+  2. The model makes a tool call, and a completed bash part printed `ygg-real-42`. The command is `echo ygg-real-$((6*7))`, so this proves it really ran.
+  3. A roll-up crosses (`YGG_ROLLUP_TOKENS=100`), and a non-empty summary is stored with `summary:true`.
+  4. An abort after the first delta of a long count returns `true`, the stream closes in under 2 s, the stored partial equals what was streamed, and the message is flagged `MessageAbortedError`.
+  5. Transcript shape: every message, part and tool state has the opencode keys, callIDs are `call_<32 hex>`, and there's no `toolu_`.
+- **Warnings only.** Whether the reply says "pong", repeats 42, or recalls 42 after the roll-up is model behaviour, not protocol, so those checks only warn.
+- **Exit codes.**
+  - 0 prints `PASS-REAL`.
+  - 1 is `FAIL` on our side (mapping or server).
+  - 3 is `FAIL-AUTH`: no key, 401/403/429, or an error mentioning balance, quota, recharge, rate limit and so on. The error is read from the server's `event: error` text, so errors that arrive inside the stream are classified too.
+- **This session's run:** `FAIL-AUTH: YGG_UPSTREAM_BASE_URL not set`. The environment had no `YGG_UPSTREAM_*` variables. I didn't look for keys elsewhere (for example opencode's own auth store), because the brief has the driver supply the key.
+- **To run it:** `YGG_UPSTREAM_BASE_URL=https://api.z.ai/api/anthropic YGG_UPSTREAM_API_KEY=… ./verify-real-upstream.sh`
+
+## Caveats / not done
+- **Not run against a real Anthropic-shaped provider.** The real run's turn 2 (the first tool step) will answer what the mock can't:
+  - whether zai returns `thinking` blocks for GLM by default (they're dropped);
+  - whether it then wants them back on tool_use turns;
+  - whether it accepts re-keyed tool ids (the official API accepts any id that fits the pattern).
+- **`YGG_TOOLS=0` on a session whose history already has tool parts isn't handled.** The anthropic API rejects tool blocks when no tools are declared; the OpenAI dialect doesn't care. Turn tools off only on fresh sessions.
+- **No prompt caching** (`cache_control`): every turn re-sends the full history uncached. That's worth a slice for marathon cost on Anthropic itself; zai's coding plan is flat-rate.
+- **No `is_error` on tool_result.** The `Error: …` text carries it, the same as in the OpenAI dialect.
+- **Images still aren't forwarded upstream**, as in slice 3.
+- **ASSESSMENT.md has no slice-6b section.** The night run committed 6b (ceb3724) without appending one. 6b is still covered by verify.sh's 6b block, which passes.
+- **Housekeeping.**
+  - Nothing is committed, per the house rule of no commits unless asked.
+  - `docs/claims.md` is untouched: it's outside `lab/yggdrasil/`, and the driver's night-builder claim covers this directory.
+  - The e2e harness wipes `run/`, so I backed up `run/night/` (the night-builder prompt) and restored it afterwards.

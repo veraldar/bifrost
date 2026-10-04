@@ -48,6 +48,18 @@ YGG_UPSTREAM_MODEL=gpt-4o-mini
 YGG_LISTEN=127.0.0.1:4100
 ```
 
+For an Anthropic-shaped provider (Anthropic, the Z.ai coding plan), set the dialect:
+
+```sh
+YGG_UPSTREAM_STYLE=anthropic                      # {base}/v1/messages, block SSE
+YGG_UPSTREAM_BASE_URL=https://api.z.ai/api/anthropic
+YGG_UPSTREAM_MODEL=glm-5.3-flash
+#YGG_MAX_TOKENS=16384                             # required by the API; this is the default
+```
+
+Check a key end to end before switching bifrost over: `./verify-real-upstream.sh` (from the
+yggdrasil source dir) runs chat, a tool call, a roll-up and an abort against the real provider.
+
 There's no authentication, so keep `YGG_LISTEN` on localhost or a tailnet address.
 
 ## 3. Run

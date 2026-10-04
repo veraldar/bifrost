@@ -1,0 +1,37 @@
+Slice 7 works against the mock, but it has not been run against the real zai upstream: there was no upstream URL or key in my environment. With `YGG_UPSTREAM_STYLE=anthropic`, yggdrasil now talks to `{base}/v1/messages` and parses its streamed replies.
+
+**Test results**
+- `./verify.sh` passed 4 runs in a row, about 12 s each. The slice 1–6b checks are unchanged and still pass.
+- The bifrost e2e suite gave 38 passed, 1 failed. The failure is `context`, the same real-model gap as in slice 3.
+
+**What the new checks show**
+- **Same transcripts in both dialects:** one scenario runs against both dialects. It covers a chat turn, a tool loop (one step has two calls and a failing edit), a roll-up and a turn after it. The stored transcripts come out equal, not just the same shape, once IDs and timestamps are normalized. The client event stream of every turn is equal too.
+- **The mock behaves like the real API:** it rejects anything the real API would reject, like missing headers, broken user/assistant alternation or an unanswered tool call, so a mapping bug fails loudly. Zero requests were rejected.
+- **Abort works the same:** the stream closes in under 1 s, the partial text is kept, and the mock confirms the upstream connection was actually dropped.
+
+**Choices I made**
+- The roll-up's summarizer instruction goes in the top-level `system` field. The stored summary stays a normal user + assistant pair, as before.
+- Anthropic's `toolu_` IDs are swapped for yggdrasil's own `call_…` IDs. Otherwise every stored tool call would show which dialect served it.
+- `YGG_MAX_TOKENS` defaults to 16384, so a whole-file write fits in one reply.
+- I also send the `anthropic-version` header, which the real Anthropic API requires.
+
+**Real upstream**
+I wrote `verify-real-upstream.sh` and ran it. It printed `FAIL-AUTH: YGG_UPSTREAM_BASE_URL not set` and exited 3. I didn't go looking for a key elsewhere, such as opencode's own auth store, because the brief has you supply it. The script passes against the mock, and a 429 "insufficient balance", a 401 and a missing key each print FAIL-AUTH without crashing. To run it:
+`YGG_UPSTREAM_BASE_URL=https://api.z.ai/api/anthropic YGG_UPSTREAM_API_KEY=… ./verify-real-upstream.sh`
+(the model defaults to `glm-5.3-flash`).
+
+**Watch on the first real run**
+- GLM may send "thinking" blocks by default. They're dropped, and if zai then wants them sent back, the second tool step will fail with a 400.
+- `YGG_TOOLS=0` on a session that already has tool calls in its history will be rejected by the Anthropic API.
+
+Nothing is committed and I didn't touch `docs/claims.md`. ASSESSMENT.md never got a slice-6b section from the night run; I noted that in the new slice-7 section rather than writing one. The e2e run wipes `run/`, so I backed up `run/night` first and restored it unchanged.
+
+Files are in `lab/yggdrasil/`:
+- `src/anthropic.rs` (new)
+- `src/main.rs`
+- `mock/mock_upstream.py`
+- `verify.sh`
+- `verify-real-upstream.sh` (new)
+- `install/yggdrasil.env.example`
+- `install/README.md`
+- `ASSESSMENT.md`

@@ -7,6 +7,9 @@
 #   recursive roll-up, restart, in-run tool-output prune.
 # Slice 6a: agent loop — bash/read/write/edit/glob/grep/todowrite round-trips, truncation,
 #   step cap, abort mid-tool. (Slice 4 = packaging, verified in ASSESSMENT.md; no slice 5 surface.)
+# Slice 7: anthropic upstream dialect — mapping unit tests; one scenario (chat, tool loop, roll-up
+#   crossing, post-roll-up turn) run in BOTH dialects, stored transcripts + client SSE compared
+#   after id/timestamp normalization; anthropic abort mid-SSE; real-upstream hook self-test.
 set -euo pipefail
 cd "$(dirname "$0")"
 source ~/.cargo/env
@@ -15,8 +18,8 @@ MOCK_PORT=18080; YGG=127.0.0.1:14096
 TMP=$(mktemp -d); export YGG_DATA_DIR=$TMP/data
 python3 mock/mock_upstream.py $MOCK_PORT & MOCK=$!
 start_srv() {
-  YGG_UPSTREAM_BASE_URL=http://127.0.0.1:$MOCK_PORT/v1 YGG_UPSTREAM_API_KEY=dummy YGG_UPSTREAM_MODEL=mock \
-    YGG_LISTEN=$YGG ./target/debug/yggdrasil & SRV=$!
+  YGG_UPSTREAM_BASE_URL=${BASE:-http://127.0.0.1:$MOCK_PORT/v1} YGG_UPSTREAM_STYLE=${STYLE:-openai} \
+    YGG_UPSTREAM_API_KEY=dummy YGG_UPSTREAM_MODEL=mock YGG_LISTEN=$YGG ./target/debug/yggdrasil & SRV=$!
   for _ in $(seq 50); do curl -sf http://$YGG/session >/dev/null && return; sleep 0.1; done
   echo "FAIL: server did not come up"; exit 1
 }
@@ -344,4 +347,141 @@ print("pruned 2 old tool outputs upstream (latest kept), stored outputs intact:"
 PY6B
 unset YGG_ROLLUP_TOKENS YGG_ROLLUP_KEEP_TOKENS
 echo "slice-6b roll-up ok"
+
+echo "--- slice 7: anthropic upstream dialect"
+kill $SRV; wait $SRV 2>/dev/null || true; SRV=
+cargo test -q >$TMP/unit.txt 2>&1 && grep -q 'test result: ok' $TMP/unit.txt || { echo "FAIL: unit tests"; cat $TMP/unit.txt; exit 1; }
+echo "mapping unit tests: $(grep -o '[0-9]* passed' $TMP/unit.txt)"
+export YGG_ROLLUP_TOKENS=300 YGG_ROLLUP_KEEP_TOKENS=60 YGG_MAX_STEPS=10 YGG_MAX_TOKENS=777
+S7TOOL='tool:[[["bash",{"command":"echo s7-$((6*7)) > s7.txt; cat s7.txt"}]],[["write",{"filePath":"w.txt","content":"one\ntwo\n"}],["edit",{"filePath":"w.txt","oldString":"zzz","newString":"x"}]],[["read",{"filePath":"w.txt"}]]]'
+# scenario7 DIALECT BASE — the same turns against a fresh store: chat, tool loop (3 steps, one
+# with two calls + a failing edit), marathon turns until the roll-up crosses, one turn after it.
+scenario7() {
+  local d=$TMP/s7-${1:0:3} k   # equal-length dirs: tool outputs carry the path
+  mkdir -p $d/proj
+  export YGG_DATA_DIR=$d/data YGG_PROJECT_DIR=$d/proj
+  STYLE=$1 BASE=$2 start_srv
+  calls >$d/c0
+  S=$(curl -sf -X POST http://$YGG/session | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
+  post6 $S "hello s7" >$d/sse-1.txt
+  post6 $S "$S7TOOL" >$d/sse-2.txt
+  for k in 3 4 5 6 7 8; do
+    post6 $S "marathon $k: $LOREM" >$d/sse-$k.txt
+    grep -q '^event: session.compacted' $d/sse-$k.txt && break
+  done
+  post6 $S "after roll-up" >$d/sse-9.txt
+  curl -sf http://$YGG/session/$S/message >$d/transcript.json
+  calls >$d/c1
+}
+scenario7 openai http://127.0.0.1:$MOCK_PORT/v1
+kill $SRV; wait $SRV 2>/dev/null || true; SRV=
+scenario7 anthropic http://127.0.0.1:$MOCK_PORT
+python3 - "$TMP" <<'PY7'
+import sys, json, re, glob, os, difflib
+tmp = sys.argv[1]
+# tokensBefore (session.compacted) is an estimate over the stored history, which holds upstream-minted
+# call ids — the mock's short call_0_0 vs the re-keyed call_<32 hex> — so only its direction is compared.
+TS = {"created", "updated", "completed", "start", "end", "tokensBefore"}
+def norm(text, d):
+    text = text.replace(f"{d}/proj", "<PROJ>")
+    ids = {}
+    def rep(m):
+        fam = "call" if m.group(1) in ("call", "toolu") else m.group(1)
+        if m.group(0) not in ids:
+            ids[m.group(0)] = f"{fam}#{sum(v.startswith(fam + '#') for v in ids.values()) + 1}"
+        return ids[m.group(0)]
+    text = re.sub(r"\b(ses|msg|prt|call|toolu)_[A-Za-z0-9_]+", rep, text)
+    def walk(v):
+        if isinstance(v, dict):
+            return {k: (0 if k in TS and isinstance(x, int) else walk(x)) for k, x in v.items()}
+        return [walk(x) for x in v] if isinstance(v, list) else v
+    return walk(json.loads(text))
+def sse(path, d):
+    blocks = [b for b in open(path).read().strip().split("\n\n") if b.startswith("event:")]
+    return [(b.split("\n")[0][7:], norm(b.split("\n", 1)[1][5:], d)) for b in blocks]
+def same(a, b, what):
+    if a != b:
+        da, db = (json.dumps(x, indent=1, sort_keys=True).splitlines() for x in (a, b))
+        print("\n".join(list(difflib.unified_diff(da, db, "openai", "anthropic", lineterm=""))[:60]))
+        sys.exit(f"FAIL: {what} differs between dialects")
+dirs = {s: f"{tmp}/s7-{s[:3]}" for s in ("openai", "anthropic")}
+raw = {s: open(f"{d}/transcript.json").read() for s, d in dirs.items()}
+tr = {s: norm(raw[s], d) for s, d in dirs.items()}
+same(tr["openai"], tr["anthropic"], "stored transcript")
+files = sorted(os.path.basename(f) for f in glob.glob(f"{dirs['openai']}/sse-*.txt"))
+for d in dirs.values():
+    comps = [json.loads(b.split("\n", 1)[1][5:]) for f in files for b in open(f"{d}/{f}").read().split("\n\n")
+             if b.startswith("event: session.compacted")]
+    assert len(comps) == 1 and comps[0]["tokensAfter"] < comps[0]["tokensBefore"], comps
+assert files == sorted(os.path.basename(f) for f in glob.glob(f"{dirs['anthropic']}/sse-*.txt")), files
+for f in files:
+    same(sse(f"{dirs['openai']}/{f}", dirs["openai"]), sse(f"{dirs['anthropic']}/{f}", dirs["anthropic"]), f"client SSE {f}")
+# dialect-blind: no upstream (toolu_) ids anywhere, callIDs re-keyed to yggdrasil ids
+blob = raw["anthropic"] + "".join(open(f"{dirs['anthropic']}/{f}").read() for f in files)
+assert "toolu_" not in blob, "anthropic tool_use id leaked into the transcript/stream"
+a = json.loads(raw["anthropic"])
+ids = [p["callID"] for m in a for p in m["parts"] if p["type"] == "tool"]
+assert len(ids) == 4 and all(re.fullmatch(r"call_[0-9a-f]{32}", i) for i in ids), ids
+# what the shared transcript holds
+tools = [(p["tool"], p["state"]["status"]) for m in a for p in m["parts"] if p["type"] == "tool"]
+assert tools == [("bash", "completed"), ("write", "completed"), ("edit", "error"), ("read", "completed")], tools
+bash = next(p for m in a for p in m["parts"] if p["type"] == "tool")["state"]
+assert bash["output"].strip() == "s7-42" and bash["metadata"]["exit"] == 0, bash
+final = a[3]["parts"][-1]["text"]
+assert final.startswith("TOOL-FINAL:") and "[tools declared: 8] [tool msgs in history: 4]" in final, final
+comp = [i for i, m in enumerate(a) if any(p["type"] == "compaction" for p in m["parts"])]
+assert len(comp) == 1, comp
+summ = a[comp[0] + 1]
+assert summ["info"]["summary"] is True and summ["parts"][0]["text"].startswith("MOCK-SUMMARY: USER: hello s7"), summ
+assert "you said 'after roll-up' (5 msgs)" in a[-1]["parts"][-1]["text"], a[-1]["parts"]
+# each dialect hit only its own endpoint, same number of calls, one tool-less summary call, nothing rejected
+c = {s: [json.load(open(f"{d}/c{i}")) for i in (0, 1)] for s, d in dirs.items()}
+dl = {s: {k: c[s][1][k] - c[s][0][k] for k in c[s][0] if k != "a_max_tokens"} for s in c}
+o, an = dl["openai"], dl["anthropic"]
+assert o["summary"] == 1 and o["summary_with_tools"] == 0 and not any(v for k, v in o.items() if k.startswith("a_")), o
+assert an["a_summary"] == 1 and an["a_summary_with_tools"] == 0 and an["a_rejected"] == 0, an
+assert an["chat"] == an["summary"] == 0 and an["a_chat"] == o["chat"] > 0, (o, an)
+assert c["anthropic"][1]["a_max_tokens"] == 777, c["anthropic"][1]
+print(f"identical transcripts ({len(a)} msgs) + identical client SSE ({len(files)} turns) in both dialects; "
+      f"{an['a_chat']} /v1/messages calls (validated: headers, alternation, tool_result pairing) + 1 roll-up; "
+      f"tool_use ids re-keyed; YGG_MAX_TOKENS honoured")
+PY7
+
+echo "- anthropic abort mid-SSE drops the upstream connection"
+SA=$(curl -sf -X POST http://$YGG/session | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
+D0=$(calls | python3 -c 'import sys,json;print(json.load(sys.stdin)["disconnects"])')
+post6 $SA "slow please" >$TMP/a-slow.txt & SLOW=$!
+sleep 1.5
+T0=$(date +%s.%N)
+[ "$(curl -sf -X POST http://$YGG/session/$SA/abort)" = true ] || { echo "FAIL: anthropic abort did not report in-flight"; exit 1; }
+wait $SLOW
+python3 -c "import sys;sys.exit(0 if $(date +%s.%N)-$T0 < 1.0 else 1)" || { echo "FAIL: anthropic abort not prompt"; exit 1; }
+grep -q '^event: message.aborted' $TMP/a-slow.txt || { echo "FAIL: no message.aborted"; exit 1; }
+grep -q '^event: message.completed' $TMP/a-slow.txt && { echo "FAIL: completed after abort"; exit 1; }
+grep -q 'SLOW-END' $TMP/a-slow.txt && { echo "FAIL: full reply streamed despite abort"; exit 1; }
+for _ in $(seq 30); do [ "$(calls | python3 -c 'import sys,json;print(json.load(sys.stdin)["disconnects"])')" -gt "$D0" ] && break; sleep 0.1; done
+[ "$(calls | python3 -c 'import sys,json;print(json.load(sys.stdin)["disconnects"])')" -gt "$D0" ] || { echo "FAIL: mock never saw the upstream connection drop"; exit 1; }
+python3 - "$(curl -sf http://$YGG/session/$SA/message)" "$TMP/a-slow.txt" <<'PY7'
+import sys, json
+last = json.loads(sys.argv[1])[-1]
+assert last["info"]["error"]["name"] == "MessageAbortedError", last["info"]
+partial = last["parts"][0]["text"]
+deltas = [json.loads(l[5:])["text"] for l in open(sys.argv[2]).read().splitlines()
+          if l.startswith("data:") and '"text"' in l and '"info"' not in l]
+assert partial.startswith("MOCK-REPLY: you said 'slow please'") and "".join(deltas) == partial, (deltas, partial)
+print(f"aborted after {len(deltas)} deltas; upstream connection dropped (mock saw the disconnect); partial kept == streamed")
+PY7
+kill $SRV; wait $SRV 2>/dev/null || true; SRV=
+unset YGG_ROLLUP_TOKENS YGG_ROLLUP_KEEP_TOKENS YGG_MAX_TOKENS
+
+echo "- real-upstream hook self-test (against the mock: dry-run PASS, 429 balance + 401 -> FAIL-AUTH, no key -> FAIL-AUTH)"
+RU="env -u YGG_DATA_DIR -u YGG_PROJECT_DIR -u YGG_MAX_STEPS YGG_UPSTREAM_BASE_URL=http://127.0.0.1:$MOCK_PORT YGG_UPSTREAM_MODEL=mock"
+$RU YGG_UPSTREAM_API_KEY=mock-key ./verify-real-upstream.sh >$TMP/ru-ok.txt 2>&1 || { echo "FAIL: real-upstream dry run"; tail -20 $TMP/ru-ok.txt; exit 1; }
+grep -q '^PASS-REAL' $TMP/ru-ok.txt || { echo "FAIL: dry run did not print PASS-REAL"; tail -5 $TMP/ru-ok.txt; exit 1; }
+for key in mock-429 mock-401 ""; do
+  RC=0; $RU YGG_UPSTREAM_API_KEY=$key ./verify-real-upstream.sh >$TMP/ru-auth.txt 2>&1 || RC=$?
+  [ $RC = 3 ] && grep -q '^FAIL-AUTH' $TMP/ru-auth.txt || { echo "FAIL: key '$key' should give FAIL-AUTH/exit 3 (rc=$RC)"; tail -5 $TMP/ru-auth.txt; exit 1; }
+  echo "key '${key:-<unset>}': $(grep '^FAIL-AUTH' $TMP/ru-auth.txt | cut -c1-110)"
+done
+echo "slice-7 anthropic dialect ok"
 echo PASS

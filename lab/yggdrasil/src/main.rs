@@ -1,11 +1,15 @@
-//! YGGDRASIL (slices 1-6b): an opencode-compatible surface that bifrost's PWA proxy can
-//! drive unchanged. Sessions + message relay to an OpenAI-compatible chat endpoint;
+//! YGGDRASIL (slices 1-7): an opencode-compatible surface that bifrost's PWA proxy can
+//! drive unchanged. Sessions + message relay to an OpenAI- or Anthropic-compatible endpoint;
 //! abort; global `/event` bus; on-disk store; per-session run serialization;
 //! session get/patch/delete, busy map, model/agent catalog + v2 switches.
 //!
 //! Env:
 //!   YGG_UPSTREAM_BASE_URL  e.g. https://api.openai.com/v1  (required; `/chat/completions` is appended)
-//!   YGG_UPSTREAM_API_KEY   bearer token (optional; omitted header if unset)
+//!   YGG_UPSTREAM_API_KEY   bearer token (optional; omitted header if unset; the anthropic
+//!                          dialect sends it as `x-api-key` AND `Authorization: Bearer`)
+//!   YGG_UPSTREAM_STYLE     slice 7: `openai` (default: `{base}/chat/completions`) | `anthropic`
+//!                          (`{base}/v1/messages`, block SSE; `anthropic.rs`)
+//!   YGG_MAX_TOKENS         anthropic dialect's required `max_tokens` (default 16384)
 //!   YGG_UPSTREAM_MODEL     model name (default: gpt-4o-mini)
 //!   YGG_LISTEN             bind address (default: 127.0.0.1:4096)
 //!   YGG_DATA_DIR           on-disk store (default: ./data); one `session/<id>.json` per session
@@ -25,6 +29,11 @@
 //! with no tool calls. Every call is stored on the assistant message as an opencode
 //! `{"type":"tool", callID, tool, state:{status, input, output, ...}}` part and announced
 //! on `message.part.updated` (running, then completed|error).
+//!
+//! Slice 7: `YGG_UPSTREAM_STYLE=anthropic` speaks the Anthropic Messages API instead. The run
+//! keeps the same internal (OpenAI-shaped) conversation; `anthropic.rs` translates it at the
+//! wire, decodes the block SSE back into the same deltas + tool calls, and the relay re-keys
+//! tool-use ids — stored transcripts and client events are identical in both dialects.
 //!
 //! `POST /session/:id/message` answers like opencode (blocks, returns the final assistant
 //! message as JSON) unless the request sends `Accept: text/event-stream`, which gets the
@@ -54,11 +63,20 @@ use serde_json::{Value, json};
 use tokio::sync::{Notify, broadcast, mpsc, oneshot};
 use tokio_stream::wrappers::{BroadcastStream, ReceiverStream};
 
+mod anthropic;
 mod rollup;
 mod tools;
 
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum Dialect {
+    OpenAi,
+    Anthropic,
+}
+
 struct Config {
     base_url: String,
+    dialect: Dialect,
+    max_tokens: u64,
     api_key: Option<String>,
     model: String,
     catalog: Value,
@@ -740,6 +758,9 @@ async fn rollup_if_needed(st: &AppState, id: &str, tx: &mpsc::Sender<Event>, mes
 /// The roll-up's extra upstream call: no tools, no streaming to the client.
 async fn summarize(st: &AppState, messages: &Value) -> Result<String, String> {
     let cfg = &st.config;
+    if cfg.dialect == Dialect::Anthropic {
+        return summarize_anthropic(st, messages).await;
+    }
     let url = format!("{}/chat/completions", cfg.base_url.trim_end_matches('/'));
     let mut req = st.http.post(&url).json(&json!({ "model": cfg.model, "messages": messages, "stream": false }));
     if let Some(key) = &cfg.api_key {
@@ -816,6 +837,9 @@ async fn relay(
     full: &mut String,
 ) -> Result<Vec<ToolCall>, String> {
     let cfg = &st.config;
+    if cfg.dialect == Dialect::Anthropic {
+        return relay_anthropic(st, session_id, convo, tx, full).await;
+    }
     let url = format!("{}/chat/completions", cfg.base_url.trim_end_matches('/'));
     let mut body = json!({ "model": cfg.model, "messages": convo, "stream": true });
     if cfg.tools_enabled {
@@ -893,6 +917,105 @@ async fn relay(
     Ok(calls)
 }
 
+/// Slice 7: an anthropic-dialect request — `{base}/v1/messages`, the key as both
+/// `x-api-key` and bearer (providers differ), `anthropic-version`.
+fn anthropic_request(st: &AppState, convo: &[Value], tools: Option<&Value>, stream: bool) -> reqwest::RequestBuilder {
+    let cfg = &st.config;
+    let body = anthropic::body(&cfg.model, cfg.max_tokens, convo, tools, stream);
+    let mut req = st.http.post(anthropic::messages_url(&cfg.base_url)).json(&body).header("anthropic-version", anthropic::VERSION);
+    if let Some(key) = &cfg.api_key {
+        req = req.header("x-api-key", key).bearer_auth(key);
+    }
+    req
+}
+
+/// `relay` in the anthropic dialect: same contract — text deltas forwarded and accumulated
+/// into `full`, tool calls returned in block order. Tool-use ids are re-keyed to yggdrasil
+/// `call_` ids (consistent within the conversation we send back), so a stored transcript
+/// does not reveal which dialect served it.
+async fn relay_anthropic(
+    st: &AppState,
+    session_id: &str,
+    convo: &[Value],
+    tx: &mpsc::Sender<Event>,
+    full: &mut String,
+) -> Result<Vec<ToolCall>, String> {
+    let cfg = &st.config;
+    let tools = cfg.tools_enabled.then(tools::schemas);
+    let resp = anthropic_request(st, convo, tools.as_ref(), true).send().await.map_err(|e| format!("request failed: {e}"))?;
+    let status = resp.status();
+    if !status.is_success() {
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!("upstream {status}: {body}"));
+    }
+    let rekey = |calls: Vec<anthropic::Call>| -> Vec<ToolCall> {
+        calls.into_iter().map(|c| ToolCall { id: new_id("call"), name: c.name, arguments: c.args }).collect()
+    };
+    let is_json = resp
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|ct| ct.starts_with("application/json"));
+    if is_json {
+        let v: Value = resp.json().await.map_err(|e| format!("bad json: {e}"))?;
+        if v["type"] == "error" {
+            return Err(format!("upstream error: {}", v["error"]));
+        }
+        let (text, calls, stop) = anthropic::parse_message(&v);
+        if stop.as_deref() == Some("max_tokens") {
+            eprintln!("upstream stopped at max_tokens ({}); raise YGG_MAX_TOKENS", cfg.max_tokens);
+        }
+        full.push_str(&text);
+        send_delta(st, session_id, tx, &text).await;
+        return Ok(rekey(calls));
+    }
+    let (mut lines, mut dec) = (anthropic::SseLines::default(), anthropic::Stream::default());
+    let mut stream = resp.bytes_stream();
+    'read: while let Some(chunk) = stream.next().await {
+        let chunk = chunk.map_err(|e| format!("stream error: {e}"))?;
+        for data in lines.push(&chunk) {
+            let Ok(v) = serde_json::from_str::<Value>(&data) else { continue };
+            if let Some(text) = dec.feed(&v)? {
+                full.push_str(&text);
+                send_delta(st, session_id, tx, &text).await;
+            }
+            if dec.stopped {
+                break 'read;
+            }
+        }
+    }
+    if dec.stop_reason.as_deref() == Some("max_tokens") {
+        eprintln!("upstream stopped at max_tokens ({}); raise YGG_MAX_TOKENS", cfg.max_tokens);
+    }
+    Ok(rekey(dec.calls))
+}
+
+/// The roll-up call in the anthropic dialect: the summarizer prompt rides in `system`.
+async fn summarize_anthropic(st: &AppState, messages: &Value) -> Result<String, String> {
+    let convo = messages.as_array().cloned().unwrap_or_default();
+    let resp = anthropic_request(st, &convo, None, false).send().await.map_err(|e| format!("request failed: {e}"))?;
+    let status = resp.status();
+    let body = resp.text().await.map_err(|e| format!("read failed: {e}"))?;
+    if !status.is_success() {
+        return Err(format!("upstream {status}: {body}"));
+    }
+    if let Ok(v) = serde_json::from_str::<Value>(&body) {
+        if v["type"] == "error" {
+            return Err(format!("upstream error: {}", v["error"]));
+        }
+        return Ok(anthropic::parse_message(&v).0);
+    }
+    // Some providers stream regardless of `stream: false`.
+    let mut dec = anthropic::Stream::default();
+    let mut out = String::new();
+    for data in anthropic::SseLines::default().push(format!("{body}\n").as_bytes()) {
+        if let Ok(v) = serde_json::from_str::<Value>(&data) {
+            out.push_str(&dec.feed(&v)?.unwrap_or_default());
+        }
+    }
+    Ok(out)
+}
+
 async fn send_delta(st: &AppState, session_id: &str, tx: &mpsc::Sender<Event>, text: &str) {
     if text.is_empty() {
         return;
@@ -940,8 +1063,23 @@ async fn main() {
         }
     };
     let rollup_tokens = env_num("YGG_ROLLUP_TOKENS", 100_000);
+    let dialect = match std::env::var("YGG_UPSTREAM_STYLE").unwrap_or_default().to_ascii_lowercase().as_str() {
+        "" | "openai" => Dialect::OpenAi,
+        "anthropic" => Dialect::Anthropic,
+        other => {
+            eprintln!("YGG_UPSTREAM_STYLE: unknown dialect {other:?} (openai | anthropic)");
+            std::process::exit(2);
+        }
+    };
+    let upstream_url = match dialect {
+        Dialect::OpenAi => format!("{}/chat/completions", base_url.trim_end_matches('/')),
+        Dialect::Anthropic => anthropic::messages_url(&base_url),
+    };
+    eprintln!("upstream: {dialect:?} dialect, POST {upstream_url}");
     let config = Config {
         base_url,
+        dialect,
+        max_tokens: env_num("YGG_MAX_TOKENS", 16_384).max(1),
         api_key: std::env::var("YGG_UPSTREAM_API_KEY").ok().filter(|k| !k.is_empty()),
         catalog: load_catalog(&model),
         model,

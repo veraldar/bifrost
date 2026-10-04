@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Publish out/realms.json + provenance to veraldar.org (rsync over ssh) and
-# regenerate feed.xml (same RSS schema the old news pipeline emitted).
+# Publish out/realms.json + provenance + realms-history.json to veraldar.org (scp; host has no rsync),
+# regenerate feed.xml (same RSS schema the old news pipeline emitted) and the open-data dir /data/
+# (series CSVs + catalog + manifest + method + provenance; raw/ stays local). Idempotent.
 # Rollback on the host: /var/www/veraldar/realms.news-pipeline.bak.json
 set -e
 cd "$(dirname "$0")/.."
@@ -26,7 +27,27 @@ print(f'<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title
       f'</channel></rss>')
 PY
 
-scp -q out/realms.json out/realms.provenance.json "$H:$W/"
+# /data/: repo-relative layout so DATA.md's query commands run unchanged on a download
+D=/tmp/wt-data
+rm -rf "$D"; mkdir -p "$D/out"
+cp -r series catalog method "$D/"
+cp manifest.json DATA.md "$D/"
+cp out/realms.provenance.json out/realms-history.json out/realms-history.provenance.json "$D/out/"
+BYTES=$(du -sb "$D" | cut -f1)
+[ "$BYTES" -lt 1000000 ] || { echo "data payload $BYTES B ≥ 1 MB — refusing"; exit 1; }
+# Caddy serves index.txt for /data/ (no directory browsing): DATA.md + file list with sha256
+{ cat DATA.md; echo; echo "## Files (sha256  path)"; (cd "$D" && find . -type f ! -name index.txt | sort | sed 's|^\./||' | xargs sha256sum); } > "$D/index.txt"
+ssh "$H" "rm -rf $W/data.new"
+scp -qr "$D" "$H:$W/data.new"
+ssh "$H" "find $W/data.new -type d -exec chmod 755 {} + && find $W/data.new -type f -exec chmod 644 {} + \
+  && rm -rf $W/data.old && { [ ! -d $W/data ] || mv $W/data $W/data.old; } && mv $W/data.new $W/data && rm -rf $W/data.old"
+LINE="Open data: https://veraldar.org/data/ (series CSVs + catalog + per-number provenance)"
+ssh "$H" "grep -qxF '$LINE' $W/llms.txt || printf '\n%s\n' '$LINE' >> $W/llms.txt"
+
+# history before realms.json: the realms.json history.sha256 pointer must never dangle
+scp -q out/realms-history.json "$H:$W/"
+scp -q out/realms.provenance.json "$H:$W/"
+scp -q out/realms.json "$H:$W/"
 scp -q /tmp/wt-feed.xml "$H:$W/feed.xml"
-ssh "$H" "chmod 644 $W/realms.json $W/realms.provenance.json $W/feed.xml"
+ssh "$H" "chmod 644 $W/realms.json $W/realms.provenance.json $W/realms-history.json $W/feed.xml"
 echo "published: $(python3 -c "import json;print(json.load(open('out/realms.json'))['updated'])")"

@@ -1,8 +1,5 @@
 //! `bridge` subcommand: run the v0.9 bridge from a config file.
 
-use std::net::{SocketAddr, TcpListener, UdpSocket};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use std::time::Duration;
 
 use crate::bridge::{self, BridgeConfig};
@@ -35,6 +32,9 @@ pub fn run(path: &str) -> Result<(), String> {
         tts_model: cfg.tts_model.clone(),
         tts_voice: cfg.tts_voice.clone(),
         candidates,
+        name: loaded.config.node.name.clone(),
+        dtls_cert_file: cfg.dtls_cert_file.clone().map(Into::into),
+        public_url: cfg.public_url.clone(),
     })?;
 
     println!(
@@ -45,10 +45,9 @@ pub fn run(path: &str) -> Result<(), String> {
         "  bridge: opencode {} | speaches {} | tokens {}",
         cfg.opencode_url, cfg.speaches_url, cfg.tokens_file
     );
+    println!("  bridge: identity {} (GET /identity → the pairing QR pins it)", handle.fingerprint);
     println!("bifrost-net bridge serving — Ctrl-C to stop");
 
-    let stop = Arc::new(AtomicBool::new(false));
-    let _ = stop;
     loop {
         std::thread::sleep(Duration::from_secs(3600));
     }

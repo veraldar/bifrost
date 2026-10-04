@@ -14,6 +14,7 @@ mod bridge_main;
 mod config;
 mod echo;
 mod opencode;
+mod region;
 mod speech;
 mod tokens;
 mod keys;

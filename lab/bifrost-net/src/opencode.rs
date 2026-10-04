@@ -24,10 +24,21 @@ pub struct SessionInfo {
 
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct MessageInfo {
+    /// opencode nests the role: `{ info: { role, … }, parts }`
+    #[serde(default)]
+    pub info: Option<serde_json::Value>,
     #[serde(default)]
     pub role: Option<String>,
     #[serde(default)]
     pub parts: Option<serde_json::Value>,
+}
+
+impl MessageInfo {
+    pub fn role(&self) -> Option<&str> {
+        self.role
+            .as_deref()
+            .or_else(|| self.info.as_ref()?.get("role")?.as_str())
+    }
 }
 
 impl OpencodeClient {

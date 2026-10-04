@@ -44,6 +44,13 @@ pub struct BridgeConfigSection {
     pub tts_voice: String,
     #[serde(default)]
     pub candidates: Vec<String>,
+    /// persisted DTLS identity — its fingerprint is what the pairing QR pins.
+    /// Unset = a fresh identity per run (every paired phone must re-scan).
+    #[serde(default)]
+    pub dtls_cert_file: Option<String>,
+    /// the signaling URL phones dial (e.g. "http://192.168.1.10:7890")
+    #[serde(default)]
+    pub public_url: Option<String>,
 }
 
 fn default_opencode_url() -> String { "http://127.0.0.1:4096".into() }

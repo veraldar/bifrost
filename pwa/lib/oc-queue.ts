@@ -12,6 +12,8 @@ export type QueueItem = {
   text: string;
   images: string[];
   files: { name: string; content: string }[];
+  /** interaction mode at send time — req 10-02 mode awareness */
+  mode?: string;
   at: number;
 };
 

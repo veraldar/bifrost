@@ -28,6 +28,33 @@ function pctl(key, p,   n, arr, i, j, tmp) {
   next
 }
 /\[net-fail\] / { fails++; next }
+/\[ptt-fail/ { ptt_fail++; next }
+/\[ptt([·][^]]*)?\] / {
+  if (/mic requested/) ptt_req++
+  else if (/mic enabled/) ptt_on++
+  else if (/commit ok/) ptt_commit++
+  else if (/discard ok/) ptt_discard++
+  else if (/slide-cancel/) ptt_cancel++
+  ptt_other++
+  next
+}
+/\[send-fail/ { send_fail++; next }
+/\[send([·][^]]*)?\] / {
+  if (/posted direct|posted queued/) send_post++
+  else if (/landed/) send_land++
+  next
+}
+/\[free-fail/ { free_fail++; next }
+/\[free([·][^]]*)?\] / { if (/commit ok/) free_commit++; next }
+/\[voice([·][^]]*)?\] / {
+  if (match($0, /room disconnected \(reason=[^)]+\)/)) {
+    r = substr($0, RSTART + 26, RLENGTH - 27); disc[r]++
+  } else if (/self-heal reconnect scheduled/) rec_att++
+  else if (/self-heal reconnect OK/) rec_ok++
+  else if (/reconnect attempt .* failed/) rec_fail++
+  else if (/voice agent left/) agent_left++
+  next
+}
 /\[busy\] / {
   if (match($0, /(abort|clear|wedge) [^ ]+ after [0-9.]+s/)) {
     split(substr($0, RSTART, RLENGTH), f, " ")
@@ -55,4 +82,18 @@ END {
   if (wedges) printf "WEDGES (stuck busy indicator): %d\n", wedges
   m = asorti(runs, rkeys)
   for (i = 1; i <= m; i++) if (rkeys[i] != "clear" && rkeys[i] != "abort") printf "busy %s: %d\n", rkeys[i], runs[rkeys[i]]
+  # interaction outcomes (req 10-02): expected effect vs what happened —
+  # a gap between the two columns of a pair is lost user input
+  if (ptt_req || ptt_fail) {
+    print ""
+    print "== interaction outcomes"
+    if (ptt_req) printf "ptt holds:        %d requested, %d mic-on, %d commits ok, %d discarded, %d slide-cancels\n", ptt_req, ptt_on, ptt_commit, ptt_discard, ptt_cancel
+    if (ptt_fail) printf "ptt NO-EFFECT:    %d (mic enable/discard/commit failed — spoken words lost)\n", ptt_fail
+    if (send_post || send_fail) printf "sends:            %d posted, %d landed, %d FAILED\n", send_post, send_land, send_fail
+    if (free_commit || free_fail) printf "tap-to-send:      %d ok, %d FAILED\n", free_commit, free_fail
+    n = asorti(disc, dkeys)
+    for (i = 1; i <= n; i++) printf "disconnects:      %d x %s\n", disc[dkeys[i]], dkeys[i]
+    if (rec_att) printf "reconnects:       %d attempts, %d ok, %d failed\n", rec_att, rec_ok, rec_fail
+    if (agent_left) printf "voice agent left the room: %d\n", agent_left
+  }
 }' "$LOG"

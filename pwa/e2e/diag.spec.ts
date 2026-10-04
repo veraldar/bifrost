@@ -1,0 +1,195 @@
+import { expect, test } from '@playwright/test';
+
+// req 10-02 mode awareness: diag events carry the interaction mode, the send
+// payload carries it server-side, and the agent's hands-free ctx tag never
+// reaches a rendered surface.
+
+const NAME = `e2e-diag-${Date.now().toString(36)}`;
+const NAME2 = `e2e-diag-ctx-${Date.now().toString(36)}`;
+let sessionId = '';
+
+test('mode rides diag events and the send payload', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'new session' }).click();
+  await page.getByPlaceholder('session name…').fill(NAME);
+  await page.getByRole('button', { name: 'create & open' }).click();
+  await expect(page).toHaveURL(new RegExp(`/session/${NAME}`));
+  sessionId = new URL(page.url()).searchParams.get('id') || '';
+  expect(sessionId).toBeTruthy();
+
+  // capture send payloads (pass through to the real proxy)
+  const sendBodies: unknown[] = [];
+  await page.route('**/api/session/*/messages', async (route) => {
+    const req = route.request();
+    if (req.method() === 'POST') sendBodies.push(req.postDataJSON());
+    await route.continue();
+  });
+
+  const dump = () => page.evaluate(() => (window as any).ozDiagDump?.() || '');
+
+  // tap the mic FIRST (clean session: no unheard reply yet — the on-open
+  // autoplay would flip the cycle to processing and unmount free-exit).
+  // A fast click IS the tap gesture: released inside the 250ms arm window.
+  await page.getByTestId('composer-mic').click();
+  await expect
+    .poll(() => dump(), { timeout: 30_000 })
+    .toMatch(/\[voice·free\]/);
+
+  // exit hands-free (free-exit renders while listening). The exit click must
+  // be a real gesture: within 400ms of the entering tap it IS the gesture's
+  // ghost and the free-dock guard swallows it (see freeGhostGuardRef)
+  await page.waitForTimeout(450);
+  await page.getByTestId('free-exit').click();
+  await expect(page.getByTestId('composer-mic')).toBeVisible({ timeout: 20_000 });
+
+  // hold ≥ the 250ms arm → PTT: the hold event is stamped mode 'ptt'
+  const mic = page.getByTestId('composer-mic');
+  const box = await mic.boundingBox();
+  expect(box).toBeTruthy();
+  // hold well past the 250ms arm AND the ~200ms mic re-acquire — a release
+  // that lands before pttDown's enable resolved races pttUp's mute and the
+  // hold event never fires
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(1_500);
+  await page.mouse.up();
+  await expect
+    .poll(() => dump(), { timeout: 30_000 })
+    .toMatch(/\[ptt·ptt\]/);
+
+  // keyboard send LAST → payload mode 'text' (its reply lands unheard, but
+  // hands-free is over by then — no cycle left to autoplay it)
+  await page.getByPlaceholder('message…').fill('Reply with exactly: pong');
+  await page.getByRole('button', { name: 'send', exact: true }).click();
+  expect
+    .poll(() => sendBodies.length, { timeout: 15_000 })
+    .toBeGreaterThan(0);
+  expect((sendBodies[0] as { mode?: string }).mode).toBe('text');
+});
+
+test('connection lifecycle: connect/agent-join durations + disconnect reason reach diag', async ({
+  page,
+}) => {
+  const NAME3 = `e2e-diag-lc-${Date.now().toString(36)}`;
+  await page.goto('/');
+  await page.getByRole('button', { name: 'new session' }).click();
+  await page.getByPlaceholder('session name…').fill(NAME3);
+  await page.getByRole('button', { name: 'create & open' }).click();
+  await expect(page).toHaveURL(new RegExp(`/session/${NAME3}`));
+  const dump = () => page.evaluate(() => (window as any).ozDiagDump?.() || '');
+
+  // preconnect fires on load: token mint, connect timing, and the real voice
+  // agent dispatch landing in the room must all be in the trail
+  await expect
+    .poll(() => dump(), { timeout: 30_000 })
+    .toMatch(/token minted \(#1\)/);
+  await expect
+    .poll(() => dump(), { timeout: 60_000 })
+    .toMatch(/room connected \(\d+ms after connect start\)/);
+  await expect
+    .poll(() => dump(), { timeout: 60_000 })
+    .toMatch(/voice agent joined the room/);
+
+  // leaving the session disconnects deliberately: the reason + connected
+  // duration ride the pagehide beacon into the SERVER diag file
+  await page.goto('/');
+  await expect
+    .poll(async () => {
+      const r = await page.request.get('/api/diag');
+      if (!r.ok()) return 'pending';
+      const text = await r.text();
+      const line = text
+        .split('\n')
+        .find((l) => l.includes('room disconnected') && l.includes(`room=${NAME3}`));
+      return /room disconnected \(reason=CLIENT_INITIATED\) after \d+s/.test(line || '')
+        ? 'ok'
+        : (line || 'pending');
+    }, { timeout: 30_000, intervals: [1_000] })
+    .toBe('ok');
+});
+
+test('interaction outcomes: send lands, PTT commits, slide-cancel discards', async ({ page }) => {
+  const NAME4 = `e2e-diag-out-${Date.now().toString(36)}`;
+  await page.goto('/');
+  await page.getByRole('button', { name: 'new session' }).click();
+  await page.getByPlaceholder('session name…').fill(NAME4);
+  await page.getByRole('button', { name: 'create & open' }).click();
+  await expect(page).toHaveURL(new RegExp(`/session/${NAME4}`));
+  const dump = () => page.evaluate(() => (window as any).ozDiagDump?.() || '');
+  // the room must be up (preconnect) so a hold can actually enable the mic
+  await expect
+    .poll(() => dump(), { timeout: 30_000 })
+    .toMatch(/room connected \(\d+ms after connect start\)/);
+
+  // text send: expected effect = transcript entry; outcome = echo reconciled
+  await page.getByPlaceholder('message…').fill('Reply with exactly: pong');
+  await page.getByRole('button', { name: 'send', exact: true }).click();
+  await expect
+    .poll(() => dump(), { timeout: 15_000 })
+    .toMatch(/\[send·text\] posted direct/);
+  await expect
+    .poll(() => dump(), { timeout: 90_000 })
+    .toMatch(/landed — \d+ echo\(es\) reconciled/);
+
+  // PTT hold past the arm + re-acquire → release commits: outcome pair
+  const mic = page.getByTestId('composer-mic');
+  let box = await mic.boundingBox();
+  expect(box).toBeTruthy();
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(1_500);
+  await page.mouse.up();
+  await expect
+    .poll(() => dump(), { timeout: 30_000 })
+    .toMatch(/commit ok — turn handed to the voice agent/);
+
+  // slide left inside the hold → release discards (no commit, mic back)
+  box = await mic.boundingBox();
+  expect(box).toBeTruthy();
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(600);
+  await page.mouse.move(box!.x + box!.width / 2 - 60, box!.y + box!.height / 2, { steps: 4 });
+  await page.waitForTimeout(200);
+  await page.mouse.up();
+  await expect
+    .poll(() => dump(), { timeout: 30_000 })
+    .toMatch(/slide-cancel — discarding the buffered turn/);
+  await expect
+    .poll(() => dump(), { timeout: 30_000 })
+    .toMatch(/discard ok — buffered turn dropped agent-side/);
+});
+
+test('agent ctx tag is stripped from the transcript the phone sees', async ({ request }) => {
+  // through the REAL proxy (a mocked endpoint would bypass the server-side
+  // strip): create a session, send a prompt carrying the tag the agent would
+  // append, and read the transcript back
+  const mk = await request.post('/api/session', { data: { name: NAME2 } });
+  const created = (await mk.json()) as { id?: string };
+  const sid = created.id || '';
+  expect(sid).toBeTruthy();
+
+  const tag =
+    '\n\n[ctx: mode=hands-free; the user is talking, the reply will be read aloud — keep it short, conversational, spoken-style]';
+  const send = await request.post(`/api/session/${sid}/messages`, {
+    data: { text: `Reply with exactly: ctxstrip${tag}`, async: true, mode: 'text' },
+  });
+  expect(send.ok()).toBeTruthy();
+
+  // run completes → transcript shows the prompt WITHOUT the protocol tag
+  await expect
+    .poll(
+      async () => {
+        const r = await request.get(`/api/session/${sid}/messages?limit=60`);
+        if (!r.ok()) return 'pending';
+        const msgs = (await r.json()) as { role: string; text: string }[];
+        const mine = msgs.find((m) => m.role === 'user' && m.text.includes('ctxstrip'));
+        return mine ? JSON.stringify(msgs) : 'pending';
+      },
+      { timeout: 90_000, intervals: [2_500] }
+    )
+    .toContain('ctxstrip');
+  const r = await request.get(`/api/session/${sid}/messages?limit=60`);
+  const msgs = (await r.json()) as { role: string; text: string }[];
+  for (const m of msgs) expect(m.text).not.toContain('[ctx:');
+});

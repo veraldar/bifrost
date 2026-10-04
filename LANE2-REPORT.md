@@ -10,7 +10,7 @@ All of the live line's committed work is in, through `601d3f2`. It is docs plus
 | | |
 |---|---|
 | branch | **`lane2/merge`** |
-| code SHA | **`c180e9a`** (`c180e9add0385e09b5e2b20d407a92564b12bf52`, the 2nd merge below). The branch tip is the commit that adds this report on top of it and changes nothing else. |
+| code SHA | **`c180e9a`** (`c180e9add0385e09b5e2b20d407a92564b12bf52`, the 2nd merge below). The commits on top of it change only `LANE2-REPORT.md`. |
 | live line merged up to | `rebuild/cohesive-opus` @ **`601d3f2`** |
 | release under it | tag `v0.9.0` = `ff428c8`, plus `41b421f` (the lane-2 brief) |
 
@@ -22,6 +22,18 @@ Two merge commits, both with no conflicts:
 Check it yourself:
 - `git diff --stat v0.9.0 lane2/merge` → only `LANE2-*.md`, `docs/agi-guide.md`, `docs/plan.md`, `lab/worldtree-data/**`.
 - `git diff v0.9.0 lane2/merge -- pwa agent deploy edge scripts lab/bifrost-net` → empty.
+
+## Addendum: the live line moved again while this report was being committed
+
+At finish, `rebuild/cohesive-opus` = **`64ca7be`**: 3 commits past `601d3f2`, **not merged**. Chasing a line that commits every few minutes is a loop, and the lane's time budget was spent.
+
+- The commits: `3d6be40` (`scripts/agi-board.sh` + `artifacts/agi-board.html`), `5fc261c` (worldtree M5 run A D2+D3, method 0.3.0) and `64ca7be` ("run …: published").
+- They touch 619 files: 616 under `lab/worldtree-data/` (fixtures/snapshots, +150k lines), plus `scripts/agi-board.sh`, `artifacts/agi-board.html` and `.gitignore`.
+- They touch **zero** files in `pwa/`, `agent/`, `deploy/`, `edge/`, `lab/bifrost-net/` or `docs/`.
+- A dry-run merge onto this branch is **clean** (`git merge-tree` exit 0).
+
+At deploy time, fold in whatever the line holds then:
+`git merge --no-ff rebuild/cohesive-opus` on `lane2/merge` (see follow-up 1). The product trees stay byte-identical to `v0.9.0`, so this gate still covers them.
 
 ## What merged: all of their committed work since the merge-base `9c0425e`
 

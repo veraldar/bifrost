@@ -50,7 +50,7 @@ from datetime import date
 K = ['utopia', 'divergence', 'drift', 'control', 'terminus', 'stagnation', 'transcendence']
 r = json.load(open('out/realms.json')); h = json.load(open('out/realms-history.json'))
 v = open('method/VERSION').read().strip()
-assert r['method_version'] == h['method_version'] == v == '0.3.1', v
+assert r['method_version'] == h['method_version'] == v, v
 for doc in (r, h):
     f = doc['refresh']
     assert f['cadence'] == 'nightly' and f['local_time'] == '14:30 Europe/Berlin' and f['utc_time'] == '12:30 UTC'

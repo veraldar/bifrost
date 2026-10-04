@@ -311,6 +311,8 @@ what changed, why, and the fixture weights before → after.
 | B9 | Private-investment and company-adoption figures come from commercial surveys (Quid/McKinsey via AI Index), US-heavy | owid.ai_* | w ≤ 2; stagnation also fed by Epoch compute |
 | B10 | Structural muting: realms with only weak proxies (drift, control) cannot lead | all | disclosed (§4); M3 sources raise their mass |
 | B11 | Rank-vs-own-history calls a series' *usual* behaviour neutral — a decades-long trend (e.g. falling poverty) is not itself evidence | rank_* | by design (§0); stated on README |
+| B12 | Query-shaped counts: the query string defines the series (AI×biomed, "artificial intelligence", cs.AI); counts are facts, selection is judgement | arxiv.*, pubmed.*, fedreg.* | w=2 cap; `rank_delta` vs own history only |
+| B13 | Mauna Loa is one station, a global-mean proxy | noaa.co2 | w=1; growth rate vs own trend (`diff=abs`, lag 12), never the level |
 
 ### 7.2 The existing news/attention pipeline (`veraldar-site/pipeline/`) — decision
 **Dropped from the percentages in v0. A `pulse` channel is specified but off.

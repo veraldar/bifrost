@@ -37,6 +37,10 @@ def bias_ids(sid, s, transform):
         b += ["B8"]
     if sid.startswith("owid.ai_"):
         b += ["B9"]
+    if sid.startswith(("arxiv.", "pubmed.", "fedreg.")):
+        b += ["B12"]
+    if sid.startswith("noaa."):
+        b += ["B13"]
     if transform.startswith("rank_"):
         b += ["B11"]
     return b

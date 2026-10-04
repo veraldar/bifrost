@@ -21,7 +21,30 @@ pub struct Config {
     pub webrtc: Option<WebRtcConfig>,
     #[serde(default)]
     pub bridge: Option<BridgeConfigSection>,
+    /// dial OUT to an access point (bifrost-net ap) and serve browsers through it
+    #[serde(default)]
+    pub ap: Option<ApDialSection>,
 }
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ApDialSection {
+    /// the access point's bridge channel, e.g. "wss://sandbox.veraldar.org/ap"
+    pub url: String,
+    /// the ap's identity: "sha-256 AA:BB:…" of its TLS public key (SPKI) —
+    /// `bifrost-net ap-pin CERT.pem` prints it; survives renewals with --reuse-key
+    pub pin: String,
+    /// pairing-scoped credential the ap admits (its sha-256 sits in ap.toml)
+    pub token: String,
+    /// the local PWA browsers are served from
+    #[serde(default = "default_ap_upstream")]
+    pub upstream: String,
+    /// LiveKit signaling: /rtc goes here when set (the voice path's websocket)
+    #[serde(default)]
+    pub livekit: Option<String>,
+}
+
+fn default_ap_upstream() -> String { "127.0.0.1:8090".into() }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]

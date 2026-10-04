@@ -8,7 +8,12 @@
 //!   check -c CONFIG     validate config, print findings, exit 0/1
 //!   selftest m0|m1      run the verification suites (loopback)
 //!   serve -c CONFIG     run the node (mesh + webrtc in one process)
+//!   ap -c AP.TOML       run the access point (TLS edge; the bridge dials in)
+//!   ap-token            mint a bridge pairing token (+ its sha-256 for ap.toml)
+//!   ap-pin CERT.pem     print the pin bridge.toml [ap] must carry
+//!   ap-cert DIR NAME..  self-signed cert+key for local runs (prints the pin)
 
+mod ap;
 mod bridge;
 mod bridge_main;
 mod config;
@@ -30,9 +35,46 @@ fn main() {
         Some("selftest") => cmd_selftest(&args[1..]),
         Some("serve") => cmd_serve(&args[1..]),
         Some("bridge") => cmd_bridge(&args[1..]),
+        Some("ap") => cmd_ap(&args[1..]),
+        Some("ap-token") => {
+            let (raw, hash) = ap::new_token();
+            println!("token = \"{raw}\"                      # bridge.toml [ap] — keep secret");
+            println!("bridge_token_sha256 = \"{hash}\"   # ap.toml [ap]");
+            0
+        }
+        Some("ap-pin") => match args.get(1).map(|p| ap::pin_of_pem(p)) {
+            Some(Ok(pin)) => {
+                println!("pin = \"{pin}\"");
+                0
+            }
+            Some(Err(e)) => {
+                eprintln!("ap-pin: {e}");
+                1
+            }
+            None => {
+                eprintln!("ap-pin: missing CERT.pem");
+                2
+            }
+        },
+        Some("ap-cert") => match args.get(1) {
+            Some(dir) => match ap::self_signed(dir, args[2..].to_vec()) {
+                Ok((cert, key, pin)) => {
+                    println!("cert_path = \"{cert}\"\nkey_path = \"{key}\"\npin = \"{pin}\"");
+                    0
+                }
+                Err(e) => {
+                    eprintln!("ap-cert: {e}");
+                    1
+                }
+            },
+            None => {
+                eprintln!("ap-cert: DIR NAME.. (e.g. ap-cert /tmp/ap localhost 127.0.0.1)");
+                2
+            }
+        },
         _ => {
             eprintln!(
-                "usage: bifrost-net keygen | check -c CONFIG | selftest m0|m1|v9 | serve -c CONFIG | bridge -c CONFIG"
+                "usage: bifrost-net keygen | check -c CONFIG | selftest m0|m1|v9|ap | serve -c CONFIG | bridge -c CONFIG | ap -c AP.TOML | ap-token | ap-pin CERT.pem | ap-cert DIR NAME.."
             );
             2
         }
@@ -75,6 +117,7 @@ fn cmd_selftest(args: &[String]) -> i32 {
         Some("m0") => selftest_m0(),
         Some("m1") => selftest_m1(),
         Some("v9") => selftest_v9(),
+        Some("ap") => selftest_ap(),
         _ => {
             eprintln!("selftest: suite must be m0 or m1");
             2
@@ -181,6 +224,35 @@ fn selftest_v9() -> i32 {
     } else {
         println!("V9 VERDICT: GREEN — bridge seams proven");
         0
+    }
+}
+
+fn selftest_ap() -> i32 {
+    println!("bifrost-net ap — access point + dial-out bridge channel (loopback)");
+    match ap::selftest() {
+        Ok(detail) => {
+            println!("AP.1 PASS — {detail}");
+            println!("AP VERDICT: GREEN — edge + channel + gate proven");
+            0
+        }
+        Err(e) => {
+            println!("AP.1 FAIL — {e}");
+            1
+        }
+    }
+}
+
+fn cmd_ap(args: &[String]) -> i32 {
+    let Some(path) = config_arg(args) else {
+        eprintln!("ap: missing -c AP.TOML");
+        return 2;
+    };
+    match ap::run(path) {
+        Ok(()) => 0,
+        Err(e) => {
+            eprintln!("ap: {e}");
+            1
+        }
     }
 }
 

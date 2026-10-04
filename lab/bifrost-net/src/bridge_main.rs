@@ -46,6 +46,17 @@ pub fn run(path: &str) -> Result<(), String> {
         cfg.opencode_url, cfg.speaches_url, cfg.tokens_file
     );
     println!("  bridge: identity {} (GET /identity → the pairing QR pins it)", handle.fingerprint);
+    if let Some(apc) = loaded.config.ap.as_ref() {
+        println!("  bridge: access point {} → browsers served from {} (dial-out, pinned)", apc.url, apc.upstream);
+        crate::ap::spawn_dialer(crate::ap::DialConfig {
+            url: apc.url.clone(),
+            pin: apc.pin.clone(),
+            token: apc.token.clone(),
+            upstream: apc.upstream.clone(),
+            livekit: apc.livekit.clone(),
+            tokens: std::sync::Arc::new(crate::tokens::TokenStore::open(cfg.tokens_file.clone())),
+        });
+    }
     println!("bifrost-net bridge serving — Ctrl-C to stop");
 
     loop {

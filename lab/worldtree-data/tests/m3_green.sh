@@ -9,7 +9,7 @@ step "1 proofs"
 [ "$(grep -vc '^200 ' /tmp/proofs.txt || true)" = 0 ] && [ "$(wc -l < /tmp/proofs.txt)" = 32 ] || { echo "FAIL line $LINENO"; exit 1; }; echo "proofs 32/32 200"
 
 step "2 catalog"
-python3 -m wt check catalog | grep -qx 'catalog OK 26 series 25 rows' || { echo "FAIL line $LINENO"; exit 1; }; echo "catalog OK 26 series 25 rows"
+python3 -m wt check catalog | grep -qx 'catalog OK 53 series 25 rows 29 geo rows' || { echo "FAIL line $LINENO"; exit 1; }; echo "catalog OK 53 series 25 rows 29 geo rows"
 python3 - <<'PY'
 import csv; from collections import Counter
 m=list(csv.DictReader(open('catalog/mapping.csv'))); c=Counter()

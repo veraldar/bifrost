@@ -21,16 +21,21 @@ def main(argv=None):
     h.add_argument("--as-of", required=True)
     h.add_argument("--now")
     h.add_argument("--out")
+    c = sub.add_parser("countries")
+    c.add_argument("--as-of", required=True)
+    c.add_argument("--now")
+    c.add_argument("--no-commit", action="store_true")
+    mp = sub.add_parser("mapdata")
     a = ap.parse_args(argv)
 
     if a.cmd == "check" and a.what == "catalog":
         from .catalog import check
-        errs, ns, nr = check()
+        errs, ns, nr, ngr = check()
         if errs:
             for e in errs:
                 print("catalog FAIL:", e, file=sys.stderr)
             return 1
-        print(f"catalog OK {ns} series {nr} rows")
+        print(f"catalog OK {ns} series {nr} rows {ngr} geo rows")
         return 0
     if a.cmd == "check" and a.what == "integrity":
         from .integrity import check_all
@@ -49,6 +54,12 @@ def main(argv=None):
         from .extract import build_all
         build_all(a.as_of)
         return 0
+    if a.cmd == "mapdata":
+        from .mapdata import build
+        return build()
+    if a.cmd == "countries":
+        from .countries import main as countries_main
+        return countries_main(a.as_of, now=a.now, no_commit=a.no_commit)
     if a.cmd == "run":
         from .run import main as run_main
         return run_main(a.as_of, now=a.now, no_fetch=a.no_fetch, commit=a.commit)

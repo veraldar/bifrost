@@ -1,0 +1,23 @@
+{
+ "attribution": "Ember (2026) and other sources – with major processing by Our World in Data",
+ "bytes": 229382,
+ "content_type": "text/csv",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://ourworldindata.org/grapher/electricity-mix.csv?frequency=annual&metric=generation&source=nuclear&v=1&csvType=full&useColumnShortNames=true",
+ "http_status": 200,
+ "license": "CC BY 4.0",
+ "license_url": "https://creativecommons.org/licenses/by/4.0/",
+ "path": "raw/owid/nuclear-energy-generation/20261004T170327Z.csv",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-04T17:03:27Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "a39908399b229ccd71c107a151be20ced7333da88caf03879077c094588431da",
+ "slug": "nuclear-energy-generation",
+ "source_id": "owid",
+ "stored_bytes": true,
+ "upstream_next_update": "2027-06-30",
+ "upstream_updated": "2026-06-30",
+ "url": "https://ourworldindata.org/grapher/nuclear-energy-generation.csv?v=1&csvType=full&useColumnShortNames=true"
+}

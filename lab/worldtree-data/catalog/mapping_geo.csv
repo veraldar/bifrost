@@ -1,0 +1,30 @@
+realm,series_id,direction,weight,transform,params,dimension,rationale
+utopia,wb.EG_ELC_ACCS_ZS,+1,2,rank_geo,,economy,electricity is the substrate of material problem-solving
+utopia,wb.SH_H2O_BASW_ZS,+1,2,rank_geo,,economy,safe water = baseline health infrastructure
+utopia,wb.SH_IMM_IDPT,+1,2,rank_geo,,society,routine immunization = functioning public health
+utopia,wb.SH_XPD_CHEX_GD_ZS,+1,1,rank_geo,,society,societal investment in health
+utopia,wb.SE_XPD_TOTL_GD_ZS,+1,1,rank_geo,,society,investment in the next generation's capability
+utopia,wb.SI_POV_DDAY,-1,2,rank_geo,,economy,the direct material-deprivation count
+divergence,wb.IT_CEL_SETS_P2,+1,1,rank_geo,,tech,connectivity spreads capability beyond the few
+divergence,wb.IP_PAT_RESD,+1,2,rank_geo,,tech,domestic inventive activity outside the few labs
+stagnation,wb.IP_PAT_RESD,+1,1,rank_geo,,tech,resident patenting momentum vs stagnation
+terminus,wb.VC_IHR_PSRC_P5,+1,2,rank_geo,,society,lethal violence
+divergence,wb.TX_VAL_TECH_CD,+1,1,rank_geo,,tech,advanced capability spreading through trade
+transcendence,wb.TX_VAL_TECH_CD,+1,1,rank_geo,,tech,frontier-adjacent output in the economy
+stagnation,wb.GB_XPD_RSDV_GD_ZS,+1,1,rank_geo,,tech,investment against the stall
+divergence,owid_geo.share_of_individuals_using_the_internet,+1,2,rank_geo,,tech,the network escapes the few
+utopia,owid_geo.annual_healthcare_expenditure_per_capita,+1,1,rank_geo,,society,health investment per person
+divergence,owid_geo.researchers_in_rd_per_million_people,+1,1,rank_geo,,tech,many minds at work
+stagnation,owid_geo.researchers_in_rd_per_million_people,+1,1,rank_geo,,tech,research workforce vs the stall
+utopia,owid_geo.per_capita_energy_use,+1,1,rank_geo,,economy,energy abundance
+utopia,owid_geo.solar_energy_consumption,+1,1,rank_geo,,environment,cheap clean energy scaling
+utopia,owid_geo.nuclear_energy_generation,+1,1,rank_geo,,environment,dense clean energy
+terminus,owid_geo.terrorism_deaths,+1,2,rank_geo,,geopolitics,terror's toll
+terminus,owid_geo.deaths_from_natural_disasters,+1,1,rank_geo,,environment,nature's toll
+terminus,owid_geo.suicide_rate,+1,1,rank_geo,,society,despair's toll
+control,owid_geo.electoral_democracy_index,+1,2,rank_geo,,society,the ballot as leash
+control,owid_geo.liberal_democracy_index,+1,1,rank_geo,,society,rights as leash
+utopia,unsdg.sn_itk_defc,-1,2,rank_geo,,economy,"hunger, counted"
+utopia,unsdg.sn_itk_dfct,-1,1,rank_geo,,economy,food at risk
+utopia,who.uhc_index_reported,+1,2,rank_geo,,society,health coverage for all
+utopia,who.whs4_100,+1,1,rank_geo,,society,routine immunization

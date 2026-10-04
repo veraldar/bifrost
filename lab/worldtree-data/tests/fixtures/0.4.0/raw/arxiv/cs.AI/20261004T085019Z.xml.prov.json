@@ -1,0 +1,23 @@
+{
+ "attribution": "arXiv API (metadata CC0 1.0)",
+ "bytes": 2524,
+ "content_type": "application/atom+xml",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://export.arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:[202004010000+TO+202004302359]&max_results=1",
+ "http_status": 200,
+ "license": "CC0 1.0 (metadata)",
+ "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+ "path": "raw/arxiv/cs.AI/20261004T085019Z.xml",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-04T08:50:19Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "0f2dff5664b629c93b828f6964f4921273d4c8013a3a9d185f0da7cec53c662a",
+ "slug": "cs.AI",
+ "source_id": "arxiv",
+ "stored_bytes": true,
+ "upstream_next_update": null,
+ "upstream_updated": null,
+ "url": "https://export.arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:[202004010000+TO+202004302359]&max_results=1"
+}

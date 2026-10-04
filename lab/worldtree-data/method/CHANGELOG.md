@@ -90,3 +90,15 @@
   reproducible, snapshot-traced structured indicators.
 - Fixture weights: before — (none, first version); after — see
   `tests/fixtures/0.1.0/realms.json`.
+
+## 0.4.0 — 2026-10-04 (expansion E2/E3)
+- Country panel added (expansion-ceiling.md §3): 25 geo indicators (World Bank country=all ×11,
+  OWID grapher country-level ×11, UN SDG ×1, WHO GHO ×2) scored cross-sectionally
+  (`rank_geo`: country vs all reporting countries, per year; no lookahead; latest value
+  within 7y counts, older = missing). Output: out/countries.json (worldtree.countries/1),
+  per-country realm levels 0-100 + coverage + provisional (<0.5). World tree method unchanged.
+- Sources added: unsdg→core, who_gho, ne (map outlines, public domain; data/countries-paths.json).
+- Honest drops: WB WGI (.EST — not served by API v2), SM.POP.REFG(_OR) (archived),
+  SDG 2.1.2 severe-FI (code returns 0 rows), WHO MMR_4 (404). See expansion-ceiling.md §4.
+- Realm-sign fix in geo rows: terminus death indicators are +1 (more deaths = more terminus);
+  utopia deprivation indicators stay -1.

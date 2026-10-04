@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/DqKsvSXav+9rUwuXNAR1CvK2hYA</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202006010000 TO 202006302359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:37:34Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202006010000+TO+202006302359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>567</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2006.04216v1</id>
+    <title>Efficient AutoML Pipeline Search with Matrix and Tensor Factorization</title>
+    <updated>2020-06-07T18:08:48Z</updated>
+    <link href="https://arxiv.org/abs/2006.04216v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2006.04216v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Data scientists seeking a good supervised learning model on a new dataset have many choices to make: they must preprocess the data, select features, possibly reduce the dimension, select an estimation algorithm, and choose hyperparameters for each of these pipeline components. With new pipeline components comes a combinatorial explosion in the number of choices! In this work, we design a new AutoML system to address this challenge: an automated system to design a supervised learning pipeline. Our system uses matrix and tensor factorization as surrogate models to model the combinatorial pipeline search space. Under these models, we develop greedy experiment design protocols to efficiently gather information about a new dataset. Experiments on large corpora of real-world classification problems demonstrate the effectiveness of our approach.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="stat.ML" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2020-06-07T18:08:48Z</published>
+    <arxiv:comment>This is an extended version of AutoML Pipeline Selection: Efficiently Navigating the Combinatorial Space (DOI: 10.1145/3394486.3403197) at KDD 2020</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Chengrun Yang</name>
+    </author>
+    <author>
+      <name>Jicong Fan</name>
+    </author>
+    <author>
+      <name>Ziyang Wu</name>
+    </author>
+    <author>
+      <name>Madeleine Udell</name>
+    </author>
+  </entry>
+</feed>

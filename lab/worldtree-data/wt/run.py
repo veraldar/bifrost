@@ -93,7 +93,7 @@ def compute(as_of, run_id, updated, cut=None):
         gates.append({"gate": name, "scope": scope, "pass": bool(ok), "reason": reason})
         return ok
 
-    errs, _, _ = catalog_check()
+    errs, _, _, _ = catalog_check()
     gate("catalog", "run", not errs, "; ".join(errs[:3]) if errs else "mapping.csv valid")
     series = load_series()
     sources = load_sources()

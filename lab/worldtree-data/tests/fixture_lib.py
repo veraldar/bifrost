@@ -18,6 +18,9 @@ def run_fixture(fx: Path, tmp: Path) -> Path:
     now = (fx / "now").read_text().strip()
     env = dict(os.environ, WT_ROOT=str(tmp))
     env.pop("WT_CATALOG", None)
-    subprocess.run([sys.executable, "-m", "wt", "run", "--as-of", as_of, "--now", now, "--no-fetch"],
-                   cwd=R, env=env, check=True, capture_output=True, text=True)
+    p = subprocess.run([sys.executable, "-m", "wt", "run", "--as-of", as_of, "--now", now, "--no-fetch"],
+                   cwd=R, env=env, check=False, capture_output=True, text=True)
+    if p.returncode != 0:
+        print(p.stderr[-1500:], file=sys.stderr)
+        raise SystemExit(f"fixture run failed rc={p.returncode}")
     return tmp / "out"

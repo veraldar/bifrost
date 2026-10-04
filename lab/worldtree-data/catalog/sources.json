@@ -71,6 +71,14 @@
   "status": "candidate",
   "title": "Manifold Markets"
  },
+ "ne": {
+  "attribution": "Natural Earth (naturalearthdata.com), public domain — map outlines only",
+  "homepage": "https://www.naturalearthdata.com",
+  "license": "public domain",
+  "license_url": "https://www.naturalearthdata.com/about/terms-of-use/",
+  "status": "core",
+  "title": "Natural Earth"
+ },
  "noaa_gml": {
   "attribution": "NOAA Global Monitoring Laboratory, Mauna Loa monthly CO2",
   "homepage": "https://gml.noaa.gov/ccgg/trends/",
@@ -96,12 +104,20 @@
   "title": "PubMed (NCBI E-utilities)"
  },
  "unsdg": {
-  "attribution": "United Nations SDG Global Database",
+  "attribution": "UN Statistics Division, SDG Global Database (unstats.un.org/sdgapi) — reuse with attribution",
   "homepage": "https://unstats.un.org/sdgs/dataportal",
   "license": "UN terms (free reuse w/ attribution)",
   "license_url": "https://www.un.org/en/about-us/terms-of-use",
-  "status": "candidate",
+  "status": "core",
   "title": "UN SDG Global Database"
+ },
+ "who_gho": {
+  "attribution": "WHO Global Health Observatory (via ghoapi.azureedge.net), © WHO — public domain",
+  "homepage": "https://www.who.int/data/gho",
+  "license": "public domain (WHO)",
+  "license_url": "https://www.who.int/about/policies/publishing/copyright",
+  "status": "core",
+  "title": "WHO Global Health Observatory"
  },
  "wikimedia": {
   "attribution": "Wikimedia Foundation Pageviews API (CC0 1.0)",

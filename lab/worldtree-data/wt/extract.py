@@ -9,7 +9,7 @@ import re
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 
-from .common import csv_text, load_series, month_of_url, root, sha256_file, write_text
+from .common import catalog_dir, csv_text, load_series, month_of_url, root, sha256_file, write_text
 
 OPENSEARCH = "{http://a9.com/-/spec/opensearch/1.1/}"
 
@@ -92,7 +92,131 @@ def read_rows(path):
 
 def ext_of(s):
     return {"owid": "csv", "worldbank": "json", "epoch": "csv", "wikimedia": "json",
-            "arxiv": "xml", "pubmed": "json", "fedreg": "json", "noaa_gml": "csv", "ari": "html"}[s["source_id"]]
+            "arxiv": "xml", "pubmed": "json", "fedreg": "json", "noaa_gml": "csv", "ari": "html",
+            "unsdg": "json", "who_gho": "json", "ne": "geojson"}[s["source_id"]]
+
+
+GEO_KINDS = ("wb_geo", "owid_geo", "unsdg_geo", "who_geo")
+
+# OWID entity names that differ from Natural Earth NAME -> iso3 (checked against catalog/iso_map.csv)
+ISO_OVERRIDES = {
+    "United States": "USA", "Democratic Republic of Congo": "COD", "Ivory Coast": "CIV",
+    "Cote d'Ivoire": "CIV", "Cape Verde": "CPV", "Czechia": "CZE", "Swaziland": "SWZ",
+    "North Macedonia": "MKD", "Burma": "MMR", "East Timor": "TLS", "Laos": "LAO",
+    "Vietnam": "VNM", "Syria": "SYR", "Moldova": "MDA", "Tanzania": "TZA", "Gambia": "GMB",
+    "Bahamas": "BHS", "South Korea": "KOR", "North Korea": "PRK", "Russia": "RUS",
+    "Iran": "IRN", "Bolivia": "BOL", "Venezuela": "VEN", "Brunei": "BRN", "Egypt": "EGY",
+    "Palestine": "PSE", "Western Sahara": "ESH", "Micronesia (country)": "FSM",
+    "Curaçao": "CUW", "Hong Kong": "HKG", "Macao": "MAC",
+}
+
+# UN geoAreaName style -> iso3 (UNSDG uses full UN names; NE/OWID use short names)
+UN_NAME_OVERRIDES = {
+    "Bolivia (Plurinational State of)": "BOL",
+    "Democratic Republic of the Congo": "COD",
+    "Congo": "COG",
+    "Côte d'Ivoire": "CIV",
+    "Cabo Verde": "CPV",
+    "Czechia": "CZE",
+    "Eswatini": "SWZ",
+    "Iran (Islamic Republic of)": "IRN",
+    "Lao People's Democratic Republic": "LAO",
+    "Micronesia (Federated States of)": "FSM",
+    "Democratic People's Republic of Korea": "PRK",
+    "Republic of Korea": "KOR",
+    "Republic of Moldova": "MDA",
+    "Russian Federation": "RUS",
+    "Syrian Arab Republic": "SYR",
+    "United Republic of Tanzania": "TZA",
+    "United States of America": "USA",
+    "United Kingdom of Great Britain and Northern Ireland": "GBR",
+    "Venezuela (Bolivarian Republic of)": "VEN",
+    "Viet Nam": "VNM",
+    "Brunei Darussalam": "BRN",
+    "Central African Republic": "CAF",
+    "Equatorial Guinea": "GNQ",
+    "Gambia": "GMB",
+    "The Gambia": "GMB",
+    "Holy See": "VAT",
+    "State of Palestine": "PSE",
+    "Türkiye": "TUR",
+    "United Arab Emirates": "ARE",
+    "United States Virgin Islands": "VIR",
+    "Myanmar": "MMR",
+}
+
+
+def load_iso_map():
+    """catalog/iso_map.csv (built by `wt mapdata` from the Natural Earth snapshot) -> rows."""
+    p = catalog_dir() / "iso_map.csv"
+    return read_rows(p) if p.exists() else []
+
+
+def _iso_by_name():
+    return {r["name"]: r["iso3"] for r in load_iso_map()}
+
+
+def x_wb_geo(s, path, opts):
+    """World Bank country=all JSON -> (iso3, year, date, value); aggregates drop out via iso_map membership."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    valid = {r["iso3"] for r in load_iso_map()}
+    out = []
+    for r in data[1] or []:
+        v = num(r.get("value"))
+        iso = (r.get("countryiso3code") or "").strip()
+        y = num(r.get("date"))
+        if v is None or not y or iso not in valid:
+            continue
+        out.append((iso, str(int(y)), f"{int(y):04d}-12-31", v))
+    return out
+
+
+def x_owid_geo(s, path, opts):
+    col = opts["col"]
+    names = _iso_by_name()
+    out = []
+    for r in read_rows(path):
+        v = num(r.get(col))
+        iso = ISO_OVERRIDES.get(r["entity"]) or names.get(r["entity"])
+        if v is None or not iso:
+            continue
+        if s["cadence"] == "annual":
+            out.append((iso, r["year"], f"{int(r['year']):04d}-12-31", v))
+        else:
+            out.append((iso, r["day"], r["day"], v))
+    return out
+
+
+def x_unsdg_geo(s, path, opts):
+    """UN SDG values JSON (all areas, one request) -> geoAreaName -> iso3 (NE name map + UN-style-name overrides)."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    names = _iso_by_name()
+    out = []
+    for r in data.get("data", []):
+        v = num(r.get("value"))
+        name = r.get("geoAreaName") or ""
+        iso = names.get(name) or UN_NAME_OVERRIDES.get(name)
+        y = num(r.get("timePeriodStart"))
+        if v is None or not iso or not y:
+            continue
+        out.append((iso, str(int(y)), f"{int(y):04d}-12-31", v))
+    return out
+
+
+def x_who_geo(s, path, opts):
+    data = json.loads(path.read_text(encoding="utf-8"))
+    valid = {r["iso3"] for r in load_iso_map()}
+    out = []
+    for r in data.get("value", []):
+        if r.get("SpatialDimType") not in (None, "COUNTRY"):
+            continue
+        v = num(r.get("NumericValue"))
+        iso = (r.get("SpatialDim") or "").strip()
+        t = str(r.get("TimeDim") or "")
+        if v is None or not iso or iso not in valid or not t[:4].isdigit():
+            continue
+        out.append((iso, t[:4], f"{int(t[:4]):04d}-12-31", v))
+    return out
 
 
 # --- extractors: return list of (period, date, value) -------------------------------------------
@@ -305,8 +429,19 @@ def x_counts(s, metas_by_month, kind):
     return out
 
 
-EXTRACTORS = {"owid": x_owid, "wb": x_wb, "wiki": x_wiki, "epoch": x_epoch, "noaa": x_noaa, "ari": x_ari}
+EXTRACTORS = {"owid": x_owid, "wb": x_wb, "wiki": x_wiki, "epoch": x_epoch, "noaa": x_noaa, "ari": x_ari,
+              "wb_geo": x_wb_geo, "owid_geo": x_owid_geo, "unsdg_geo": x_unsdg_geo, "who_geo": x_who_geo}
 COUNT_KINDS = ("arxiv", "pubmed", "fedreg")
+
+
+def dedupe_geo(rows):
+    """(iso3, period, date, value): same geo+date reported twice (revisions) -> max value; deterministic."""
+    best = {}
+    for r in rows:
+        k = (r[0], r[2])
+        if k not in best or r[3] > best[k][3]:
+            best[k] = r
+    return [best[k] for k in sorted(best)]
 
 
 def build(s, as_of):
@@ -315,6 +450,10 @@ def build(s, as_of):
         rows = [r for r in x_counts(s, month_snapshots(s["source_id"], s["slug"], ext_of(s), as_of), kind) if r[1] <= as_of]
         rows.sort(key=lambda r: (r[1], r[0]))
         return [(p, d, fmt(v), sha) for p, d, v, sha in rows]
+    if kind in GEO_KINDS:
+        path, meta = snapshot(s["source_id"], s["slug"], ext_of(s), as_of)
+        rows = [r for r in EXTRACTORS[kind](s, path, opts) if r[2] <= as_of]
+        return [(r[0], r[1], r[2], fmt(r[3]), meta["sha256"]) for r in dedupe_geo(rows)]
     path, meta = snapshot(s["source_id"], s["slug"], ext_of(s), as_of)
     rows = [r for r in EXTRACTORS[kind](s, path, opts) if r[1] <= as_of]
     rows.sort(key=lambda r: (r[1], r[0]))
@@ -322,7 +461,12 @@ def build(s, as_of):
 
 
 def header(s):
-    return HEADER + ARI_META if parse_extract(s["extract"])[0] == "ari" else HEADER
+    kind = parse_extract(s["extract"])[0]
+    if kind == "ari":
+        return HEADER + ARI_META
+    if kind in GEO_KINDS:
+        return ["geo"] + HEADER
+    return HEADER
 
 
 def build_all(as_of):

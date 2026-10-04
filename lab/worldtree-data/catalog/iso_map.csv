@@ -1,0 +1,177 @@
+iso3,iso2,m49,name
+AFG,AF,000,Afghanistan
+AGO,AO,000,Angola
+ALB,AL,000,Albania
+ARE,AE,000,United Arab Emirates
+ARG,AR,000,Argentina
+ARM,AM,000,Armenia
+ATF,TF,000,Fr. S. Antarctic Lands
+AUS,AU,000,Australia
+AUT,AT,000,Austria
+AZE,AZ,000,Azerbaijan
+BDI,BI,000,Burundi
+BEL,BE,000,Belgium
+BEN,BJ,000,Benin
+BFA,BF,000,Burkina Faso
+BGD,BD,000,Bangladesh
+BGR,BG,000,Bulgaria
+BHS,BS,000,Bahamas
+BIH,BA,000,Bosnia and Herz.
+BLR,BY,000,Belarus
+BLZ,BZ,000,Belize
+BOL,BO,000,Bolivia
+BRA,BR,000,Brazil
+BRN,BN,000,Brunei
+BTN,BT,000,Bhutan
+BWA,BW,000,Botswana
+CAF,CF,000,Central African Rep.
+CAN,CA,000,Canada
+CHE,CH,000,Switzerland
+CHL,CL,000,Chile
+CHN,CN,000,China
+CIV,CI,000,Côte d'Ivoire
+CMR,CM,000,Cameroon
+COD,CD,000,Dem. Rep. Congo
+COG,CG,000,Congo
+COL,CO,000,Colombia
+CRI,CR,000,Costa Rica
+CUB,CU,000,Cuba
+CYN,-99,000,N. Cyprus
+CYP,CY,000,Cyprus
+CZE,CZ,000,Czechia
+DEU,DE,000,Germany
+DJI,DJ,000,Djibouti
+DNK,DK,000,Denmark
+DOM,DO,000,Dominican Rep.
+DZA,DZ,000,Algeria
+ECU,EC,000,Ecuador
+EGY,EG,000,Egypt
+ERI,ER,000,Eritrea
+ESH,EH,000,W. Sahara
+ESP,ES,000,Spain
+EST,EE,000,Estonia
+ETH,ET,000,Ethiopia
+FIN,FI,000,Finland
+FJI,FJ,000,Fiji
+FLK,FK,000,Falkland Is.
+FRA,FR,000,France
+GAB,GA,000,Gabon
+GBR,GB,000,United Kingdom
+GEO,GE,000,Georgia
+GHA,GH,000,Ghana
+GIN,GN,000,Guinea
+GMB,GM,000,Gambia
+GNB,GW,000,Guinea-Bissau
+GNQ,GQ,000,Eq. Guinea
+GRC,GR,000,Greece
+GRL,GL,000,Greenland
+GTM,GT,000,Guatemala
+GUY,GY,000,Guyana
+HND,HN,000,Honduras
+HRV,HR,000,Croatia
+HTI,HT,000,Haiti
+HUN,HU,000,Hungary
+IDN,ID,000,Indonesia
+IND,IN,000,India
+IRL,IE,000,Ireland
+IRN,IR,000,Iran
+IRQ,IQ,000,Iraq
+ISL,IS,000,Iceland
+ISR,IL,000,Israel
+ITA,IT,000,Italy
+JAM,JM,000,Jamaica
+JOR,JO,000,Jordan
+JPN,JP,000,Japan
+KAZ,KZ,000,Kazakhstan
+KEN,KE,000,Kenya
+KGZ,KG,000,Kyrgyzstan
+KHM,KH,000,Cambodia
+KOR,KR,000,South Korea
+KOS,XK,000,Kosovo
+KWT,KW,000,Kuwait
+LAO,LA,000,Laos
+LBN,LB,000,Lebanon
+LBR,LR,000,Liberia
+LBY,LY,000,Libya
+LKA,LK,000,Sri Lanka
+LSO,LS,000,Lesotho
+LTU,LT,000,Lithuania
+LUX,LU,000,Luxembourg
+LVA,LV,000,Latvia
+MAR,MA,000,Morocco
+MDA,MD,000,Moldova
+MDG,MG,000,Madagascar
+MEX,MX,000,Mexico
+MKD,MK,000,North Macedonia
+MLI,ML,000,Mali
+MMR,MM,000,Myanmar
+MNE,ME,000,Montenegro
+MNG,MN,000,Mongolia
+MOZ,MZ,000,Mozambique
+MRT,MR,000,Mauritania
+MWI,MW,000,Malawi
+MYS,MY,000,Malaysia
+NAM,NA,000,Namibia
+NCL,NC,000,New Caledonia
+NER,NE,000,Niger
+NGA,NG,000,Nigeria
+NIC,NI,000,Nicaragua
+NLD,NL,000,Netherlands
+NOR,NO,000,Norway
+NPL,NP,000,Nepal
+NZL,NZ,000,New Zealand
+OMN,OM,000,Oman
+PAK,PK,000,Pakistan
+PAN,PA,000,Panama
+PER,PE,000,Peru
+PHL,PH,000,Philippines
+PNG,PG,000,Papua New Guinea
+POL,PL,000,Poland
+PRI,PR,000,Puerto Rico
+PRK,KP,000,North Korea
+PRT,PT,000,Portugal
+PRY,PY,000,Paraguay
+PSE,PS,000,Palestine
+QAT,QA,000,Qatar
+ROU,RO,000,Romania
+RUS,RU,000,Russia
+RWA,RW,000,Rwanda
+SAU,SA,000,Saudi Arabia
+SDN,SD,000,Sudan
+SEN,SN,000,Senegal
+SLB,SB,000,Solomon Is.
+SLE,SL,000,Sierra Leone
+SLV,SV,000,El Salvador
+SOL,-99,000,Somaliland
+SOM,SO,000,Somalia
+SRB,RS,000,Serbia
+SSD,SS,000,S. Sudan
+SUR,SR,000,Suriname
+SVK,SK,000,Slovakia
+SVN,SI,000,Slovenia
+SWE,SE,000,Sweden
+SWZ,SZ,000,eSwatini
+SYR,SY,000,Syria
+TCD,TD,000,Chad
+TGO,TG,000,Togo
+THA,TH,000,Thailand
+TJK,TJ,000,Tajikistan
+TKM,TM,000,Turkmenistan
+TLS,TL,000,Timor-Leste
+TTO,TT,000,Trinidad and Tobago
+TUN,TN,000,Tunisia
+TUR,TR,000,Turkey
+TWN,TW,000,Taiwan
+TZA,TZ,000,Tanzania
+UGA,UG,000,Uganda
+UKR,UA,000,Ukraine
+URY,UY,000,Uruguay
+USA,US,000,United States of America
+UZB,UZ,000,Uzbekistan
+VEN,VE,000,Venezuela
+VNM,VN,000,Vietnam
+VUT,VU,000,Vanuatu
+YEM,YE,000,Yemen
+ZAF,ZA,000,South Africa
+ZMB,ZM,000,Zambia
+ZWE,ZW,000,Zimbabwe

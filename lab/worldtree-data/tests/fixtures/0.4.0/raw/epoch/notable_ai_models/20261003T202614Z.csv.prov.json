@@ -1,0 +1,23 @@
+{
+ "attribution": "Epoch AI, 'Data on Notable AI Models' (CC BY 4.0), epoch.ai/data/notable-ai-models",
+ "bytes": 2261902,
+ "content_type": "text/csv",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://epoch.ai/data/notable_ai_models.csv",
+ "http_status": 200,
+ "license": "CC BY 4.0",
+ "license_url": "https://creativecommons.org/licenses/by/4.0/",
+ "path": "raw/epoch/notable_ai_models/20261003T202614Z.csv",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-03T20:26:14Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d",
+ "slug": "notable_ai_models",
+ "source_id": "epoch",
+ "stored_bytes": true,
+ "upstream_next_update": null,
+ "upstream_updated": null,
+ "url": "https://epoch.ai/data/notable_ai_models.csv"
+}

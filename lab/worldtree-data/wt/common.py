@@ -90,6 +90,19 @@ def mapping_path() -> Path:
     return catalog_dir() / "mapping.csv"
 
 
+def mapping_geo_path() -> Path:
+    """Country-panel mapping rows (cross-sectional `rank_geo`); WT_CATALOG dir override applies too."""
+    o = os.environ.get("WT_CATALOG")
+    if o and Path(o).is_dir():
+        return Path(o) / "mapping_geo.csv"
+    return catalog_dir() / "mapping_geo.csv"
+
+
+def load_mapping_geo():
+    p = mapping_geo_path()
+    return read_csv(p) if p.exists() else []
+
+
 def series_path() -> Path:
     o = os.environ.get("WT_CATALOG")
     if o and Path(o).is_dir():

@@ -97,8 +97,16 @@ def units():
             base = f"https://ourworldindata.org/grapher/{slug}"
             out[key] = {"files": [("csv", base + ".csv" + OWID_Q), ("metadata.json", base + ".metadata.json" + OWID_Q)],
                         "col": owid_value_col(s["extract"])}
+        elif src == "worldbank" and s["extract"].startswith("wb_geo"):
+            out[key] = {"files": [("json", f"https://api.worldbank.org/v2/country/all/indicator/{slug}?format=json&per_page=25000")]}
         elif src == "worldbank":
             out[key] = {"files": [("json", f"https://api.worldbank.org/v2/country/WLD/indicator/{slug}?format=json&per_page=100")]}
+        elif src == "unsdg":
+            out[key] = {"files": [("json", f"https://unstats.un.org/sdgapi/v1/sdg/Series/Data?seriesCode={slug}&pageSize=20000")]}
+        elif src == "who_gho":
+            out[key] = {"files": [("json", f"https://ghoapi.azureedge.net/api/{slug}")]}
+        elif src == "ne":
+            out[key] = {"files": [("geojson", "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson")]}
         elif src == "epoch":
             out[key] = {"files": [("csv", "https://epoch.ai/data/notable_ai_models.csv")]}
         elif src == "wikimedia":

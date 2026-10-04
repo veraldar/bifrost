@@ -7,7 +7,8 @@
  *     deployments.
  *   devices → every /api/* request requires a live, unexpired access token
  *     issued in the request's network region (Authorization: Bearer … or the
- *     bifrost_device cookie), rate-limited per device. /api/pair/* mints and
+ *     bifrost_device cookie), rate-limited per device — except the box's own
+ *     console (loopback behind server.mjs) and the admin token. /api/pair/* mints and
  *     rotates credentials and authenticates inside each route (fail-closed);
  *     here it only gets the per-peer brute-force guard.
  *
@@ -17,6 +18,7 @@
  * the registry per request (no cache).
  */
 import { NextResponse, type NextRequest } from 'next/server';
+import { adminOk } from '@/lib/admin';
 import { checkAccess, type Deny } from '@/lib/devices';
 import { rateTake } from '@/lib/ratelimit';
 import { peerOf, regionOfReq } from '@/lib/region';
@@ -54,6 +56,13 @@ export async function middleware(req: NextRequest) {
   if (path.startsWith('/api/pair')) {
     const rl = rateTake(`peer:${peerOf(req) || 'unknown'}`, PAIR_BURST, 1);
     return rl.ok ? NextResponse.next() : tooMany(rl.retryAfter);
+  }
+
+  // the box's own console (loopback behind server.mjs) or the admin token
+  // presents no device credential and needs none — the /api/pair rule. It
+  // grants nothing new: opencode itself is unauthenticated on loopback.
+  if (!req.cookies.get('bifrost_device')?.value && adminOk(req)) {
+    return NextResponse.next();
   }
 
   const raw =

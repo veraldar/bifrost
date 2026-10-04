@@ -242,6 +242,8 @@ export default function SessionView({
   // the room was ready, the mic must not be left hot by connectVoice
   const pttWantRef = useRef(false);
   const echoesRef = useRef<Msg[]>([]);
+  // echoes whose landing diag already reported (req 10-02 outcomes)
+  const landedEchoesRef = useRef(new WeakSet<Msg>());
   const seenRef = useRef(0);
   const pollInFlightRef = useRef(false);
   // "working…" clears only when the run is really over: opencode emits one
@@ -586,8 +588,9 @@ export default function SessionView({
           // or the echo never clears and the attachment renders twice
           // (req 10-02 'attached the attachment only once, and I see it twice').
           // An echo dropping out IS the "message landed" outcome (req 10-02
-          // interaction outcomes) — countable, paired with the send event
-          const before = echoesRef.current.length;
+          // interaction outcomes) — countable, paired with the send event.
+          // echoesRef is never pruned (this filter is display-only), so each
+          // echo reports its landing ONCE — not again on every later poll
           const echoes = echoesRef.current.filter((e) => {
             const et = e.text === '(📎 attachment)' ? '' : e.text;
             return !fresh.some(
@@ -598,8 +601,12 @@ export default function SessionView({
                 (e.images || []).every((img, i) => m.images?.[i] === img)
             );
           });
-          if (echoes.length < before) {
-            diagEvent('send', `landed — ${before - echoes.length} echo(es) reconciled with the transcript`);
+          const landed = echoesRef.current.filter(
+            (e) => !echoes.includes(e) && !landedEchoesRef.current.has(e)
+          );
+          if (landed.length) {
+            for (const e of landed) landedEchoesRef.current.add(e);
+            diagEvent('send', `landed — ${landed.length} echo(es) reconciled with the transcript`);
           }
           setMsgs([...fresh, ...echoes]);
           try {

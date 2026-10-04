@@ -11,7 +11,7 @@ function pctl(key, p,   n, arr, i, j, tmp) {
   for (i = 1; i <= n; i++) for (j = i + 1; j <= n; j++) if (arr[j] + 0 < arr[i] + 0) { tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp }
   return arr[int((p / 100) * n + 0.999999)] + 0
 }
-/\[net\] / {
+/\[net([·][^]]*)?\] / {
   st = ""
   for (i = 3; i <= NF; i++) if ($i ~ /^[0-9][0-9][0-9]$/) { st = $i; dp = i + 1; break }
   if (st == "" || dp > NF || $(dp) !~ /ms$/) next
@@ -27,7 +27,7 @@ function pctl(key, p,   n, arr, i, j, tmp) {
   if (st + 0 >= 500) errs5xx++
   next
 }
-/\[net-fail\] / { fails++; next }
+/\[net-fail([·][^]]*)?\] / { fails++; next }
 /\[ptt-fail/ { ptt_fail++; next }
 /\[ptt([·][^]]*)?\] / {
   if (/mic requested/) ptt_req++
@@ -40,7 +40,8 @@ function pctl(key, p,   n, arr, i, j, tmp) {
 }
 /\[send-fail/ { send_fail++; next }
 /\[send([·][^]]*)?\] / {
-  if (/posted direct|posted queued/) send_post++
+  if (/posted direct/) send_post++
+  else if (/posted queued/) send_queued++
   else if (/landed/) send_land++
   next
 }
@@ -55,15 +56,15 @@ function pctl(key, p,   n, arr, i, j, tmp) {
   else if (/voice agent left/) agent_left++
   next
 }
-/\[busy\] / {
+/\[busy([·][^]]*)?\] / {
   if (match($0, /(abort|clear|wedge) [^ ]+ after [0-9.]+s/)) {
     split(substr($0, RSTART, RLENGTH), f, " ")
     ev = f[1]; sec = f[4] + 0; runs[ev]++
     if (ev == "clear") { csum += sec; if (sec > cmax) cmax = sec }
     if (ev == "abort") { asum += sec }
     if (ev == "wedge") wedges++
-  } else if (match($0, /^.*\[busy\] [a-z]+/)) {
-    ev = substr($0, RSTART, RLENGTH); sub(/^.*\[busy\] /, "", ev)
+  } else if (match($0, /^.*\[busy([·][^]]*)?\] [a-z]+/)) {
+    ev = substr($0, RSTART, RLENGTH); sub(/^.*\[busy([·][^]]*)?\] /, "", ev)
     runs[ev]++
   }
   next
@@ -89,7 +90,8 @@ END {
     print "== interaction outcomes"
     if (ptt_req) printf "ptt holds:        %d requested, %d mic-on, %d commits ok, %d discarded, %d slide-cancels\n", ptt_req, ptt_on, ptt_commit, ptt_discard, ptt_cancel
     if (ptt_fail) printf "ptt NO-EFFECT:    %d (mic enable/discard/commit failed — spoken words lost)\n", ptt_fail
-    if (send_post || send_fail) printf "sends:            %d posted, %d landed, %d FAILED\n", send_post, send_land, send_fail
+    # queued sends add no echo (the proxy owns pickup) — landed pairs with direct only
+    if (send_post || send_queued || send_fail) printf "sends:            %d posted direct, %d landed, %d queued (proxy pickup), %d FAILED\n", send_post, send_land, send_queued, send_fail
     if (free_commit || free_fail) printf "tap-to-send:      %d ok, %d FAILED\n", free_commit, free_fail
     n = asorti(disc, dkeys)
     for (i = 1; i <= n; i++) printf "disconnects:      %d x %s\n", disc[dkeys[i]], dkeys[i]

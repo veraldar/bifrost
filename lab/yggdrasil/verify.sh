@@ -484,4 +484,32 @@ for key in mock-429 mock-401 ""; do
   echo "key '${key:-<unset>}': $(grep '^FAIL-AUTH' $TMP/ru-auth.txt | cut -c1-110)"
 done
 echo "slice-7 anthropic dialect ok"
+
+echo "- voice mode: speech sanitizer (YGG_VOICE=1)"
+SRV=
+YGG_LISTEN=$YGG YGG_VOICE=1 YGG_VOICE_MAX_WORDS=40 \
+  YGG_UPSTREAM_BASE_URL=http://127.0.0.1:$MOCK_PORT/v1 YGG_UPSTREAM_API_KEY=dummy YGG_UPSTREAM_MODEL=mock \
+  YGG_DATA_DIR=$TMP/data-voice ./target/debug/yggdrasil & SRV=$!
+sleep 1
+SID=$(curl -sf -X POST http://$YGG/session | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
+curl -sfN -X POST http://$YGG/session/$SID/message -H 'content-type: application/json' \
+  -d '{"parts":[{"type":"text","text":"**Put your phone away 30–60 minutes before bed.** 😴 The blue light from screens suppresses melatonin which is the hormone that makes you sleepy and it also keeps your brain stimulated when it should be winding down instead try reading a book stretching or dimming the lights tonight my friend. If you want more tips — just ask."}]}' >$TMP/voice-sse.txt
+VOICE=$(curl -sf http://$YGG/session/$SID/message | python3 -c '
+import sys, json
+m = json.load(sys.stdin)
+print(m[-1]["parts"][0]["text"])')
+kill $SRV; wait $SRV 2>/dev/null || true; SRV=
+python3 - "$VOICE" <<'PY' || { echo "FAIL: voice sanitizer"; exit 1; }
+import sys, re
+v = sys.argv[1]
+bad = None
+if "*" in v or "_" in v or "`" in v: bad = "markdown"
+if any(ord(c) > 0x2100 for c in v): bad = "emoji/symbol"
+if "–" in v or "—" in v: bad = "dash"
+if re.search(r"if you (want|need)|just ask|let me know", v, re.I): bad = "offer sentence"
+if len(v.split()) > 40: bad = f"too long ({len(v.split())} words)"
+print(f"voice reply: {v[:120]}")
+assert bad is None, bad
+PY
+echo "slice-8 voice mode ok"
 echo PASS

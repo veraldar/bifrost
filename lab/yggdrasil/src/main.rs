@@ -84,6 +84,74 @@ struct Config {
     tools_enabled: bool,
     rollup_tokens: usize,
     rollup_keep_tokens: usize,
+    /// Voice-first mode: speech-shaped system prompt + speech sanitizer on stored text.
+    voice: bool,
+    voice_max_words: usize,
+}
+
+const VOICE_PROMPT: &str = "You are answering by voice. Answer in at most two short sentences. One thought per reply. No markdown, no emoji, no lists, no parentheses, no offers of more help. Plain words only.";
+
+/// Voice mode: shape model text for SPEECH — strip markdown, emoji and
+/// typographic dashes, drop "if you want more — just ask" offer sentences,
+/// cap at `max_words` on a sentence boundary. Reviewer finding: markdown and
+/// emoji were being read aloud, and a one-tip question produced a 27s monologue.
+fn sanitize_for_speech(s: &str, max_words: usize) -> String {
+    let mut t = String::with_capacity(s.len());
+    let mut in_fence = false;
+    for line in s.lines() {
+        let l = line.trim();
+        if l.starts_with("```") {
+            in_fence = !in_fence;
+            continue;
+        }
+        if in_fence {
+            continue;
+        }
+        if !t.is_empty() {
+            t.push(' ');
+        }
+        t.push_str(l);
+    }
+    let mut t = t
+        .replace('\u{2013}', " to ")
+        .replace('\u{2014}', ", ")
+        .replace(['*', '_', '`', '#', '>', '|', '[', ']'], "");
+    // keep letters/digits/whitespace/plain punctuation — everything else (emoji,
+    // pictographs, symbols) goes, so TTS never reads "sleeping face" aloud
+    t = t
+        .chars()
+        .filter(|c| {
+            c.is_whitespace() || c.is_alphanumeric() || ".,'!?;:()-%\"&/+".contains(*c)
+        })
+        .collect();
+    let t = t.split_whitespace().collect::<Vec<_>>().join(" ");
+    // drop offer/help-boilerplate sentences, then cap words at a sentence boundary
+    let offer = |s: &str| {
+        let l = s.to_lowercase();
+        ["if you want", "if you need", "let me know", "feel free", "hope this", "just ask"]
+            .iter()
+            .any(|p| l.contains(p))
+    };
+    let mut out = String::new();
+    let mut words = 0usize;
+    for sent in t.split_inclusive(|c| c == '.' || c == '!' || c == '?') {
+        let sent = sent.trim();
+        if sent.is_empty() || offer(sent) {
+            continue;
+        }
+        let w = sent.split_whitespace().count();
+        if words > 0 && words + w > max_words {
+            break;
+        }
+        if !out.is_empty() {
+            out.push(' ');
+        }
+        out.push_str(sent);
+        words += w;
+    }
+    let mut kept: Vec<&str> = out.split_whitespace().collect();
+    kept.truncate(max_words);
+    kept.join(" ")
 }
 
 #[derive(Serialize, Deserialize)]
@@ -550,17 +618,23 @@ impl Run {
     }
 
     /// Lands the streamed text of the current step as a text part.
-    fn flush_text(&mut self) {
+    fn flush_text(&mut self, voice: Option<(bool, usize)>) {
         let text = std::mem::take(&mut self.text);
         if !text.is_empty() {
-            self.push_part(text_part(&text));
+            let text = match voice {
+                Some((true, max)) => sanitize_for_speech(&text, max),
+                _ => text,
+            };
+            if !text.is_empty() {
+                self.push_part(text_part(&text));
+            }
         }
     }
 
     /// Closes the message: pending text kept, interrupted tool calls marked as errors,
     /// and at least one text part (the PWA reads the reply from text parts).
     fn finish(&mut self, interrupted: &str) {
-        self.flush_text();
+        self.flush_text(None);
         let now = now_ms();
         let mut has_text = false;
         for p in self.msg["parts"].as_array_mut().unwrap() {
@@ -651,6 +725,9 @@ async fn agent_loop(
     run: &mut Run,
 ) -> Result<(), String> {
     let mut convo = rollup_if_needed(st, id, tx, messages).await;
+    if st.config.voice {
+        convo.insert(0, json!({ "role": "system", "content": VOICE_PROMPT }));
+    }
     let max = st.config.max_steps;
     for _ in 0..max {
         if st.config.rollup_tokens > 0 {
@@ -661,7 +738,7 @@ async fn agent_loop(
         }
         let calls = relay(st, id, &convo, tx, &mut run.text).await?;
         let text = run.text.clone();
-        run.flush_text();
+        run.flush_text(Some((st.config.voice, st.config.voice_max_words)));
         if calls.is_empty() {
             return Ok(());
         }
@@ -1085,6 +1162,8 @@ async fn main() {
         model,
         max_steps: env_num("YGG_MAX_STEPS", 100).max(1) as usize,
         tools_enabled: std::env::var("YGG_TOOLS").map_or(true, |v| v != "0"),
+        voice: std::env::var("YGG_VOICE").map_or(false, |v| v == "1"),
+        voice_max_words: env_num("YGG_VOICE_MAX_WORDS", 60).max(5) as usize,
         rollup_tokens: rollup_tokens as usize,
         rollup_keep_tokens: env_num("YGG_ROLLUP_KEEP_TOKENS", rollup_tokens / 4) as usize,
     };

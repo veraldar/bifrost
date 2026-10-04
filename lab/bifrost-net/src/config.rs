@@ -42,6 +42,9 @@ pub struct ApDialSection {
     /// LiveKit signaling: /rtc goes here when set (the voice path's websocket)
     #[serde(default)]
     pub livekit: Option<String>,
+    /// raw TCP forwards the ap may name → local target, e.g. { livekit-ice = "127.0.0.1:7881" }
+    #[serde(default)]
+    pub tcp: std::collections::HashMap<String, String>,
 }
 
 fn default_ap_upstream() -> String { "127.0.0.1:8090".into() }

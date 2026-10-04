@@ -54,6 +54,7 @@ pub fn run(path: &str) -> Result<(), String> {
             token: apc.token.clone(),
             upstream: apc.upstream.clone(),
             livekit: apc.livekit.clone(),
+            tcp: apc.tcp.clone(),
             tokens: std::sync::Arc::new(crate::tokens::TokenStore::open(cfg.tokens_file.clone())),
         });
     }

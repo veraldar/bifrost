@@ -20,7 +20,8 @@ LANIP=${AP_LAN_IP:-$(ip -4 -o route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \
 AP=https://127.0.0.1:$APPORT
 TMP=$(mktemp -d)
 AP_PID=; BR_PID=; WS_PID=
-trap 'kill $AP_PID $BR_PID $WS_PID 2>/dev/null; rm -rf "$TMP"' EXIT
+ECHO_PID=
+trap 'kill $AP_PID $BR_PID $WS_PID $ECHO_PID 2>/dev/null; rm -rf "$TMP"' EXIT
 
 # 1. in-process selftest (stub upstream: smuggling, websocket byte-exact, pin/token refusals)
 t; OUT=$("$BIN" selftest ap 2>&1)
@@ -92,7 +93,13 @@ while True:
 PY
 WS_PID=$!
 
-"$BIN" ap -c "$TMP/ap.toml" > "$TMP/ap.log" 2>&1 &
+# raw TCP forwards (the LiveKit ICE-TCP leg): 'ice' is mapped by the bridge, 'nope' is not
+TP=$((P + 20)); ECHOP=$((P + 22))
+{ cat "$TMP/ap.toml"; printf '\n[[ap.tcp]]\nname = "ice"\nlisten = "127.0.0.1:%s"\n\n[[ap.tcp]]\nname = "nope"\nlisten = "127.0.0.1:%s"\n' "$TP" "$((TP + 1))"; } > "$TMP/ap-main.toml"
+echo "tcp = { ice = \"127.0.0.1:$ECHOP\" }" >> "$TMP/bridge.toml"
+socat TCP-LISTEN:$ECHOP,bind=127.0.0.1,fork,reuseaddr EXEC:cat > /dev/null 2>&1 &
+ECHO_PID=$!
+"$BIN" ap -c "$TMP/ap-main.toml" > "$TMP/ap.log" 2>&1 &
 AP_PID=$!
 for _ in $(seq 30); do grep -q "LIVE" "$TMP/ap.log" 2>/dev/null && break; sleep 0.1; done
 
@@ -183,6 +190,23 @@ PY
 if [ "$WS" = "WS101-EXACT" ]; then ok "websocket: /rtc upgraded through ap→channel→bridge→signaling, 20000 random bytes echoed exact"
 else fail "websocket: $WS"; fi
 
+# raw forward probe — runs while this bridge is registered; scored as check 15
+RAW=$(python3 - "$TP" "$((TP + 1))" <<'PY'
+import os, socket, sys
+c = socket.create_connection(("127.0.0.1", int(sys.argv[1])), timeout=5)
+probe = os.urandom(50000); c.sendall(probe); got = b""
+while len(got) < len(probe):
+    d = c.recv(65536)
+    if not d: break
+    got += d
+c2 = socket.create_connection(("127.0.0.1", int(sys.argv[2])), timeout=5)
+c2.sendall(b"hello")
+try: d = c2.recv(10)
+except Exception: d = b"timeout"
+print("RAW-EXACT" if got == probe and d == b"" else "RAW-FAIL exact=%s unknown=%r" % (got == probe, d))
+PY
+)
+
 # 12. the box never listens for the ap: the bridge's ap leg is an OUTBOUND connection
 t; if ss -tnp 2>/dev/null | grep "pid=$BR_PID," | grep -q ":$APPORT "; then ok "bridge→ap is an outbound socket (pid $BR_PID → :$APPORT); no inbound port opened for it"
 else fail "bridge outbound socket not found"; fi
@@ -239,6 +263,10 @@ kill $FRONT_PID $AP2_PID $BR2_PID 2>/dev/null
 if [ "$C1" = 200 ] && [[ "$R2" == *'"why":"region"'*' 401' ]] && [ "$C3" = 000 ]; then
   ok "SNI/PROXY mode: region from the PROXY line (LAN token 200 via the front from $LANIP; same token from loopback 401 region); bare connection refused"
 else fail "proxy mode: lan=$C1 loop=$R2 bare=$C3"; fi
+
+# 15. raw TCP forward through the channel (the voice media transport for LiveKit ICE-TCP)
+t; if [ "$RAW" = "RAW-EXACT" ]; then ok "raw tcp forward 'ice': 50000 random bytes echoed exact via ap→channel→bridge; unmapped name refused by the bridge"
+else fail "raw tcp: $RAW"; fi
 
 echo "AP VERIFY: $PASS/$TOTAL PASS"
 [ "$PASS" -eq "$TOTAL" ] && echo "AP VERDICT: GREEN" || exit 1

@@ -56,6 +56,7 @@ const OP_PONG: u8 = 0xA;
 const OPEN: u8 = 1;
 const DATA: u8 = 2;
 const CLOSE: u8 = 3;
+const OPEN_RAW: u8 = 4;
 const PING_EVERY: Duration = Duration::from_secs(15);
 const SILENT: Duration = Duration::from_secs(45);
 
@@ -80,6 +81,17 @@ pub struct ApConfig {
     /// real client address from the PROXY v1 line. Listen on loopback ONLY then.
     #[serde(default)]
     pub proxy_protocol: bool,
+    /// raw TCP forwards (no TLS, no HTTP — e.g. LiveKit ICE-TCP :7881): the ap
+    /// only NAMES the stream; the bridge maps names to targets in its own config
+    #[serde(default)]
+    pub tcp: Vec<TcpForward>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TcpForward {
+    pub name: String,
+    pub listen: String,
 }
 
 fn default_channel() -> String { "/ap".into() }
@@ -111,6 +123,8 @@ pub struct DialConfig {
     pub token: String,
     pub upstream: String,
     pub livekit: Option<String>,
+    /// raw forward name → local target (anything else the ap names is refused)
+    pub tcp: HashMap<String, String>,
     pub tokens: Arc<TokenStore>,
 }
 
@@ -494,10 +508,24 @@ async fn serve(cfg: ApConfig, ready: Option<std::sync::mpsc::Sender<Result<(Sock
     println!("  ap: https {addr} — LIVE (TLS1.2+, HSTS '{}')", cfg.hsts);
     println!("  ap: identity {pin}  (bridge.toml [ap] pin)");
     println!("  ap: bridge channel wss://<host>{} (Bearer, sha-256 admitted)", cfg.channel_path);
+    let hub = Arc::new(Hub::default());
+    for f in &cfg.tcp {
+        let l = TcpListener::bind(&f.listen).await.map_err(|e| format!("ap.tcp '{}' {}: {e}", f.name, f.listen))?;
+        println!("  ap: tcp '{}' {} — LIVE (raw stream to the bridge)", f.name, l.local_addr().map_err(|e| e.to_string())?);
+        let (hub, name) = (hub.clone(), f.name.clone());
+        tokio::spawn(async move {
+            loop {
+                let Ok((tcp, peer)) = l.accept().await else {
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                    continue;
+                };
+                tokio::spawn(raw_conn(tcp, peer, name.clone(), hub.clone()));
+            }
+        });
+    }
     if let Some(r) = ready {
         let _ = r.send(Ok((addr, pin)));
     }
-    let hub = Arc::new(Hub::default());
     let cfg = Arc::new(cfg);
     loop {
         let (mut tcp, peer) = match listener.accept().await {
@@ -523,6 +551,37 @@ async fn serve(cfg: ApConfig, ready: Option<std::sync::mpsc::Sender<Result<(Sock
             let _ = edge_conn(tls, peer, hub, cfg).await;
         });
     }
+}
+
+/// A raw TCP forward: one stream, bytes both ways, nothing parsed.
+async fn raw_conn(tcp: TcpStream, peer: SocketAddr, name: String, hub: Arc<Hub>) {
+    let _ = tcp.set_nodelay(true);
+    let link = hub.link.lock().unwrap().clone();
+    let Some(link) = link else { return };
+    let id = hub.ids.fetch_add(1, Ordering::Relaxed) + 1;
+    let (tx, mut rx) = mpsc::unbounded_channel::<Option<Vec<u8>>>();
+    link.streams.lock().unwrap().insert(id, tx);
+    let _ = link.out.send(mux(OPEN_RAW, id, format!("{}\n{name}", peer.ip().to_canonical()).as_bytes()));
+    let (mut rd, mut wr) = tcp.into_split();
+    let up = link.out.clone();
+    let reader = tokio::spawn(async move {
+        let mut buf = vec![0u8; 16384];
+        while let Ok(n) = rd.read(&mut buf).await {
+            if n == 0 || up.send(mux(DATA, id, &buf[..n])).is_err() {
+                break;
+            }
+        }
+        let _ = up.send(mux(CLOSE, id, &[]));
+    });
+    while let Some(Some(chunk)) = rx.recv().await {
+        if wr.write_all(&chunk).await.is_err() {
+            break;
+        }
+    }
+    let _ = wr.shutdown().await;
+    reader.abort();
+    link.streams.lock().unwrap().remove(&id);
+    let _ = link.out.send(mux(CLOSE, id, &[]));
 }
 
 /// PROXY protocol v1 — nginx's `proxy_protocol on` prefix: the real client address.
@@ -808,6 +867,11 @@ async fn dial_once(cfg: &Arc<DialConfig>) -> Result<(), String> {
                         streams.insert(id, tx);
                         tokio::spawn(serve_stream(cfg.clone(), id, body.to_vec(), rx, out.clone()));
                     }
+                    OPEN_RAW => {
+                        let (tx, rx) = mpsc::unbounded_channel();
+                        streams.insert(id, tx);
+                        tokio::spawn(serve_raw(cfg.clone(), id, body.to_vec(), rx, out.clone()));
+                    }
                     DATA => {
                         if let Some(tx) = streams.get(&id) {
                             let _ = tx.send(Some(body.to_vec()));
@@ -1008,6 +1072,44 @@ async fn serve_stream(
     pump.abort();
 }
 
+/// A raw forward on the bridge: only targets named in bridge.toml [ap.tcp].
+async fn serve_raw(
+    cfg: Arc<DialConfig>,
+    id: u32,
+    open: Vec<u8>,
+    mut rx: mpsc::UnboundedReceiver<Option<Vec<u8>>>,
+    out: Frames,
+) {
+    let name = open.split(|&b| b == b'\n').nth(1).and_then(|n| std::str::from_utf8(n).ok()).unwrap_or("");
+    let up = match cfg.tcp.get(name) {
+        Some(target) => TcpStream::connect(target).await.ok(),
+        None => None,
+    };
+    let Some(up) = up else {
+        let _ = out.send(mux(CLOSE, id, &[]));
+        return;
+    };
+    let _ = up.set_nodelay(true);
+    let (mut ur, mut uw) = up.into_split();
+    let out2 = out.clone();
+    let pump = tokio::spawn(async move {
+        let mut buf = vec![0u8; 16384];
+        while let Ok(n) = ur.read(&mut buf).await {
+            if n == 0 || out2.send(mux(DATA, id, &buf[..n])).is_err() {
+                break;
+            }
+        }
+        let _ = out2.send(mux(CLOSE, id, &[]));
+    });
+    while let Some(Some(chunk)) = rx.recv().await {
+        if uw.write_all(&chunk).await.is_err() {
+            break;
+        }
+    }
+    let _ = uw.shutdown().await;
+    pump.abort();
+}
+
 // ---- selftest: the whole chain in one process --------------------------------------------
 
 pub fn selftest() -> Result<String, String> {
@@ -1026,6 +1128,7 @@ pub fn selftest() -> Result<String, String> {
         channel_path: "/ap".into(),
         hsts: "max-age=31536000".into(),
         proxy_protocol: false,
+        tcp: vec![],
     })?;
     if ap_pin != pin {
         return Err("ap announces a different pin".into());
@@ -1058,6 +1161,7 @@ pub fn selftest() -> Result<String, String> {
             token: token.into(),
             upstream: up_addr.to_string(),
             livekit: None,
+            tcp: HashMap::new(),
             tokens: Arc::new(TokenStore::open(&reg_path)),
         })
     };

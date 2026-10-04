@@ -1,0 +1,38 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/csshfMpnEFDIC5X7hBWtY00iuc0</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202507010000 TO 202507312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:22:15Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202507010000+TO+202507312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>3477</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2507.22923v1</id>
+    <title>How and Where to Translate? The Impact of Translation Strategies in Cross-lingual LLM Prompting</title>
+    <updated>2025-07-21T19:37:15Z</updated>
+    <link href="https://arxiv.org/abs/2507.22923v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2507.22923v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Despite advances in the multilingual capabilities of Large Language Models (LLMs), their performance varies substantially across different languages and tasks. In multilingual retrieval-augmented generation (RAG)-based systems, knowledge bases (KB) are often shared from high-resource languages (such as English) to low-resource ones, resulting in retrieved information from the KB being in a different language than the rest of the context. In such scenarios, two common practices are pre-translation to create a mono-lingual prompt and cross-lingual prompting for direct inference. However, the impact of these choices remains unclear. In this paper, we systematically evaluate the impact of different prompt translation strategies for classification tasks with RAG-enhanced LLMs in multilingual systems. Experimental results show that an optimized prompting strategy can significantly improve knowledge sharing across languages, therefore improve the performance on the downstream classification task. The findings advocate for a broader utilization of multilingual resource sharing and cross-lingual prompt optimization for non-English languages, especially the low-resource ones.</summary>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2025-07-21T19:37:15Z</published>
+    <arxiv:comment>Accepted at Prompt Optimization KDD '25</arxiv:comment>
+    <arxiv:primary_category term="cs.CL"/>
+    <author>
+      <name>Aman Gupta</name>
+    </author>
+    <author>
+      <name>Yingying Zhuang</name>
+    </author>
+    <author>
+      <name>Zhou Yu</name>
+    </author>
+    <author>
+      <name>Ziji Zhang</name>
+    </author>
+    <author>
+      <name>Anurag Beniwal</name>
+    </author>
+  </entry>
+</feed>

@@ -1,0 +1,50 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/j74aYNDVTKwAGIleVh2ppXSZNNA</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202109010000 TO 202109302359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:42:13Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202109010000+TO+202109302359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>1130</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2109.08642v2</id>
+    <title>POAR: Efficient Policy Optimization via Online Abstract State Representation Learning</title>
+    <updated>2023-12-09T08:13:29Z</updated>
+    <link href="https://arxiv.org/abs/2109.08642v2" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2109.08642v2" rel="related" type="application/pdf" title="pdf"/>
+    <summary>While the rapid progress of deep learning fuels end-to-end reinforcement learning (RL), direct application, especially in high-dimensional space like robotic scenarios still suffers from low sample efficiency. Therefore State Representation Learning (SRL) is proposed to specifically learn to encode task-relevant features from complex sensory data into low-dimensional states. However, the pervasive implementation of SRL is usually conducted by a decoupling strategy in which the observation-state mapping is learned separately, which is prone to over-fit. To handle such problem, we summarize the state-of-the-art (SOTA) SRL sub-tasks in previous works and present a new algorithm called Policy Optimization via Abstract Representation which integrates SRL into the policy optimization phase. Firstly, We engage RL loss to assist in updating SRL model so that the states can evolve to meet the demand of RL and maintain a good physical interpretation. Secondly, we introduce a dynamic loss weighting mechanism so that both models can efficiently adapt to each other. Thirdly, we introduce a new SRL prior called domain resemblance to leverage expert demonstration to improve SRL interpretations. Finally, we provide a real-time access of state graph to monitor the course of learning. Experiments indicate that POAR significantly outperforms SOTA RL algorithms and decoupling SRL strategies in terms of sample efficiency and final rewards. We empirically verify POAR to efficiently handle tasks in high dimensions and facilitate training real-life robots directly from scratch.</summary>
+    <category term="cs.RO" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2021-09-17T16:52:03Z</published>
+    <arxiv:comment>19 pages</arxiv:comment>
+    <arxiv:primary_category term="cs.RO"/>
+    <author>
+      <name>Zhaorun Chen</name>
+    </author>
+    <author>
+      <name>Siqi Fan</name>
+    </author>
+    <author>
+      <name>Yuan Tan</name>
+    </author>
+    <author>
+      <name>Liang Gong</name>
+    </author>
+    <author>
+      <name>Binhao Chen</name>
+    </author>
+    <author>
+      <name>Te Sun</name>
+    </author>
+    <author>
+      <name>David Filliat</name>
+    </author>
+    <author>
+      <name>Natalia Díaz-Rodríguez</name>
+    </author>
+    <author>
+      <name>Chengliang Liu</name>
+    </author>
+  </entry>
+</feed>

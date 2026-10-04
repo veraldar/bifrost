@@ -1,0 +1,28 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/uyFnL/2x3JxslaD8RUvurwu+WWk</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202306010000 TO 202306302359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:43:26Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202306010000+TO+202306302359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>1907</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2307.06396v1</id>
+    <title>Introduction to Facial Micro Expressions Analysis Using Color and Depth Images: A Matlab Coding Approach (Second Edition, 2023)</title>
+    <updated>2023-06-19T13:06:57Z</updated>
+    <link href="https://arxiv.org/abs/2307.06396v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2307.06396v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>The book attempts to introduce a gentle introduction to the field of Facial Micro Expressions Recognition (FMER) using Color and Depth images, with the aid of MATLAB programming environment. FMER is a subset of image processing and it is a multidisciplinary topic to analysis. So, it requires familiarity with other topics of Artifactual Intelligence (AI) such as machine learning, digital image processing, psychology and more. So, it is a great opportunity to write a book which covers all of these topics for beginner to professional readers in the field of AI and even without having background of AI. Our goal is to provide a standalone introduction in the field of MFER analysis in the form of theorical descriptions for readers with no background in image processing with reproducible Matlab practical examples. Also, we describe any basic definitions for FMER analysis and MATLAB library which is used in the text, that helps final reader to apply the experiments in the real-world applications. We believe that this book is suitable for students, researchers, and professionals alike, who need to develop practical skills, along with a basic understanding of the field. We expect that, after reading this book, the reader feels comfortable with different key stages such as color and depth image processing, color and depth image representation, classification, machine learning, facial micro-expressions recognition, feature extraction and dimensionality reduction. The book attempts to introduce a gentle introduction to the field of Facial Micro Expressions Recognition (FMER) using Color and Depth images, with the aid of MATLAB programming environment.</summary>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2023-06-19T13:06:57Z</published>
+    <arxiv:comment>This is the second edition of the book</arxiv:comment>
+    <arxiv:primary_category term="cs.CV"/>
+    <author>
+      <name>Seyed Muhammad Hossein Mousavi</name>
+    </author>
+    <arxiv:doi>10.6084/m9.figshare.14396195</arxiv:doi>
+    <link rel="related" href="https://doi.org/10.6084/m9.figshare.14396195" title="doi"/>
+  </entry>
+</feed>

@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/o4k7hAgjjdSOeMZMoOKSQaFcUDM</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202501010000 TO 202501312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:40:11Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202501010000+TO+202501312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>2484</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2501.16889v1</id>
+    <title>Extending Information Bottleneck Attribution to Video Sequences</title>
+    <updated>2025-01-28T12:19:44Z</updated>
+    <link href="https://arxiv.org/abs/2501.16889v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2501.16889v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We introduce VIBA, a novel approach for explainable video classification by adapting Information Bottlenecks for Attribution (IBA) to video sequences. While most traditional explainability methods are designed for image models, our IBA framework addresses the need for explainability in temporal models used for video analysis. To demonstrate its effectiveness, we apply VIBA to video deepfake detection, testing it on two architectures: the Xception model for spatial features and a VGG11-based model for capturing motion dynamics through optical flow. Using a custom dataset that reflects recent deepfake generation techniques, we adapt IBA to create relevance and optical flow maps, visually highlighting manipulated regions and motion inconsistencies. Our results show that VIBA generates temporally and spatially consistent explanations, which align closely with human annotations, thus providing interpretability for video classification and particularly for deepfake detection.</summary>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2025-01-28T12:19:44Z</published>
+    <arxiv:primary_category term="cs.CV"/>
+    <author>
+      <name>Veronika Solopova</name>
+    </author>
+    <author>
+      <name>Lucas Schmidt</name>
+    </author>
+    <author>
+      <name>Dorothea Kolossa</name>
+    </author>
+  </entry>
+</feed>

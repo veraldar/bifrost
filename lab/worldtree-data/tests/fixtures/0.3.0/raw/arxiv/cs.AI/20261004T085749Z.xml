@@ -1,0 +1,44 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/6NKRizU1PZnp9js+9lkTmQMiZFg</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202602010000 TO 202602282359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:57:49Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202602010000+TO+202602282359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>4454</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2603.18012v1</id>
+    <title>DynaRAG: Bridging Static and Dynamic Knowledge in Retrieval-Augmented Generation</title>
+    <updated>2026-02-24T03:55:07Z</updated>
+    <link href="https://arxiv.org/abs/2603.18012v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2603.18012v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We present DynaRAG, a retrieval-augmented generation (RAG) framework designed to handle both static and time-sensitive information needs through dynamic knowledge integration. Unlike traditional RAG pipelines that rely solely on static corpora, DynaRAG selectively invokes external APIs when retrieved documents are insufficient for answering a query. The system employs an LLM-based reranker to assess document relevance, a sufficiency classifier to determine when fallback is necessary, and Gorilla v2 -- a state-of-the-art API calling model -- for accurate tool invocation. We further enhance robustness by incorporating schema filtering via FAISS to guide API selection. Evaluations on the CRAG benchmark demonstrate that DynaRAG significantly improves accuracy on dynamic questions, while also reducing hallucinations. Our results highlight the importance of dynamic-aware routing and selective tool use in building reliable, real-world question-answering systems.</summary>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.IR" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-02-24T03:55:07Z</published>
+    <arxiv:primary_category term="cs.CL"/>
+    <author>
+      <name>Penghao Liang</name>
+    </author>
+    <author>
+      <name>Mengwei Yuan</name>
+    </author>
+    <author>
+      <name>Jianan Liu</name>
+    </author>
+    <author>
+      <name>Jing Yang</name>
+    </author>
+    <author>
+      <name>Xianyou Li</name>
+    </author>
+    <author>
+      <name>Weiran Yan</name>
+    </author>
+    <author>
+      <name>Yichao Wu</name>
+    </author>
+  </entry>
+</feed>

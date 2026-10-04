@@ -1,0 +1,28 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/Aa1mN28fbsme9Bi0b2h76YGUTvE</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202305010000 TO 202305312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:43:23Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202305010000+TO+202305312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>2382</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2310.11470v1</id>
+    <title>Classic machine learning methods</title>
+    <updated>2023-05-24T13:38:38Z</updated>
+    <link href="https://arxiv.org/abs/2310.11470v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2310.11470v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>In this chapter, we present the main classic machine learning methods. A large part of the chapter is devoted to supervised learning techniques for classification and regression, including nearest-neighbor methods, linear and logistic regressions, support vector machines and tree-based algorithms. We also describe the problem of overfitting as well as strategies to overcome it. We finally provide a brief overview of unsupervised learning methods, namely for clustering and dimensionality reduction.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2023-05-24T13:38:38Z</published>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Johann Faouzi</name>
+    </author>
+    <author>
+      <name>Olivier Colliot</name>
+    </author>
+  </entry>
+</feed>

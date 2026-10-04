@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/qEMoInc1SNMhlbOvbYhlGVnH+w8</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202308010000 TO 202308312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:43:33Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202308010000+TO+202308312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>1809</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2309.16697v1</id>
+    <title>Inappropriate Benefits and Identification of ChatGPT Misuse in Programming Tests: A Controlled Experiment</title>
+    <updated>2023-08-11T06:42:29Z</updated>
+    <link href="https://arxiv.org/abs/2309.16697v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2309.16697v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>While ChatGPT may help students to learn to program, it can be misused to do plagiarism, a breach of academic integrity. Students can ask ChatGPT to complete a programming task, generating a solution from other people's work without proper acknowledgment of the source(s). To help address this new kind of plagiarism, we performed a controlled experiment measuring the inappropriate benefits of using ChatGPT in terms of completion time and programming performance. We also reported how to manually identify programs aided with ChatGPT (via student behavior while using ChatGPT) and student perspective of ChatGPT (via a survey). Seventeen students participated in the experiment. They were asked to complete two programming tests. They were divided into two groups per the test: one group should complete the test without help while the other group should complete it with ChatGPT. Our study shows that students with ChatGPT complete programming tests two times faster than those without ChatGPT, though their programming performance is comparable. The generated code is highly efficient and uses complex data structures like lists and dictionaries. Based on the survey results, ChatGPT is recommended to be used as an assistant to complete programming tasks and other general assignments. ChatGPT will be beneficial as a reference as other search engines do. Logical and critical thinking are needed to validate the result presented by ChatGPT.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CY" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2023-08-11T06:42:29Z</published>
+    <arxiv:comment>Accepted at The 26th International Conference on Interactive Collaborative Learning (ICL 2023)</arxiv:comment>
+    <arxiv:primary_category term="cs.AI"/>
+    <author>
+      <name>Hapnes Toba</name>
+    </author>
+    <author>
+      <name>Oscar Karnalim</name>
+    </author>
+    <author>
+      <name>Meliana Christianti Johan</name>
+    </author>
+    <author>
+      <name>Terutoshi Tada</name>
+    </author>
+    <author>
+      <name>Yenni Merlin Djajalaksana</name>
+    </author>
+    <author>
+      <name>Tristan Vivaldy</name>
+    </author>
+  </entry>
+</feed>

@@ -1,0 +1,23 @@
+{
+ "attribution": "NCBI/NLM PubMed E-utilities",
+ "bytes": 77,
+ "content_type": "application/json",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmode=json&rettype=count&term=%28artificial%20intelligence%5BTitle/Abstract%5D%29%20AND%20%28drug%20discovery%5BTitle/Abstract%5D%20OR%20protein%5BTitle/Abstract%5D%20OR%20molecular%5BTitle/Abstract%5D%20OR%20battery%5BTitle/Abstract%5D%20OR%20catalyst%5BTitle/Abstract%5D%29%20AND%20%28%222019/07/01%22%5BPDAT%5D%3A%222019/07/31%22%5BPDAT%5D%29",
+ "http_status": 200,
+ "license": "public domain (NLM; US gov)",
+ "license_url": "https://www.ncbi.nlm.nih.gov/home/about/policies/",
+ "path": "raw/pubmed/ai_biomed/20261004T082430Z.json",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-04T08:24:30Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "5760ec9dccab741bb410c98890aca38774ab3609b32b2c999573c41de1089448",
+ "slug": "ai_biomed",
+ "source_id": "pubmed",
+ "stored_bytes": true,
+ "upstream_next_update": null,
+ "upstream_updated": null,
+ "url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmode=json&rettype=count&term=%28artificial%20intelligence%5BTitle/Abstract%5D%29%20AND%20%28drug%20discovery%5BTitle/Abstract%5D%20OR%20protein%5BTitle/Abstract%5D%20OR%20molecular%5BTitle/Abstract%5D%20OR%20battery%5BTitle/Abstract%5D%20OR%20catalyst%5BTitle/Abstract%5D%29%20AND%20%28%222019/07/01%22%5BPDAT%5D%3A%222019/07/31%22%5BPDAT%5D%29"
+}

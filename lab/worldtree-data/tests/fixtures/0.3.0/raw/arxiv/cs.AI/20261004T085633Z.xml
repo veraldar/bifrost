@@ -1,0 +1,34 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/430r+1KT6bYHFfV9nWWYXoLzwRs</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202502010000 TO 202502282359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:56:33Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202502010000+TO+202502282359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>3764</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2502.01715v1</id>
+    <title>Process-Supervised Reinforcement Learning for Code Generation</title>
+    <updated>2025-02-03T16:22:06Z</updated>
+    <link href="https://arxiv.org/abs/2502.01715v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2502.01715v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Existing reinforcement learning strategies based on outcome supervision have proven effective in enhancing the performance of large language models(LLMs) for code generation. While reinforcement learning based on process supervision has shown great promise in handling multi-step reasoning tasks, its effectiveness in code generation remains largely underexplored and underjustified. The primary obstacle stems from the resource-intensive nature of constructing high-quality process-supervised data, which demands substantial human expertise and computational resources. In response to this challenge, we propose a "statement mutation/refactoring-compile and execution verification" strategy: mutating and refactoring code line-by-line through a teacher model, and utilizing compiler execution results to automatically label each line, resulting in line-by-line process-supervised data, which is pivotal for training a process-supervised reward model. The trained reward model is then integrated into the PRLCoder framework, followed by experimental validation on several benchmarks. Experimental results demonstrate that process-supervised reinforcement learning significantly surpasses methods relying solely on outcome supervision. Notably, in tackling complex code generation tasks, process-supervised reinforcement learning shows a clear advantage, ensuring both the integrity of the code generation process and the correctness of the generation results.</summary>
+    <category term="cs.SE" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2025-02-03T16:22:06Z</published>
+    <arxiv:primary_category term="cs.SE"/>
+    <author>
+      <name>Yufan Ye</name>
+    </author>
+    <author>
+      <name>Ting Zhang</name>
+    </author>
+    <author>
+      <name>Wenbin Jiang</name>
+    </author>
+    <author>
+      <name>Hua Huang</name>
+    </author>
+  </entry>
+</feed>

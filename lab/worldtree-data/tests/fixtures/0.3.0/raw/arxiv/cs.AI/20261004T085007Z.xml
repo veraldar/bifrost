@@ -1,0 +1,43 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/toptjv2qngAgOwkMtMXGEyK0/80</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202002010000 TO 202002292359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:37:19Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202002010000+TO+202002292359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>446</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2002.08136v5</id>
+    <title>Comprehensive Taxonomies of Nature- and Bio-inspired Optimization: Inspiration versus Algorithmic Behavior, Critical Analysis and Recommendations (from 2020 to 2024)</title>
+    <updated>2024-04-17T07:59:26Z</updated>
+    <link href="https://arxiv.org/abs/2002.08136v5" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2002.08136v5" rel="related" type="application/pdf" title="pdf"/>
+    <summary>In recent years, bio-inspired optimization methods, which mimic biological processes to solve complex problems, have gained popularity in recent literature. The proliferation of proposals prove the growing interest in this field. The increase in nature- and bio-inspired algorithms, applications, and guidelines highlights growing interest in this field. However, the exponential rise in the number of bio-inspired algorithms poses a challenge to the future trajectory of this research domain. Along the five versions of this document, the number of approaches grows incessantly, and where having a new biological description takes precedence over real problem-solving. This document presents two comprehensive taxonomies. One based on principles of biological similarity, and the other one based on operational aspects associated with the iteration of population models that initially have a biological inspiration. Therefore, these taxonomies enable researchers to categorize existing algorithmic developments into well-defined classes, considering two criteria: the source of inspiration, and the behavior exhibited by each algorithm. Using these taxonomies, we classify 518 algorithms based on nature-inspired and bio-inspired principles. Each algorithm within these categories is thoroughly examined, allowing for a critical synthesis of design trends and similarities, and identifying the most analogous classical algorithm for each proposal. From our analysis, we conclude that a poor relationship is often found between the natural inspiration of an algorithm and its behavior. Furthermore, similarities in terms of behavior between different algorithms are greater than what is claimed in their public disclosure: specifically, we show that more than one-fourth of the reviewed solvers are versions of classical algorithms. The conclusions from the analysis of the algorithms lead to several learned lessons.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2020-02-19T12:34:45Z</published>
+    <arxiv:comment>89 pages, 9 figures</arxiv:comment>
+    <arxiv:primary_category term="cs.AI"/>
+    <arxiv:journal_ref>Cognitive Computation 12:5 (2020) 897-939</arxiv:journal_ref>
+    <author>
+      <name>Daniel Molina</name>
+    </author>
+    <author>
+      <name>Javier Poyatos</name>
+    </author>
+    <author>
+      <name>Javier Del Ser</name>
+    </author>
+    <author>
+      <name>Salvador García</name>
+    </author>
+    <author>
+      <name>Amir Hussain</name>
+    </author>
+    <author>
+      <name>Francisco Herrera</name>
+    </author>
+    <arxiv:doi>10.1007/s12559-020-09730-8</arxiv:doi>
+    <link rel="related" href="https://doi.org/10.1007/s12559-020-09730-8" title="doi"/>
+  </entry>
+</feed>

@@ -1,0 +1,26 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/nbQ2zTmZD1c0/K3iW60qgSWsJSc</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202402010000 TO 202402292359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:43:55Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202402010000+TO+202402292359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>2756</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2403.04772v2</id>
+    <title>Representing Pedagogic Content Knowledge Through Rough Sets</title>
+    <updated>2024-04-15T20:34:26Z</updated>
+    <link href="https://arxiv.org/abs/2403.04772v2" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2403.04772v2" rel="related" type="application/pdf" title="pdf"/>
+    <summary>A teacher's knowledge base consists of knowledge of mathematics content, knowledge of student epistemology, and pedagogical knowledge. It has severe implications on the understanding of student's knowledge of content, and the learning context in general. The necessity to formalize the different content knowledge in approximate senses is recognized in the education research literature. A related problem is that of coherent formalizability. Existing responsive or smart AI-based software systems do not concern themselves with meaning, and trained ones are replete with their own issues. In the present research, many issues in modeling teachers' understanding of content are identified, and a two-tier rough set-based model is proposed by the present author for the purpose of developing software that can aid the varied tasks of a teacher. The main advantage of the proposed approach is in its ability to coherently handle vagueness, granularity and multi-modality. An extended example to equational reasoning is used to demonstrate these. The paper is meant for rough set researchers intending to build logical models or develop meaning-aware AI-software to aid teachers, and education research experts.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LO" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2024-02-26T11:00:45Z</published>
+    <arxiv:comment>15+ pages</arxiv:comment>
+    <arxiv:primary_category term="cs.AI"/>
+    <author>
+      <name>A Mani</name>
+    </author>
+  </entry>
+</feed>

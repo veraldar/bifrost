@@ -1,0 +1,23 @@
+{
+ "attribution": "Quid via AI Index Report (2026); U.S. Bureau of Labor Statistics (2026) – with major processing by Our World in Data",
+ "bytes": 1669,
+ "content_type": "text/csv",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://ourworldindata.org/grapher/private-investment-in-artificial-intelligence.csv?v=1&csvType=full&useColumnShortNames=true",
+ "http_status": 200,
+ "license": "CC BY 4.0",
+ "license_url": "https://creativecommons.org/licenses/by/4.0/",
+ "path": "raw/owid/private-investment-in-artificial-intelligence/20261003T202617Z.csv",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-03T20:26:17Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "560efc682ae711de37062313e5430483cf9265c9cef15494d950933b818250be",
+ "slug": "private-investment-in-artificial-intelligence",
+ "source_id": "owid",
+ "stored_bytes": true,
+ "upstream_next_update": "2027-04-20",
+ "upstream_updated": "2026-04-20",
+ "url": "https://ourworldindata.org/grapher/private-investment-in-artificial-intelligence.csv?v=1&csvType=full&useColumnShortNames=true"
+}

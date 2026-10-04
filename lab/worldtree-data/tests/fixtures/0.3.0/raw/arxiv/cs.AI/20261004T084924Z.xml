@@ -1,0 +1,48 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api//bm1UmEHfzU9Ix5aj3WKLZPX/o8</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"201907010000 TO 201907312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:36:50Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22201907010000+TO+201907312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>363</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/1907.10772v1</id>
+    <title>Towards AutoML in the presence of Drift: first results</title>
+    <updated>2019-07-24T23:28:37Z</updated>
+    <link href="https://arxiv.org/abs/1907.10772v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/1907.10772v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Research progress in AutoML has lead to state of the art solutions that can cope quite wellwith supervised learning task, e.g., classification with AutoSklearn. However, so far thesesystems do not take into account the changing nature of evolving data over time (i.e., theystill assume i.i.d. data); even when this sort of domains are increasingly available in realapplications (e.g., spam filtering, user preferences, etc.). We describe a first attempt to de-velop an AutoML solution for scenarios in which data distribution changes relatively slowlyover time and in which the problem is approached in a lifelong learning setting. We extendAuto-Sklearn with sound and intuitive mechanisms that allow it to cope with this sort ofproblems. The extended Auto-Sklearn is combined with concept drift detection techniquesthat allow it to automatically determine when the initial models have to be adapted. Wereport experimental results in benchmark data from AutoML competitions that adhere tothis scenario. Results demonstrate the effectiveness of the proposed methodology.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="stat.ML" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2019-07-24T23:28:37Z</published>
+    <arxiv:comment>AutoML 2018 @ ICML/IJCAI-ECAI</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Jorge G. Madrid</name>
+    </author>
+    <author>
+      <name>Hugo Jair Escalante</name>
+    </author>
+    <author>
+      <name>Eduardo F. Morales</name>
+    </author>
+    <author>
+      <name>Wei-Wei Tu</name>
+    </author>
+    <author>
+      <name>Yang Yu</name>
+    </author>
+    <author>
+      <name>Lisheng Sun-Hosoya</name>
+    </author>
+    <author>
+      <name>Isabelle Guyon</name>
+    </author>
+    <author>
+      <name>Michele Sebag</name>
+    </author>
+  </entry>
+</feed>

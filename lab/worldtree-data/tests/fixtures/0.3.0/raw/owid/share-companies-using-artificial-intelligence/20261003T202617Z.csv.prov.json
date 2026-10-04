@@ -1,0 +1,23 @@
+{
+ "attribution": "McKinsey & Company via AI Index Report – with major processing by Our World in Data",
+ "bytes": 806,
+ "content_type": "text/csv",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://ourworldindata.org/grapher/share-companies-using-artificial-intelligence.csv?v=1&csvType=full&useColumnShortNames=true",
+ "http_status": 200,
+ "license": "CC BY 4.0",
+ "license_url": "https://creativecommons.org/licenses/by/4.0/",
+ "path": "raw/owid/share-companies-using-artificial-intelligence/20261003T202617Z.csv",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-03T20:26:17Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "0876f171001e3c0809634e2ded7f6a2bd1cc1a7730b3bd5e8603803a825229c0",
+ "slug": "share-companies-using-artificial-intelligence",
+ "source_id": "owid",
+ "stored_bytes": true,
+ "upstream_next_update": "2027-04-20",
+ "upstream_updated": "2026-04-20",
+ "url": "https://ourworldindata.org/grapher/share-companies-using-artificial-intelligence.csv?v=1&csvType=full&useColumnShortNames=true"
+}

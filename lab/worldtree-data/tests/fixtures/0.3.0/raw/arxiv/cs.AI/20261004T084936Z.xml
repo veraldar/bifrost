@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/Vy08f4Uio/M3AiCfNsvu12mLHbA</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"201909010000 TO 201909302359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:36:57Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22201909010000+TO+201909302359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>567</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/1909.04309v2</id>
+    <title>Synthesis of Boolean Networks from Biological Dynamical Constraints using Answer-Set Programming</title>
+    <updated>2020-02-27T09:18:11Z</updated>
+    <link href="https://arxiv.org/abs/1909.04309v2" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/1909.04309v2" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Boolean networks model finite discrete dynamical systems with complex behaviours. The state of each component is determined by a Boolean function of the state of (a subset of) the components of the network. This paper addresses the synthesis of these Boolean functions from constraints on their domain and emerging dynamical properties of the resulting network. The dynamical properties relate to the existence and absence of trajectories between partially observed configurations, and to the stable behaviours (fixpoints and cyclic attractors). The synthesis is expressed as a Boolean satisfiability problem relying on Answer-Set Programming with a parametrized complexity, and leads to a complete non-redundant characterization of the set of solutions. Considered constraints are particularly suited to address the synthesis of models of cellular differentiation processes, as illustrated on a case study. The scalability of the approach is demonstrated on random networks with scale-free structures up to 100 to 1,000 nodes depending on the type of constraints.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LO" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="q-bio.MN" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2019-09-10T06:14:23Z</published>
+    <arxiv:primary_category term="cs.AI"/>
+    <arxiv:journal_ref>31st International Conference on Tools with Artificial Intelligence, 2019, Portland, Oregon, United States</arxiv:journal_ref>
+    <author>
+      <name>Stéphanie Chevalier</name>
+      <arxiv:affiliation>BioInfo - LRI</arxiv:affiliation>
+    </author>
+    <author>
+      <name>Christine Froidevaux</name>
+      <arxiv:affiliation>BioInfo - LRI</arxiv:affiliation>
+    </author>
+    <author>
+      <name>Loïc Paulevé</name>
+      <arxiv:affiliation>LaBRI</arxiv:affiliation>
+    </author>
+    <author>
+      <name>Andrei Zinovyev</name>
+    </author>
+  </entry>
+</feed>

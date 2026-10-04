@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/6Kx+dctli/gXmVzQ0lL0JuueuPQ</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202204010000 TO 202204302359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:42:37Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202204010000+TO+202204302359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>1094</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2206.04791v1</id>
+    <title>Learning Reduced Nonlinear State-Space Models: an Output-Error Based Canonical Approach</title>
+    <updated>2022-04-19T06:33:23Z</updated>
+    <link href="https://arxiv.org/abs/2206.04791v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2206.04791v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>The identification of a nonlinear dynamic model is an open topic in control theory, especially from sparse input-output measurements. A fundamental challenge of this problem is that very few to zero prior knowledge is available on both the state and the nonlinear system model. To cope with this challenge, we investigate the effectiveness of deep learning in the modeling of dynamic systems with nonlinear behavior by advocating an approach which relies on three main ingredients: (i) we show that under some structural conditions on the to-be-identified model, the state can be expressed in function of a sequence of the past inputs and outputs; (ii) this relation which we call the state map can be modelled by resorting to the well-documented approximation power of deep neural networks; (iii) taking then advantage of existing learning schemes, a state-space model can be finally identified. After the formulation and analysis of the approach, we show its ability to identify three different nonlinear systems. The performances are evaluated in terms of open-loop prediction on test data generated in simulation as well as a real world data-set of unmanned aerial vehicle flight measurements.</summary>
+    <category term="eess.SY" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2022-04-19T06:33:23Z</published>
+    <arxiv:primary_category term="eess.SY"/>
+    <author>
+      <name>Steeven Janny</name>
+    </author>
+    <author>
+      <name>Quentin Possamai</name>
+    </author>
+    <author>
+      <name>Laurent Bako</name>
+    </author>
+    <author>
+      <name>Madiha Nadri</name>
+    </author>
+    <author>
+      <name>Christian Wolf</name>
+    </author>
+  </entry>
+</feed>

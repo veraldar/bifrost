@@ -41,6 +41,7 @@ edge/*.log
 !/artifacts/architecture-connectors.html
 !/artifacts/artifacts-gallery-live.png
 !/artifacts/user-checklist.html
+!/artifacts/agi-board.html
 !/artifacts/network-plan.html
 !/artifacts/user-setup-steps.html
 
@@ -48,3 +49,4 @@ edge/*.log
 # playwright output at repo root (watchdog config)
 test-results/
 .agi-log/
+lab/bifrost-net/config-bridge.toml

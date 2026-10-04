@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/M1F7pYjyab1o9wJxIOHz2G2pjPA</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202401010000 TO 202401312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:43:51Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202401010000+TO+202401312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>1958</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2401.15103v1</id>
+    <title>PruneSymNet: A Symbolic Neural Network and Pruning Algorithm for Symbolic Regression</title>
+    <updated>2024-01-25T11:53:35Z</updated>
+    <link href="https://arxiv.org/abs/2401.15103v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2401.15103v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Symbolic regression aims to derive interpretable symbolic expressions from data in order to better understand and interpret data. %which plays an important role in knowledge discovery and interpretable machine learning.
+  In this study, a symbolic network called PruneSymNet is proposed for symbolic regression. This is a novel neural network whose activation function consists of common elementary functions and operators. The whole network is differentiable and can be trained by gradient descent method. Each subnetwork in the network corresponds to an expression, and our goal is to extract such subnetworks to get the desired symbolic expression.
+  Therefore, a greedy pruning algorithm is proposed to prune the network into a subnetwork while ensuring the accuracy of data fitting. The proposed greedy pruning algorithm preserves the edge with the least loss in each pruning, but greedy algorithm often can not get the optimal solution. In order to alleviate this problem, we combine beam search during pruning to obtain multiple candidate expressions each time, and finally select the expression with the smallest loss as the final result. It was tested on the public data set and compared with the current popular algorithms. The results showed that the proposed algorithm had better accuracy.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2024-01-25T11:53:35Z</published>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Min Wu</name>
+    </author>
+    <author>
+      <name>Weijun Li</name>
+    </author>
+    <author>
+      <name>Lina Yu</name>
+    </author>
+    <author>
+      <name>Wenqiang Li</name>
+    </author>
+    <author>
+      <name>Jingyi Liu</name>
+    </author>
+    <author>
+      <name>Yanjie Li</name>
+    </author>
+    <author>
+      <name>Meilan Hao</name>
+    </author>
+  </entry>
+</feed>

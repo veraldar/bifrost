@@ -1,0 +1,46 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/qZ29QtYyYrabs7WJlC7MM7X99hY</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202107010000 TO 202107312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:51:53Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202107010000+TO+202107312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>1020</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2107.12838v2</id>
+    <title>Graph Autoencoders for Embedding Learning in Brain Networks and Major Depressive Disorder Identification</title>
+    <updated>2022-06-02T13:34:00Z</updated>
+    <link href="https://arxiv.org/abs/2107.12838v2" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2107.12838v2" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Brain functional connectivity (FC) reveals biomarkers for identification of various neuropsychiatric disorders. Recent application of deep neural networks (DNNs) to connectome-based classification mostly relies on traditional convolutional neural networks using input connectivity matrices on a regular Euclidean grid. We propose a graph deep learning framework to incorporate the non-Euclidean information about graph structure for classifying functional magnetic resonance imaging (fMRI)-derived brain networks in major depressive disorder (MDD). We design a novel graph autoencoder (GAE) architecture based on the graph convolutional networks (GCNs) to embed the topological structure and node content of large-sized fMRI networks into low-dimensional latent representations. In network construction, we employ the Ledoit-Wolf (LDW) shrinkage method to estimate the high-dimensional FC metrics efficiently from fMRI data. We consider both supervised and unsupervised approaches for the graph embedding learning. The learned embeddings are then used as feature inputs for a deep fully-connected neural network (FCNN) to discriminate MDD from healthy controls. Evaluated on two resting-state fMRI (rs-fMRI) MDD datasets, results show that the proposed GAE-FCNN model significantly outperforms several state-of-the-art methods for brain connectome classification, achieving the best accuracy using the LDW-FC edges as node features. The graph embeddings of fMRI FC networks learned by the GAE also reveal apparent group differences between MDD and HC. Our new framework demonstrates feasibility of learning graph embeddings on brain networks to provide discriminative information for diagnosis of brain disorders.</summary>
+    <category term="q-bio.NC" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2021-07-27T14:12:39Z</published>
+    <arxiv:primary_category term="q-bio.NC"/>
+    <author>
+      <name>Fuad Noman</name>
+    </author>
+    <author>
+      <name>Chee-Ming Ting</name>
+    </author>
+    <author>
+      <name>Hakmook Kang</name>
+    </author>
+    <author>
+      <name>Raphael C. -W. Phan</name>
+    </author>
+    <author>
+      <name>Brian D. Boyd</name>
+    </author>
+    <author>
+      <name>Warren D. Taylor</name>
+    </author>
+    <author>
+      <name>Hernando Ombao</name>
+    </author>
+    <arxiv:doi>10.1109/JBHI.2024.3351177</arxiv:doi>
+    <link rel="related" href="https://doi.org/10.1109/JBHI.2024.3351177" title="doi"/>
+  </entry>
+</feed>

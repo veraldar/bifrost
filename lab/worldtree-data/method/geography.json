@@ -1,0 +1,13 @@
+{
+ "regions": {"NA": "North America", "LATAM": "Latin America & Caribbean", "EUR": "Europe", "AF": "Sub-Saharan Africa", "MENA": "Middle East & North Africa", "ASIA": "Asia", "OC": "Oceania", "GLOBAL": "world aggregate / not regionally split"},
+ "sources": {
+  "owid": {"regions": ["GLOBAL"], "detail": "World aggregates only (entity World / All geographies) — OWID compiles UN WPP, World Bank PIP, V-Dem, UCDP, Stanford AI Index; no regional series used", "license": "CC BY 4.0", "source_doc": "https://ourworldindata.org/faqs#how-is-the-data-for-world-calculated"},
+  "worldbank": {"regions": ["GLOBAL"], "detail": "WLD aggregate over the 217 economies in World Development Indicators", "license": "CC BY 4.0", "source_doc": "https://datahelpdesk.worldbank.org/knowledgebase/articles/906519-world-bank-country-and-lending-groups"},
+  "epoch": {"regions": ["NA", "ASIA", "EUR", "GLOBAL"], "detail": "notable AI models attributed to the developer organisation's country (mostly US, CN, UK, EU, CA, KR, JP) — global industry, concentrated in a few countries", "license": "CC BY 4.0", "source_doc": "https://epoch.ai/data/notable-ai-models"},
+  "wikimedia": {"regions": ["GLOBAL"], "detail": "English-Wikipedia page views from readers worldwide — English-language skew disclosed (bias B1)", "license": "CC0 1.0", "source_doc": "https://wikitech.wikimedia.org/wiki/Analytics/AQS/Pageviews"},
+  "arxiv": {"regions": ["GLOBAL"], "detail": "cs.AI preprints submitted worldwide (US, CN, EU authors largest); counts not split by country", "license": "CC0 1.0 (metadata)", "source_doc": "https://info.arxiv.org/help/api/"},
+  "pubmed": {"regions": ["GLOBAL"], "detail": "biomedical literature indexed by the US National Library of Medicine from journals worldwide", "license": "public domain (NLM; US gov)", "source_doc": "https://www.nlm.nih.gov/bsd/difference.html"},
+  "fedreg": {"regions": ["NA"], "detail": "US federal rulemaking and notices only — no other government is covered", "license": "public domain (US gov work)", "source_doc": "https://www.federalregister.gov/reader-aids/using-federalregister-gov/understanding-the-federal-register"},
+  "noaa_gml": {"regions": ["GLOBAL"], "detail": "one station: Mauna Loa Observatory (US-HI), the long-running reference for well-mixed global background CO₂ (bias B13)", "license": "public domain (US gov)", "source_doc": "https://gml.noaa.gov/ccgg/trends/data.html"}
+ }
+}

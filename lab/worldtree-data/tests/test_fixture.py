@@ -21,6 +21,9 @@ class TestFixture(unittest.TestCase):
             self.assertTrue(filecmp.cmp(out / "realms.json", fx / "realms.json", shallow=False), "realms.json differs")
             self.assertTrue(filecmp.cmp(out / "realms.provenance.json", fx / "provenance.json", shallow=False),
                             "provenance.json differs")
+            if (fx / "realms-history.json").exists():  # method ≥ 0.3.0
+                for f in ("realms-history.json", "realms-history.provenance.json"):
+                    self.assertTrue(filecmp.cmp(out / f, fx / f, shallow=False), f"{f} differs")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/umu6pQn/MbjNg+f5ndTFSp6/jBA</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202001010000 TO 202001312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:37:15Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202001010000+TO+202001312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>352</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2001.08013v1</id>
+    <title>A Neural Architecture for Person Ontology population</title>
+    <updated>2020-01-22T13:49:14Z</updated>
+    <link href="https://arxiv.org/abs/2001.08013v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2001.08013v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>A person ontology comprising concepts, attributes and relationships of people has a number of applications in data protection, didentification, population of knowledge graphs for business intelligence and fraud prevention. While artificial neural networks have led to improvements in Entity Recognition, Entity Classification, and Relation Extraction, creating an ontology largely remains a manual process, because it requires a fixed set of semantic relations between concepts. In this work, we present a system for automatically populating a person ontology graph from unstructured data using neural models for Entity Classification and Relation Extraction. We introduce a new dataset for these tasks and discuss our results.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.IR" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2020-01-22T13:49:14Z</published>
+    <arxiv:comment>6 pages, 10 figures. arXiv admin note: substantial text overlap with arXiv:1811.09368</arxiv:comment>
+    <arxiv:primary_category term="cs.AI"/>
+    <author>
+      <name>Balaji Ganesan</name>
+    </author>
+    <author>
+      <name>Riddhiman Dasgupta</name>
+    </author>
+    <author>
+      <name>Akshay Parekh</name>
+    </author>
+    <author>
+      <name>Hima Patel</name>
+    </author>
+    <author>
+      <name>Berthold Reinwald</name>
+    </author>
+  </entry>
+</feed>

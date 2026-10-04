@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/CIstVXGY6EzWGfFni3xZbPJz+LQ</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202412010000 TO 202412312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:56:21Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202412010000+TO+202412312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>3077</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2412.04775v1</id>
+    <title>A Temporally Correlated Latent Exploration for Reinforcement Learning</title>
+    <updated>2024-12-06T04:38:43Z</updated>
+    <link href="https://arxiv.org/abs/2412.04775v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2412.04775v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Efficient exploration remains one of the longstanding problems of deep reinforcement learning. Instead of depending solely on extrinsic rewards from the environments, existing methods use intrinsic rewards to enhance exploration. However, we demonstrate that these methods are vulnerable to Noisy TV and stochasticity. To tackle this problem, we propose Temporally Correlated Latent Exploration (TeCLE), which is a novel intrinsic reward formulation that employs an action-conditioned latent space and temporal correlation. The action-conditioned latent space estimates the probability distribution of states, thereby avoiding the assignment of excessive intrinsic rewards to unpredictable states and effectively addressing both problems. Whereas previous works inject temporal correlation for action selection, the proposed method injects it for intrinsic reward computation. We find that the injected temporal correlation determines the exploratory behaviors of agents. Various experiments show that the environment where the agent performs well depends on the amount of temporal correlation. To the best of our knowledge, the proposed TeCLE is the first approach to consider the action conditioned latent space and temporal correlation for curiosity-driven exploration. We prove that the proposed TeCLE can be robust to the Noisy TV and stochasticity in benchmark environments, including Minigrid and Stochastic Atari.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2024-12-06T04:38:43Z</published>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>SuMin Oh</name>
+    </author>
+    <author>
+      <name>WanSoo Kim</name>
+    </author>
+    <author>
+      <name>HyunJin Kim</name>
+    </author>
+  </entry>
+</feed>

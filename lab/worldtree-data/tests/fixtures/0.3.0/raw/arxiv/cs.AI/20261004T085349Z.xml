@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/WpM2RBUAqqt7ZCMtw+uZGBdmtJ4</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202302010000 TO 202302282359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:43:12Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202302010000+TO+202302282359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>1462</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2302.14299v1</id>
+    <title>Gradient-Boosted Based Structured and Unstructured Learning</title>
+    <updated>2023-02-28T04:16:42Z</updated>
+    <link href="https://arxiv.org/abs/2302.14299v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2302.14299v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We propose two frameworks to deal with problem settings in which both structured and unstructured data are available. Structured data problems are best solved by traditional machine learning models such as boosting and tree-based algorithms, whereas deep learning has been widely applied to problems dealing with images, text, audio, and other unstructured data sources. However, for the setting in which both structured and unstructured data are accessible, it is not obvious what the best modeling approach is to enhance performance on both data sources simultaneously. Our proposed frameworks allow joint learning on both kinds of data by integrating the paradigms of boosting models and deep neural networks. The first framework, the boosted-feature-vector deep learning network, learns features from the structured data using gradient boosting and combines them with embeddings from unstructured data via a two-branch deep neural network. Secondly, the two-weak-learner boosting framework extends the boosting paradigm to the setting with two input data sources. We present and compare first- and second-order methods of this framework. Our experimental results on both public and real-world datasets show performance gains achieved by the frameworks over selected baselines by magnitudes of 0.1% - 4.7%.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2023-02-28T04:16:42Z</published>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Andrea Treviño Gavito</name>
+    </author>
+    <author>
+      <name>Diego Klabjan</name>
+    </author>
+    <author>
+      <name>Jean Utke</name>
+    </author>
+  </entry>
+</feed>

@@ -1,0 +1,42 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/NkxfJAIZv4T/5KMNUVNkM9uTAn4</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202012010000 TO 202012312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:51:08Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202012010000+TO+202012312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>959</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2012.12104v1</id>
+    <title>A Deep Reinforcement Learning Approach for Ramp Metering Based on Traffic Video Data</title>
+    <updated>2020-12-09T05:08:41Z</updated>
+    <link href="https://arxiv.org/abs/2012.12104v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2012.12104v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Ramp metering that uses traffic signals to regulate vehicle flows from the on-ramps has been widely implemented to improve vehicle mobility of the freeway. Previous studies generally update signal timings in real-time based on predefined traffic measures collected by point detectors, such as traffic volumes and occupancies. Comparing with point detectors, traffic cameras-which have been increasingly deployed on road networks-could cover larger areas and provide more detailed traffic information. In this work, we propose a deep reinforcement learning (DRL) method to explore the potential of traffic video data in improving the efficiency of ramp metering. The proposed method uses traffic video frames as inputs and learns the optimal control strategies directly from the high-dimensional visual inputs. A real-world case study demonstrates that, in comparison with a state-of-the-practice method, the proposed DRL method results in 1) lower travel times in the mainline, 2) shorter vehicle queues at the on-ramp, and 3) higher traffic flows downstream of the merging area. The results suggest that the proposed method is able to extract useful information from the video data for better ramp metering controls.</summary>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2020-12-09T05:08:41Z</published>
+    <arxiv:primary_category term="cs.CV"/>
+    <author>
+      <name>Bing Liu</name>
+      <arxiv:affiliation>Key Laboratory of Road and Traffic Engineering of the Ministry of Education, Tongji University, Shanghai, China</arxiv:affiliation>
+    </author>
+    <author>
+      <name>Yu Tang</name>
+      <arxiv:affiliation>Tandon School of Engineering, New York University, New York, USA</arxiv:affiliation>
+    </author>
+    <author>
+      <name>Yuxiong Ji</name>
+      <arxiv:affiliation>Key Laboratory of Road and Traffic Engineering of the Ministry of Education, Tongji University, Shanghai, China</arxiv:affiliation>
+    </author>
+    <author>
+      <name>Yu Shen</name>
+      <arxiv:affiliation>Key Laboratory of Road and Traffic Engineering of the Ministry of Education, Tongji University, Shanghai, China</arxiv:affiliation>
+    </author>
+    <author>
+      <name>Yuchuan Du</name>
+      <arxiv:affiliation>Key Laboratory of Road and Traffic Engineering of the Ministry of Education, Tongji University, Shanghai, China</arxiv:affiliation>
+    </author>
+  </entry>
+</feed>

@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/V2H5MaoObm4uv+POpyG3A9/t9hU</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202303010000 TO 202303312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:43:16Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202303010000+TO+202303312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>1635</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2303.00848v7</id>
+    <title>Understanding Diffusion Objectives as the ELBO with Simple Data Augmentation</title>
+    <updated>2023-09-25T21:44:05Z</updated>
+    <link href="https://arxiv.org/abs/2303.00848v7" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2303.00848v7" rel="related" type="application/pdf" title="pdf"/>
+    <summary>To achieve the highest perceptual quality, state-of-the-art diffusion models are optimized with objectives that typically look very different from the maximum likelihood and the Evidence Lower Bound (ELBO) objectives. In this work, we reveal that diffusion model objectives are actually closely related to the ELBO.
+  Specifically, we show that all commonly used diffusion model objectives equate to a weighted integral of ELBOs over different noise levels, where the weighting depends on the specific objective used. Under the condition of monotonic weighting, the connection is even closer: the diffusion objective then equals the ELBO, combined with simple data augmentation, namely Gaussian noise perturbation. We show that this condition holds for a number of state-of-the-art diffusion models.
+  In experiments, we explore new monotonic weightings and demonstrate their effectiveness, achieving state-of-the-art FID scores on the high-resolution ImageNet benchmark.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="stat.ML" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2023-03-01T22:36:05Z</published>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Diederik P. Kingma</name>
+    </author>
+    <author>
+      <name>Ruiqi Gao</name>
+    </author>
+  </entry>
+</feed>

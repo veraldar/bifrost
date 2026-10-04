@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/zwGb4XE3tadL7MKJzJcRs3Vo1Sw</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202405010000 TO 202405312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:44:05Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202405010000+TO+202405312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>2811</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2405.00748v2</id>
+    <title>ChatGPT in Data Visualization Education: A Student Perspective</title>
+    <updated>2024-08-16T21:50:40Z</updated>
+    <link href="https://arxiv.org/abs/2405.00748v2" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2405.00748v2" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Unlike traditional educational chatbots that rely on pre-programmed responses, large-language model-driven chatbots, such as ChatGPT, demonstrate remarkable versatility to serve as a dynamic resource for addressing student needs from understanding advanced concepts to solving complex problems. This work explores the impact of such technology on student learning in an interdisciplinary, project-oriented data visualization course. Throughout the semester, students engaged with ChatGPT across four distinct projects, designing and implementing data visualizations using a variety of tools such as Tableau, D3, and Vega-lite. We collected conversation logs and reflection surveys after each assignment and conducted interviews with selected students to gain deeper insights into their experiences with ChatGPT. Our analysis examined the advantages and barriers of using ChatGPT, students' querying behavior, the types of assistance sought, and its impact on assignment outcomes and engagement. We discuss design considerations for an educational solution tailored for data visualization education, extending beyond ChatGPT's basic interface.</summary>
+    <category term="cs.HC" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CY" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2024-05-01T02:40:20Z</published>
+    <arxiv:comment>12 pages; 3 figures</arxiv:comment>
+    <arxiv:primary_category term="cs.HC"/>
+    <author>
+      <name>Nam Wook Kim</name>
+    </author>
+    <author>
+      <name>Hyung-Kwon Ko</name>
+    </author>
+    <author>
+      <name>Grace Myers</name>
+    </author>
+    <author>
+      <name>Benjamin Bach</name>
+    </author>
+  </entry>
+</feed>

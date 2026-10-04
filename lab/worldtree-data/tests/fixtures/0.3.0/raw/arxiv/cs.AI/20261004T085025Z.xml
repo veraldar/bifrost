@@ -1,0 +1,27 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/zDqHFyNgrzdJaKxNe6Q4gWPsXWY</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202005010000 TO 202005312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:37:30Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202005010000+TO+202005312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>495</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2005.14621v1</id>
+    <title>Fair Classification via Unconstrained Optimization</title>
+    <updated>2020-05-21T11:29:05Z</updated>
+    <link href="https://arxiv.org/abs/2005.14621v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2005.14621v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Achieving the Bayes optimal binary classification rule subject to group fairness constraints is known to be reducible, in some cases, to learning a group-wise thresholding rule over the Bayes regressor. In this paper, we extend this result by proving that, in a broader setting, the Bayes optimal fair learning rule remains a group-wise thresholding rule over the Bayes regressor but with a (possible) randomization at the thresholds. This provides a stronger justification to the post-processing approach in fair classification, in which (1) a predictor is learned first, after which (2) its output is adjusted to remove bias. We show how the post-processing rule in this two-stage approach can be learned quite efficiently by solving an unconstrained optimization problem. The proposed algorithm can be applied to any black-box machine learning model, such as deep neural networks, random forests and support vector machines. In addition, it can accommodate many fairness criteria that have been previously proposed in the literature, such as equalized odds and statistical parity. We prove that the algorithm is Bayes consistent and motivate it, furthermore, via an impossibility result that quantifies the tradeoff between accuracy and fairness across multiple demographic groups. Finally, we conclude by validating the algorithm on the Adult benchmark dataset.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="stat.AP" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="stat.ML" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2020-05-21T11:29:05Z</published>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Ibrahim Alabdulmohsin</name>
+    </author>
+  </entry>
+</feed>

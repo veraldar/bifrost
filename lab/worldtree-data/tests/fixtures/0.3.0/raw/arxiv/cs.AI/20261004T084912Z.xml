@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/KuLdmlbBP6bUBjL+jQ4Z5QBddis</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"201905010000 TO 201905312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:36:43Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22201905010000+TO+201905312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>563</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/1905.02810v1</id>
+    <title>Decision Making with Machine Learning and ROC Curves</title>
+    <updated>2019-05-05T08:01:23Z</updated>
+    <link href="https://arxiv.org/abs/1905.02810v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/1905.02810v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>The Receiver Operating Characteristic (ROC) curve is a representation of the statistical information discovered in binary classification problems and is a key concept in machine learning and data science. This paper studies the statistical properties of ROC curves and its implication on model selection. We analyze the implications of different models of incentive heterogeneity and information asymmetry on the relation between human decisions and the ROC curves. Our theoretical discussion is illustrated in the context of a large data set of pregnancy outcomes and doctor diagnosis from the Pre-Pregnancy Checkups of reproductive age couples in Henan Province provided by the Chinese Ministry of Health.</summary>
+    <category term="stat.ME" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="econ.GN" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="stat.ML" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2019-05-05T08:01:23Z</published>
+    <arxiv:primary_category term="stat.ME"/>
+    <author>
+      <name>Kai Feng</name>
+    </author>
+    <author>
+      <name>Han Hong</name>
+    </author>
+    <author>
+      <name>Ke Tang</name>
+    </author>
+    <author>
+      <name>Jingyuan Wang</name>
+    </author>
+  </entry>
+</feed>

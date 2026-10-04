@@ -1,0 +1,35 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/yN0pVtuldPsM6YaSVru1O39iYrM</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202106010000 TO 202106302359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:51:46Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202106010000+TO+202106302359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>1301</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2106.01288v2</id>
+    <title>Bottom-up and top-down approaches for the design of neuromorphic processing systems: Tradeoffs and synergies between natural and artificial intelligence</title>
+    <updated>2023-05-12T22:20:46Z</updated>
+    <link href="https://arxiv.org/abs/2106.01288v2" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2106.01288v2" rel="related" type="application/pdf" title="pdf"/>
+    <summary>While Moore's law has driven exponential computing power expectations, its nearing end calls for new avenues for improving the overall system performance. One of these avenues is the exploration of alternative brain-inspired computing architectures that aim at achieving the flexibility and computational efficiency of biological neural processing systems. Within this context, neuromorphic engineering represents a paradigm shift in computing based on the implementation of spiking neural network architectures in which processing and memory are tightly co-located. In this paper, we provide a comprehensive overview of the field, highlighting the different levels of granularity at which this paradigm shift is realized and comparing design approaches that focus on replicating natural intelligence (bottom-up) versus those that aim at solving practical artificial intelligence applications (top-down). First, we present the analog, mixed-signal and digital circuit design styles, identifying the boundary between processing and memory through time multiplexing, in-memory computation, and novel devices. Then, we highlight the key tradeoffs for each of the bottom-up and top-down design approaches, survey their silicon implementations, and carry out detailed comparative analyses to extract design guidelines. Finally, we identify necessary synergies and missing elements required to achieve a competitive advantage for neuromorphic systems over conventional machine-learning accelerators in edge computing applications, and outline the key ingredients for a framework toward neuromorphic intelligence.</summary>
+    <category term="cs.NE" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.ET" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2021-06-02T16:51:45Z</published>
+    <arxiv:comment>Accepted for publication in Proceedings of the IEEE</arxiv:comment>
+    <arxiv:primary_category term="cs.NE"/>
+    <author>
+      <name>Charlotte Frenkel</name>
+    </author>
+    <author>
+      <name>David Bol</name>
+    </author>
+    <author>
+      <name>Giacomo Indiveri</name>
+    </author>
+    <arxiv:doi>10.1109/JPROC.2023.3273520</arxiv:doi>
+    <link rel="related" href="https://doi.org/10.1109/JPROC.2023.3273520" title="doi"/>
+  </entry>
+</feed>

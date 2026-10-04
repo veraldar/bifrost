@@ -1,0 +1,28 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/0dnC8PGgbBZEvX3OoPEwXRxSRGI</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202509010000 TO 202509302359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:36:14Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202509010000+TO+202509302359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>4262</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2510.00339v1</id>
+    <title>Navigating the Synchrony-Stability Frontier in Adaptive Chatbots</title>
+    <updated>2025-09-30T22:50:30Z</updated>
+    <link href="https://arxiv.org/abs/2510.00339v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2510.00339v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Adaptive chatbots that mimic a user's linguistic style can build rapport and engagement, yet unconstrained mimicry risks an agent that feels unstable or sycophantic. We present a computational evaluation framework that makes the core design tension explicit: balancing moment-to-moment linguistic synchrony against long-term persona stability. Using an 8-dimensional style vector and a closed-loop "base+delta" prompting architecture, we simulate and compare explicit adaptation policies - Uncapped, Cap, Exponential Moving Average (EMA), Dead-Band, and Hybrids - on a human-log dataset. Our analysis maps a clear Pareto frontier: bounded policies achieve substantial gains in stability at a modest cost to synchrony. For example, a Hybrid (EMA+Cap) raises stability from 0.542 to 0.878 (+62%) while reducing synchrony by only 17%. We confirm this trade-off through large-scale replications on three public corpora (DailyDialog, Persona-Chat, EmpatheticDialogues) and LLM-in-the-loop validation across two model families. Furthermore, we quantify "prompt legibility," showing that frontier policies reduce instruction churn and cut jarring register flips (major tone changes) from 0.254 to 0.092, yielding systems that are easier to reason about and maintain. Taken together, our framework provides a general evaluation harness for style adaptation; a systematic ablation that identifies Pareto-efficient policies; robust validation across diverse datasets and models; and novel legibility metrics linking policy choices to system maintainability.</summary>
+    <category term="cs.HC" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2025-09-30T22:50:30Z</published>
+    <arxiv:comment>pages; 9 tables; 7 figures; code &amp; analysis artifact: https://doi.org/10.5281/zenodo.17238269; under review at ACM IUI 2026</arxiv:comment>
+    <arxiv:primary_category term="cs.HC"/>
+    <author>
+      <name>T. James Brandt</name>
+    </author>
+  </entry>
+</feed>

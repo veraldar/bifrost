@@ -1,0 +1,40 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/6GYBZRPYjHlLkQS+/jiKlnaLwtc</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202403010000 TO 202403312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:43:58Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202403010000+TO+202403312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>2577</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2403.03517v1</id>
+    <title>IB-Net: Initial Branch Network for Variable Decision in Boolean Satisfiability</title>
+    <updated>2024-03-06T07:54:40Z</updated>
+    <link href="https://arxiv.org/abs/2403.03517v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2403.03517v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Boolean Satisfiability problems are vital components in Electronic Design Automation, particularly within the Logic Equivalence Checking process. Currently, SAT solvers are employed for these problems and neural network is tried as assistance to solvers. However, as SAT problems in the LEC context are distinctive due to their predominantly unsatisfiability nature and a substantial proportion of UNSAT-core variables, existing neural network assistance has proven unsuccessful in this specialized domain. To tackle this challenge, we propose IB-Net, an innovative framework utilizing graph neural networks and novel graph encoding techniques to model unsatisfiable problems and interact with state-of-the-art solvers. Extensive evaluations across solvers and datasets demonstrate IB-Net's acceleration, achieving an average runtime speedup of 5.0% on industrial data and 8.3% on SAT competition data empirically. This breakthrough advances efficient solving in LEC workflows.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2024-03-06T07:54:40Z</published>
+    <arxiv:comment>7 pages, 12 figures</arxiv:comment>
+    <arxiv:primary_category term="cs.AI"/>
+    <author>
+      <name>Tsz Ho Chan</name>
+    </author>
+    <author>
+      <name>Wenyi Xiao</name>
+    </author>
+    <author>
+      <name>Junhua Huang</name>
+    </author>
+    <author>
+      <name>Huiling Zhen</name>
+    </author>
+    <author>
+      <name>Guangji Tian</name>
+    </author>
+    <author>
+      <name>Mingxuan Yuan</name>
+    </author>
+  </entry>
+</feed>

@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/7xbUIbfrSmcIUtSa4Lf+yMoI1gs</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"201901010000 TO 201901312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:36:29Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22201901010000+TO+201901312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>298</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/1901.00898v1</id>
+    <title>Imminent Collision Mitigation with Reinforcement Learning and Vision</title>
+    <updated>2019-01-03T20:09:40Z</updated>
+    <link href="https://arxiv.org/abs/1901.00898v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/1901.00898v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>This work examines the role of reinforcement learning in reducing the severity of on-road collisions by controlling velocity and steering in situations in which contact is imminent. We construct a model, given camera images as input, that is capable of learning and predicting the dynamics of obstacles, cars and pedestrians, and train our policy using this model. Two policies that control both braking and steering are compared against a baseline where the only action taken is (conventional) braking in a straight line. The two policies are trained using two distinct reward structures, one where any and all collisions incur a fixed penalty, and a second one where the penalty is calculated based on already established delta-v models of injury severity. The results show that both policies exceed the performance of the baseline, with the policy trained using injury models having the highest performance.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="stat.ML" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2019-01-03T20:09:40Z</published>
+    <arxiv:comment>Presented at ITSC2018</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Horia Porav</name>
+    </author>
+    <author>
+      <name>Paul Newman</name>
+    </author>
+  </entry>
+</feed>

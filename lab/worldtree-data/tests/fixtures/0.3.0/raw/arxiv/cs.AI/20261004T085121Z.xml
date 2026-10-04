@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/V8zNkp3UCmzhNUKgPLXYRrwG/kg</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202102010000 TO 202102282359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:51:21Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202102010000+TO+202102282359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>988</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2102.06274v3</id>
+    <title>Hedging of Financial Derivative Contracts via Monte Carlo Tree Search</title>
+    <updated>2021-04-19T21:26:31Z</updated>
+    <link href="https://arxiv.org/abs/2102.06274v3" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2102.06274v3" rel="related" type="application/pdf" title="pdf"/>
+    <summary>The construction of approximate replication strategies for pricing and hedging of derivative contracts in incomplete markets is a key problem of financial engineering. Recently Reinforcement Learning algorithms for hedging under realistic market conditions have attracted significant interest. While research in the derivatives area mostly focused on variations of $Q$-learning, in artificial intelligence Monte Carlo Tree Search is the recognized state-of-the-art method for various planning problems, such as the games of Hex, Chess, Go,... This article introduces Monte Carlo Tree Search as a method to solve the stochastic optimal control problem behind the pricing and hedging tasks. As compared to $Q$-learning it combines Reinforcement Learning with tree search techniques. As a consequence Monte Carlo Tree Search has higher sample efficiency, is less prone to over-fitting to specific market models and generally learns stronger policies faster. In our experiments we find that Monte Carlo Tree Search, being the world-champion in games like Chess and Go, is easily capable of maximizing the utility of investor's terminal wealth without setting up an auxiliary mathematical framework.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.GT" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="q-fin.PR" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2021-02-11T21:17:01Z</published>
+    <arxiv:comment>Corrected typos. Shorter Presentation. 15 pages, 5 figures</arxiv:comment>
+    <arxiv:primary_category term="cs.AI"/>
+    <arxiv:journal_ref>Journal of Computational Finance, Volume 27, Number 2, Pages: 47-80, 2023</arxiv:journal_ref>
+    <author>
+      <name>Oleg Szehr</name>
+    </author>
+    <arxiv:doi>10.21314/JCF.2023.009</arxiv:doi>
+    <link rel="related" href="https://doi.org/10.21314/JCF.2023.009" title="doi"/>
+  </entry>
+</feed>

@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/fsQxjN8lLKMUIIQArqswQTpZ7ec</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"201908010000 TO 201908312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:36:53Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22201908010000+TO+201908312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>303</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/1908.00286v1</id>
+    <title>Reinforcement Learning for Personalized Dialogue Management</title>
+    <updated>2019-08-01T09:19:27Z</updated>
+    <link href="https://arxiv.org/abs/1908.00286v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/1908.00286v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Language systems have been of great interest to the research community and have recently reached the mass market through various assistant platforms on the web. Reinforcement Learning methods that optimize dialogue policies have seen successes in past years and have recently been extended into methods that personalize the dialogue, e.g. take the personal context of users into account. These works, however, are limited to personalization to a single user with whom they require multiple interactions and do not generalize the usage of context across users. This work introduces a problem where a generalized usage of context is relevant and proposes two Reinforcement Learning (RL)-based approaches to this problem. The first approach uses a single learner and extends the traditional POMDP formulation of dialogue state with features that describe the user context. The second approach segments users by context and then employs a learner per context. We compare these approaches in a benchmark of existing non-RL and RL-based methods in three established and one novel application domain of financial product recommendation. We compare the influence of context and training experiences on performance and find that learning approaches generally outperform a handcrafted gold standard.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.HC" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="stat.ML" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2019-08-01T09:19:27Z</published>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Floris den Hengst</name>
+    </author>
+    <author>
+      <name>Mark Hoogendoorn</name>
+    </author>
+    <author>
+      <name>Frank van Harmelen</name>
+    </author>
+    <author>
+      <name>Joost Bosman</name>
+    </author>
+    <arxiv:doi>10.1145/3350546.3352501</arxiv:doi>
+    <link rel="related" href="https://doi.org/10.1145/3350546.3352501" title="doi"/>
+  </entry>
+</feed>

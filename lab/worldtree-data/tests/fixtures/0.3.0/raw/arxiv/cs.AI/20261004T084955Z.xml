@@ -1,0 +1,50 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/Vu1syf84feF5iEWgG0GWjdWzF/0</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"201912010000 TO 201912312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:37:07Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22201912010000+TO+201912312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>327</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/1912.01513v1</id>
+    <title>BADGER: Learning to (Learn [Learning Algorithms] through Multi-Agent Communication)</title>
+    <updated>2019-12-03T16:36:42Z</updated>
+    <link href="https://arxiv.org/abs/1912.01513v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/1912.01513v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>In this work, we propose a novel memory-based multi-agent meta-learning architecture and learning procedure that allows for learning of a shared communication policy that enables the emergence of rapid adaptation to new and unseen environments by learning to learn learning algorithms through communication. Behavior, adaptation and learning to adapt emerges from the interactions of homogeneous experts inside a single agent. The proposed architecture should allow for generalization beyond the level seen in existing methods, in part due to the use of a single policy shared by all experts within the agent as well as the inherent modularity of 'Badger'.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.MA" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2019-12-03T16:36:42Z</published>
+    <arxiv:primary_category term="cs.AI"/>
+    <author>
+      <name>Marek Rosa</name>
+    </author>
+    <author>
+      <name>Olga Afanasjeva</name>
+    </author>
+    <author>
+      <name>Simon Andersson</name>
+    </author>
+    <author>
+      <name>Joseph Davidson</name>
+    </author>
+    <author>
+      <name>Nicholas Guttenberg</name>
+    </author>
+    <author>
+      <name>Petr Hlubuček</name>
+    </author>
+    <author>
+      <name>Martin Poliak</name>
+    </author>
+    <author>
+      <name>Jaroslav Vítku</name>
+    </author>
+    <author>
+      <name>Jan Feyereisl</name>
+    </author>
+  </entry>
+</feed>

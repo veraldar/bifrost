@@ -1,0 +1,27 @@
+# M6 brief — GitHub as a source: AGI evolution speed
+
+Worker for [LAB] worldtree-data. User directive: add GITHUB measuring AGI EVOLUTION SPEED — you choose the metrics that best prove the exponential (commit velocity of major AI repos — openai/anthropic/deepmind/meta/qwen/vllm/ollama etc.; model-release cadence per year; stars growth on top AI repos; benchmark-release rate; training-compute growth). Build the dataset, verify it shows the EXPONENTIAL, add the trend chart to the world-tree page alongside the existing rings. Provenance per number.
+
+## HARD CONSTRAINT: GitHub rate limit is 60 req/hour KEYLESS (this box has no token — do NOT ask for one; token = [account-required] honest limit). Budget ~45 requests per nightly fetch. OSCAR is a petabyte corpus — not usable for counts; skip it.
+
+## Metric design to start from (AGI judgment may improve, keep within the budget)
+1. **Release cadence** (the exponential's cleanest signal): for ~10-14 major AI repos, `GET /repos/{owner}/{repo}/releases?per_page=100` — ONE request per repo returns up to 100 releases with `published_at` → full release history per repo per year in a single nightly call. Series: releases/year summed over the tracked repo set, by year (2015→now), + median days-between-releases trend.
+2. **Commit velocity**: per-month counts via `GET /repos/{owner}/{repo}/commits?since={month start}&until={month end}&per_page=1` — count = last page number in the Link header. ONE request per repo-month. Wire as a MONTHLY_SOURCES-style accumulating series (the arxiv/pubmed/fedreg pattern in wt/fetch.py `units()` + `month_window()`; backfill window: last 24 months, then accumulate nightly — 14 repos × 24 months = 336 requests > 60/hr, so: backfill 24 months for TOP 4 repos only on first run (96 req ≈ 2 runs, or spread via the existing REPAIR_SWEEPS retry-across-nights mechanism — missing months are retried next run, never holed), 14 repos going forward. Disclose the ramp.
+3. **Stars growth**: single `GET /repos/{owner}/{repo}` per repo nightly → `stargazers_count` snapshot. Star HISTORY (starred_at) is pagination-prohibitive on big repos — growth is measured by nightly accumulation in `series/` (honest: "growth observed since 2026-10"; the historical exponential is carried by releases + commits). Label accordingly.
+- Pick the repo set: the obvious AI-lab + infra repos (openai, anthropics, google-deepmind, meta-llama/llama-models, QwenLM, vllm-project/vllm, ollama/ollama, huggingface/transformers, pytorch/pytorch, lm-sys? eleutherai/gpt-neox? tensorflow?) — judge by "best proves the exponential", keep ~10-14, document each with one reason line.
+
+## Build
+- New source `github` in catalog (series.csv: github.releases_year, github.commits_month (stage core), github.stars_snapshot; sources.json entry: api.github.com, license "GitHub ToS — counts are facts; metadata via public API", attribution line, keyless 60/hr noted). Mapping rows (world method): releases_year → transcendence +1 / divergence +1 (max 2 realms, rank_delta, your params); commits_month → divergence +1; stars → NOT world-mapped (it's an in-repo growth series; document why).
+- fetch: new units() branches (release list json per repo; commits per-month per repo via month_url/month_of_url — Link-header counting needs a custom count parse: `parse_count` style but count = last-page×1 (per_page=1) → add kind "github"); nightly budget guard: fetch() must respect SLEEP + stop after ~45 requests for this source (sorted order deterministic; retry-across-nights covers the rest).
+- extract: github releases → (repo-merged) per-year counts; commits → monthly counts; stars → one row per night per repo (period=nightly date) with per-repo meta columns.
+- method 0.4.1 + CHANGELOG (world weights shift slightly — expected; pins in m3/m5 updated to REAL new counts/feeds).
+- HISTORY: wt history years before ~2019 unaffected; releases_year has real 2015+ depth — allow it to enter history years where the series has data (no lookahead rules already enforced).
+- tests: extend or add tests/m6_github.sh (parse a frozen release fixture, Link-count parse, budget guard, exponential check: assert releases/year is monotonic-ish rising — assert last-3yr mean > 3× first-3yr mean on the tracked set, with the actual numbers printed) + m3/m5 stay green.
+- Page: extend the trend section — new series appears via realms.json/history automatically IF world-mapped; PLUS add the release-cadence + commit curves to the rings chart as dashed context lines (fetch ./github-trends.json emitted next to realms.json: {schema worldtree.github/1, releases_by_year, commits_by_month, stars:{repo:count}, provenance}) — page worker notes: brand frozen, same grammar.
+- publish: github-trends.json → webroot + /data/.
+
+## Verify (your run ends green)
+`bash tests/m6_github.sh` prints M6 GITHUB GREEN: series in stored data w/ provenance sidecars (sha256, url, license), exponential evidence printed (releases/yr 2019 vs 2025, commit growth, star accumulation), m3+m5 green, live page shows the new lines (curl + screenshot via ~/Work/bifrost/pwa playwright like RUN B did → artifacts/worldtree-github-chart.png).
+
+## Rules
+Commit per step (pathspec lab/worldtree-data + veraldar-site/world-tree.html only). Twice-failing step → BLOCKER-M6.md. Read docs/worldtree/{schema,prediction,sources,expansion-ceiling}.md + wt/fetch.py units()/MONTHLY_SOURCES first — reuse the patterns. End with: git log --oneline -5, the exponential numbers, screenshot path, m3/m5/m6 last lines.

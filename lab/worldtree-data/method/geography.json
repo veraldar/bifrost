@@ -8,6 +8,7 @@
   "arxiv": {"regions": ["GLOBAL"], "detail": "cs.AI preprints submitted worldwide (US, CN, EU authors largest); counts not split by country", "license": "CC0 1.0 (metadata)", "source_doc": "https://info.arxiv.org/help/api/"},
   "pubmed": {"regions": ["GLOBAL"], "detail": "biomedical literature indexed by the US National Library of Medicine from journals worldwide", "license": "public domain (NLM; US gov)", "source_doc": "https://www.nlm.nih.gov/bsd/difference.html"},
   "fedreg": {"regions": ["NA"], "detail": "US federal rulemaking and notices only — no other government is covered", "license": "public domain (US gov work)", "source_doc": "https://www.federalregister.gov/reader-aids/using-federalregister-gov/understanding-the-federal-register"},
+  "ari": {"regions": ["GLOBAL"], "detail": "event-sourced restriction pressure on AI agents — global platforms, scored weekly (English-language tech news + HN + OS-vendor blogs; bias B14)", "license": "dweeb.xyz Agent Restriction Index — verbatim capture, © pipeline output, methodology at report §method", "source_doc": "https://dweeb-xzys-mac-studio.tail5435b1.ts.net/api/artifact/report-ari.html"},
   "noaa_gml": {"regions": ["GLOBAL"], "detail": "one station: Mauna Loa Observatory (US-HI), the long-running reference for well-mixed global background CO₂ (bias B13)", "license": "public domain (US gov)", "source_doc": "https://gml.noaa.gov/ccgg/trends/data.html"}
  }
 }

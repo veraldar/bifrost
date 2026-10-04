@@ -607,6 +607,10 @@
    {
     "id": "noaa_gml",
     "updated_from": "gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv — Mauna Loa monthly mean CO₂, full record since 1958-03"
+   },
+   {
+    "id": "ari",
+    "updated_from": "Mac Studio ARI report (tailnet) report-ari.html — embedded <script id=\"ari-data\"> JSON block, every week since 2026-04-06; the report is rebuilt daily, weeks dated after the as-of are not read"
    }
   ],
   "pipeline": "worldtree-data method 0.3.1"
@@ -680,6 +684,14 @@
    "detail": "US federal rulemaking and notices only — no other government is covered",
    "license": "public domain (US gov work)",
    "source_doc": "https://www.federalregister.gov/reader-aids/using-federalregister-gov/understanding-the-federal-register"
+  },
+  "ari": {
+   "regions": [
+    "GLOBAL"
+   ],
+   "detail": "event-sourced restriction pressure on AI agents — global platforms, scored weekly (English-language tech news + HN + OS-vendor blogs; bias B14)",
+   "license": "dweeb.xyz Agent Restriction Index — verbatim capture, © pipeline output, methodology at report §method",
+   "source_doc": "https://dweeb-xzys-mac-studio.tail5435b1.ts.net/api/artifact/report-ari.html"
   },
   "noaa_gml": {
    "regions": [

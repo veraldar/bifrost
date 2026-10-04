@@ -1,0 +1,21 @@
+# bifrost voice — local speech server (sherpa-onnx STT + TTS, OpenAI-compatible API).
+# install.sh fills in the @…@ paths. The FIRST start downloads the STT/TTS models
+# (~200 MB, get_models.sh skips what is already there), hence the long start timeout.
+[Unit]
+Description=bifrost voice — local STT/TTS server (sherpa-onnx)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+WorkingDirectory=@VOICE@
+EnvironmentFile=@CONF@/voice.env
+ExecStartPre=@VOICE@/get_models.sh
+ExecStart=@VOICE@/venv/bin/python -m uvicorn voice_server:app --host 127.0.0.1 --port ${EDGE_PORT}
+TimeoutStartSec=20min
+Restart=on-failure
+RestartSec=5
+UMask=0077
+
+[Install]
+WantedBy=default.target

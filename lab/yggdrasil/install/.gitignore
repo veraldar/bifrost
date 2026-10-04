@@ -1,5 +1,7 @@
-# makepkg output + optional prebuilt binary (release tarballs ship it; git does not)
+# makepkg output + optional prebuilt binaries (release tarballs ship them; git does not)
 /src/
 /pkg/
 *.pkg.tar.*
 /yggdrasil
+/bifrost-net
+/livekit-server

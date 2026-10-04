@@ -615,4 +615,9 @@ async def entrypoint(ctx: JobContext) -> None:
 
 
 if __name__ == "__main__":
+    # AGENT_HTTP_PORT: the worker's health/metrics http server (default 8081) —
+    # a second lab worker on one box needs its own port.
+    port = os.environ.get("AGENT_HTTP_PORT")
+    if port:
+        server._port = int(port)
     cli.run_app(server)

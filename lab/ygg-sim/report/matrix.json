@@ -54,15 +54,15 @@
       "latencies_ms": [
         [
           "turn-0",
-          2871
+          2869
         ],
         [
           "turn-1",
-          2914
+          2918
         ],
         [
           "turn-2",
-          2875
+          2878
         ],
         [
           "post-rollup-turn",
@@ -70,7 +70,7 @@
         ],
         [
           "total",
-          8676
+          8681
         ]
       ],
       "name": "rest.marathon-rollup",
@@ -125,7 +125,7 @@
         ],
         [
           "turn-1",
-          12
+          13
         ],
         [
           "turn-2",
@@ -133,11 +133,11 @@
         ],
         [
           "turn-3",
-          10
+          11
         ],
         [
           "wall-4-parallel",
-          17
+          18
         ]
       ],
       "name": "rest.parallel-sessions",
@@ -180,7 +180,7 @@
       "latencies_ms": [
         [
           "run",
-          20010
+          20014
         ]
       ],
       "name": "bridge.prompt-run-done",
@@ -202,7 +202,7 @@
       "latencies_ms": [
         [
           "voice-turn",
-          16841
+          19071
         ]
       ],
       "name": "bridge.handsfree-round",
@@ -213,22 +213,22 @@
       "counters": [
         [
           "tts-delivered-%",
-          87
+          89
         ],
         [
           "stt-hits",
-          3
+          2
         ],
         [
           "wire-drops",
-          58
+          59
         ]
       ],
       "device": "phone",
       "latencies_ms": [
         [
           "voice-turn",
-          17126
+          16760
         ]
       ],
       "name": "bridge.poor-network-turn",
@@ -246,7 +246,7 @@
       "latencies_ms": [
         [
           "recover-2s",
-          151
+          1148
         ]
       ],
       "name": "bridge.link-flap",
@@ -285,19 +285,19 @@
       "latencies_ms": [
         [
           "keyboard-cycle",
-          8430
+          5674
         ],
         [
           "ping-keyboard",
-          151
+          166
         ],
         [
           "voice-turn",
-          12084
+          12357
         ],
         [
           "ping-after-voice",
-          136
+          121
         ]
       ],
       "name": "bridge.mode-switch",
@@ -310,11 +310,11 @@
       "latencies_ms": [
         [
           "fresh-connect",
-          1067
+          1048
         ],
         [
           "idle-after-death",
-          1067
+          1048
         ]
       ],
       "name": "bridge.abort-mid-turn",
@@ -327,7 +327,7 @@
       "latencies_ms": [
         [
           "reconnect",
-          5
+          4
         ]
       ],
       "name": "bridge.reconnect-after-switch",
@@ -338,18 +338,18 @@
       "counters": [
         [
           "received-frames",
-          502
+          490
         ],
         [
           "delivered-%",
-          98
+          95
         ]
       ],
       "device": "phone",
       "latencies_ms": [
         [
           "essay-turn",
-          20004
+          20126
         ]
       ],
       "name": "bridge.tts-paragraphs",
@@ -360,7 +360,7 @@
       "counters": [
         [
           "tts-delivered-%",
-          36
+          35
         ],
         [
           "stt-hits",
@@ -368,18 +368,18 @@
         ],
         [
           "rev-drops",
-          165
+          167
         ]
       ],
       "device": "phone",
       "latencies_ms": [
         [
           "voice-turn",
-          18415
+          16674
         ],
         [
           "post-burst-ping",
-          166
+          197
         ]
       ],
       "name": "bridge.bandwidth-starved",

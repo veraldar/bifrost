@@ -16,6 +16,9 @@ yggdrasil = open-ended essence + spawned-and-abandoned + missing toolchain →
 3. **Delegation seam unproven at scale** — `claude -p` in headless mode STOPS
    AND ASKS FOR PERMISSION before writing files (verified 10-02, M0). Without
    `--dangerously-skip-permissions` (non-root) there is no autonomous run.
+   And until 10-04, delegations were UNMEASURED — duration, exit code, output
+   location and stalls existed only in the user's account-usage page. Fixed
+   by fleet rule 10-04 below.
 4. **Open-ended scope** — "the essence of opencode" has no finish line; the
    voice lab's "server that round-trips 7/7" did.
 
@@ -78,3 +81,60 @@ gets caught), the inference is user-centered (best behavior FOR THE USER —
 the missing tools would have been built), and the usage-model checkpoint
 exposes gaps before the first line of code. The owner's lived memory is a
 requirement source — the user knows behaviors no interface exposes.
+
+## Fleet rule 10-04: MEASURED DELEGATION — all `claude -p` goes through agi-run.sh
+
+Every lab delegation to Claude runs through `scripts/agi-run.sh`. A bare
+`claude -p` call is forbidden: it leaves no evidence (duration, exit code,
+output location) and stalls invisibly until someone notices the account usage.
+An unmeasured delegation did not happen.
+
+```bash
+# the ONLY blessed delegation shape (session name mandatory):
+scripts/agi-run.sh -s <SESSION-NAME> -m <model> "the prompt"
+scripts/agi-run.sh -s <SESSION-NAME> -m <model> -f prompts/m4.txt
+echo "prompt" | scripts/agi-run.sh -s <SESSION-NAME>
+```
+
+What the wrapper enforces (nothing to remember, all automatic):
+- `--dangerously-skip-permissions` + model ALWAYS pinned (`--model`, never the
+  account default) — the playbook's M0 lesson, mechanized.
+- Evidence per attempt lands in `~/Work/bifrost/.agi-log/log.tsv` (gitignored):
+  runid, date, session, model, start, end, duration_s, exit code, status,
+  output file path. Human-readable result at the logged `.txt` path; raw
+  stream + stderr alongside it.
+- Stall detection: the run streams (`--output-format stream-json`); if the
+  output has not grown for 10 min the wrapper kills it and retries ONCE;
+  a second stall (or failure) is reported as a failure in the log. Plain `-p`
+  text output is silent until the end — never hand-roll monitoring on it.
+- Fleet view any time: `scripts/agi-status.sh` → runs today (count,
+  success/fail/stalled), currently running with elapsed time, last failure.
+
+## Fleet rule 10-04b: MODEL LADDER — Opus judges, Sonnet 5.5 does the rest
+
+Every delegation picks the CHEAPEST model that does the job well:
+
+- **Opus** — judgment, architecture, hard builds, final-authority documents
+  (evals, decisions, designs, anything with a verdict).
+- **Sonnet 5.5** — research passes, reviews of drafts, doc passes,
+  verification reads, second opinions, mechanical summaries.
+
+Decompose accordingly: a decision doc = Sonnet research pass → Opus final
+judgment → Sonnet verification read of the result. Same `agi-run.sh` wrapper,
+different `-m`; a Sonnet pass that disagrees with an Opus verdict escalates
+BACK to Opus with the disagreement attached — Sonnet never overrules.
+
+Sessions and drivers check `agi-status.sh` the same turn they check labs: a
+delegation with no log line, or RUNNING for hours, is a stalled lab — same
+handling as failure cause #1.
+
+## Rule 10-03: REBUILDS RESTART THE SERVER
+A `.next` rebuild under a running `lk-pwa` swaps chunk files the running
+server still references — browsers holding old HTML get ChunkLoadError and
+the app crashes client-side while every probe says 200. Rules:
+1. Never `npm run build` the live tree without restarting `lk-pwa`
+   immediately after (build+restart is one operation — scripts/deploy.sh
+   does build+restart+probe+gate).
+2. Long builds happen in worktrees, not the live tree.
+3. Probes must check the page AND a chunk asset — a 200 HTML with dead
+   chunks is the failure shape probes miss.

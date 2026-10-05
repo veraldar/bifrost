@@ -1,0 +1,14 @@
+# M7 brief — meaning & motion: realms.json tells you what changed and what it means
+
+Worker for [LAB] worldtree-data. Requirements gap (docs/worldtree/requirements-from-history.md, gap #5): "people ask the tree WHEN and HOW FAST — add 30-day and 1-year changes, a one-line what-this-number-means, and a generated world-state sentence". The page ignores new keys → its frozen design stays safe; you will ALSO wire the smallest honest surface onto the page (one line in the roots + rings captions), same grammar, brand frozen.
+
+## Build (method 0.4.2)
+1. **`changes` per realm** (additive block in realms.json + per-year in realms-history.json): for each realm — delta_30d and delta_1y (percentage-point change of the realm's weight vs the run ~30d/365d ago, read from out/history.csv — real runs only, no interpolation; if the prior run is missing/too old → null + reason). Include `as_of_prev` dates and the 2 indicators with the largest |contribution change| (label + delta), so every delta traces.
+2. **`meaning` per realm** (one line, deterministic TEMPLATE — no LLM, no random): generated from the mapping + current top contributors, e.g. "drift 16.9% — attention signals dominate: synthetic-media attention and gen-AI adoption rose past their own trends". Template lives in method/ (versioned, testable); every meaning names its 2 strongest indicators by series_id.
+3. **`world_state` sentence**: one deterministic sentence: lead realm + its delta_30d + direction + coverage/evidence caveat (e.g. "terminus leads at 18.7% (−1.3 in 30d); coverage 83% — conflict and unemployment data dominate the read"). Emitted top-level.
+4. **Tests**: template determinism (same inputs → byte-identical sentences), deltas match an independent recomputation from history.csv, null-handling (no prior run → null not fabricated), m3/m5/m6 stay green (pins updated to REAL new counts only).
+5. **Page (smallest honest surface)**: rings caption gains the lead realm's 30d delta + world_state one-liner; roots section lists per-realm deltas in the existing table grammar. NO new sections, NO redesign — read the page first, extend the pattern. If the M6 worker's page state (world-tree.html, sw v4, github-trends lines) is present, build ON it, don't revert it.
+6. **Publish** via scripts/publish.sh; live checks.
+
+## Rules
+Pull/inspect current git state first (M6 landed: bifrost e99888c+ / veraldar-site d69a7e5+ — build on it). Commit per step (pathspec: lab/worldtree-data + veraldar-site/world-tree.html + sw.js only). Twice-failing step → BLOCKER-M7.md. method/VERSION → 0.4.2 + CHANGELOG. End with: git log -5 (both repos), last lines of m3/m5/m6 greens, `curl -s https://veraldar.org/realms.json | jq -c '.world_state, .changes.terminus'`, screenshot artifacts/worldtree-m7.png (rings caption area, via ~/Work/bifrost/pwa playwright).

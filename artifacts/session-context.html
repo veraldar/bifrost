@@ -1,0 +1,94 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>The full context a new opencode session receives</title>
+<style>body{background:#080810;color:#e8e8f2;font:13px/1.6 ui-monospace,Menlo,monospace;padding:22px;max-width:860px;margin:0 auto}
+h1{font-size:20px}h1 span{color:#4ade80}h2{font-size:14px;color:#4ade80;text-transform:uppercase;letter-spacing:.08em;margin:26px 0 8px}h2::before{content:'▚ ';color:#8b8ba3}
+pre{background:#050510;border:1px solid #26263a;border-radius:8px;padding:14px;white-space:pre-wrap;font-size:11.5px;color:#c9c9de}
+p{font-size:12.5px;color:#8b8ba3}table{width:100%;border-collapse:collapse;font-size:11.5px}td,th{border:1px solid #26263a;padding:6px 9px;text-align:left}th{color:#8b8ba3;font-size:10px;text-transform:uppercase}</style></head><body>
+<h1><span>The full context</span> a new opencode session receives</h1>
+<p>verbatim, no modification · three layers: the always-loaded stub, the project AGENTS.md (loaded when working in bifrost), the skills registry (name + description injected; body loads on use) — plus opencode's own built-in system prompt (internal, not file-served)</p>
+<h2>LAYER 1 — ~/Work/AGENTS.md (always loaded)</h2><pre># ~/Work — phone sessions scope
+
+The user talks from a phone PWA (voice or text). Coding work lives in `~/Work/bifrost`.
+
+When a task touches bifrost (or is about this system): `cd ~/Work/bifrost` and read
+`AGENTS.md` there — it defines the project, stack, hardware, and verify commands.
+
+Stack used by this session: phone → LiveKit voice agent or Next proxy → `opencode serve`
+(127.0.0.1:4096, project scope: `~/Work`). Do not assume GUI/desktop tools.
+
+Answer meta questions about this setup (what bifrost is, where things live) directly
+from this file — no exploring. Explore/read only for real work in the repo.
+
+## Showing files to the phone (only for bifrost sessions)
+Only when the session comes from bifrost (user is on the phone PWA): the user
+cannot open local paths, files on this box, or LAN links — every file must
+arrive through the chat itself. Never say &quot;look at /path/to/file&quot; or hand over
+a filename to open; if it isn&#x27;t in the chat, the user didn&#x27;t get it.
+Instead: save the file to `~/Work/bifrost/artifacts/&lt;name&gt;.&lt;ext&gt;`, then
+reference it in your reply as `![description](/api/artifact/&lt;name&gt;.&lt;ext&gt;)`.
+Everything renders inline in the PWA chat:
+- images (png/jpg/webp/svg/gif) via markdown-image syntax
+- html pages/mockups — fenced ```html block or a saved `.html`, sandboxed frame
+- markdown/text/code/config (md, txt, json, csv, yaml, py, ts, …) — rendered
+  inline; use a plain markdown link `[name](/api/artifact/&lt;name&gt;.&lt;ext&gt;)`
+- pdf — tap-to-view card; wav/mp3 — inline audio player
+Write the file before linking it. Never serve files yourself and never link
+LAN IPs/ports; only `/api/artifact/...` links are reachable from the phone.
+</pre>
+<h2>LAYER 2 — ~/Work/bifrost/AGENTS.md (loaded in bifrost scope)</h2><pre># bifrost — voice-controlled opencode
+
+Talk or type from the phone; the code you&#x27;re changing lives here. Full architecture: `README.md`.
+
+## Map
+- `pwa/` — Next.js 15 phone client. `/api/*` proxy is the ONLY seam to opencode (phone never talks to it directly).
+- `agent/` — Python livekit-agents worker: STT → opencode → TTS. Room slug = session slug.
+- `deploy/` — docker compose: LiveKit (host net) + speaches fallback.
+- `docs/plan.md` — checklist board, work top-to-bottom. `docs/open-questions.md` — every unresolved decision lands there.
+
+## Hardware
+This box runs everything. Mac Studio serves speech models (MLX Qwen3-ASR/TTS) on the LAN — endpoint in `agent/.env` (`SPEACHES_URL`). Private IPs/hostnames/ssh: `docs/local.md` (gitignored). Tailnet-only, nothing public.
+
+## Verify
+- pwa: `cd pwa &amp;&amp; npm run build` + e2e: `cd pwa &amp;&amp; npx playwright test`
+- agent: `cd agent &amp;&amp; uv run agent.py console` (local mic test)
+- deploy: `cd deploy &amp;&amp; docker compose up -d`
+- services: `systemctl --user restart lk-pwa lk-agent opencode-serve`
+- live diag: `tail pwa/.diag/$(date +%F).log`
+
+## Rules
+- Proceed autonomously; verify with evidence; contact user only when stuck or looping.
+- No execution without a checkable &quot;done&quot; (mockup, metric, or test). Can&#x27;t state it? Build the spec first (candidate options, pick best by stated criteria — if the goal is the user&#x27;s taste, cheap mockups + user pick). Any user correction on the same goal = escalate to a stronger model with a written brief (source-of-truth + locked decisions + referee + territory). User correction twice = stop entirely and re-scope with the user.
+- No commits unless asked. Secrets stay out of git.
+
+## Delivering files to the user — through the chat, never paths
+The user is on the phone. They cannot open local paths, files on this box, or
+LAN links. If it is not in the chat, they did not receive it — &quot;it&#x27;s at
+/home/...&quot; or &quot;check the repo&quot; is never an answer. Deliver every file in the
+reply itself: save it to `artifacts/&lt;name&gt;.&lt;ext&gt;` in this repo root, then
+reference it as `/api/artifact/&lt;name&gt;.&lt;ext&gt;`. Everything renders inline:
+- Images (png/jpg/webp/svg/gif): markdown image `![description](/api/artifact/&lt;name&gt;.&lt;ext&gt;)`.
+- HTML page/mockup: fenced ```html block, or save `.html` and link it — renders
+  as a sandboxed frame.
+- Markdown/text/code/config (md, txt, json, csv, log, yaml, py, ts, …): plain
+  markdown link `[name](/api/artifact/&lt;name&gt;.&lt;ext&gt;)` — renders inline, md
+  formatted. Write the file FIRST, then link it.
+- PDF: plain markdown link → tap-to-view card. Audio (wav/mp3): inline player.
+- Never point the phone at LAN IPs/ports — only `/api/artifact/...` is reachable.
+
+## Parallel sessions (avoid overlap)
+Before working: `git log --oneline -8` + read `docs/claims.md`. Working on something
+non-trivial? Claim it FIRST (one line: scope + files + session name), delete the claim
+when done. Commit small and often with req-linked messages — tests (cd pwa &amp;&amp; npx
+playwright test) are the referee: run them before claiming done. Never edit a file
+another session holds a claim on unless merging deliberately.
+
+## Answer-first rule (fleet law, 10-02)
+When a turn dies on a question: propose the BEST ANSWER from known state and
+move on. Knowledge gaps = assume + state the assumption + continue. Only hard
+blockers (access, accounts, physical presence) pause work — and they go loud
+(BLOCKED=VISIBLE). Never stall on a question. Never die mid-turn silently:
+if revived after a dead turn, resume and report.
+</pre>
+<h2>LAYER 3 — skills registry (injected as name+description)</h2>
+<table><tr><th>skill</th><th>description (verbatim)</th></tr><tr><td>delegate</td><td>Get work or a second opinion from another AI harness (Claude Code, Codex) by running their CLIs — when the user asks for &quot;claude to do this&quot;, a second opinion, or parallel work.</td></tr><tr><td>phase-gate</td><td>Enforcement gate for projects governed by docs/plan.md + docs/spec.md. Use when a phase of work is believed complete, when the user says &quot;phase done&quot;, &quot;next phase&quot;, &quot;mark complete&quot;, or asks to tick ch</td></tr></table>
+<p style="margin-top:18px">The dispatch prompts the coordinator writes on top (goal + data + freedom) are separate — those are in this chat, verbatim, per dispatch.</p>
+</body></html>

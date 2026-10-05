@@ -41,6 +41,7 @@ edge/*.log
 !/artifacts/architecture-connectors.html
 !/artifacts/artifacts-gallery-live.png
 !/artifacts/user-checklist.html
+!/artifacts/session-context.html
 !/artifacts/agi-board.html
 !/artifacts/network-plan.html
 !/artifacts/user-setup-steps.html

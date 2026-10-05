@@ -43,6 +43,7 @@ edge/*.log
 !/artifacts/user-checklist.html
 !/artifacts/session-context.html
 !/artifacts/opencode-full-prompt.md
+!/artifacts/opencode-full-prompt-raw.txt
 !/artifacts/agi-board.html
 !/artifacts/network-plan.html
 !/artifacts/user-setup-steps.html

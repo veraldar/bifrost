@@ -1,0 +1,183 @@
+{
+  "app_version": "0.6.0",
+  "break_ok": 2,
+  "cycle": 2,
+  "fail": 1,
+  "known": 1,
+  "pass": 16,
+  "ran": 24,
+  "scenarios": [
+    {
+      "device": "desktop",
+      "headline": "turn 47ms",
+      "name": "rest.text-roundtrip",
+      "profile": "home",
+      "verdict": "PASS"
+    },
+    {
+      "device": "desktop",
+      "headline": "abort 6ms",
+      "name": "rest.abort-mid-run",
+      "profile": "home",
+      "verdict": "PASS"
+    },
+    {
+      "device": "phone",
+      "headline": "turn 100ms",
+      "name": "rest.refresh-reread",
+      "profile": "phone-cell",
+      "verdict": "PASS"
+    },
+    {
+      "device": "desktop",
+      "headline": "turn-0 2876ms",
+      "name": "rest.marathon-rollup",
+      "profile": "home",
+      "verdict": "PASS"
+    },
+    {
+      "device": "desktop",
+      "headline": "recovery-turn 36ms",
+      "name": "rest.upstream-down",
+      "profile": "home",
+      "verdict": "PASS"
+    },
+    {
+      "device": "desktop",
+      "headline": "one-call 41ms",
+      "name": "rest.tool-loop",
+      "profile": "home",
+      "verdict": "PASS"
+    },
+    {
+      "device": "desktop×4",
+      "headline": "turn-0 11ms",
+      "name": "rest.parallel-sessions",
+      "profile": "home",
+      "verdict": "PASS"
+    },
+    {
+      "device": "desktop",
+      "headline": "",
+      "name": "bridge.auth",
+      "profile": "home",
+      "verdict": "PASS"
+    },
+    {
+      "device": "phone",
+      "headline": "ping-avg 149ms",
+      "name": "bridge.data-roundtrip",
+      "profile": "phone-cell",
+      "verdict": "PASS"
+    },
+    {
+      "device": "phone",
+      "headline": "run 20007ms",
+      "name": "bridge.prompt-run-done",
+      "profile": "phone-cell",
+      "verdict": "KNOWN"
+    },
+    {
+      "device": "phone",
+      "headline": "voice-turn 19235ms",
+      "name": "bridge.handsfree-round",
+      "profile": "phone-cell",
+      "verdict": "PASS"
+    },
+    {
+      "device": "phone",
+      "headline": "voice-turn 19477ms",
+      "name": "bridge.poor-network-turn",
+      "profile": "poor-cell",
+      "verdict": "PASS"
+    },
+    {
+      "device": "phone",
+      "headline": "recover-2s 1150ms",
+      "name": "bridge.link-flap",
+      "profile": "poor-cell",
+      "verdict": "PASS"
+    },
+    {
+      "device": "phone",
+      "headline": "rebind-survived 0",
+      "name": "bridge.nat-rebind",
+      "profile": "phone-cell",
+      "verdict": "BREAK-OK"
+    },
+    {
+      "device": "phone+desktop",
+      "headline": "",
+      "name": "bridge.multi-device",
+      "profile": "phone-cell",
+      "verdict": "PASS"
+    },
+    {
+      "device": "phone",
+      "headline": "keyboard-cycle 5787ms",
+      "name": "bridge.mode-switch",
+      "profile": "phone-cell",
+      "verdict": "PASS"
+    },
+    {
+      "device": "phone",
+      "headline": "fresh-connect 1088ms",
+      "name": "bridge.abort-mid-turn",
+      "profile": "phone-cell",
+      "verdict": "PASS"
+    },
+    {
+      "device": "phone",
+      "headline": "reconnect 4ms",
+      "name": "bridge.reconnect-after-switch",
+      "profile": "phone-cell",
+      "verdict": "PASS"
+    },
+    {
+      "device": "phone",
+      "headline": "",
+      "name": "bridge.tts-paragraphs",
+      "profile": "phone-cell",
+      "verdict": "FAIL"
+    },
+    {
+      "device": "phone",
+      "headline": "voice-turn 16439ms",
+      "name": "bridge.bandwidth-starved",
+      "profile": "congested-cell",
+      "verdict": "BREAK-OK"
+    },
+    {
+      "device": "android",
+      "headline": "",
+      "name": "app.install-pair",
+      "profile": "adb",
+      "verdict": "SKIP"
+    },
+    {
+      "device": "android",
+      "headline": "",
+      "name": "app.push-notification",
+      "profile": "adb",
+      "verdict": "SKIP"
+    },
+    {
+      "device": "android",
+      "headline": "",
+      "name": "app.background-audio",
+      "profile": "adb",
+      "verdict": "SKIP"
+    },
+    {
+      "device": "android",
+      "headline": "",
+      "name": "app.hot-reload",
+      "profile": "adb",
+      "verdict": "SKIP"
+    }
+  ],
+  "seed": "0xc0ffee",
+  "sim_version": "0.3.0",
+  "skip": 4,
+  "wall_s": 176
+}

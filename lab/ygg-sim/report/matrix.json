@@ -54,15 +54,15 @@
       "latencies_ms": [
         [
           "turn-0",
-          2864
+          2871
         ],
         [
           "turn-1",
-          2920
+          2914
         ],
         [
           "turn-2",
-          2864
+          2875
         ],
         [
           "post-rollup-turn",
@@ -70,7 +70,7 @@
         ],
         [
           "total",
-          8664
+          8676
         ]
       ],
       "name": "rest.marathon-rollup",
@@ -104,11 +104,11 @@
         ],
         [
           "two-call",
-          81
+          83
         ],
         [
           "total",
-          122
+          125
         ]
       ],
       "name": "rest.tool-loop",
@@ -137,7 +137,7 @@
         ],
         [
           "wall-4-parallel",
-          18
+          17
         ]
       ],
       "name": "rest.parallel-sessions",
@@ -163,11 +163,11 @@
       "latencies_ms": [
         [
           "ping-avg",
-          150
+          149
         ],
         [
           "ping-max",
-          167
+          166
         ]
       ],
       "name": "bridge.data-roundtrip",
@@ -180,7 +180,7 @@
       "latencies_ms": [
         [
           "run",
-          20004
+          20010
         ]
       ],
       "name": "bridge.prompt-run-done",
@@ -191,7 +191,7 @@
       "counters": [
         [
           "tts-delivered-%",
-          98
+          99
         ],
         [
           "stt-hits",
@@ -202,7 +202,7 @@
       "latencies_ms": [
         [
           "voice-turn",
-          23334
+          16841
         ]
       ],
       "name": "bridge.handsfree-round",
@@ -213,22 +213,22 @@
       "counters": [
         [
           "tts-delivered-%",
-          88
+          87
         ],
         [
           "stt-hits",
-          2
+          3
         ],
         [
           "wire-drops",
-          61
+          58
         ]
       ],
       "device": "phone",
       "latencies_ms": [
         [
           "voice-turn",
-          22718
+          17126
         ]
       ],
       "name": "bridge.poor-network-turn",
@@ -246,7 +246,7 @@
       "latencies_ms": [
         [
           "recover-2s",
-          136
+          151
         ]
       ],
       "name": "bridge.link-flap",
@@ -285,7 +285,7 @@
       "latencies_ms": [
         [
           "keyboard-cycle",
-          5663
+          8430
         ],
         [
           "ping-keyboard",
@@ -293,7 +293,7 @@
         ],
         [
           "voice-turn",
-          15702
+          12084
         ],
         [
           "ping-after-voice",
@@ -310,11 +310,11 @@
       "latencies_ms": [
         [
           "fresh-connect",
-          1069
+          1067
         ],
         [
           "idle-after-death",
-          1069
+          1067
         ]
       ],
       "name": "bridge.abort-mid-turn",
@@ -327,7 +327,7 @@
       "latencies_ms": [
         [
           "reconnect",
-          3
+          5
         ]
       ],
       "name": "bridge.reconnect-after-switch",
@@ -338,7 +338,7 @@
       "counters": [
         [
           "received-frames",
-          503
+          502
         ],
         [
           "delivered-%",
@@ -349,7 +349,7 @@
       "latencies_ms": [
         [
           "essay-turn",
-          28046
+          20004
         ]
       ],
       "name": "bridge.tts-paragraphs",
@@ -360,7 +360,7 @@
       "counters": [
         [
           "tts-delivered-%",
-          35
+          36
         ],
         [
           "stt-hits",
@@ -368,23 +368,55 @@
         ],
         [
           "rev-drops",
-          171
+          165
         ]
       ],
       "device": "phone",
       "latencies_ms": [
         [
           "voice-turn",
-          23375
+          18415
         ],
         [
           "post-burst-ping",
-          181
+          166
         ]
       ],
       "name": "bridge.bandwidth-starved",
       "profile": "congested-cell",
       "verdict": "BREAK-OK"
+    },
+    {
+      "counters": [],
+      "device": "android",
+      "latencies_ms": [],
+      "name": "app.install-pair",
+      "profile": "adb",
+      "verdict": "SKIP"
+    },
+    {
+      "counters": [],
+      "device": "android",
+      "latencies_ms": [],
+      "name": "app.push-notification",
+      "profile": "adb",
+      "verdict": "SKIP"
+    },
+    {
+      "counters": [],
+      "device": "android",
+      "latencies_ms": [],
+      "name": "app.background-audio",
+      "profile": "adb",
+      "verdict": "SKIP"
+    },
+    {
+      "counters": [],
+      "device": "android",
+      "latencies_ms": [],
+      "name": "app.hot-reload",
+      "profile": "adb",
+      "verdict": "SKIP"
     }
   ],
   "seed": "0xc0ffee"

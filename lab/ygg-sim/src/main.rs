@@ -11,6 +11,7 @@
 //! in-binary, deterministic) and, when absent, speaches (voice scenarios then
 //! SKIP loudly).
 
+mod app;
 mod client;
 mod httpc;
 mod mockup;

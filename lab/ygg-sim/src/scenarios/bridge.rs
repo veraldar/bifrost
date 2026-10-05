@@ -437,7 +437,7 @@ fn voice_round_spoken(
 
     let stt = c.wait_notice("voice.stt", Duration::from_secs(30))?;
     if !stt.to_lowercase().contains(expect_word) {
-        return Err(format!("STT lost the sentence: {stt}"));
+        return Err(format!("STT lost the sentence (wanted '{expect_word}'): {stt}"));
     }
     let _ = c.wait_notice("run.done", Duration::from_secs(60))?;
     let reply_notice = c.wait_notice("voice.reply", Duration::from_secs(60))?;
@@ -1012,7 +1012,9 @@ fn tts_paragraphs() -> (Verdict, Metrics) {
         Ok(c) => c,
         Err(e) => return (Verdict::Fail(format!("connect: {e}")), m),
     };
-    match voice_round_spoken(&mut c, 0xB27, "essay please", "essay", Quality::Skip) {
+    // spoken fixture avoids the STT homophone trap ("essay" → "F.A."/"S.A.");
+    // the mock treats "long story" and "essay" as the same directive
+    match voice_round_spoken(&mut c, 0xB27, "long story please", "story", Quality::Skip) {
         Ok((turn_ms, delivered_pct, _hits)) => {
             let frames = c.frames_rx;
             if frames < 300 {

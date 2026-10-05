@@ -324,8 +324,10 @@ fn plan(body: &Value) -> Planned {
 
     // multi-paragraph long-form reply — the "TTS breaks" pattern (the voice
     // pipeline must carry paragraph pauses and a long burst to the far end).
-    // contains, not starts_with: STT may prepend filler to the spoken directive.
-    if lc.contains("essay") {
+    // Trigger on either form: the typed directive ("essay") or its spoken
+    // fixture ("long story") — "essay" is a homophone trap for STT ("F.A.",
+    // "S.A."...), so the voice lane says "long story" and means the same thing.
+    if lc.contains("essay") || lc.contains("long story") {
         let para = |n: &str, tail: &str| {
             format!(
                 "This is paragraph {n} of the simulated essay. It carries several full sentences so the voice has real length to hold. The bridge must hand every pause and every burst to the far end without dropping the thread. {tail}"

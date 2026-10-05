@@ -170,10 +170,73 @@ pub fn run_matrix(only: Option<&str>) -> i32 {
     }
 }
 
+/// The app this sim flies (pwa/package.json — the wrap wraps THIS app).
+fn app_version() -> Option<String> {
+    let txt = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../pwa/package.json"),
+    )
+    .ok()?;
+    let v: serde_json::Value = serde_json::from_str(&txt).ok()?;
+    let raw = v.get("version")?.as_str()?.to_string();
+    // "0.6.0-152-g36b2482" → stable identity is the leading semver
+    Some(raw.split('-').next().unwrap_or(&raw).to_string())
+}
+
+fn sim_version() -> &'static str {
+    env!("CARGO_PKG_VERSION")
+}
+
+/// The ledger's latest pairing: `app-version pairing: app <X> ↔ sim <Y>`.
+fn paired_pairing() -> Option<(String, String)> {
+    let txt = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("VERSIONS.md"),
+    )
+    .ok()?;
+    parse_pairing(&txt)
+}
+
+fn parse_pairing(txt: &str) -> Option<(String, String)> {
+    txt.lines()
+        .filter(|l| l.contains("app-version pairing:"))
+        .last()
+        .and_then(|l| {
+            let app = l.split("app ").nth(1)?.split_whitespace().next()?.to_string();
+            let sim = l.split("sim ").nth(1)?.split_whitespace().next()?.to_string();
+            Some((app, sim))
+        })
+}
+
+/// THE EVOLUTION RULE: every app version bump gets matching scenario updates —
+/// the sim tracks the app. An app change without a sim bump fails the cycle.
+/// Returns Err(violation) when the ledger is stale. Pure core (tested below).
+fn check_rule(app: &str, sim: &str, ledger_pairing: Option<(String, String)>) -> Result<(), String> {
+    let Some(paired) = ledger_pairing else {
+        return Ok(()); // first pairing happens at the next landing
+    };
+    if app != paired.0 && sim == paired.1 {
+        return Err(format!(
+            "EVOLUTION RULE VIOLATION: app moved {} → {} but the sim is still {} (paired). Bump the sim version + add scenario updates, then re-run the cycle",
+            paired.0, app, paired.1
+        ));
+    }
+    Ok(())
+}
+
+fn check_evolution_rule() -> Result<(), String> {
+    match app_version() {
+        Some(app) => check_rule(&app, sim_version(), paired_pairing()),
+        None => Ok(()), // no app version visible → nothing to track yet
+    }
+}
 /// The loop's mechanized half: run + validate + diff vs the previous cycle
-/// snapshot. The proposal/build half is the agent's; this command hands it the
-/// evidence.
+/// snapshot + THE EVOLUTION RULE (app bumps need sim bumps). The
+/// proposal/build half is the agent's; this command hands it the evidence.
 pub fn run_cycle() -> i32 {
+    // evolution gate BEFORE burning three minutes on the matrix
+    if let Err(v) = check_evolution_rule() {
+        eprintln!("CYCLE INVALID — {v}");
+        return 1;
+    }
     let t0 = Instant::now();
     let run = collect(None);
     if run.results.is_empty() {
@@ -238,6 +301,8 @@ pub fn run_cycle() -> i32 {
     let mut json = serde_json::json!({
         "cycle": this_n,
         "seed": format!("{:#x}", run.seed),
+        "app_version": app_version(),
+        "sim_version": sim_version(),
         "ran": run.results.len(),
         "pass": pass, "break_ok": brk, "known": known, "skip": skip, "fail": fail,
         "wall_s": t0.elapsed().as_secs(),
@@ -258,6 +323,11 @@ pub fn run_cycle() -> i32 {
     );
 
     println!("CYCLE {this_n} vs {prev_n}: {}", digest_lines.join(" · "));
+    println!(
+        "pairing: app {} ↔ sim {} (ledger-enforced)",
+        app_version().unwrap_or_else(|| "?".into()),
+        sim_version()
+    );
     if fail > 0 {
         println!("CYCLE {this_n} INVALID — {fail} FAIL: fix before the next version step");
         1
@@ -269,8 +339,7 @@ pub fn run_cycle() -> i32 {
     }
 }
 
-fn write_report(run: &MatrixRun) {
-    let results = &run.results;
+fn write_report(run: &MatrixRun) {    let results = &run.results;
     let seed = run.seed;
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("report");
     let _ = std::fs::create_dir_all(&dir);
@@ -322,4 +391,37 @@ fn write_report(run: &MatrixRun) {
         }));
     }
     let _ = std::fs::write(dir.join("matrix.json"), serde_json::to_string_pretty(&json).unwrap());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const LEDGER: &str = "## v2 — landed\n\napp-version pairing: app 0.6.0 ↔ sim 0.3.0\n";
+
+    #[test]
+    fn pairing_parser_takes_the_last_line() {
+        let txt = format!("{LEDGER}\n## v3\n\napp-version pairing: app 0.7.0 ↔ sim 0.4.0\n");
+        assert_eq!(
+            parse_pairing(&txt),
+            Some(("0.7.0".into(), "0.4.0".into()))
+        );
+        assert_eq!(
+            parse_pairing(LEDGER),
+            Some(("0.6.0".into(), "0.3.0".into()))
+        );
+        assert_eq!(parse_pairing("no pairing here"), None);
+    }
+
+    #[test]
+    fn evolution_rule_bites() {
+        // app bumped, sim not → VIOLATION
+        assert!(check_rule("0.7.0", "0.3.0", Some(("0.6.0".into(), "0.3.0".into()))).is_err());
+        // both bumped → fine
+        assert!(check_rule("0.7.0", "0.4.0", Some(("0.6.0".into(), "0.3.0".into()))).is_ok());
+        // app unchanged → fine regardless
+        assert!(check_rule("0.6.0", "0.3.0", Some(("0.6.0".into(), "0.3.0".into()))).is_ok());
+        // no pairing yet → fine
+        assert!(check_rule("0.9.0", "0.1.0", None).is_ok());
+    }
 }

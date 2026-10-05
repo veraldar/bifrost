@@ -106,3 +106,56 @@ quality gate (STT keywords), +1 loop command, 0 FAIL. v1 findings closed: 1, 3, 
    "abort mid-stream" scar applied to the newly covered surface.
 4. Determinism drift watch: cycle command could diff headline metrics
    (latencies) across cycles, not just verdicts — alarm on >2× drift.
+
+---
+
+## v3 — the sim contains the app (landed 10-04, this cycle)
+
+**Order**: the simulation must CONTAIN the android app and EVOLVE WITH IT.
+
+**Proposal (mined from v2 + the evolution order)**:
+1. The Capacitor-wrapped app becomes a simulated client: an adb-backed
+   `AppDriver` (local KVM host + the android-lab ssh-mac host), APK discovery
+   (YGG_SIM_APK / the Capacitor output path), pairing per the real contract
+   (raw token in the deep link / QR, bridge /offer as the gate), tunnel +
+   `adb reverse` reachability, screencap/notification receipts.
+2. Four native-shell scenarios: `app.install-pair` (install → deep-link pair →
+   bridge accepts), `app.push-notification` (dumpsys notification),
+   `app.background-audio` (screen off, TTS keeps flowing — needs a LOCAL
+   emulator; ssh tunnels are TCP-only and cannot carry UDP media),
+   `app.hot-reload` (remote-URL update reaching the installed shell).
+   Until the wrap build lands (parallel lane), all four SKIP loudly, naming
+   the exact missing piece — never fake.
+3. THE EVOLUTION RULE, enforced in `cycle`: the ledger's latest
+   `app-version pairing` line is checked BEFORE the matrix burns time; an app
+   bump without a sim bump fails the cycle instantly. Cycle snapshots record
+   app+sim versions.
+
+**Delivered**:
+- `src/app.rs` — AppDriver with both hosts probed live: local (this box,
+  /dev/kvm → media-capable emulator possible) and ssh-mac (Mac Studio SDK,
+  android-lab AVD found BOOTED); install / reverse / shell / deep-link /
+  screencap / notification primitives per the android-lab topology.
+- `scenarios/app.rs` — the 4 scenarios + the gate reporting precisely what is
+  missing. Current run: 4 SKIP, each reading "wrap not built (parallel lane):
+  no APK at pwa/android/.../app-debug.apk" — the ONLY missing piece; adb host
+  and booted emulator are already live. Landing the wrap flips them without
+  scenario rewrites.
+- Evolution rule in `runner.rs::check_evolution_rule` — parses the pairing
+  line below, fails the cycle on app-bump-without-sim-bump, stamps app+sim
+  versions into every cycle snapshot.
+- Sim version 0.1.0 → **0.3.0** (ledger version = cycle number).
+- One self-caught fix during the cycle: `bridge.tts-paragraphs` went FAIL when
+  STT heard TTS("essay please") as "F.A. please" — a homophone trap in MY
+  fixture. Fixed properly: the spoken directive is now "long story please"
+  (whisper-stable), the mock treats "long story"/"essay" as the same
+  directive. The cycle's verdict-shift diff is what surfaced it.
+
+**First pairing** (the ledger rule starts here):
+
+app-version pairing: app 0.6.0 ↔ sim 0.3.0
+
+**Mined for v4**: the wrap lane lands → flip app.* live on the booted AVD
+(install+pair first, then push + hot-reload over the tunnel, background-audio
+on a local emulator — UDP media needs it); plus v2 carryovers
+(paced-reference, anthropic dialect, abort-mid-tool, metric-drift watch).

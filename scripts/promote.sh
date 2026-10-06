@@ -7,10 +7,19 @@
 # build or restart there reaches :8080 until it goes through here.
 # Born 10-06 (the multi-instance night) — contract in docs/STABLE.md.
 #
+# A release is code + build + deps + ENV (env/live-{pwa,agent}.env, copied from
+# ~/.config/bifrost/env at build time — that dir is only the draft for the next
+# release). The units read the env of whatever `live` points at, so switching or
+# rolling back a release switches its env too (v0.7's brain flip is env-only).
+#
 #   scripts/promote.sh <ref> [--label L]     release a commit (the normal path)
+#   scripts/promote.sh --env-only [--label L] new release = live's build + the current
+#                                            draft env (seconds, no rebuild)
 #   scripts/promote.sh --snapshot [--label L] release HEAD + the pwa/agent WIP as it is
 #                                            now (overlay recorded; bootstrap/emergency)
-#   scripts/promote.sh --rollback            live <- previous release, gated
+#   scripts/promote.sh --list                every built release (live / previous marked)
+#   scripts/promote.sh --switch <id|label>   live <- any built release, gated, no rebuild
+#   scripts/promote.sh --rollback            live <-> previous (run it twice = back again)
 #   scripts/promote.sh --install-units       point lk-pwa/lk-agent at the live release (once)
 #   flags: --build-only (stage, don't switch)   --force (switch with runs in flight)
 set -uo pipefail
@@ -27,10 +36,13 @@ STATE_LINKS=(.diag .push-subs.json .oc-live.json .oc-queue.json .devices.json)
 say() { echo "[promote] $*"; }
 die() { echo "[promote] FAIL: $*" >&2; exit 1; }
 
-REF="" SNAP=0 LABEL="" BUILD_ONLY=0 FORCE=0 MODE=release
+REF="" SNAP=0 ENV_ONLY=0 LABEL="" BUILD_ONLY=0 FORCE=0 MODE=release TARGET=""
 while (($#)); do
   case "$1" in
     --snapshot) SNAP=1 ;;
+    --env-only) ENV_ONLY=1 ;;
+    --list) MODE=list ;;
+    --switch) MODE=switch; TARGET="${2:-}"; shift ;;
     --label) LABEL="$2"; shift ;;
     --build-only) BUILD_ONLY=1 ;;
     --force) FORCE=1 ;;
@@ -78,7 +90,7 @@ install_units() {
 # Served from the frozen live release, never a worktree (scripts/promote.sh, docs/STABLE.md).
 [Service]
 WorkingDirectory=%h/.local/share/bifrost/live/pwa
-EnvironmentFile=%h/.config/bifrost/env/live-pwa.env
+EnvironmentFile=%h/.local/share/bifrost/live/env/live-pwa.env
 # open SSE streams kept every restart hanging 90s until SIGKILL — clients reconnect anyway
 TimeoutStopSec=15
 EOF
@@ -86,11 +98,78 @@ EOF
 # Served from the frozen live release, never a worktree (scripts/promote.sh, docs/STABLE.md).
 [Service]
 WorkingDirectory=%h/.local/share/bifrost/live/agent
-EnvironmentFile=%h/.config/bifrost/env/live-agent.env
+EnvironmentFile=%h/.local/share/bifrost/live/env/live-agent.env
 Environment=UV_FROZEN=1
 EOF
   systemctl --user daemon-reload
   say "units point at $BIF/live (backup: $bk) — they take effect on the next switch"
+}
+
+# env/ of a release: the env it runs with. Releases built before v0.6.1 had none —
+# they get the env live runs with right now (exactly what they were serving with).
+freeze_env() {  # $1 = release dir
+  [[ -f "$1/env/live-pwa.env" && -f "$1/env/live-agent.env" ]] && return 0
+  mkdir -p "$1/env"
+  cp "$ENV_DIR/live-pwa.env" "$ENV_DIR/live-agent.env" "$1/env/" || return 1
+  chmod 400 "$1"/env/live-*.env
+}
+backfill_env() {
+  local r
+  for r in "$RELS"/*/; do
+    [[ -d "$r/env" ]] || { freeze_env "${r%/}" && say "env backfilled into $(basename "$r") (from $ENV_DIR)"; }
+  done
+}
+env_hash() { cat "$1/env/live-pwa.env" "$1/env/live-agent.env" | sha256sum | cut -c1-8; }
+
+# id | label | unique id prefix -> release dir name
+resolve() {
+  local q="$1" r hit=""
+  [[ -d "$RELS/$q" ]] && { echo "$q"; return 0; }
+  for r in "$RELS"/*/; do
+    r="$(basename "$r")"
+    if [[ "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("label",""))' "$RELS/$r/RELEASE.json" 2>/dev/null)" == "$q" || "$r" == "$q"* ]]; then
+      [[ -n "$hit" ]] && die "'$q' matches several releases ($hit, $r) — use the full id"
+      hit="$r"
+    fi
+  done
+  [[ -n "$hit" ]] && echo "$hit" || die "no release '$q' (scripts/promote.sh --list)"
+}
+
+list_releases() {
+  local live prev r
+  live="$(readlink "$BIF/live" 2>/dev/null)"; prev="$(readlink "$BIF/previous" 2>/dev/null)"
+  for r in "$RELS"/*/; do
+    r="$(basename "$r")"
+    python3 - "$RELS/$r/RELEASE.json" "$([[ "releases/$r" == "$live" ]] && echo LIVE)$([[ "releases/$r" == "$prev" ]] && echo PREVIOUS)" "$([[ -d "$RELS/$r/env" ]] && env_hash "$RELS/$r" || echo none)" <<'EOF'
+import json, sys
+m = json.load(open(sys.argv[1]))
+brain = ""
+try:
+    import pathlib
+    for l in (pathlib.Path(sys.argv[1]).parent / "env/live-pwa.env").read_text().splitlines():
+        if l.startswith("OPENCODE_URL="): brain = l.split("=", 1)[1].rsplit(":", 1)[-1]
+except Exception: pass
+print(f"{sys.argv[2]:9} {m.get('label',''):22} {m['id']:40} brain :{brain or '?':5} env {sys.argv[3]}  {m.get('created','')[:16]}")
+EOF
+  done
+}
+
+# live <- $1 (gated). previous <- the release it replaced. RED -> straight back.
+switch_gated() {
+  local to="$1" from
+  from="$(readlink "$BIF/live" 2>/dev/null)"
+  [[ "releases/$to" == "$from" ]] && { say "$to is already live"; gate; return $?; }
+  freeze_env "$RELS/$to" || die "$to has no env and none to backfill"
+  say "switching: live ${from#releases/} -> $to"
+  if switch_to "$to" && gate; then
+    [[ -n "$from" ]] && ln -sfn "$from" "$BIF/previous.new" && mv -Tf "$BIF/previous.new" "$BIF/previous"
+    say "OK — live = $to (previous: ${from#releases/})"
+    return 0
+  fi
+  say "gate RED on $to — back to ${from#releases/}"
+  switch_to "${from#releases/}" && gate && say "back on ${from#releases/}, gate GREEN" \
+    || die "back on ${from#releases/} but gate still RED — manual attention"
+  return 1
 }
 
 wait_agent() {  # registered worker since $1
@@ -136,18 +215,54 @@ unmigrate() {
   wait_pwa && say "back on the worktree stack (:8080 200) — release kept for inspection" || die "unmigrate: pwa not up — manual attention"
 }
 
-rollback() {
+rollback() {  # live <-> previous: a second --rollback returns to where you were
   local prev
   prev="$(readlink "$BIF/previous" 2>/dev/null)" || die "no previous release to roll back to"
-  say "rolling back: live -> ${prev#releases/}"
-  switch_to "${prev#releases/}" || die "rollback switch failed — manual attention"
-  gate && say "rolled back, gate GREEN" || die "rolled back but gate still RED — manual attention"
+  say "rolling back"
+  switch_gated "${prev#releases/}"
 }
 
 case "$MODE" in
-  units) seed_env; install_units; exit 0 ;;
-  rollback) rollback; exit $? ;;
+  units) seed_env; backfill_env; install_units; exit 0 ;;
+  list) backfill_env; list_releases; exit 0 ;;
+  rollback) backfill_env; [[ -f "$UNITS/lk-pwa.service.d/live.conf" ]] && grep -q 'live/env' "$UNITS/lk-pwa.service.d/live.conf" || install_units; rollback; exit $? ;;
+  switch)
+    [[ -n "$TARGET" ]] || die "usage: promote.sh --switch <id|label>  (see --list)"
+    backfill_env
+    grep -q 'live/env' "$UNITS/lk-pwa.service.d/live.conf" 2>/dev/null || install_units
+    to="$(resolve "$TARGET")" || exit 1
+    busy="$(in_flight)"
+    [[ -z "$busy" || $FORCE == 1 ]] || die "run(s) in flight ($busy) — wait, or --force"
+    switch_gated "$to"; exit $? ;;
 esac
+
+# --- env-only release: live's frozen build + the current draft env ------------
+if ((ENV_ONLY)); then
+  seed_env; backfill_env
+  src="$(readlink "$BIF/live")" || die "no live release to base an env-only release on"
+  src="${src#releases/}"
+  [[ -n "$(diff -q "$RELS/$src/env/live-pwa.env" "$ENV_DIR/live-pwa.env"; diff -q "$RELS/$src/env/live-agent.env" "$ENV_DIR/live-agent.env")" ]] \
+    || die "draft env in $ENV_DIR equals live's env — nothing to release"
+  ID="$(date +%Y%m%d-%H%M)-${src#*-*-}"; ID="${ID%-env*}-env$(cat "$ENV_DIR"/live-pwa.env "$ENV_DIR"/live-agent.env | sha256sum | cut -c1-6)"
+  REL="$RELS/$ID"; [[ -e "$REL" ]] && die "$REL exists"
+  cp -a --reflink=always "$RELS/$src" "$REL" 2>/dev/null || cp -a "$RELS/$src" "$REL" || die "clone failed"
+  chmod -R u+w "$REL/env" && rm -rf "$REL/env" && freeze_env "$REL" || die "env copy failed"
+  chmod u+w "$REL/RELEASE.json"
+  python3 - "$REL/RELEASE.json" "$ID" "$src" "${LABEL}" <<'EOF'
+import json, sys, time
+p, rid, src, label = sys.argv[1:]
+m = json.load(open(p))
+m.update(id=rid, env_of=rid, cloned_from=src, created=time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+         label=label or (m.get("label", "") + "+env"))
+json.dump(m, open(p, "w"), indent=1)
+EOF
+  chmod a-w "$REL/RELEASE.json"
+  say "built $ID (build of $src, new env $(env_hash "$REL"))"
+  ((BUILD_ONLY)) && { say "--build-only: staged, live untouched"; exit 0; }
+  busy="$(in_flight)"
+  [[ -z "$busy" || $FORCE == 1 ]] || die "run(s) in flight ($busy) — wait, or --force (staged at $REL)"
+  switch_gated "$ID"; exit $?
+fi
 
 # --- build a release -----------------------------------------------------------
 seed_env
@@ -208,14 +323,16 @@ json.dump({
 }, open(sys.argv[1], "w"), indent=1)
 EOF
 chmod a-w "$REL/RELEASE.json"
-say "built $ID · build $BUILD_ID · manifest ${MANIFEST:0:12}"
+freeze_env "$REL" || die "env copy failed"
+say "built $ID · build $BUILD_ID · manifest ${MANIFEST:0:12} · env $(env_hash "$REL")"
 ((BUILD_ONLY)) && { say "--build-only: staged, live untouched"; exit 0; }
 
 # --- switch + gate -------------------------------------------------------------
 busy="$(in_flight)"
 [[ -z "$busy" || $FORCE == 1 ]] || die "run(s) in flight ($busy) — wait, or --force (staged at $REL)"
 PREV="$(readlink "$BIF/live" 2>/dev/null || true)"
-[[ -f "$UNITS/lk-pwa.service.d/live.conf" && -f "$UNITS/lk-agent.service.d/live.conf" ]] || install_units first
+backfill_env
+grep -q 'live/env' "$UNITS/lk-pwa.service.d/live.conf" 2>/dev/null && grep -q 'live/env' "$UNITS/lk-agent.service.d/live.conf" 2>/dev/null || install_units first
 if switch_to "$ID" && gate; then
   [[ -n "$PREV" && "$PREV" != "releases/$ID" ]] && ln -sfn "$PREV" "$BIF/previous.new" && mv -Tf "$BIF/previous.new" "$BIF/previous"
   say "OK — live = $ID (previous: ${PREV#releases/})"

@@ -35,7 +35,17 @@ ENV_DIR = HOME / ".config/bifrost/env"
 RECEIPTS = HOME / ".local/state/bifrost/gate"
 LIVE_UNITS = ("lk-pwa", "lk-agent")
 LAB_UNITS = ("lk-yggdrasil", "bifrost-sandbox", "lk-agent-ygg", "bifrost-bridge", "lk-pwa-lan")
-BRAIN = "http://127.0.0.1:4096"
+BRAIN = "http://127.0.0.1:4096"  # default; a release's env/live-pwa.env OPENCODE_URL wins
+
+
+def release_env(name):
+    """The env the live release declares (env/ inside it since v0.6.1), else the draft dir."""
+    f = LIVE / "env" / name
+    return dotenv(f) if f.exists() else dotenv(ENV_DIR / name)
+
+
+def brain():
+    return (release_env("live-pwa.env").get("OPENCODE_URL") or BRAIN).rstrip("/")
 # source tree hashed into the release manifest (build outputs and state excluded)
 MANIFEST_SKIP = {"node_modules", ".next", ".venv", "__pycache__", "test-results",
                  "playwright-report", ".diag"}
@@ -232,10 +242,23 @@ def check_coherence(worker):
         mark("PASS", "env.agent-name", f"pwa dispatches '{p_name}' = worker registers '{a_name}'")
     else:
         mark("FAIL", "env.agent-name", f"pwa dispatches '{p_name or '(code default)'}' but worker registers '{a_name}' — voice gets no agent")
-    if p_brain == BRAIN and a_brain == BRAIN:
-        mark("PASS", "env.brain", f"pwa + agent both on {BRAIN}")
+    want = brain()
+    if p_brain == want and a_brain == want:
+        mark("PASS", "env.brain", f"pwa + agent both on {want}")
     else:
-        mark("FAIL", "env.brain", f"pwa={p_brain} agent={a_brain} (want both {BRAIN}) — split brain")
+        mark("FAIL", "env.brain", f"pwa={p_brain} agent={a_brain} (want both {want}, the release's brain) — split brain")
+    # the units must run the env the live release carries (switch/rollback swap it)
+    if (LIVE / "env").is_dir():
+        r_pwa, r_agent = release_env("live-pwa.env"), release_env("live-agent.env")
+        drift = [k for k in ("AGENT_NAME", "OPENCODE_URL") if r_pwa.get(k) and penv.get(k) != r_pwa.get(k)]
+        drift += [f"agent:{k}" for k in ("AGENT_NAME", "OPENCODE_URL", "SPEACHES_URL")
+                  if r_agent.get(k) and a_env.get(k) != r_agent.get(k)]
+        if drift:
+            mark("FAIL", "release.env", f"units run a different env than the release's env/ ({', '.join(drift)}) — restart via promote.sh")
+        else:
+            mark("PASS", "release.env", "units run the release's own env/ (switch/rollback carry it)")
+    else:
+        mark("WARN", "release.env", "live release has no env/ (pre-v0.6.1) — run scripts/promote.sh --list to backfill")
     since = unit("lk-agent", "ActiveEnterTimestamp")
     reg = sh(["journalctl", "--user", "-u", "lk-agent", "--since", since or "-1h", "-o", "cat", "--no-pager"], timeout=30)
     names = re.findall(r'"message": "registered worker".*?"agent_name": "([^"]*)"', reg)
@@ -255,8 +278,9 @@ def check_health(a_env):
     else:
         mark("FAIL", "health.pwa", f"/ {st}, css chunk {cst} (ChunkLoadError class)")
     t = time.time()
-    st, _ = http(f"{BRAIN}/session/status", timeout=5)
-    mark("PASS" if st == 200 else "FAIL", "health.brain", f"opencode {BRAIN} {st} in {int((time.time() - t) * 1000)}ms")
+    b = brain()
+    st, _ = http(f"{b}/session/status", timeout=5)
+    mark("PASS" if st == 200 else "FAIL", "health.brain", f"brain {b} {st} in {int((time.time() - t) * 1000)}ms")
     sp = (a_env.get("SPEACHES_URL") or "").rstrip("/")
     root = re.sub(r"(https?://[^/]+).*", r"\1", sp)
     # speaches answers /v1/models; the Mac MLX server only /health (its /v1/models is 404)
@@ -355,7 +379,7 @@ def check_labs(live_name):
 
 def probe_voice(agent_name):
     """The failure class of 10-06: a dispatch nobody answers. Room is created and deleted."""
-    envf = dotenv(ENV_DIR / "live-agent.env") or dotenv(DEV / "agent/.env")
+    envf = release_env("live-agent.env") or dotenv(DEV / "agent/.env")
     rel = LIVE.resolve() if LIVE.is_symlink() else DEV
     py = rel / "agent/.venv/bin/python"
     if not py.exists():

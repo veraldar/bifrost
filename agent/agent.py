@@ -231,7 +231,9 @@ class OpenCodeStream(LLMStream):
 # event at all (pwa/.diag/stt-*.log empty, journal 18:13-18:14). Dev mode
 # already runs inf; this is a single-tenant personal box, so the garbage
 # metric must never gate availability (inf = never unavailable by load).
-server = AgentServer(load_threshold=float("inf"))
+# host: the worker's HTTP (health) server listened on 0.0.0.0:8081 — the
+# whole LAN could probe it. Loopback unless AGENT_HTTP_HOST says otherwise.
+server = AgentServer(load_threshold=float("inf"), host=os.environ.get("AGENT_HTTP_HOST", "127.0.0.1"))
 
 _voice_probe_started = False  # one Mac-endpoint probe task per process
 

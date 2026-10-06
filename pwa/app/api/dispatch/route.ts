@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server';
 import { AgentDispatchClient } from 'livekit-server-sdk';
+import { agentName } from '@/lib/agent-name';
 
-// must match agent/agent.py: @server.rtc_session(agent_name=...)
-// env-driven like api/token: the live lane renames itself (10-06: an
-// unclaimed lab worktree ran agents as 'bifrost' on the shared LiveKit and
-// LiveKit handed live re-arm dispatches to that worker — it died mid-room,
-// room agent-less again. Live = bifrost-live, lab keeps bifrost.)
-const AGENT_NAME = process.env.AGENT_NAME || 'bifrost-live';
+// (10-06: an unclaimed lab worktree ran agents as 'bifrost' on the shared
+// LiveKit and LiveKit handed live re-arm dispatches to that worker — it died
+// mid-room. Live = bifrost-live via env, labs keep bifrost: lib/agent-name.)
 
 // Re-arm the voice agent for a room the phone is ALREADY connected to.
 // A room's dispatch dies with its first agent job; when the phone's link
@@ -46,7 +44,7 @@ export async function POST(req: Request) {
     );
     await new AgentDispatchClient(apiHost, API_KEY, API_SECRET).createDispatch(
       roomName,
-      AGENT_NAME
+      agentName()
     );
   } catch (e) {
     console.error(`agent re-dispatch failed for room ${roomName}:`, e);

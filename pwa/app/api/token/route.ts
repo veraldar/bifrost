@@ -6,11 +6,7 @@ import {
   RoomConfiguration,
   type VideoGrant,
 } from 'livekit-server-sdk';
-
-// must match agent/agent.py: @server.rtc_session(agent_name=...)
-// The agent name is env-driven so the sandbox stack dispatches to its own
-// worker: live = "bifrost", sandbox = "bifrost-ygg" (never random).
-const AGENT_NAME = process.env.AGENT_NAME || 'bifrost';
+import { agentName } from '@/lib/agent-name';
 
 type ConnectionDetails = {
   serverUrl: string;
@@ -89,8 +85,7 @@ export async function POST(req: Request) {
         'http$1:'
       );
       const dispatchClient = new AgentDispatchClient(apiHost, API_KEY, API_SECRET);
-      const dispatchName = process.env.AGENT_NAME || AGENT_NAME;
-      await dispatchClient.createDispatch(roomName, dispatchName);
+      await dispatchClient.createDispatch(roomName, agentName());
     } catch (dispatchError) {
       console.error(`agent dispatch failed for room ${roomName}:`, dispatchError);
     }

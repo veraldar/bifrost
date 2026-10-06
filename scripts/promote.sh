@@ -117,7 +117,18 @@ backfill_env() {
   local r
   for r in "$RELS"/*/; do
     [[ -d "$r/env" ]] || { freeze_env "${r%/}" && say "env backfilled into $(basename "$r") (from $ENV_DIR)"; }
+    link_artifacts "${r%/}"
   done
+}
+# <release>/artifacts -> the served ARTIFACTS_DIR: the release's own e2e suite
+# (gate.py --full) writes fixtures to ../artifacts relative to pwa/
+# and pwa/.env.local -> ../env/live-pwa.env: specs read LiveKit creds from it
+# (same values the unit gets via EnvironmentFile, which wins in Next anyway)
+link_artifacts() {
+  [[ -e "$1/pwa/.env.local" || -L "$1/pwa/.env.local" ]] || ln -s ../env/live-pwa.env "$1/pwa/.env.local"
+  [[ -L "$1/artifacts" ]] && return 0
+  [[ -d "$1/artifacts" ]] && find "$1/artifacts" -maxdepth 1 -type f -name 'e2e-*' -delete && rmdir "$1/artifacts" 2>/dev/null
+  [[ -e "$1/artifacts" ]] || ln -s "$REPO/artifacts" "$1/artifacts"
 }
 env_hash() { cat "$1/env/live-pwa.env" "$1/env/live-agent.env" | sha256sum | cut -c1-8; }
 
@@ -295,6 +306,7 @@ else
   git archive --format=tar "$BASE" pwa agent scripts | tar -x -C "$REL" || die "archive failed"
 fi
 for f in "${STATE_LINKS[@]}"; do ln -sfn "$REPO/pwa/$f" "$REL/pwa/$f"; done
+link_artifacts "$REL"
 
 LOG="$REL/build.log"
 (
@@ -324,6 +336,7 @@ json.dump({
 EOF
 chmod a-w "$REL/RELEASE.json"
 freeze_env "$REL" || die "env copy failed"
+link_artifacts "$REL"
 say "built $ID · build $BUILD_ID · manifest ${MANIFEST:0:12} · env $(env_hash "$REL")"
 ((BUILD_ONLY)) && { say "--build-only: staged, live untouched"; exit 0; }
 

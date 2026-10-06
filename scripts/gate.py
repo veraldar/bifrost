@@ -429,12 +429,31 @@ asyncio.run(main())
         mark("FAIL", "voice.dispatch", f"no agent joined {r['room']} within 20s {r.get('error', '')}")
 
 
+# Lab specs gate their own rung, not the live line: they need a lab service live
+# never runs. They run when that service is up, else SKIP loudly (WARN, not FAIL).
+LAB_SPECS = {  # spec title (grep) -> (port the lab service listens on, what it is)
+    "pair → data-channel session": (18080, "dev bifrost-net bridge (v0.8/v0.9 lane)"),
+}
+
+
 def run_e2e():
     t = time.time()
-    p = subprocess.run(["npx", "playwright", "test", "--reporter=line"], cwd=DEV / "pwa",
-                       capture_output=True, text=True, timeout=1200)
+    ss = sh(["ss", "-ltnH"])
+    skip = [title for title, (port, _) in LAB_SPECS.items() if not re.search(rf":{port}\s", ss)]
+    for title in skip:
+        port, what = LAB_SPECS[title]
+        mark("WARN", "e2e.lab-skip", f"'{title}' skipped — no {what} on :{port}")
+    # the release's OWN tests: the worktree's suite may already expect code that
+    # is not live yet (10-06: a merged spec failed against the older live build)
+    rel = LIVE.resolve() / "pwa" if LIVE.is_symlink() else DEV / "pwa"
+    if not (rel / "e2e").is_dir() or not (rel / "node_modules/.bin/playwright").exists():
+        rel = DEV / "pwa"
+    cmd = ["npx", "playwright", "test", "--reporter=line", "--output", str(RECEIPTS / "e2e-results")]
+    if skip:
+        cmd += ["--grep-invert", "|".join(skip)]  # titles hold no regex metachars
+    p = subprocess.run(cmd, cwd=rel, capture_output=True, text=True, timeout=1200)
     tail = (p.stdout + p.stderr).strip().splitlines()[-3:]
-    mark("PASS" if p.returncode == 0 else "FAIL", "e2e", f"{int(time.time() - t)}s · " + " / ".join(tail))
+    mark("PASS" if p.returncode == 0 else "FAIL", "e2e", f"{int(time.time() - t)}s · suite of {rel.parent.name} · " + " / ".join(tail))
 
 
 def main():

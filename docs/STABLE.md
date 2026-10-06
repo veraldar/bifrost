@@ -50,9 +50,13 @@ Two versions can run at once, each a frozen release:
 
 A different port is a different origin: install it as a second app ("bifrost next");
 it has its own mic permission, notifications and storage, and talks to its own brain.
-HTTPS with the tailnet certificate on :8443 is a secure context — the mic works there
-(verified in Chrome; Android check by the sim's `app.chrome-mic-origin`). What kills the
-mic is **plain http on a LAN address** (diag 10-04: `navigator.mediaDevices` undefined).
+HTTPS with the tailnet certificate on :8443 is a secure context — the mic works there.
+Verified on desktop Chrome and on **Android Chrome 133** (sim cycle 6, `app.chrome-mic-origin`:
+:443 and :8443 both get a live mic track; the prompt names `<host>:8443`). What kills the
+mic is **plain http on a LAN address** (`navigator.mediaDevices` undefined, no prompt —
+same as diag 10-04). Permission is per origin, port included: a saved "Never allow" on
+:8443 blocks it there only. Not provable on an emulator: your phone's Chrome version,
+One UI battery rules, Android's mic privacy toggle — one probe run on the S22 closes it.
 Today the next slot still runs from a worktree (`~/Work/bifrost-sandbox`) — making it a
 frozen release (`promote.sh --slot next`) is the first step of v0.7.
 
@@ -103,7 +107,7 @@ release stays one `--rollback` away; any older one is one `--switch` away.
 | **v0.6.1** | none structural — frozen source committed, agent-name defaults unified, agent HTTP on loopback, releases carry their env + `--list/--switch/--env-only` | e2e `--full` green · 48h of daily use with zero hand fixes |
 | **v0.6.2 speech** | speech-to-text **in-process** in bifrost's voice agent (no STT service); TTS stays a service (Mac MLX, speaches fallback) | WER ≤ today's on the lab fixtures, English **and French** · transcript ≤ 2 s after you stop talking on a 10 s utterance (Mac path today ≈ 0.6 s; Parakeet fp32 on this CPU ≈ 2.2 s — needs int8 or a smaller model) · the model is a path in the release env (a better model = `--env-only`) |
 | **v0.7 tree** | yggdrasil becomes the brain (release env `OPENCODE_URL` → `:4100`); same phone UI, tailnet, LiveKit | first: next slot frozen + one yggdrasil line merged on trunk · every turn ends (reply or explicit error, never a silent hang) · voice mode · tool use · one supervised, backed-up store · a week in the next slot · rollback = `--rollback` (opencode keeps running all week) |
-| **v0.8 bridge + app** | bifrost-net bridge as a second transport, device tokens on; first client = the **Android app** (wrapped PWA + foreground-service mic + native bifrost-net client); tailnet + LiveKit stay as fallback | your phone pairs by QR · text + voice over the bridge with tailscale off · screen-off voice works · revoke kills access on the next request · no unauthenticated listener · sim `bridge.*` + `app.*` green |
+| **v0.8 bridge + app** | bifrost-net bridge as a second transport, device tokens on; first client = the **Android app** (WebView shell landed in `pwa/android`, sim cycle 6; needs a foreground-service mic — Android silences the app's mic ~1 s after screen-off while the page still sees a live track — then a native bifrost-net client; the bridge's 2 blocking workers must go async first: two tool runs push ping 151 ms → 4.3 s); tailnet + LiveKit stay as fallback | your phone pairs by QR · text + voice over the bridge with tailscale off · screen-off voice works · revoke kills access on the next request · no unauthenticated listener · sim `bridge.*` + `app.*` green |
 | **v0.9 goal** | bridge-first, tailscale optional — bifrost + yggdrasil | valid HTTPS without tailscale (or the mic dies — see above) · v0.8 gates on a second phone (iPhone) · clean-box install · a week of use |
 
 Why not jump to v0.9: it would swap the branch, the brain and the transport at once —
@@ -112,9 +116,12 @@ when it breaks nobody can say which part did, and nothing stable sits underneath
 ### Decisions locked 10-06 (user) and why
 - **STT in-process, in bifrost — not in yggdrasil.** The brain stays text-in/text-out,
   so swapping or rolling back the brain (v0.7) never takes speech with it, and the same
-  STT moves into the bridge for v0.9. Cost, measured: this box is CPU-only (AMD iGPU);
-  Parakeet Redux ONNX runs RTF 0.224 here (Mac Qwen3-ASR: 0.060) and is English-only —
-  French needs a multilingual model bench first (lab-voice, `artifacts/lab6-stt-duel.md`).
+  STT moves into the bridge for v0.9. Measured (sim cycle 6, `voice.stt-inprocess`, this
+  CPU-only box): **English passes** — WER parity, ~0.5 s per utterance vs ~5 s for the
+  speaches fallback, 10 s utterance → 1.3 s (gate ≤ 2 s). **French does not yet** — 37%
+  WER in-process vs 18% (multilingual Parakeet v3 int8: 31%); the Mac's Qwen3-ASR is best
+  at French. v0.6.2 waits on a French model that passes (≥10 real human FR fixtures,
+  more candidates); a better model later is an `--env-only` release.
 - **TTS** stays a separate service (Mac MLX now); it may move into yggdrasil later.
 - **Light prompts.** yggdrasil already sends no system prompt and 8 one-line tools — it
   is light. The weight is opencode's own system prompt + these AGENTS.md files. v0.7 gives

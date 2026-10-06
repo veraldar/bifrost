@@ -1,0 +1,169 @@
+{
+  "android": "16",
+  "chrome": "133.0.6943.137",
+  "device": "AVD (emulator, virtual mic = zeros)",
+  "results": [
+    {
+      "addressBar": "<tailnet-host>",
+      "gum": {
+        "label": "Default",
+        "ms": 6515,
+        "muted": false,
+        "ok": true,
+        "readyState": "live",
+        "sampleRate": 48000
+      },
+      "id": "A",
+      "loaded": true,
+      "navError": null,
+      "post": {
+        "getUserMedia": "function",
+        "href": "https://<tailnet-host>/",
+        "isSecureContext": true,
+        "mediaDevices": "object",
+        "origin": "https://<tailnet-host>",
+        "perm": "granted"
+      },
+      "pre": {
+        "getUserMedia": "function",
+        "href": "https://<tailnet-host>/",
+        "isSecureContext": true,
+        "mediaDevices": "object",
+        "origin": "https://<tailnet-host>",
+        "perm": "prompt"
+      },
+      "prompt": {
+        "buttons": [
+          "Allow while visiting the site",
+          "Allow this time",
+          "Never allow"
+        ],
+        "tapped": "Allow while visiting the site",
+        "text": [
+          "<tailnet-host> wants to use your microphone"
+        ]
+      },
+      "promptShot": null,
+      "shot": null,
+      "url": "https://<tailnet-host>/"
+    },
+    {
+      "addressBar": "<tailnet-host>:8443",
+      "gum": {
+        "label": "Default",
+        "ms": 5096,
+        "muted": false,
+        "ok": true,
+        "readyState": "live",
+        "sampleRate": 48000
+      },
+      "id": "B",
+      "loaded": true,
+      "navError": null,
+      "post": {
+        "getUserMedia": "function",
+        "href": "https://<tailnet-host>:8443/",
+        "isSecureContext": true,
+        "mediaDevices": "object",
+        "origin": "https://<tailnet-host>:8443",
+        "perm": "granted"
+      },
+      "pre": {
+        "getUserMedia": "function",
+        "href": "https://<tailnet-host>:8443/",
+        "isSecureContext": true,
+        "mediaDevices": "object",
+        "origin": "https://<tailnet-host>:8443",
+        "perm": "prompt"
+      },
+      "prompt": {
+        "buttons": [
+          "Allow while visiting the site",
+          "Allow this time",
+          "Never allow"
+        ],
+        "tapped": "Allow while visiting the site",
+        "text": [
+          "<tailnet-host>:8443 wants to use your microphone"
+        ]
+      },
+      "promptShot": null,
+      "shot": null,
+      "url": "https://<tailnet-host>:8443/"
+    },
+    {
+      "addressBar": "10.0.2.2:46145",
+      "gum": {
+        "message": "navigator.mediaDevices is undefined",
+        "name": "TypeError",
+        "ok": false
+      },
+      "id": "C",
+      "loaded": true,
+      "navError": null,
+      "post": {
+        "getUserMedia": "undefined",
+        "href": "http://10.0.2.2:46145/",
+        "isSecureContext": false,
+        "mediaDevices": "undefined",
+        "origin": "http://10.0.2.2:46145",
+        "perm": "denied"
+      },
+      "pre": {
+        "getUserMedia": "undefined",
+        "href": "http://10.0.2.2:46145/",
+        "isSecureContext": false,
+        "mediaDevices": "undefined",
+        "origin": "http://10.0.2.2:46145",
+        "perm": "denied"
+      },
+      "prompt": null,
+      "shot": null,
+      "url": "http://10.0.2.2:46145/"
+    },
+    {
+      "addressBar": "localhost:46145",
+      "gum": {
+        "label": "Default",
+        "ms": 3998,
+        "muted": false,
+        "ok": true,
+        "readyState": "live",
+        "sampleRate": 48000
+      },
+      "id": "D",
+      "loaded": true,
+      "navError": null,
+      "post": {
+        "getUserMedia": "function",
+        "href": "http://localhost:46145/",
+        "isSecureContext": true,
+        "mediaDevices": "object",
+        "origin": "http://localhost:46145",
+        "perm": "granted"
+      },
+      "pre": {
+        "getUserMedia": "function",
+        "href": "http://localhost:46145/",
+        "isSecureContext": true,
+        "mediaDevices": "object",
+        "origin": "http://localhost:46145",
+        "perm": "prompt"
+      },
+      "prompt": {
+        "buttons": [
+          "Allow while visiting the site",
+          "Allow this time",
+          "Never allow"
+        ],
+        "tapped": "Allow while visiting the site",
+        "text": [
+          "http://localhost:46145 wants to use your microphone"
+        ]
+      },
+      "promptShot": null,
+      "shot": null,
+      "url": "http://localhost:46145/"
+    }
+  ]
+}

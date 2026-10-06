@@ -77,6 +77,53 @@ scenarios SKIP loudly, never fake.
    reconnect-and-continue; aborts leave clean state; roll-up fires and the
    session keeps working; upstream 500s surface loudly and don't brick.
 
+## v5 — what the sim caught (10-06, cycle 6)
+
+6. **Android Chrome and the port question (answered on Android, not just
+   desktop)**: on Chrome 133 / Android 16 (AVD), `https://<tailnet-host>:8443/`
+   is a secure context. Chrome shows its real prompt ("<host>:8443 wants to
+   use your microphone"), and getUserMedia returns a live track, the same as
+   :443. A port does not kill the mic. What kills it is plain http on a
+   non-loopback address: `navigator.mediaDevices` is undefined and there is
+   no prompt at all. `http://localhost:<port>` is a secure context, which is
+   why the `adb reverse` lab paths work. Two details: the mic permission is
+   **per origin, port included** (B started at `prompt` after A was
+   granted), and the narrow omnibox visually elides `:8443`, even though
+   `location.origin` and the prompt both carry it.
+   (`app.chrome-mic-origin`, receipts `report/chrome-mic-origin.json`.)
+7. **WebView wrap: silent mic loss at screen-off**: Android silences the
+   shell's recorder about 1 s after screen-off (`RecordActivityMonitor …
+   silenced:true`; RECORD_AUDIO is while-in-use). The page cannot see it:
+   the track stays `live` and unmuted, the ScriptProcessor keeps counting
+   frames (zeros), and only `visibilityState` turns `hidden`. The PWA's
+   `bvl` instrumentation (ended/muted) would miss it. On wake the recorder
+   is un-silenced. This resolves native-app-eval's "same Chromium WebView
+   unless a foreground service holds the process — TO-VERIFY" as
+   **confirmed** on the emulator; the S22 confirms it on a real phone.
+8. **WebView has no Web Push and no Notification API** (`PushManager`
+   absent, `typeof Notification === "undefined"`; the service worker API
+   exists). push.ts cannot reach a wrapped app. A native bridge works
+   (`BifrostNative.notify` shows in `dumpsys notification`); remote push
+   while the app is closed needs FCM or UnifiedPush.
+9. **Bridge op pool head-of-line (KNOWN, bifrost-net's lane)**: every
+   data-channel op runs on 2 blocking workers, and a `prompt` op holds one
+   for the whole run (`oc.prompt()` blocks). One running tool: ping 151 ms.
+   Two concurrent tool runs: ping 4313 ms. Every op (transcript, list,
+   ping) waits for a tool to finish, so with long tool runs the phone's
+   channel is dead for minutes. Fix: make the prompt op asynchronous (spawn
+   it like the run.done waiter). The tool loop itself holds over the channel
+   (`bridge.tool-loop`: 3 real tool parts plus finals).
+10. **In-process STT clears the v0.6.2 latency gate on this CPU and is half
+    of the language gate**: same Opus-decoded phone audio, Parakeet Redux
+    ONNX resident in the edge against speaches whisper-small over HTTP.
+    English WER 0% vs 0%; per utterance 476 ms vs 4869 ms; **10 s utterance
+    1280 ms (gate ≤ 2 s)** vs 6229 ms; load 2.1 s; RSS 640 MB. French WER
+    37% vs 18%. Multilingual Parakeet v3 int8 (manual run, not the default):
+    French 31%, 10 s utterance 1611 ms, RSS 1152 MB. So French still needs a
+    better in-process model (or more FR fixtures to prove the gap is not one
+    TTS rendition: the Zurich phrase trips both Parakeets while whisper hears
+    it).
+
 ## Honest limits
 
 - Determinism: the wire's decision function is pure + seeded (m0 checks it);

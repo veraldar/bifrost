@@ -97,6 +97,12 @@ pub fn registry() -> Vec<crate::runner::ScenarioDef> {
             profile: "congested-uplink",
             run: paced_uplink_starved,
         },
+        crate::runner::ScenarioDef {
+            name: "bridge.tool-loop",
+            device: "phone",
+            profile: "phone-cell",
+            run: tool_loop_bridge,
+        },
     ]
 }
 
@@ -1171,4 +1177,149 @@ fn paced_uplink_starved() -> (Verdict, Metrics) {
         }
         Err(e) => (Verdict::Fail(format!("paced uplink could not carry a turn: {e}")), m),
     }
+}
+
+
+/// tool parts + assistant texts out of a bridge `transcript` reply
+fn bridge_transcript(raw: &str) -> (Vec<String>, Vec<String>, usize) {
+    let v: Value = serde_json::from_str(raw).unwrap_or(Value::Null);
+    let msgs = v["messages"].as_array().cloned().unwrap_or_default();
+    let mut tools = vec![];
+    let mut texts = vec![];
+    let mut with_role = 0;
+    for msg in &msgs {
+        if msg["role"].is_string() || msg["info"]["role"].is_string() {
+            with_role += 1;
+        }
+        for p in msg["parts"].as_array().cloned().unwrap_or_default() {
+            if p["type"] == "tool" {
+                tools.push(format!(
+                    "{}:{}:{}",
+                    p["tool"].as_str().unwrap_or("?"),
+                    p["state"]["status"].as_str().unwrap_or("?"),
+                    p["state"]["output"].as_str().unwrap_or("").trim()
+                ));
+            } else if p["type"] == "text" {
+                texts.push(p["text"].as_str().unwrap_or("").to_string());
+            }
+        }
+    }
+    (tools, texts, with_role)
+}
+
+/// The agent tool loop driven entirely over the phone's WebRTC data channel
+/// (v2's rest.tool-loop × the bridge): prompt op → real bash tools executed
+/// by the real yggdrasil loop → tool parts readable through the transcript
+/// op. Then liveness: the channel must keep answering while tools run (the
+/// bridge serves ops from 2 blocking workers; a prompt holds one for the
+/// whole run).
+fn tool_loop_bridge() -> (Verdict, Metrics) {
+    let mut m = Metrics::new();
+    let world = match world_with_bridge() {
+        Ok(w) => w,
+        Err(e) => return (Verdict::Fail(format!("world: {e}")), m),
+    };
+    let (token, b) = world_bridge(&world);
+    let mut c = match SimClient::connect(b.http, b.media, &token, profile_phone(), 0xB20) {
+        Ok(c) => c,
+        Err(e) => return (Verdict::Fail(format!("connect: {e}")), m),
+    };
+    let sid_of = |raw: &str| {
+        serde_json::from_str::<Value>(raw)
+            .ok()
+            .and_then(|v| v.get("id").and_then(|i| i.as_str()).map(String::from))
+    };
+    let mk = |c: &mut SimClient, req: u64, name: &str| -> Result<String, String> {
+        let r = c.roundtrip(req, &serde_json::json!({"op":"session.create","req":req,"name":name}).to_string(), Duration::from_secs(12))?;
+        sid_of(&r).ok_or(format!("no session id: {r}"))
+    };
+    let s1 = match mk(&mut c, 1, "sim bridge tools") {
+        Ok(s) => s,
+        Err(e) => return (Verdict::Fail(format!("session.create: {e}")), m),
+    };
+    let prompt = |req: u64, id: &str, text: &str| serde_json::json!({"op":"prompt","req":req,"id":id,"text":text}).to_string();
+
+    // 1. one tool call over the channel
+    let t0 = Instant::now();
+    match c.roundtrip(2, &prompt(2, &s1, "tool:echo bridge-v5"), Duration::from_secs(30)) {
+        Ok(r) if r.contains("\"accepted\":true") => {}
+        Ok(r) => return (Verdict::Fail(format!("prompt op not accepted: {r}")), m),
+        Err(e) => return (Verdict::Fail(format!("prompt op: {e}")), m),
+    }
+    let one_ms = t0.elapsed().as_millis() as u64;
+    // 2. two calls in one step
+    let t1 = Instant::now();
+    if let Err(e) = c.roundtrip(3, &prompt(3, &s1, "tool:twice wire"), Duration::from_secs(30)) {
+        return (Verdict::Fail(format!("twice prompt op: {e}")), m);
+    }
+    let two_ms = t1.elapsed().as_millis() as u64;
+    let tr = match c.roundtrip(4, &serde_json::json!({"op":"transcript","req":4,"id":s1}).to_string(), Duration::from_secs(10)) {
+        Ok(t) => t,
+        Err(e) => return (Verdict::Fail(format!("transcript op: {e}")), m),
+    };
+    let (tools, texts, with_role) = bridge_transcript(&tr);
+    let outputs_ok = ["bridge-v5", "wire-1", "wire-2"].iter().all(|w| tools.iter().any(|t| t.contains("completed") && t.ends_with(w)));
+    if !outputs_ok {
+        return (Verdict::Fail(format!("tool parts over the channel missing real outputs: {tools:?}")), m);
+    }
+    if !texts.iter().any(|t| t.contains("TOOL-FINAL: bridge-v5")) || !texts.iter().any(|t| t.contains("TOOL-FINAL: wire-2")) {
+        return (Verdict::Fail(format!("tool loop finals missing from the transcript op: {texts:?}")), m);
+    }
+
+    // 3. liveness while ONE slow tool runs (1 of 2 workers busy)
+    let s2 = match mk(&mut c, 5, "sim bridge tools 2") {
+        Ok(s) => s,
+        Err(e) => return (Verdict::Fail(format!("session.create 2: {e}")), m),
+    };
+    if let Err(e) = c.send(&prompt(6, &s1, "tool:sleep 5")) {
+        return (Verdict::Fail(format!("slow prompt send: {e}")), m);
+    }
+    std::thread::sleep(Duration::from_millis(700));
+    let busy1 = match c.ping_rtt(7) {
+        Ok(d) => d.as_millis() as u64,
+        Err(e) => return (Verdict::Fail(format!("ping with one tool running: {e}")), m),
+    };
+    // 4. saturation: a second slow tool in another session (2 of 2 busy)
+    if let Err(e) = c.send(&prompt(8, &s2, "tool:sleep 5")) {
+        return (Verdict::Fail(format!("second slow prompt send: {e}")), m);
+    }
+    std::thread::sleep(Duration::from_millis(700));
+    let sat = c.ping_rtt(9).map(|d| d.as_millis() as u64).unwrap_or(8000);
+    // the slow run in s1 must land its completed sleep part (the transcript
+    // op itself queues until a worker frees — that wait is the law above)
+    let r10 = c
+        .roundtrip(10, &serde_json::json!({"op":"transcript","req":10,"id":s1}).to_string(), Duration::from_secs(15))
+        .unwrap_or_default();
+    let (tools_after, _, _) = bridge_transcript(&r10);
+    m = m
+        .lat("one-call", one_ms)
+        .lat("two-call", two_ms)
+        .lat("ping-1-tool-busy", busy1)
+        .lat("ping-2-tools-busy", sat)
+        .cnt("tool-parts", tools.len() as u64)
+        .cnt("msgs-with-role", with_role as u64);
+    if !tools_after.iter().any(|t| t.starts_with("bash:completed")) {
+        return (Verdict::Fail(format!("slow tool never completed: {tools_after:?}")), m);
+    }
+    if busy1 > 1500 {
+        return (Verdict::Fail(format!("channel stalled with ONE tool running: ping {busy1}ms")), m);
+    }
+    let role_note = if with_role == 0 {
+        " · transcript op carries NO message roles (bridge MessageInfo reads top-level `role`, yggdrasil/opencode put it in `info.role` — the phone cannot tell user from assistant over the channel; same bug zeroes assistant_count, a 2nd cause of the run.done KNOWN)"
+    } else {
+        ""
+    };
+    if sat > 2000 {
+        return (
+            Verdict::KnownIssue(format!(
+                "tool loop over the channel holds (one-call {one_ms}ms, {} tool parts with real outputs + finals) BUT head-of-line: the bridge serves every op from 2 blocking workers and a prompt op holds one for the whole run — 2 concurrent tool runs stall ping to {sat}ms (1 busy: {busy1}ms). Fix belongs in bifrost-net (prompt op async, like its run.done waiter){role_note}",
+                tools.len()
+            )),
+            m,
+        );
+    }
+    if with_role == 0 {
+        return (Verdict::KnownIssue(format!("tool loop + liveness hold{role_note}")), m);
+    }
+    (Verdict::Pass, m)
 }

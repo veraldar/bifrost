@@ -71,6 +71,8 @@ pub struct ScenarioResult {
     pub verdict: Verdict,
     pub metrics: Metrics,
     pub headline: String,
+    /// SLO budget checks (src/slo.rs) — already applied to `verdict`
+    pub slo: Vec<crate::slo::SloCheck>,
 }
 
 pub struct ScenarioDef {
@@ -117,13 +119,17 @@ pub fn collect(only: Option<&str>) -> MatrixRun {
         let (verdict, metrics) = (def.run)();
         let wall = s0.elapsed().as_millis() as u64;
         let headline = metrics.headline();
+        // green = within budget, not just finished
+        let slo = crate::slo::check(def.name, &metrics);
+        let verdict = crate::slo::apply(verdict, &slo);
         println!(
-            "{:<28} {:<8} {:<11} {:<9} {:<44} {:>5}s",
+            "{:<28} {:<8} {:<11} {:<9} {:<36} {:<16} {:>5}s",
             def.name,
             def.device,
             def.profile,
             verdict.tag(),
             headline,
+            crate::slo::cell(&slo),
             wall / 1000
         );
         results.push(ScenarioResult {
@@ -133,8 +139,11 @@ pub fn collect(only: Option<&str>) -> MatrixRun {
             verdict,
             metrics,
             headline,
+            slo,
         });
     }
+    // the app family may have booted the sim's own AVD (a child) — stop it
+    crate::app::shutdown_emulator();
     MatrixRun { seed, results }
 }
 
@@ -150,8 +159,18 @@ pub fn summarize(run: &MatrixRun) -> (usize, usize, usize, usize, usize) {
         "MATRIX: {} ran · {pass} pass · {brk} break-as-expected · {known} known-issue · {skip} skip · {fail} FAIL",
         results.len()
     );
+    let (held, total, over) = slo_tally(run);
+    println!("SLO: {held}/{total} budgets held · {over} over product target (targets never fail a run)");
     write_report(run);
     (pass, brk, known, skip, fail)
+}
+
+/// (budgets held, budgets checked, over-target count) across the run
+pub fn slo_tally(run: &MatrixRun) -> (usize, usize, usize) {
+    let all: Vec<&crate::slo::SloCheck> = run.results.iter().flat_map(|r| r.slo.iter()).collect();
+    let held = all.iter().filter(|c| c.within()).count();
+    let over = all.iter().filter(|c| c.on_target() == Some(false)).count();
+    (held, all.len(), over)
 }
 
 pub fn run_matrix(only: Option<&str>) -> i32 {
@@ -335,6 +354,7 @@ pub fn run_cycle() -> i32 {
         "sim_version": sim_version(),
         "ran": run.results.len(),
         "pass": pass, "break_ok": brk, "known": known, "skip": skip, "fail": fail,
+        "slo": { "held": slo_tally(&run).0, "checked": slo_tally(&run).1, "over_target": slo_tally(&run).2 },
         "wall_s": t0.elapsed().as_secs(),
         "scenarios": [],
     });
@@ -345,6 +365,7 @@ pub fn run_cycle() -> i32 {
             "profile": r.profile,
             "verdict": r.verdict.tag(),
             "headline": r.headline,
+            "slo": r.slo.iter().map(|c| c.json()).collect::<Vec<_>>(),
         }));
     }
     let _ = std::fs::write(
@@ -352,6 +373,8 @@ pub fn run_cycle() -> i32 {
         serde_json::to_string_pretty(&json).unwrap(),
     );
 
+    let (held, checked, over) = slo_tally(&run);
+    digest_lines.push(format!("SLO {held}/{checked} budgets held, {over} over target"));
     println!("CYCLE {this_n} vs {prev_n}: {}", digest_lines.join(" · "));
     println!(
         "pairing: app {} ↔ sim {} (ledger-enforced)",
@@ -378,7 +401,7 @@ fn write_report(run: &MatrixRun) {    let results = &run.results;
     md.push_str(&format!(
         "# ygg-sim matrix report\n\nseed `{seed:#x}` · hermetic world (real yggdrasil + real bifrost-net bridge children, deterministic mock upstream)\n\n",
     ));
-    md.push_str("| scenario | device | profile | verdict | metrics |\n|---|---|---|---|---|\n");
+    md.push_str("| scenario | device | profile | verdict | SLO | metrics |\n|---|---|---|---|---|---|\n");
     for r in results {
         let note = match &r.verdict {
             Verdict::Pass => r.metrics.headline(),
@@ -388,19 +411,29 @@ fn write_report(run: &MatrixRun) {    let results = &run.results;
             Verdict::Fail(why) => format!("**FAIL — {why}**"),
         };
         md.push_str(&format!(
-            "| {} | {} | {} | {} | {} |\n",
+            "| {} | {} | {} | {} | {} | {} |\n",
             r.name,
             r.device,
             r.profile,
             r.verdict.tag(),
+            crate::slo::cell(&r.slo),
             note
         ));
     }
     for r in results {
-        if r.metrics.latencies_ms.len() > 1 || r.metrics.counters.len() > 1 {
+        if r.metrics.latencies_ms.len() > 1 || r.metrics.counters.len() > 1 || !r.slo.is_empty() {
             md.push_str(&format!("\n### {}\n\n", r.name));
             for (l, v) in &r.metrics.latencies_ms {
-                md.push_str(&format!("- {l}: {v}ms\n"));
+                let budget = r
+                    .slo
+                    .iter()
+                    .find(|c| c.metric == l)
+                    .map(|c| {
+                        let tgt = c.target_ms.map(|t| format!(", target ≤{t}ms{}", if c.on_target() == Some(false) { " ✗" } else { "" })).unwrap_or_default();
+                        format!(" (budget ≤{}ms{}{tgt})", c.budget_ms, if c.within() { " ✓" } else { " ✗" })
+                    })
+                    .unwrap_or_default();
+                md.push_str(&format!("- {l}: {v}ms{budget}\n"));
             }
             for (l, v) in &r.metrics.counters {
                 md.push_str(&format!("- {l}: {v}\n"));
@@ -416,6 +449,7 @@ fn write_report(run: &MatrixRun) {    let results = &run.results;
             "device": r.device,
             "profile": r.profile,
             "verdict": r.verdict.tag(),
+            "slo": r.slo.iter().map(|c| c.json()).collect::<Vec<_>>(),
             "latencies_ms": r.metrics.latencies_ms,
             "counters": r.metrics.counters,
         }));

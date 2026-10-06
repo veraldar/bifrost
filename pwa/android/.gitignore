@@ -1,0 +1,6 @@
+# build outputs (the APK is built, never committed)
+app/build/
+*.apk
+*.dex
+*.keystore
+*.jks

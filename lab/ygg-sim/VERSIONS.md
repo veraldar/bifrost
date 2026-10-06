@@ -159,3 +159,165 @@ app-version pairing: app 0.6.0 ↔ sim 0.3.0
 (install+pair first, then push + hot-reload over the tunnel, background-audio
 on a local emulator — UDP media needs it); plus v2 carryovers
 (paced-reference, anthropic dialect, abort-mid-tool, metric-drift watch).
+
+---
+
+## v4 — dialects, tool aborts, and the paced A/B (landed 10-06, commit 0def4c5)
+
+**Proposal (mined from v3)**: paced-reference A/B for the bandwidth law;
+anthropic dialect; abort-mid-tool; metric-drift watch in the cycle. (App.*
+flip stayed pending — the wrap APK has not landed; app stays 0.6.0.)
+
+**Delivered** (all four):
+- `bridge.paced-uplink-starved` PASS — the A/B that closes the bandwidth-law
+  analysis: same-class 64 kbps pipe, capped UPLINK, where the client paces at
+  20ms/frame → the turn completes and the bridge HEARS the sentence (STT
+  ground truth). Paired with v2's `bandwidth-starved` (35% unpaced burst):
+  **the pipe fits paced audio; only the bridge's unpaced burst fails** — write
+  pattern, not capacity. (Note: starved uplink stretches the turn to ~50s —
+  the drip is real; recorded as the law's cost.)
+- `rest.abort-mid-tool` PASS — a REAL slow tool (bash sleep 6) executing when
+  abort lands: abort 4ms, busy map clears within ~2s (not the sleep's
+  duration), session survives (post-abort turn echoes).
+- `rest.anthropic-dialect` PASS — yggdrasil spawned with
+  YGG_UPSTREAM_STYLE=anthropic against the mock's /v1/messages: block-SSE
+  turns, exact echoes, a forced roll-up crossing IN the dialect
+  (MOCK-SUMMARY landed), and a dialect counter proving the upstream really
+  spoke anthropic (≥5 calls). Mock maps anthropic→OpenAI shape and reuses the
+  same reply logic (the proven mock_upstream.py move) — equal histories, equal
+  replies, two dialects.
+- Metric-drift watch — cycle digest now flags same-scenario headline numbers
+  moving >2× across cycles; first catch immediately: link-flap recovery
+  1148ms → 136ms (one congested cycle-4 run; a signal to watch, not a bug).
+
+**Cycle evidence** (`report/cycles/cycle-5.json`):
+
+```
+MATRIX: 27 ran · 20 pass · 2 break-as-expected · 1 known-issue · 4 skip · 0 FAIL
+CYCLE 5 VALID — green-except-documented
+```
+
+**Delta vs v3**: 24 → **27 scenarios** (+3), +1 profile
+(congested-uplink), +1 cycle digest (drift watch), 0 FAIL. One in-build fix:
+the dialect marathon needed the roll-up threshold set (v3's marathon lesson,
+re-applied).
+
+app-version pairing: app 0.6.0 ↔ sim 0.4.0
+
+**Mined for v5**:
+1. Wrap lane lands → flip app.* live (standing order; only the APK is
+   missing — adb host + booted AVD already found).
+2. Tool loop over the BRIDGE data channel (prompt op + transcript polling +
+   tool parts over WebRTC) — the two covered surfaces combined.
+3. SLO budgets on the board: explicit per-scenario latency budgets (turn ≤ Ns,
+   ping ≤ Nms) so "green" means "within budget", not just "finished".
+4. Bifrost-net's lane (not sim): the run.done starvation KNOWN and the no-BWE
+   law both have fixes queued upstream — the sim flips their verdicts the
+   moment those land.
+
+> Ledger repair (v5): this v4 section was written to a stray untracked
+> `~/Work/bifrost/VERSIONS.md` instead of this file, so the evolution rule
+> kept reading the v3 pairing (`sim 0.3.0`). Restored here verbatim; the
+> stray copy is left for its owner to delete.
+
+
+---
+
+## v5 — the app lands, the mic question answered, budgets, STT in-process (landed 10-06)
+
+**Proposal (mined from v4 + the 10-06 order "evolution of simulations + an
+Android app with more control on bifrost-net")**, in priority order:
+1. `app.chrome-mic-origin`: does Android Chrome open the mic on
+   https :8443 (the user's "a port kills the mic" claim)?
+2. The wrap APK lands, so the 4 `app.*` scenarios flip from SKIP to live.
+3. Tool loop over the bridge data channel, plus SLO budgets per scenario.
+4. STT in-process (inside the voice edge, not a service): a lane that
+   anticipates the decision.
+
+**Delivered** (all four):
+- **Toolchain without root**: `pwa/android/setup-sdk.sh` installs JDK 21,
+  the SDK, the android-36 google_apis x86_64 image and the AVD `ygg-sim`,
+  all in user space. This box has /dev/kvm, so the sim boots its OWN
+  headless AVD as a child (cold boot about 60 s) and shuts it down with
+  `adb emu kill` at the end of the matrix. The Mac's sshd refused
+  connections this cycle, so the local host replaced the ssh-mac lane.
+- **`app.chrome-mic-origin` PASS**: Chrome 133 / Android 16, real prompt
+  tapped through uiautomator, no fake-UI flag. A https:443 and B
+  https:8443 are both secure contexts, and gUM returns a live track. The
+  prompt reads "<host>:8443 wants to use your microphone". C (plain http
+  on a non-loopback address) has `navigator.mediaDevices` undefined and no
+  prompt. D (http://localhost) is a secure context. B's permission started
+  at `prompt` after A was granted: per origin, port included. Verdict: **a
+  port does not kill the mic on Android Chrome; plain http does.**
+- **The wrap APK**: `pwa/android`, a WebView shell hand-built with no
+  Gradle (aapt2/javac/d8/apksigner, 21 KB). It holds RECORD_AUDIO, grants
+  the paired origin only, pairs via deep link (native verify against the
+  bridge `/offer`), uses the PWA's localStorage token contract, and adds
+  `BifrostNative.notify`. All 4 `app.*` scenarios now run live:
+  install-pair PASS, hot-reload PASS, push-notification BREAK-OK (WebView
+  has no Web Push), background-audio BREAK-OK (the OS silences the mic at
+  screen-off, and the page cannot see it). The FGS + native bifrost-net
+  design note is in `pwa/android/README.md`.
+- **`bridge.tool-loop` KNOWN (new law)**: the agent tool loop runs entirely
+  over the data channel (prompt op → real bash tools → 3 tool parts with
+  real outputs + finals through the transcript op). But the bridge's
+  2-worker op pool stalls every op while 2 tool runs are in flight (ping
+  151 ms → 4313 ms). The fix belongs to bifrost-net (async prompt op).
+- **SLO budgets** (`src/slo.rs`): every latency gets a budget (≈2× the
+  worst value seen in cycles 1–5) and, where a product goal exists, a
+  target. A PASS over budget, or with a budgeted metric missing, becomes a
+  FAIL. Targets never fail a run but show "over target" on the board. The
+  digest records budgets held and over-target counts. Unit-tested.
+- **`voice.stt-inprocess` KNOWN (v0.6.2 gate rehearsal)**: the `SttEngine`
+  seam (`src/stt.rs`) with a service (speaches) and an in-process engine
+  (`voice/stt_edge.py`: onnx-asr + Parakeet Redux resident in the edge
+  process), on the same Opus-decoded phone audio. English is at parity
+  (WER 0/0), 10× faster per utterance (≈0.5 s vs ≈5 s), **10 s utterance
+  ≈1.3 s, inside the ≤ 2 s gate**. French misses parity (37% vs 18%;
+  multilingual Parakeet v3 int8 tried: 31%). The scenario flips to PASS
+  when an in-process model matches on French.
+
+**Cycle evidence** (`report/cycles/cycle-6.json`, seed 0xc0ffee, wall 423 s;
+the sim booted its own AVD in 35 s and shut it down at the end):
+
+```
+MATRIX: 30 ran · 23 pass · 4 break-as-expected · 3 known-issue · 0 skip · 0 FAIL
+SLO: 44/45 budgets held · 4 over product target
+CYCLE 6 VALID — green-except-documented (23 pass / 4 break / 3 known / 0 skip)
+```
+
+Digest: 4 verdict shifts (app.install-pair and app.hot-reload SKIP → PASS;
+app.push-notification and app.background-audio SKIP → BREAK-OK), +3
+scenarios, one drift flag (paced-uplink-starved 50.7 s → 19.5 s, 0.4×: the
+starved uplink drip varies a lot run to run; worth watching, no verdict
+change). How to read the SLO tally: the single budget miss is
+`bridge.prompt-run-done` (KNOWN, 20 s through the 120 s-timeout path).
+Budgets only bite PASS verdicts, so it is reported, not failed. The 4
+over-target metrics are the three voice turns (13–18 s against a proposed
+8–10 s; CPU speaches) and the bridge HOL ping (4.3 s against 0.5 s).
+
+**Delta vs v4**: 27 → **30 scenarios** (+3), 4 SKIPs → 0 (the app family is
+live), +1 family (`voice.*`), +1 quality gate (SLO budgets/targets on 45
+metrics), +2 laws (bridge op HOL; WebView silent mic loss), the item-1
+answer, 0 FAIL. Unit tests 11 → 14. One ledger repair (the v4 section
+restored, see above).
+
+app-version pairing: app 0.6.0 ↔ sim 0.5.0
+
+**Mined for v6**:
+1. The real phone lane: run `chrome-mic-origin` and `background-audio`
+   against the owner's S22 over adb (wireless debugging on the tailnet).
+   That covers what the emulator cannot: the real mic, One UI battery and
+   Doze, the owner's saved per-origin permissions, current Chrome.
+2. Native shell rung (v0.8 "bridge + app"): a microphone foreground
+   service in `pwa/android`, which should flip `app.background-audio` to
+   PASS, then `app.bridge-native` (the Rust bifrost-net client over JNI
+   holding the data channel with the screen off).
+3. The in-process French gate: ≥ 10 FR fixtures, including real human
+   audio from the voice-lab corpus, not one TTS voice; candidates
+   multilingual Parakeet v3 (fp32 vs int8), Canary, whisper-ort. Also
+   concurrency (two speakers at once) and RSS under load. Then the Rust
+   in-process engine (sherpa-onnx) behind the same `SttEngine` seam.
+4. Track bifrost-net's fix queue: prompt-op HOL (async prompt), the
+   run.done baseline, and pacing/BWE. Each flips a KNOWN or BREAK-OK the
+   moment it lands, and is held to budget from that cycle on.

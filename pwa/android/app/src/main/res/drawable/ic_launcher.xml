@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- bifrost: a bridge arc over a dark field -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp" android:height="48dp"
+    android:viewportWidth="48" android:viewportHeight="48">
+    <path android:fillColor="#FF14161C" android:pathData="M4,4h40v40h-40z" />
+    <path android:strokeColor="#FF7FD1FF" android:strokeWidth="4"
+        android:pathData="M10,34 C14,16 34,16 38,34" />
+</vector>

@@ -19,7 +19,9 @@ mod m0;
 mod rng;
 mod runner;
 mod scenarios;
+mod slo;
 mod speech;
+mod stt;
 mod wire;
 mod world;
 

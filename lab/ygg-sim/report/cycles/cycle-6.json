@@ -1,14 +1,15 @@
 {
+  "app_version": "0.6.0",
+  "break_ok": 4,
+  "cycle": 6,
+  "fail": 0,
+  "known": 3,
+  "pass": 23,
+  "ran": 30,
   "scenarios": [
     {
-      "counters": [],
       "device": "desktop",
-      "latencies_ms": [
-        [
-          "turn",
-          51
-        ]
-      ],
+      "headline": "turn 51ms",
       "name": "rest.text-roundtrip",
       "profile": "home",
       "slo": [
@@ -24,18 +25,8 @@
       "verdict": "PASS"
     },
     {
-      "counters": [],
       "device": "desktop",
-      "latencies_ms": [
-        [
-          "abort",
-          6
-        ],
-        [
-          "post-abort-turn",
-          35
-        ]
-      ],
+      "headline": "abort 6ms",
       "name": "rest.abort-mid-run",
       "profile": "home",
       "slo": [
@@ -59,14 +50,8 @@
       "verdict": "PASS"
     },
     {
-      "counters": [],
       "device": "phone",
-      "latencies_ms": [
-        [
-          "turn",
-          99
-        ]
-      ],
+      "headline": "turn 99ms",
       "name": "rest.refresh-reread",
       "profile": "phone-cell",
       "slo": [
@@ -82,35 +67,8 @@
       "verdict": "PASS"
     },
     {
-      "counters": [
-        [
-          "rollups",
-          2
-        ]
-      ],
       "device": "desktop",
-      "latencies_ms": [
-        [
-          "turn-0",
-          2867
-        ],
-        [
-          "turn-1",
-          2911
-        ],
-        [
-          "turn-2",
-          2871
-        ],
-        [
-          "post-rollup-turn",
-          36
-        ],
-        [
-          "total",
-          8665
-        ]
-      ],
+      "headline": "turn-0 2867ms",
       "name": "rest.marathon-rollup",
       "profile": "home",
       "slo": [
@@ -142,18 +100,8 @@
       "verdict": "PASS"
     },
     {
-      "counters": [],
       "device": "desktop",
-      "latencies_ms": [
-        [
-          "recovery-turn",
-          36
-        ],
-        [
-          "recover-total",
-          36
-        ]
-      ],
+      "headline": "recovery-turn 36ms",
       "name": "rest.upstream-down",
       "profile": "home",
       "slo": [
@@ -169,22 +117,8 @@
       "verdict": "PASS"
     },
     {
-      "counters": [],
       "device": "desktop",
-      "latencies_ms": [
-        [
-          "one-call",
-          41
-        ],
-        [
-          "two-call",
-          85
-        ],
-        [
-          "total",
-          126
-        ]
-      ],
+      "headline": "one-call 41ms",
       "name": "rest.tool-loop",
       "profile": "home",
       "slo": [
@@ -208,30 +142,8 @@
       "verdict": "PASS"
     },
     {
-      "counters": [],
       "device": "desktop×4",
-      "latencies_ms": [
-        [
-          "turn-0",
-          11
-        ],
-        [
-          "turn-1",
-          12
-        ],
-        [
-          "turn-2",
-          12
-        ],
-        [
-          "turn-3",
-          10
-        ],
-        [
-          "wall-4-parallel",
-          18
-        ]
-      ],
+      "headline": "turn-0 11ms",
       "name": "rest.parallel-sessions",
       "profile": "home",
       "slo": [
@@ -247,18 +159,8 @@
       "verdict": "PASS"
     },
     {
-      "counters": [],
       "device": "desktop",
-      "latencies_ms": [
-        [
-          "abort",
-          4
-        ],
-        [
-          "post-abort-turn",
-          37
-        ]
-      ],
+      "headline": "abort 4ms",
       "name": "rest.abort-mid-tool",
       "profile": "home",
       "slo": [
@@ -282,23 +184,8 @@
       "verdict": "PASS"
     },
     {
-      "counters": [
-        [
-          "anthropic-calls",
-          7
-        ]
-      ],
       "device": "desktop",
-      "latencies_ms": [
-        [
-          "turn-1",
-          13
-        ],
-        [
-          "turn-2",
-          98
-        ]
-      ],
+      "headline": "turn-1 13ms",
       "name": "rest.anthropic-dialect",
       "profile": "home",
       "slo": [
@@ -322,32 +209,16 @@
       "verdict": "PASS"
     },
     {
-      "counters": [],
       "device": "desktop",
-      "latencies_ms": [],
+      "headline": "",
       "name": "bridge.auth",
       "profile": "home",
       "slo": [],
       "verdict": "PASS"
     },
     {
-      "counters": [
-        [
-          "wire-drops",
-          0
-        ]
-      ],
       "device": "phone",
-      "latencies_ms": [
-        [
-          "ping-avg",
-          149
-        ],
-        [
-          "ping-max",
-          166
-        ]
-      ],
+      "headline": "ping-avg 149ms",
       "name": "bridge.data-roundtrip",
       "profile": "phone-cell",
       "slo": [
@@ -371,14 +242,8 @@
       "verdict": "PASS"
     },
     {
-      "counters": [],
       "device": "phone",
-      "latencies_ms": [
-        [
-          "run",
-          20002
-        ]
-      ],
+      "headline": "run 20002ms",
       "name": "bridge.prompt-run-done",
       "profile": "phone-cell",
       "slo": [
@@ -394,23 +259,8 @@
       "verdict": "KNOWN"
     },
     {
-      "counters": [
-        [
-          "tts-delivered-%",
-          100
-        ],
-        [
-          "stt-hits",
-          3
-        ]
-      ],
       "device": "phone",
-      "latencies_ms": [
-        [
-          "voice-turn",
-          17767
-        ]
-      ],
+      "headline": "voice-turn 17767ms",
       "name": "bridge.handsfree-round",
       "profile": "phone-cell",
       "slo": [
@@ -426,27 +276,8 @@
       "verdict": "PASS"
     },
     {
-      "counters": [
-        [
-          "tts-delivered-%",
-          88
-        ],
-        [
-          "stt-hits",
-          2
-        ],
-        [
-          "wire-drops",
-          56
-        ]
-      ],
       "device": "phone",
-      "latencies_ms": [
-        [
-          "voice-turn",
-          18207
-        ]
-      ],
+      "headline": "voice-turn 18207ms",
       "name": "bridge.poor-network-turn",
       "profile": "poor-cell",
       "slo": [
@@ -462,19 +293,8 @@
       "verdict": "PASS"
     },
     {
-      "counters": [
-        [
-          "survive-4s",
-          1
-        ]
-      ],
       "device": "phone",
-      "latencies_ms": [
-        [
-          "recover-2s",
-          151
-        ]
-      ],
+      "headline": "recover-2s 151ms",
       "name": "bridge.link-flap",
       "profile": "poor-cell",
       "slo": [
@@ -490,54 +310,24 @@
       "verdict": "PASS"
     },
     {
-      "counters": [
-        [
-          "rebind-survived",
-          0
-        ]
-      ],
       "device": "phone",
-      "latencies_ms": [],
+      "headline": "rebind-survived 0",
       "name": "bridge.nat-rebind",
       "profile": "phone-cell",
       "slo": [],
       "verdict": "BREAK-OK"
     },
     {
-      "counters": [],
       "device": "phone+desktop",
-      "latencies_ms": [],
+      "headline": "",
       "name": "bridge.multi-device",
       "profile": "phone-cell",
       "slo": [],
       "verdict": "PASS"
     },
     {
-      "counters": [
-        [
-          "tts-delivered-%",
-          98
-        ]
-      ],
       "device": "phone",
-      "latencies_ms": [
-        [
-          "keyboard-cycle",
-          5626
-        ],
-        [
-          "ping-keyboard",
-          166
-        ],
-        [
-          "voice-turn",
-          13049
-        ],
-        [
-          "ping-after-voice",
-          136
-        ]
-      ],
+      "headline": "keyboard-cycle 5626ms",
       "name": "bridge.mode-switch",
       "profile": "phone-cell",
       "slo": [
@@ -577,18 +367,8 @@
       "verdict": "PASS"
     },
     {
-      "counters": [],
       "device": "phone",
-      "latencies_ms": [
-        [
-          "fresh-connect",
-          1047
-        ],
-        [
-          "idle-after-death",
-          1048
-        ]
-      ],
+      "headline": "fresh-connect 1047ms",
       "name": "bridge.abort-mid-turn",
       "profile": "phone-cell",
       "slo": [
@@ -612,14 +392,8 @@
       "verdict": "PASS"
     },
     {
-      "counters": [],
       "device": "phone",
-      "latencies_ms": [
-        [
-          "reconnect",
-          4
-        ]
-      ],
+      "headline": "reconnect 4ms",
       "name": "bridge.reconnect-after-switch",
       "profile": "phone-cell",
       "slo": [
@@ -635,23 +409,8 @@
       "verdict": "PASS"
     },
     {
-      "counters": [
-        [
-          "received-frames",
-          504
-        ],
-        [
-          "delivered-%",
-          98
-        ]
-      ],
       "device": "phone",
-      "latencies_ms": [
-        [
-          "essay-turn",
-          21480
-        ]
-      ],
+      "headline": "essay-turn 21480ms",
       "name": "bridge.tts-paragraphs",
       "profile": "phone-cell",
       "slo": [
@@ -667,31 +426,8 @@
       "verdict": "PASS"
     },
     {
-      "counters": [
-        [
-          "tts-delivered-%",
-          35
-        ],
-        [
-          "stt-hits",
-          1
-        ],
-        [
-          "rev-drops",
-          169
-        ]
-      ],
       "device": "phone",
-      "latencies_ms": [
-        [
-          "voice-turn",
-          17985
-        ],
-        [
-          "post-burst-ping",
-          196
-        ]
-      ],
+      "headline": "voice-turn 17985ms",
       "name": "bridge.bandwidth-starved",
       "profile": "congested-cell",
       "slo": [
@@ -707,27 +443,8 @@
       "verdict": "BREAK-OK"
     },
     {
-      "counters": [
-        [
-          "tts-delivered-%",
-          98
-        ],
-        [
-          "stt-hits",
-          3
-        ],
-        [
-          "uplink-drops",
-          15
-        ]
-      ],
       "device": "phone",
-      "latencies_ms": [
-        [
-          "voice-turn",
-          19506
-        ]
-      ],
+      "headline": "voice-turn 19506ms",
       "name": "bridge.paced-uplink-starved",
       "profile": "congested-uplink",
       "slo": [
@@ -743,35 +460,8 @@
       "verdict": "PASS"
     },
     {
-      "counters": [
-        [
-          "tool-parts",
-          3
-        ],
-        [
-          "msgs-with-role",
-          4
-        ]
-      ],
       "device": "phone",
-      "latencies_ms": [
-        [
-          "one-call",
-          181
-        ],
-        [
-          "two-call",
-          196
-        ],
-        [
-          "ping-1-tool-busy",
-          151
-        ],
-        [
-          "ping-2-tools-busy",
-          4329
-        ]
-      ],
+      "headline": "one-call 181ms",
       "name": "bridge.tool-loop",
       "profile": "phone-cell",
       "slo": [
@@ -811,63 +501,8 @@
       "verdict": "KNOWN"
     },
     {
-      "counters": [
-        [
-          "wer-inproc-%",
-          0
-        ],
-        [
-          "wer-service-%",
-          0
-        ],
-        [
-          "wer-10s-inproc-%",
-          0
-        ],
-        [
-          "wer-fr-inproc-%",
-          37
-        ],
-        [
-          "wer-fr-service-%",
-          18
-        ],
-        [
-          "edge-rss-mb",
-          607
-        ],
-        [
-          "audio-ms-median",
-          2140
-        ],
-        [
-          "audio-ms-long",
-          10200
-        ]
-      ],
       "device": "edge",
-      "latencies_ms": [
-        [
-          "stt-utterance",
-          479
-        ],
-        [
-          "model-load",
-          2354
-        ],
-        [
-          "service-utterance",
-          4881
-        ],
-        [
-          "stt-10s-utterance",
-          1302
-        ],
-        [
-          "service-10s-utterance",
-          6075
-        ]
-      ],
+      "headline": "stt-utterance 479ms",
       "name": "voice.stt-inprocess",
       "profile": "cpu",
       "slo": [
@@ -899,43 +534,8 @@
       "verdict": "KNOWN"
     },
     {
-      "counters": [
-        [
-          "A-gum-ok",
-          1
-        ],
-        [
-          "B-gum-ok",
-          1
-        ],
-        [
-          "C-mediaDevices-undefined",
-          1
-        ],
-        [
-          "D-gum-ok",
-          1
-        ],
-        [
-          "B-perm-inherited-from-A",
-          0
-        ]
-      ],
       "device": "android",
-      "latencies_ms": [
-        [
-          "gum-B-8443",
-          5096
-        ],
-        [
-          "gum-A-443",
-          6515
-        ],
-        [
-          "probe-wall",
-          42638
-        ]
-      ],
+      "headline": "gum-B-8443 5096ms",
       "name": "app.chrome-mic-origin",
       "profile": "adb",
       "slo": [
@@ -959,23 +559,8 @@
       "verdict": "PASS"
     },
     {
-      "counters": [
-        [
-          "verify-status",
-          400
-        ]
-      ],
       "device": "android",
-      "latencies_ms": [
-        [
-          "pair-verify",
-          1974
-        ],
-        [
-          "token-in-page",
-          2955
-        ]
-      ],
+      "headline": "pair-verify 1974ms",
       "name": "app.install-pair",
       "profile": "adb",
       "slo": [
@@ -999,27 +584,8 @@
       "verdict": "PASS"
     },
     {
-      "counters": [
-        [
-          "web-push-api",
-          0
-        ],
-        [
-          "web-notification-api",
-          0
-        ],
-        [
-          "service-worker-api",
-          1
-        ]
-      ],
       "device": "android",
-      "latencies_ms": [
-        [
-          "notify-visible",
-          1763
-        ]
-      ],
+      "headline": "notify-visible 1763ms",
       "name": "app.push-notification",
       "profile": "adb",
       "slo": [
@@ -1035,35 +601,8 @@
       "verdict": "BREAK-OK"
     },
     {
-      "counters": [
-        [
-          "js-beacons-off",
-          18
-        ],
-        [
-          "mic-frames-off",
-          194
-        ],
-        [
-          "os-silenced-off",
-          1
-        ],
-        [
-          "page-saw-loss",
-          0
-        ],
-        [
-          "recovered-on-wake",
-          1
-        ]
-      ],
       "device": "android",
-      "latencies_ms": [
-        [
-          "gum-live",
-          3614
-        ]
-      ],
+      "headline": "gum-live 3614ms",
       "name": "app.background-audio",
       "profile": "adb",
       "slo": [
@@ -1079,14 +618,8 @@
       "verdict": "BREAK-OK"
     },
     {
-      "counters": [],
       "device": "android",
-      "latencies_ms": [
-        [
-          "relaunch-to-v2",
-          1651
-        ]
-      ],
+      "headline": "relaunch-to-v2 1651ms",
       "name": "app.hot-reload",
       "profile": "adb",
       "slo": [
@@ -1102,5 +635,13 @@
       "verdict": "PASS"
     }
   ],
-  "seed": "0xc0ffee"
+  "seed": "0xc0ffee",
+  "sim_version": "0.5.0",
+  "skip": 0,
+  "slo": {
+    "checked": 45,
+    "held": 44,
+    "over_target": 4
+  },
+  "wall_s": 423
 }

@@ -27,6 +27,37 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+/** Debris retention: abandoned first-runs pile up (22 in one day). Every new
+ *  start sweeps onboarding-* sessions older than an hour. MAIN is never
+ *  touched (the brain refuses deletes for it anyway). */
+async function sweepStaleOnboardings(): Promise<number> {
+  try {
+    const sessions = (await ocFetch('/session')) as {
+      id: string;
+      title?: string;
+      time?: { created?: number };
+    }[];
+    const cutoff = Date.now() - 3_600_000;
+    const stale = sessions.filter(
+      (s) =>
+        (s.title || '').startsWith('onboarding-') &&
+        (s.time?.created || 0) < cutoff
+    );
+    let n = 0;
+    for (const s of stale) {
+      try {
+        await ocFetch(`/session/${s.id}`, { method: 'DELETE' } as RequestInit);
+        n++;
+      } catch {
+        /* a session that refuses to die stays — best-effort sweep */
+      }
+    }
+    return n;
+  } catch {
+    return 0;
+  }
+}
+
 type Sess = { id: string; title?: string };
 
 // one MAIN, ever: concurrent completions (two tabs, a double poll) share the
@@ -68,6 +99,7 @@ export async function POST(req: Request) {
     };
 
     if (body.step === 'start') {
+      void sweepStaleOnboardings();
       const title = `${ONBOARD_PREFIX}-${Date.now().toString(36)}`;
       const s = (await ocFetch('/session', {
         method: 'POST',

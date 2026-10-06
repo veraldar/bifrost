@@ -74,6 +74,31 @@ async function agentInRoom(room: Room, ms: number) {
   }
 }
 
+/** An agent-less room that still looks connected: the dispatch dies with
+ *  the first agent job, and a network flap makes the SDK self-reconnect
+ *  into a fresh server-side room WITHOUT re-minting a token — so no
+ *  dispatch exists there and every agentInRoom wait runs out (diag
+ *  2026-10-06 14:35: hands-free then tap-to-send both failed 'voice agent
+ *  missing' while lk-agent was healthy; the next page load healed it by
+ *  minting a fresh dispatch). Recovery: ask the PWA to dispatch the agent
+ *  into the room we are ALREADY in (no re-dial — the link was the flaky
+ *  part) and wait one more window. Returns the agent, or null so the
+ *  caller surfaces the lk-agent error — which is then the true diagnosis. */
+async function rearmAgent(room: Room, ms: number) {
+  diagEvent('voice', `room ${room.name} agent-less — re-arming dispatch`);
+  try {
+    const r = await fetch('/api/dispatch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room: room.name }),
+    });
+    if (!r.ok) return null;
+  } catch {
+    return null;
+  }
+  return agentInRoom(room, ms);
+}
+
 /** Live mic equalizer — 5 voice-band bars (100Hz–2kHz) from the published
  *  mic track's FFT. Shared by the PTT hold pill and the hands-free strip;
  *  the track may not exist yet (dial still in progress), so poll for it and
@@ -1041,12 +1066,16 @@ export default function SessionView({
         // alone — if the voice agent never joined (lk-agent down, dispatch
         // lost), surface it instead of faking it (2026-09-25: the animation
         // ran for minutes with nobody transcribing)
-        window.setTimeout(() => {
+        window.setTimeout(async () => {
           if (unmountedRef.current || modeRef.current !== 'free') return;
-          if (roomRef.current === room && room.remoteParticipants.size === 0) {
-            diagEvent('voice-fail', 'hands-free: no voice agent in the room after 10s');
-            setError('voice agent missing from the room — is lk-agent running? tap the mic button to retry');
-          }
+          if (roomRef.current !== room || room.remoteParticipants.size > 0) return;
+          // the dispatch may have died with the first agent job (network-flap
+          // self-reconnect) — re-arm into this room before blaming lk-agent
+          const agent = await rearmAgent(room, 10_000);
+          if (unmountedRef.current || modeRef.current !== 'free') return;
+          if (agent || roomRef.current !== room || room.remoteParticipants.size > 0) return;
+          diagEvent('voice-fail', 'hands-free: no voice agent in the room after 10s (+re-arm)');
+          setError('voice agent missing from the room — is lk-agent running? tap the mic button to retry');
         }, 10_000);
       }
     } catch {
@@ -1239,14 +1268,19 @@ export default function SessionView({
     try {
       // the agent may still be joining (press right after a page reload) —
       // wait it out instead of dropping the commit into an empty room
-      const agent = await agentInRoom(room, 4_000);
+      let agent = await agentInRoom(room, 4_000);
+      if (!agent) {
+        // dispatch may have died with the first agent job (network-flap
+        // self-reconnect) — re-arm into this room before blaming lk-agent
+        agent = await rearmAgent(room, 10_000);
+      }
       if (pttWantRef.current) {
         // a newer hold began while we waited — ITS release owns the commit
         // now; flushing here would cut the new hold's audio mid-sentence
         return;
       }
       if (!agent) {
-        diagEvent('voice-fail', 'commit: no voice agent in the room after 4s');
+        diagEvent('voice-fail', 'commit: no voice agent in the room after 4s (+re-arm)');
         setError('voice agent missing from the room — is lk-agent running? try again in a moment');
         setBusy(false);
         return;
@@ -1714,9 +1748,14 @@ export default function SessionView({
     setBusy(true); // cleared when the run state settles (see poller)
     armRunWatch();
     try {
-      const agent = await agentInRoom(room, 4_000);
+      let agent = await agentInRoom(room, 4_000);
       if (!agent) {
-        diagEvent('voice-fail', 'tap-to-send: no voice agent in the room after 4s');
+        // dispatch may have died with the first agent job (network-flap
+        // self-reconnect) — re-arm into this room before blaming lk-agent
+        agent = await rearmAgent(room, 10_000);
+      }
+      if (!agent) {
+        diagEvent('voice-fail', 'tap-to-send: no voice agent in the room after 4s (+re-arm)');
         setError('voice agent missing from the room — is lk-agent running? try again in a moment');
         setBusy(false);
         return;

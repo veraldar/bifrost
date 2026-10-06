@@ -1,0 +1,695 @@
+(export 
+  (version "D")
+  (design
+    (source "skidl_devices.py")
+    (date "10/06/2026 07:01 AM")
+    (tool "SKiDL (2.3.0)")
+    (sheet
+      (number 1)
+      (name "/")
+      (tstamps "/")
+      (title_block
+        (title)
+        (company)
+        (rev)
+        (date)
+        (source "../../skidl_devices.py")
+        (comment
+          (number "1")
+          (value ""))
+        (comment
+          (number "2")
+          (value ""))
+        (comment
+          (number "3")
+          (value ""))
+        (comment
+          (number "4")
+          (value ""))
+        (comment
+          (number "5")
+          (value ""))
+        (comment
+          (number "6")
+          (value ""))
+        (comment
+          (number "7")
+          (value ""))
+        (comment
+          (number "8")
+          (value ""))
+        (comment
+          (number "9")
+          (value "")))))
+  (components
+    (comp
+      (ref "#FLG1")
+      (value "PWR_FLAG")
+      (description "Special symbol for telling ERC where power comes from")
+      (footprint "")
+      (fields
+        (field
+          (name "Description") "Special symbol for telling ERC where power comes from")
+        (field
+          (name "Footprint"))
+        (field
+          (name "Datasheet") "~")
+        (field
+          (name "SKiDL Tag") "4SWgxbp5wL")
+        (field
+          (name "SKiDL Line") "skidl_devices.py:157"))
+      (libsource
+        (lib "power")
+        (part "PWR_FLAG"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "1c73f4f3-4548-56c4-9273-f9a0f193951c"))
+    (comp
+      (ref "#PWR1")
+      (value "GND")
+      (description "Power symbol creates a global label with name \"GND\" , ground")
+      (footprint "")
+      (fields
+        (field
+          (name "Description") "Power symbol creates a global label with name \"GND\" , ground")
+        (field
+          (name "Footprint"))
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "gfyWuOlUIK")
+        (field
+          (name "SKiDL Line") "skidl_devices.py:158"))
+      (libsource
+        (lib "power")
+        (part "GND"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "c93bf5f1-6197-5352-bbbb-6b7ae9472f08"))
+    (comp
+      (ref "#PWR2")
+      (value "+3V3")
+      (description "Power symbol creates a global label with name \"+3V3\"")
+      (footprint "")
+      (fields
+        (field
+          (name "Description") "Power symbol creates a global label with name \"+3V3\"")
+        (field
+          (name "Footprint"))
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "lEZhWC0VbW")
+        (field
+          (name "SKiDL Line") "skidl_devices.py:159"))
+      (libsource
+        (lib "power")
+        (part "+3V3"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "766e2db0-b471-56ef-a93f-c2fc307ea8a9"))
+    (comp
+      (ref "C1")
+      (value "10uF")
+      (description "Unpolarized capacitor")
+      (footprint "Capacitor_SMD:C_0805_2012Metric")
+      (fields
+        (field
+          (name "Description") "Unpolarized capacitor")
+        (field
+          (name "Footprint") "Capacitor_SMD:C_0805_2012Metric")
+        (field
+          (name "Datasheet") "~")
+        (field
+          (name "SKiDL Tag") "YD2lzP8Kr0")
+        (field
+          (name "SKiDL Line") "skidl_devices.py:149"))
+      (libsource
+        (lib "Device")
+        (part "C"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "bad82b7a-fc41-5a61-9b32-3dd5a046ee98"))
+    (comp
+      (ref "C2")
+      (value "100nF")
+      (description "Unpolarized capacitor")
+      (footprint "Resistor_SMD:R_0603_1608Metric")
+      (fields
+        (field
+          (name "Description") "Unpolarized capacitor")
+        (field
+          (name "Footprint") "Resistor_SMD:R_0603_1608Metric")
+        (field
+          (name "Datasheet") "~")
+        (field
+          (name "SKiDL Tag") "TKR9R28Ucj")
+        (field
+          (name "SKiDL Line") "skidl_devices.py:149"))
+      (libsource
+        (lib "Device")
+        (part "C"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "fcebd295-8004-57fb-8861-2c159db7a9d7"))
+    (comp
+      (ref "C3")
+      (value "100nF")
+      (description "Unpolarized capacitor")
+      (footprint "Resistor_SMD:R_0603_1608Metric")
+      (fields
+        (field
+          (name "Description") "Unpolarized capacitor")
+        (field
+          (name "Footprint") "Resistor_SMD:R_0603_1608Metric")
+        (field
+          (name "Datasheet") "~")
+        (field
+          (name "SKiDL Tag") "sw196LjsBj")
+        (field
+          (name "SKiDL Line") "skidl_devices.py:149"))
+      (libsource
+        (lib "Device")
+        (part "C"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "1f9ba7da-d524-5091-83e6-47fea22c9837"))
+    (comp
+      (ref "D1")
+      (value "PWR")
+      (description "Light emitting diode")
+      (footprint "LED_SMD:LED_0603_1608Metric")
+      (fields
+        (field
+          (name "Description") "Light emitting diode")
+        (field
+          (name "Footprint") "LED_SMD:LED_0603_1608Metric")
+        (field
+          (name "Datasheet") "~")
+        (field
+          (name "SKiDL Tag") "qIPXIhVnO8")
+        (field
+          (name "SKiDL Line") "skidl_devices.py:48"))
+      (libsource
+        (lib "Device")
+        (part "LED"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "55efda4b-eb15-5caf-ba42-6c2885e34282"))
+    (comp
+      (ref "J1")
+      (value "PROG")
+      (description "Generic connector, single row, 01x05, script generated (kicad-library-utils/schlib/autogen/connector/)")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical")
+      (fields
+        (field
+          (name "Description") "Generic connector, single row, 01x05, script generated (kicad-library-utils/schlib/autogen/connector/)")
+        (field
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical")
+        (field
+          (name "Datasheet") "~")
+        (field
+          (name "SKiDL Tag") "n2MXP5Ik8w")
+        (field
+          (name "SKiDL Line") "skidl_devices.py:42"))
+      (libsource
+        (lib "Connector_Generic")
+        (part "Conn_01x05"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "fcfaa8b3-225a-502f-a4af-349712881714"))
+    (comp
+      (ref "J2")
+      (value "LOAD_SHUNT")
+      (description "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical")
+      (fields
+        (field
+          (name "Description") "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+        (field
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical")
+        (field
+          (name "Datasheet") "~")
+        (field
+          (name "SKiDL Tag") "fpveVb7xO4")
+        (field
+          (name "SKiDL Line") "skidl_devices.py:151"))
+      (libsource
+        (lib "Connector_Generic")
+        (part "Conn_01x02"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "f510aa08-9425-5f3e-a887-c893dd339a98"))
+    (comp
+      (ref "J3")
+      (value "CUTOFF_RELAY")
+      (description "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical")
+      (fields
+        (field
+          (name "Description") "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+        (field
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical")
+        (field
+          (name "Datasheet") "~")
+        (field
+          (name "SKiDL Tag") "DllJpkzYyE")
+        (field
+          (name "SKiDL Line") "skidl_devices.py:153"))
+      (libsource
+        (lib "Connector_Generic")
+        (part "Conn_01x02"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "5127295c-7847-5ce0-9000-8e0bed2aeb5b"))
+    (comp
+      (ref "J4")
+      (value "5V_IN")
+      (description "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+      (footprint "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical")
+      (fields
+        (field
+          (name "Description") "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)")
+        (field
+          (name "Footprint") "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical")
+        (field
+          (name "Datasheet") "~")
+        (field
+          (name "SKiDL Tag") "2THLAKchFC")
+        (field
+          (name "SKiDL Line") "skidl_devices.py:155"))
+      (libsource
+        (lib "Connector_Generic")
+        (part "Conn_01x02"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "0129b061-2607-5f05-8b2e-da29b58489ff"))
+    (comp
+      (ref "R1")
+      (value "1k")
+      (description "Resistor")
+      (footprint "Resistor_SMD:R_0603_1608Metric")
+      (fields
+        (field
+          (name "Description") "Resistor")
+        (field
+          (name "Footprint") "Resistor_SMD:R_0603_1608Metric")
+        (field
+          (name "Datasheet") "~")
+        (field
+          (name "SKiDL Tag") "6PrX5f6LXt")
+        (field
+          (name "SKiDL Line") "skidl_devices.py:47"))
+      (libsource
+        (lib "Device")
+        (part "R"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "20bef65d-aa9d-5bea-ad48-ca08243f0616"))
+    (comp
+      (ref "R2")
+      (value "10k")
+      (description "Resistor")
+      (footprint "Resistor_SMD:R_0603_1608Metric")
+      (fields
+        (field
+          (name "Description") "Resistor")
+        (field
+          (name "Footprint") "Resistor_SMD:R_0603_1608Metric")
+        (field
+          (name "Datasheet") "~")
+        (field
+          (name "SKiDL Tag") "P5_HT64hBL")
+        (field
+          (name "SKiDL Line") "skidl_devices.py:53"))
+      (libsource
+        (lib "Device")
+        (part "R"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "09f6cf43-a2db-5af7-b988-124d2adaeea7"))
+    (comp
+      (ref "R3")
+      (value "10k")
+      (description "Resistor")
+      (footprint "Resistor_SMD:R_0603_1608Metric")
+      (fields
+        (field
+          (name "Description") "Resistor")
+        (field
+          (name "Footprint") "Resistor_SMD:R_0603_1608Metric")
+        (field
+          (name "Datasheet") "~")
+        (field
+          (name "SKiDL Tag") "gsHcWO7AwJ")
+        (field
+          (name "SKiDL Line") "skidl_devices.py:53"))
+      (libsource
+        (lib "Device")
+        (part "R"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "d6ae500f-c129-537e-923b-741f85b33c9b"))
+    (comp
+      (ref "R4")
+      (value "10k")
+      (description "Resistor")
+      (footprint "Resistor_SMD:R_0603_1608Metric")
+      (fields
+        (field
+          (name "Description") "Resistor")
+        (field
+          (name "Footprint") "Resistor_SMD:R_0603_1608Metric")
+        (field
+          (name "Datasheet") "~")
+        (field
+          (name "SKiDL Tag") "LkXaj0ykmm")
+        (field
+          (name "SKiDL Line") "skidl_devices.py:53"))
+      (libsource
+        (lib "Device")
+        (part "R"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "d343a0bb-80b1-5b40-b3b0-b18aa83af98d"))
+    (comp
+      (ref "R5")
+      (value "0.1R")
+      (description "Shunt resistor")
+      (footprint "Resistor_SMD:R_Shunt_Vishay_WSK2512")
+      (fields
+        (field
+          (name "Description") "Shunt resistor")
+        (field
+          (name "Footprint") "Resistor_SMD:R_Shunt_Vishay_WSK2512")
+        (field
+          (name "Datasheet") "~")
+        (field
+          (name "SKiDL Tag") "am1Jkr8RfK")
+        (field
+          (name "SKiDL Line") "skidl_devices.py:146"))
+      (libsource
+        (lib "Device")
+        (part "R_Shunt"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "98e3d9b5-68a3-5aee-bf92-1ab6ec91019e"))
+    (comp
+      (ref "U1")
+      (value "ESP32-C3-WROOM-02-N4")
+      (description "802.11 b/g/n WiÂ­Fi and Bluetooth 5 module, ESP32Â­C3 SoC, RISCÂ­V microprocessor, On-board antenna")
+      (footprint "RF_Module:ESP32-C3-WROOM-02")
+      (fields
+        (field
+          (name "Description") "802.11 b/g/n WiÂ­Fi and Bluetooth 5 module, ESP32Â­C3 SoC, RISCÂ­V microprocessor, On-board antenna")
+        (field
+          (name "Footprint") "RF_Module:ESP32-C3-WROOM-02")
+        (field
+          (name "Datasheet") "https://www.espressif.com/sites/default/files/documentation/esp32-c3-wroom-02_datasheet_en.pdf")
+        (field
+          (name "SKiDL Tag") "UwlP9ptzPQ")
+        (field
+          (name "SKiDL Line") "skidl_devices.py:33"))
+      (libsource
+        (lib "RF_Module")
+        (part "ESP32-C3-WROOM-02"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "9e7ea36c-06c2-58c3-9d8c-61a097b68734"))
+    (comp
+      (ref "U2")
+      (value "INA226")
+      (description "36V bidirectional current/power monitor, I2C")
+      (footprint "")
+      (fields
+        (field
+          (name "Description") "36V bidirectional current/power monitor, I2C")
+        (field
+          (name "Footprint"))
+        (field
+          (name "Datasheet"))
+        (field
+          (name "SKiDL Tag") "O1ijT1ZlGS")
+        (field
+          (name "SKiDL Line") "skidl_devices.py:139"))
+      (libsource
+        (lib "NO_LIB")
+        (part "INA226"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "e4185729-622b-5a92-9f03-35079496539c"))
+    (comp
+      (ref "U3")
+      (value "ME6211C33M5")
+      (description "500mA low dropout linear regulator, shutdown pin, 6.5V max input voltage, 3.3V fixed positive output, SOT-23-5")
+      (footprint "Package_TO_SOT_SMD:SOT-23-5")
+      (fields
+        (field
+          (name "Description") "500mA low dropout linear regulator, shutdown pin, 6.5V max input voltage, 3.3V fixed positive output, SOT-23-5")
+        (field
+          (name "Footprint") "Package_TO_SOT_SMD:SOT-23-5")
+        (field
+          (name "Datasheet") "https://www.lcsc.com/datasheet/lcsc_datasheet_2304140030_MICRONE-Nanjing-Micro-One-Elec-ME6211C33R5G_C235316.pdf")
+        (field
+          (name "SKiDL Tag") "Q6j7owa4NT")
+        (field
+          (name "SKiDL Line") "skidl_devices.py:144"))
+      (libsource
+        (lib "Regulator_Linear")
+        (part "ME6211C33M5"))
+      (sheetpath
+        (names "/")
+        (tstamps "/"))
+      (tstamps "15ffcd95-05cc-5037-924a-a54e40e31f58")))
+  (nets
+    (net
+      (code 1)
+      (name "+3V3")
+      (node
+        (ref "C2")
+        (pin "1"))
+      (node
+        (ref "J1")
+        (pin "1"))
+      (node
+        (ref "R1")
+        (pin "1"))
+      (node
+        (ref "R2")
+        (pin "1"))
+      (node
+        (ref "R3")
+        (pin "1"))
+      (node
+        (ref "R4")
+        (pin "1"))
+      (node
+        (ref "U1")
+        (pin "1"))
+      (node
+        (ref "U3")
+        (pin "5")))
+    (net
+      (code 2)
+      (name "CUTOFF_TRIG")
+      (node
+        (ref "J3")
+        (pin "1"))
+      (node
+        (ref "U1")
+        (pin "5")))
+    (net
+      (code 3)
+      (name "EN")
+      (node
+        (ref "R2")
+        (pin "2"))
+      (node
+        (ref "U1")
+        (pin "2")))
+    (net
+      (code 4)
+      (name "GND")
+      (node
+        (ref "C1")
+        (pin "2"))
+      (node
+        (ref "C2")
+        (pin "2"))
+      (node
+        (ref "C3")
+        (pin "2"))
+      (node
+        (ref "D1")
+        (pin "2"))
+      (node
+        (ref "J1")
+        (pin "2"))
+      (node
+        (ref "J3")
+        (pin "2"))
+      (node
+        (ref "J4")
+        (pin "2"))
+      (node
+        (ref "U1")
+        (pin "19"))
+      (node
+        (ref "U1")
+        (pin "9"))
+      (node
+        (ref "U2")
+        (pin "7"))
+      (node
+        (ref "U2")
+        (pin "8"))
+      (node
+        (ref "U2")
+        (pin "9"))
+      (node
+        (ref "U3")
+        (pin "2")))
+    (net
+      (code 5)
+      (name "INA_ALERT")
+      (node
+        (ref "U1")
+        (pin "4"))
+      (node
+        (ref "U2")
+        (pin "3")))
+    (net
+      (code 6)
+      (name "IO9_BOOT")
+      (node
+        (ref "J1")
+        (pin "5"))
+      (node
+        (ref "U1")
+        (pin "8")))
+    (net
+      (code 7)
+      (name "N$1")
+      (node
+        (ref "D1")
+        (pin "1"))
+      (node
+        (ref "R1")
+        (pin "2")))
+    (net
+      (code 8)
+      (name "NC_IO4")
+      (node
+        (ref "U1")
+        (pin "3")))
+    (net
+      (code 9)
+      (name "SCL")
+      (node
+        (ref "R4")
+        (pin "2"))
+      (node
+        (ref "U1")
+        (pin "15"))
+      (node
+        (ref "U2")
+        (pin "5")))
+    (net
+      (code 10)
+      (name "SDA")
+      (node
+        (ref "R3")
+        (pin "2"))
+      (node
+        (ref "U1")
+        (pin "16"))
+      (node
+        (ref "U2")
+        (pin "6")))
+    (net
+      (code 11)
+      (name "SHUNT_HI")
+      (node
+        (ref "J2")
+        (pin "1"))
+      (node
+        (ref "R5")
+        (pin "1"))
+      (node
+        (ref "R5")
+        (pin "2"))
+      (node
+        (ref "U2")
+        (pin "1")))
+    (net
+      (code 12)
+      (name "SHUNT_LO")
+      (node
+        (ref "J2")
+        (pin "2"))
+      (node
+        (ref "R5")
+        (pin "3"))
+      (node
+        (ref "R5")
+        (pin "4"))
+      (node
+        (ref "U2")
+        (pin "2")))
+    (net
+      (code 13)
+      (name "UART_RX")
+      (node
+        (ref "J1")
+        (pin "4"))
+      (node
+        (ref "U1")
+        (pin "11")))
+    (net
+      (code 14)
+      (name "UART_TX")
+      (node
+        (ref "J1")
+        (pin "3"))
+      (node
+        (ref "U1")
+        (pin "12")))
+    (net
+      (code 15)
+      (name "VIN_5V")
+      (node
+        (ref "C1")
+        (pin "1"))
+      (node
+        (ref "C3")
+        (pin "1"))
+      (node
+        (ref "J4")
+        (pin "1"))
+      (node
+        (ref "U2")
+        (pin "4"))
+      (node
+        (ref "U3")
+        (pin "1"))
+      (node
+        (ref "U3")
+        (pin "3")))))

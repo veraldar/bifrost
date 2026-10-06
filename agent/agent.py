@@ -297,9 +297,31 @@ async def entrypoint(ctx: JobContext) -> None:
             )
         await asyncio.sleep(0.25)
     else:
-        logger.warning("another agent still in room '%s' after 20s — shutting down", ctx.room.name)
-        ctx.shutdown("duplicate agent")
-        return
+        # 10-06 20:59: two FRESH jobs landed in 'main-veraldar' together (the
+        # phone double-connected) and EACH saw the other as 'the previous
+        # agent' — both shut down, room agent-less. Yielding must be ORDERED,
+        # not reflexive: the smallest identity stays, the rest yield — both
+        # sides compute the same order, so exactly one survives.
+        siblings = [
+            p.identity
+            for p in ctx.room.remote_participants.values()
+            if p.identity != human_identity
+        ]
+        my_id = ctx.room.local_participant.identity
+        if siblings and my_id > min(siblings):
+            logger.warning(
+                "another agent still in room '%s' after 20s — yielding (ordered, %s > %s)",
+                ctx.room.name,
+                my_id,
+                min(siblings),
+            )
+            ctx.shutdown("duplicate agent")
+            return
+        logger.warning(
+            "sibling agent persisted in room '%s' — I am primary (%s), proceeding",
+            ctx.room.name,
+            my_id,
+        )
 
     def _end_job_with_session(_ev) -> None:
         # start() returns immediately, so the job would otherwise outlive its

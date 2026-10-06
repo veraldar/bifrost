@@ -2,7 +2,11 @@ import { NextResponse } from 'next/server';
 import { AgentDispatchClient } from 'livekit-server-sdk';
 
 // must match agent/agent.py: @server.rtc_session(agent_name=...)
-const AGENT_NAME = 'bifrost';
+// env-driven like api/token: the live lane renames itself (10-06: an
+// unclaimed lab worktree ran agents as 'bifrost' on the shared LiveKit and
+// LiveKit handed live re-arm dispatches to that worker — it died mid-room,
+// room agent-less again. Live = bifrost-live, lab keeps bifrost.)
+const AGENT_NAME = process.env.AGENT_NAME || 'bifrost-live';
 
 // Re-arm the voice agent for a room the phone is ALREADY connected to.
 // A room's dispatch dies with its first agent job; when the phone's link

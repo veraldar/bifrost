@@ -308,7 +308,7 @@ class OpenCodeStream(LLMStream):
 server = AgentServer()
 
 
-@server.rtc_session(agent_name="bifrost")
+@server.rtc_session(agent_name=os.environ.get("AGENT_NAME", "bifrost"))
 async def entrypoint(ctx: JobContext) -> None:
     _api_key = "not-needed"
     # interaction mode published by the phone as participant metadata
@@ -620,4 +620,10 @@ if __name__ == "__main__":
     port = os.environ.get("AGENT_HTTP_PORT")
     if port:
         server._port = int(port)
+    # the cgroup cpu monitor on this box flaps the load metric (impossible
+    # delta warnings) -> brief "unavailable" windows eat dispatches; a lab
+    # pin near 1.0 keeps the worker dispatchable
+    lt = os.environ.get("AGENT_LOAD_THRESHOLD")
+    if lt:
+        server._load_threshold = float(lt)
     cli.run_app(server)

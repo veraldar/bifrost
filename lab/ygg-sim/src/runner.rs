@@ -228,6 +228,17 @@ fn check_evolution_rule() -> Result<(), String> {
         None => Ok(()), // no app version visible → nothing to track yet
     }
 }
+/// trailing number of a headline like "ping-avg 150ms" → 150
+fn headline_ms(h: &str) -> Option<u64> {
+    let num: String = h
+        .split_whitespace()
+        .last()?
+        .chars()
+        .take_while(|c| c.is_ascii_digit())
+        .collect();
+    num.parse().ok()
+}
+
 /// The loop's mechanized half: run + validate + diff vs the previous cycle
 /// snapshot + THE EVOLUTION RULE (app bumps need sim bumps). The
 /// proposal/build half is the agent's; this command hands it the evidence.
@@ -291,6 +302,25 @@ pub fn run_cycle() -> i32 {
         }
         if !gone.is_empty() {
             digest_lines.push(format!("-{} scenarios: {}", gone.len(), gone.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ")));
+        }
+        // metric-drift watch: same-scenario headline numbers moving >2×
+        // (warn-level — latencies legitimately vary with machine load, but a
+        // 2× jump across cycles is a signal the agent should look at)
+        for r in &run.results {
+            if let Some(ps) = prev_scn.iter().find(|s| s["name"] == r.name) {
+                let pv = ps["headline"].as_str().unwrap_or("");
+                if let (Some(a), Some(b)) = (headline_ms(pv), headline_ms(&r.headline)) {
+                    if a > 0 {
+                        let ratio = b as f64 / a as f64;
+                        if ratio > 2.0 || ratio < 0.5 {
+                            digest_lines.push(format!(
+                                "metric drift: {} {}ms → {}ms ({:.1}×)",
+                                r.name, a, b, ratio
+                            ));
+                        }
+                    }
+                }
+            }
         }
         if verdict_changes == 0 && added.is_empty() && gone.is_empty() {
             digest_lines.push("no delta vs previous cycle".into());

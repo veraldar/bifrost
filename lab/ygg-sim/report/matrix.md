@@ -6,53 +6,56 @@ seed `0xc0ffee` · hermetic world (real yggdrasil + real bifrost-net bridge chil
 |---|---|---|---|---|
 | rest.text-roundtrip | desktop | home | PASS | turn 47ms |
 | rest.abort-mid-run | desktop | home | PASS | abort 6ms |
-| rest.refresh-reread | phone | phone-cell | PASS | turn 99ms |
-| rest.marathon-rollup | desktop | home | PASS | turn-0 2869ms |
-| rest.upstream-down | desktop | home | PASS | recovery-turn 36ms |
+| rest.refresh-reread | phone | phone-cell | PASS | turn 98ms |
+| rest.marathon-rollup | desktop | home | PASS | turn-0 2865ms |
+| rest.upstream-down | desktop | home | PASS | recovery-turn 35ms |
 | rest.tool-loop | desktop | home | PASS | one-call 41ms |
 | rest.parallel-sessions | desktop×4 | home | PASS | turn-0 11ms |
+| rest.abort-mid-tool | desktop | home | PASS | abort 4ms |
+| rest.anthropic-dialect | desktop | home | PASS | turn-1 12ms |
 | bridge.auth | desktop | home | PASS |  |
 | bridge.data-roundtrip | phone | phone-cell | PASS | ping-avg 149ms |
 | bridge.prompt-run-done | phone | phone-cell | KNOWN | known issue (tracked): bridge run.done starves on the prompt op: wait_run_done's baseline is taken AFTER the blocking POST (bridge.rs), so on fast upstreams the notice only fires via the 120s timeout — turn itself completes (transcript verified). Fix belongs in lab/bifrost-net's lane; this scenario flips PASS when it lands |
-| bridge.handsfree-round | phone | phone-cell | PASS | voice-turn 19071ms |
-| bridge.poor-network-turn | phone | poor-cell | PASS | voice-turn 16760ms |
-| bridge.link-flap | phone | poor-cell | PASS | recover-2s 1148ms |
+| bridge.handsfree-round | phone | phone-cell | PASS | voice-turn 18074ms |
+| bridge.poor-network-turn | phone | poor-cell | PASS | voice-turn 19327ms |
+| bridge.link-flap | phone | poor-cell | PASS | recover-2s 136ms |
 | bridge.nat-rebind | phone | phone-cell | BREAK-OK | breaks as documented: path died on raw NAT rebind (no ICE restart) — documented; product path is reconnect, see bridge.reconnect scenario |
 | bridge.multi-device | phone+desktop | phone-cell | PASS |  |
-| bridge.mode-switch | phone | phone-cell | PASS | keyboard-cycle 5674ms |
+| bridge.mode-switch | phone | phone-cell | PASS | keyboard-cycle 5807ms |
 | bridge.abort-mid-turn | phone | phone-cell | PASS | fresh-connect 1048ms |
-| bridge.reconnect-after-switch | phone | phone-cell | PASS | reconnect 4ms |
-| bridge.tts-paragraphs | phone | phone-cell | PASS | essay-turn 20126ms |
+| bridge.reconnect-after-switch | phone | phone-cell | PASS | reconnect 3ms |
+| bridge.tts-paragraphs | phone | phone-cell | PASS | essay-turn 21328ms |
 | bridge.bandwidth-starved | phone | congested-cell | BREAK-OK | breaks as documented: bridge bursts TTS unpaced (no BWE/pacing): 64 kbps downlink delivered only 35% of a burst that fits the pipe when paced; channel + notices + recovery unaffected |
-| app.install-pair | android | adb | SKIP | skip — app scenarios live when: wrap not built (parallel lane): no APK at /home/dweeb_xyz/Work/bifrost/lab/ygg-sim/../../pwa/android/app/build/outputs/apk/debug/app-debug.apk (YGG_SIM_APK overrides) |
-| app.push-notification | android | adb | SKIP | skip — app scenarios live when: wrap not built (parallel lane): no APK at /home/dweeb_xyz/Work/bifrost/lab/ygg-sim/../../pwa/android/app/build/outputs/apk/debug/app-debug.apk (YGG_SIM_APK overrides) |
-| app.background-audio | android | adb | SKIP | skip — app scenarios live when: wrap not built (parallel lane): no APK at /home/dweeb_xyz/Work/bifrost/lab/ygg-sim/../../pwa/android/app/build/outputs/apk/debug/app-debug.apk (YGG_SIM_APK overrides) |
-| app.hot-reload | android | adb | SKIP | skip — app scenarios live when: wrap not built (parallel lane): no APK at /home/dweeb_xyz/Work/bifrost/lab/ygg-sim/../../pwa/android/app/build/outputs/apk/debug/app-debug.apk (YGG_SIM_APK overrides) |
+| bridge.paced-uplink-starved | phone | congested-uplink | PASS | voice-turn 50739ms |
+| app.install-pair | android | adb | SKIP | skip — no adb host: no adb host: install platform-tools locally (YGG_SIM_ADB) or run scripts/android-lab/01-mac-setup.sh |
+| app.push-notification | android | adb | SKIP | skip — no adb host: no adb host: install platform-tools locally (YGG_SIM_ADB) or run scripts/android-lab/01-mac-setup.sh |
+| app.background-audio | android | adb | SKIP | skip — no adb host: no adb host: install platform-tools locally (YGG_SIM_ADB) or run scripts/android-lab/01-mac-setup.sh |
+| app.hot-reload | android | adb | SKIP | skip — no adb host: no adb host: install platform-tools locally (YGG_SIM_ADB) or run scripts/android-lab/01-mac-setup.sh |
 
 ### rest.abort-mid-run
 
 - abort: 6ms
-- post-abort-turn: 36ms
+- post-abort-turn: 35ms
 
 ### rest.marathon-rollup
 
-- turn-0: 2869ms
-- turn-1: 2918ms
-- turn-2: 2878ms
+- turn-0: 2865ms
+- turn-1: 2907ms
+- turn-2: 2865ms
 - post-rollup-turn: 36ms
-- total: 8681ms
+- total: 8652ms
 - rollups: 2
 
 ### rest.upstream-down
 
-- recovery-turn: 36ms
-- recover-total: 36ms
+- recovery-turn: 35ms
+- recover-total: 35ms
 
 ### rest.tool-loop
 
 - one-call: 41ms
-- two-call: 83ms
-- total: 125ms
+- two-call: 81ms
+- total: 122ms
 
 ### rest.parallel-sessions
 
@@ -62,6 +65,17 @@ seed `0xc0ffee` · hermetic world (real yggdrasil + real bifrost-net bridge chil
 - turn-3: 11ms
 - wall-4-parallel: 18ms
 
+### rest.abort-mid-tool
+
+- abort: 4ms
+- post-abort-turn: 36ms
+
+### rest.anthropic-dialect
+
+- turn-1: 12ms
+- turn-2: 97ms
+- anthropic-calls: 7
+
 ### bridge.data-roundtrip
 
 - ping-avg: 149ms
@@ -70,24 +84,24 @@ seed `0xc0ffee` · hermetic world (real yggdrasil + real bifrost-net bridge chil
 
 ### bridge.handsfree-round
 
-- voice-turn: 19071ms
+- voice-turn: 18074ms
 - tts-delivered-%: 99
 - stt-hits: 3
 
 ### bridge.poor-network-turn
 
-- voice-turn: 16760ms
-- tts-delivered-%: 89
+- voice-turn: 19327ms
+- tts-delivered-%: 87
 - stt-hits: 2
-- wire-drops: 59
+- wire-drops: 51
 
 ### bridge.mode-switch
 
-- keyboard-cycle: 5674ms
+- keyboard-cycle: 5807ms
 - ping-keyboard: 166ms
-- voice-turn: 12357ms
-- ping-after-voice: 121ms
-- tts-delivered-%: 98
+- voice-turn: 12832ms
+- ping-after-voice: 151ms
+- tts-delivered-%: 96
 
 ### bridge.abort-mid-turn
 
@@ -96,14 +110,21 @@ seed `0xc0ffee` · hermetic world (real yggdrasil + real bifrost-net bridge chil
 
 ### bridge.tts-paragraphs
 
-- essay-turn: 20126ms
-- received-frames: 490
-- delivered-%: 95
+- essay-turn: 21328ms
+- received-frames: 502
+- delivered-%: 98
 
 ### bridge.bandwidth-starved
 
-- voice-turn: 16674ms
-- post-burst-ping: 197ms
+- voice-turn: 18434ms
+- post-burst-ping: 181ms
 - tts-delivered-%: 35
 - stt-hits: 1
-- rev-drops: 167
+- rev-drops: 168
+
+### bridge.paced-uplink-starved
+
+- voice-turn: 50739ms
+- tts-delivered-%: 98
+- stt-hits: 2
+- uplink-drops: 17

@@ -23,7 +23,7 @@
         ],
         [
           "post-abort-turn",
-          36
+          35
         ]
       ],
       "name": "rest.abort-mid-run",
@@ -36,7 +36,7 @@
       "latencies_ms": [
         [
           "turn",
-          99
+          98
         ]
       ],
       "name": "rest.refresh-reread",
@@ -54,15 +54,15 @@
       "latencies_ms": [
         [
           "turn-0",
-          2869
+          2865
         ],
         [
           "turn-1",
-          2918
+          2907
         ],
         [
           "turn-2",
-          2878
+          2865
         ],
         [
           "post-rollup-turn",
@@ -70,7 +70,7 @@
         ],
         [
           "total",
-          8681
+          8652
         ]
       ],
       "name": "rest.marathon-rollup",
@@ -83,11 +83,11 @@
       "latencies_ms": [
         [
           "recovery-turn",
-          36
+          35
         ],
         [
           "recover-total",
-          36
+          35
         ]
       ],
       "name": "rest.upstream-down",
@@ -104,11 +104,11 @@
         ],
         [
           "two-call",
-          83
+          81
         ],
         [
           "total",
-          125
+          122
         ]
       ],
       "name": "rest.tool-loop",
@@ -141,6 +141,45 @@
         ]
       ],
       "name": "rest.parallel-sessions",
+      "profile": "home",
+      "verdict": "PASS"
+    },
+    {
+      "counters": [],
+      "device": "desktop",
+      "latencies_ms": [
+        [
+          "abort",
+          4
+        ],
+        [
+          "post-abort-turn",
+          36
+        ]
+      ],
+      "name": "rest.abort-mid-tool",
+      "profile": "home",
+      "verdict": "PASS"
+    },
+    {
+      "counters": [
+        [
+          "anthropic-calls",
+          7
+        ]
+      ],
+      "device": "desktop",
+      "latencies_ms": [
+        [
+          "turn-1",
+          12
+        ],
+        [
+          "turn-2",
+          97
+        ]
+      ],
+      "name": "rest.anthropic-dialect",
       "profile": "home",
       "verdict": "PASS"
     },
@@ -180,7 +219,7 @@
       "latencies_ms": [
         [
           "run",
-          20014
+          20010
         ]
       ],
       "name": "bridge.prompt-run-done",
@@ -202,7 +241,7 @@
       "latencies_ms": [
         [
           "voice-turn",
-          19071
+          18074
         ]
       ],
       "name": "bridge.handsfree-round",
@@ -213,7 +252,7 @@
       "counters": [
         [
           "tts-delivered-%",
-          89
+          87
         ],
         [
           "stt-hits",
@@ -221,14 +260,14 @@
         ],
         [
           "wire-drops",
-          59
+          51
         ]
       ],
       "device": "phone",
       "latencies_ms": [
         [
           "voice-turn",
-          16760
+          19327
         ]
       ],
       "name": "bridge.poor-network-turn",
@@ -246,7 +285,7 @@
       "latencies_ms": [
         [
           "recover-2s",
-          1148
+          136
         ]
       ],
       "name": "bridge.link-flap",
@@ -278,14 +317,14 @@
       "counters": [
         [
           "tts-delivered-%",
-          98
+          96
         ]
       ],
       "device": "phone",
       "latencies_ms": [
         [
           "keyboard-cycle",
-          5674
+          5807
         ],
         [
           "ping-keyboard",
@@ -293,11 +332,11 @@
         ],
         [
           "voice-turn",
-          12357
+          12832
         ],
         [
           "ping-after-voice",
-          121
+          151
         ]
       ],
       "name": "bridge.mode-switch",
@@ -327,7 +366,7 @@
       "latencies_ms": [
         [
           "reconnect",
-          4
+          3
         ]
       ],
       "name": "bridge.reconnect-after-switch",
@@ -338,18 +377,18 @@
       "counters": [
         [
           "received-frames",
-          490
+          502
         ],
         [
           "delivered-%",
-          95
+          98
         ]
       ],
       "device": "phone",
       "latencies_ms": [
         [
           "essay-turn",
-          20126
+          21328
         ]
       ],
       "name": "bridge.tts-paragraphs",
@@ -368,23 +407,49 @@
         ],
         [
           "rev-drops",
-          167
+          168
         ]
       ],
       "device": "phone",
       "latencies_ms": [
         [
           "voice-turn",
-          16674
+          18434
         ],
         [
           "post-burst-ping",
-          197
+          181
         ]
       ],
       "name": "bridge.bandwidth-starved",
       "profile": "congested-cell",
       "verdict": "BREAK-OK"
+    },
+    {
+      "counters": [
+        [
+          "tts-delivered-%",
+          98
+        ],
+        [
+          "stt-hits",
+          2
+        ],
+        [
+          "uplink-drops",
+          17
+        ]
+      ],
+      "device": "phone",
+      "latencies_ms": [
+        [
+          "voice-turn",
+          50739
+        ]
+      ],
+      "name": "bridge.paced-uplink-starved",
+      "profile": "congested-uplink",
+      "verdict": "PASS"
     },
     {
       "counters": [],

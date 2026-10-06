@@ -91,6 +91,12 @@ pub fn registry() -> Vec<crate::runner::ScenarioDef> {
             profile: "congested-cell",
             run: bandwidth_starved,
         },
+        crate::runner::ScenarioDef {
+            name: "bridge.paced-uplink-starved",
+            device: "phone",
+            profile: "congested-uplink",
+            run: paced_uplink_starved,
+        },
     ]
 }
 
@@ -1114,5 +1120,55 @@ fn bandwidth_starved() -> (Verdict, Metrics) {
             )
         }
         Err(e) => (Verdict::Fail(e), m),
+    }
+}
+
+/// The paced-reference half of the bandwidth law: the same congested pipe,
+/// but capping the UPLINK — which the client paces at 20ms per frame. Paced
+/// audio (~6 KB/s) fits a 64 kbps pipe; the bridge's UNpaced TTS burst does
+/// not (bridge.bandwidth-starved). This A/B isolates the write pattern as the
+/// cause, not the pipe.
+fn paced_uplink_starved() -> (Verdict, Metrics) {
+    let mut m = Metrics::new();
+    let world = match world_with_bridge() {
+        Ok(w) => w,
+        Err(e) => return (Verdict::Fail(format!("world: {e}")), m),
+    };
+    if !speaches_up() {
+        return (Verdict::Skip("speaches not reachable".into()), m);
+    }
+    let (token, b) = world_bridge(&world);
+    let mut c = match SimClient::connect(
+        b.http,
+        b.media,
+        &token,
+        crate::wire::profile_congested_uplink(),
+        0xB40,
+    ) {
+        Ok(c) => c,
+        Err(e) => return (Verdict::Fail(format!("connect: {e}")), m),
+    };
+    match voice_round_spoken(
+        &mut c,
+        0xB41,
+        "hello bridge this is a simulated phone",
+        "hello",
+        Quality::Record,
+    ) {
+        Ok((turn_ms, delivered_pct, hits)) => {
+            // the STT is the ground truth: the paced uplink carried enough
+            // audio for the bridge to hear the sentence
+            let st = c.wire_stats();
+            if st.fwd_dropped == 0 {
+                return (Verdict::Fail("uplink cap never engaged — profile broken".into()), m);
+            }
+            m = m
+                .lat("voice-turn", turn_ms)
+                .cnt("tts-delivered-%", delivered_pct)
+                .cnt("stt-hits", hits)
+                .cnt("uplink-drops", st.fwd_dropped);
+            (Verdict::Pass, m)
+        }
+        Err(e) => (Verdict::Fail(format!("paced uplink could not carry a turn: {e}")), m),
     }
 }

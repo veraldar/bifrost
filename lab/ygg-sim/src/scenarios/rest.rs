@@ -53,6 +53,18 @@ pub fn registry() -> Vec<crate::runner::ScenarioDef> {
             profile: "home",
             run: parallel_sessions,
         },
+        crate::runner::ScenarioDef {
+            name: "rest.abort-mid-tool",
+            device: "desktop",
+            profile: "home",
+            run: abort_mid_tool,
+        },
+        crate::runner::ScenarioDef {
+            name: "rest.anthropic-dialect",
+            device: "desktop",
+            profile: "home",
+            run: anthropic_dialect,
+        },
     ]
 }
 
@@ -324,7 +336,7 @@ fn marathon_rollup() -> (Verdict, Metrics) {
     if !has_compaction {
         return (Verdict::Fail("MOCK-SUMMARY seen but no compaction pair stored".into()), m);
     }
-    let (_, summary_calls, _) = world.mock.calls();
+    let (_, summary_calls, _, _) = world.mock.calls();
     if summary_calls == 0 {
         return (Verdict::Fail("no summarizer call reached the upstream".into()), m);
     }
@@ -547,5 +559,136 @@ fn parallel_sessions() -> (Verdict, Metrics) {
         return (Verdict::Fail("busy map not drained after all turns".into()), m);
     }
     m = m.lat("wall-4-parallel", wall);
+    (Verdict::Pass, m)
+}
+
+/// Abort while a REAL tool is executing (bash sleep) — the fleet's
+/// abort-mid-stream scar applied to the tool loop. The run must end loudly,
+/// the busy map must clear, and the session must survive.
+fn abort_mid_tool() -> (Verdict, Metrics) {
+    let mut m = Metrics::new();
+    let world = match World::spawn(WorldOpts::default()) {
+        Ok(w) => w,
+        Err(e) => return (Verdict::Fail(format!("world: {e}")), m),
+    };
+    let mut http = ShapedHttp::new(0xA30, &profile_home().fwd);
+    let sid = match create_session(&world, &mut http, "sim abort mid tool") {
+        Ok(s) => s,
+        Err(e) => return (Verdict::Fail(e), m),
+    };
+
+    // fire the tool turn from a thread (the POST blocks until the run ends)
+    let url = world.ygg_url();
+    let sid_t = sid.clone();
+    let handle = std::thread::spawn(move || {
+        let agent = ureq::AgentBuilder::new()
+            .timeout(Duration::from_secs(60))
+            .build();
+        agent
+            .post(&format!("{url}/session/{sid_t}/message"))
+            .set("Content-Type", "application/json")
+            .send_string(r#"{ "parts": [{ "type": "text", "text": "tool:sleep 6" }] }"#)
+    });
+    // wait until the tool is provably executing (bash sleep 6 running)
+    std::thread::sleep(Duration::from_millis(2500));
+    match http.get(&format!("{}/session/status", world.ygg_url())) {
+        Ok(s) if s.contains(&sid) => {}
+        Ok(s) => return (Verdict::Fail(format!("tool run not busy: {s}")), m),
+        Err(e) => return (Verdict::Fail(e), m),
+    }
+
+    let t0 = Instant::now();
+    match http.post_json(&format!("{}/session/{sid}/abort", world.ygg_url()), "{}") {
+        Ok(s) if s.contains("true") => {}
+        Ok(s) => return (Verdict::Fail(format!("abort returned {s}")), m),
+        Err(e) => return (Verdict::Fail(format!("abort: {e}")), m),
+    }
+    let abort_ms = t0.elapsed().as_millis() as u64;
+
+    // busy must clear promptly (not wait out the sleep)
+    let mut cleared = false;
+    for _ in 0..50 {
+        if let Ok(s) = http.get(&format!("{}/session/status", world.ygg_url())) {
+            if !s.contains(&sid) {
+                cleared = true;
+                break;
+            }
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    if !cleared {
+        return (Verdict::Fail("session still busy 5s after aborting mid-tool".into()), m);
+    }
+    let _ = handle.join();
+
+    // the session must not be bricked
+    let (reply, ms) = match prompt_wait(&world, &mut http, &sid, "post-tool-abort sanity") {
+        Ok(r) => r,
+        Err(e) => return (Verdict::Fail(format!("session bricked after mid-tool abort: {e}")), m),
+    };
+    if !reply.contains("post-tool-abort sanity") {
+        return (Verdict::Fail(format!("post-abort echo wrong: {reply}")), m);
+    }
+    m = m.lat("abort", abort_ms).lat("post-abort-turn", ms);
+    (Verdict::Pass, m)
+}
+
+/// The anthropic Messages dialect, end to end: yggdrasil spawned with
+/// YGG_UPSTREAM_STYLE=anthropic against the mock's /v1/messages (block SSE +
+/// JSON summary), turns + exact replies + proof the dialect was really used.
+fn anthropic_dialect() -> (Verdict, Metrics) {
+    let mut m = Metrics::new();
+    let world = match World::spawn(WorldOpts {
+        upstream_style: Some("anthropic".into()),
+        rollup_tokens: Some(3000),
+        ..Default::default()
+    }) {
+        Ok(w) => w,
+        Err(e) => return (Verdict::Fail(format!("world: {e}")), m),
+    };
+    let mut http = ShapedHttp::new(0xA31, &profile_home().fwd);
+    let sid = match create_session(&world, &mut http, "sim anthropic dialect") {
+        Ok(s) => s,
+        Err(e) => return (Verdict::Fail(e), m),
+    };
+
+    let (reply, ms1) = match prompt_wait(&world, &mut http, &sid, "reply with exactly: DIALECT-PONG") {
+        Ok(r) => r,
+        Err(e) => return (Verdict::Fail(format!("anthropic turn 1: {e}")), m),
+    };
+    if !reply.contains("DIALECT-PONG") {
+        return (Verdict::Fail(format!("dialect echo wrong: {reply}")), m);
+    }
+    let (reply, ms2) = match prompt_wait(&world, &mut http, &sid, "second turn over the dialect") {
+        Ok(r) => r,
+        Err(e) => return (Verdict::Fail(format!("anthropic turn 2: {e}")), m),
+    };
+    if !reply.contains("second turn over the dialect") {
+        return (Verdict::Fail(format!("dialect echo 2 wrong: {reply}")), m);
+    }
+
+    // the roll-up crossing: big turns force a summarizer call IN THE DIALECT
+    for turn in 0..3 {
+        let big = format!("pad-{turn} {}", "lorem-ipsum-dolor ".repeat(280));
+        if let Err(e) = prompt_wait(&world, &mut http, &sid, &big) {
+            return (Verdict::Fail(format!("big turn {turn}: {e}")), m);
+        }
+    }
+    let tr = match transcript_of(&world, &mut http, &sid) {
+        Ok(t) => t,
+        Err(e) => return (Verdict::Fail(e), m),
+    };
+    if !tr.to_string().contains("MOCK-SUMMARY") {
+        return (Verdict::Fail("anthropic marathon: no roll-up fired".into()), m);
+    }
+
+    let (_, _, _, anthropic_calls) = world.mock.calls();
+    if anthropic_calls < 5 {
+        return (
+            Verdict::Fail(format!("upstream only saw {anthropic_calls} anthropic requests — wrong dialect?")),
+            m,
+        );
+    }
+    m = m.lat("turn-1", ms1).lat("turn-2", ms2).cnt("anthropic-calls", anthropic_calls);
     (Verdict::Pass, m)
 }

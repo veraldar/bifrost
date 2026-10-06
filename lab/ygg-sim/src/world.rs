@@ -24,6 +24,8 @@ pub struct WorldOpts {
     pub with_bridge: bool,
     /// speaches base URL for the bridge's voice pipeline (real TTS/STT)
     pub speaches_url: String,
+    /// YGG_UPSTREAM_STYLE: "openai" (default) or "anthropic" (the dialect scenarios)
+    pub upstream_style: Option<String>,
 }
 
 impl Default for WorldOpts {
@@ -32,6 +34,7 @@ impl Default for WorldOpts {
             rollup_tokens: None,
             with_bridge: false,
             speaches_url: "http://127.0.0.1:8000/v1".into(),
+            upstream_style: None,
         }
     }
 }
@@ -124,6 +127,9 @@ impl World {
         if let Some(rt) = opts.rollup_tokens {
             cmd.env("YGG_ROLLUP_TOKENS", rt.to_string())
                 .env("YGG_ROLLUP_KEEP_TOKENS", (rt / 4).to_string());
+        }
+        if let Some(style) = &opts.upstream_style {
+            cmd.env("YGG_UPSTREAM_STYLE", style);
         }
         let mut ygg_child = cmd.spawn().map_err(|e| format!("spawn yggdrasil: {e}"))?;
 

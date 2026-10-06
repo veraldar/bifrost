@@ -28,6 +28,8 @@ struct Ctrl {
     fails: u64,
     fail_next: u32,
     base_latency_ms: u64,
+    /// requests that arrived on the anthropic Messages dialect
+    anthropic: u64,
 }
 
 impl MockUpstream {
@@ -76,10 +78,10 @@ impl MockUpstream {
         c.base_latency_ms = base_latency_ms;
     }
 
-    #[allow(dead_code)] // used from the marathon scenario (M1+)
-    pub fn calls(&self) -> (u64, u64, u64) {
+    #[allow(dead_code)] // used from the marathon / dialect scenarios
+    pub fn calls(&self) -> (u64, u64, u64, u64) {
         let c = self.state.lock().unwrap();
-        (c.chat, c.summary, c.fails)
+        (c.chat, c.summary, c.fails, c.anthropic)
     }
 }
 
@@ -97,7 +99,10 @@ fn handle(mut rq: tiny_http::Request, state: &Arc<Mutex<Ctrl>>) {
 
     if method == tiny_http::Method::Get && url.starts_with("/calls") {
         let c = state.lock().unwrap();
-        let body = json!({"chat": c.chat, "summary": c.summary, "fails": c.fails}).to_string();
+        let body = json!({
+            "chat": c.chat, "summary": c.summary, "fails": c.fails, "anthropic": c.anthropic,
+        })
+        .to_string();
         drop(c);
         let _ = rq.respond(json_response(body, 200));
         return;
@@ -173,6 +178,70 @@ fn handle(mut rq: tiny_http::Request, state: &Arc<Mutex<Ctrl>>) {
             })
             .to_string();
             let _ = rq.respond(json_response(body, 200));
+        }
+        return;
+    }
+    if method == tiny_http::Method::Post && url.ends_with("/messages") {
+        // the anthropic Messages dialect (yggdrasil's YGG_UPSTREAM_STYLE=anthropic):
+        // {model, max_tokens, system?, messages:[{role, content:[blocks]|str}], stream}
+        let mut body = String::new();
+        let _ = rq.as_reader().read_to_string(&mut body);
+        let v: Value = match serde_json::from_str(&body) {
+            Ok(v) => v,
+            Err(e) => {
+                let _ = rq.respond(json_response(
+                    json!({"type": "error", "error": {"type": "invalid_request_error", "message": format!("bad json: {e}")}}).to_string(),
+                    400,
+                ));
+                return;
+            }
+        };
+        {
+            let mut c = state.lock().unwrap();
+            c.anthropic += 1;
+            c.chat += 1;
+        }
+        let (fail_next, base_ms) = {
+            let c = state.lock().unwrap();
+            (c.fail_next, c.base_latency_ms)
+        };
+        if fail_next > 0 {
+            let mut c = state.lock().unwrap();
+            c.fail_next -= 1;
+            c.fails += 1;
+            drop(c);
+            let _ = rq.respond(json_response(
+                json!({"type": "error", "error": {"type": "overloaded_error", "message": "mock upstream failure (injected)"}}).to_string(),
+                500,
+            ));
+            return;
+        }
+        let planned = plan_anthropic(&v);
+        {
+            let mut c = state.lock().unwrap();
+            if planned.kind == "summary" {
+                c.summary += 1;
+            }
+        }
+        if base_ms > 0 {
+            std::thread::sleep(Duration::from_millis(base_ms));
+        }
+        let stream = v.get("stream").and_then(|s| s.as_bool()).unwrap_or(false);
+        if stream {
+            let _ = rq.respond(sse_anthropic_response(planned));
+        } else {
+            let text = serde_json::json!({
+                "id": "msg_ygg_sim",
+                "type": "message",
+                "role": "assistant",
+                "content": [{"type": "text", "text": planned.text}],
+                "model": v.get("model").cloned().unwrap_or(json!("sim-1")),
+                "stop_reason": "end_turn",
+                "stop_sequence": Value::Null,
+                "usage": {"input_tokens": 1, "output_tokens": 1},
+            })
+            .to_string();
+            let _ = rq.respond(json_response(text, 200));
         }
         return;
     }
@@ -276,6 +345,17 @@ fn plan(body: &Value) -> Planned {
             name: "bash".into(),
             args: serde_json::json!({ "command": cmd }).to_string(),
         };
+        // "tool:sleep N" — a REAL slow tool (bash sleep), the abort-mid-tool window
+        if let Some(rest) = arg.strip_prefix("sleep ") {
+            let secs = rest.trim().split_whitespace().next().unwrap_or("2");
+            return Planned {
+                kind: "tools",
+                text: "Running the slow tool.".into(),
+                chunk_ms: 5,
+                first_ms: 0,
+                calls: vec![mk(0, format!("sleep {secs}"))],
+            };
+        }
         if let Some(x) = arg.strip_prefix("twice ") {
             let x = x.trim();
             return Planned {
@@ -365,8 +445,7 @@ fn plan(body: &Value) -> Planned {
     }
 }
 
-fn find_sleep(lc: &str) -> u64 {
-    if let Some(i) = lc.find("sleep ") {
+fn find_sleep(lc: &str) -> u64 {    if let Some(i) = lc.find("sleep ") {
         let rest = &lc[i + 6..];
         let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
         if let Ok(n) = digits.parse::<u64>() {
@@ -555,4 +634,96 @@ mod tests {
         let joined: String = split_chunks(t, 12).concat();
         assert_eq!(joined, t);
     }
+}
+
+/// Anthropic Messages request → OpenAI-shaped plan. Mirrors the proven
+/// mock_upstream.py move: map the request back to the OpenAI shape and reuse
+/// the SAME reply logic, so equal histories get equal replies in both
+/// dialects.
+fn plan_anthropic(v: &Value) -> Planned {
+    let mut msgs: Vec<Value> = vec![];
+    if let Some(sys) = v.get("system").and_then(|s| s.as_str()) {
+        if !sys.is_empty() {
+            msgs.push(json!({"role": "system", "content": sys}));
+        }
+    }
+    for m in v
+        .get("messages")
+        .and_then(|m| m.as_array())
+        .into_iter()
+        .flatten()
+    {
+        let role = m.get("role").cloned().unwrap_or(json!("user"));
+        let content = match m.get("content") {
+            Some(Value::String(s)) => json!(s),
+            Some(Value::Array(blocks)) => {
+                let text: String = blocks
+                    .iter()
+                    .filter_map(|b| b.get("text").and_then(|t| t.as_str()))
+                    .collect::<Vec<_>>()
+                    .join("");
+                json!(text)
+            }
+            _ => json!(""),
+        };
+        msgs.push(json!({"role": role, "content": content}));
+    }
+    plan(&json!({"messages": msgs, "stream": v.get("stream").cloned().unwrap_or(json!(false))}))
+}
+
+/// Anthropic block SSE: message_start → text block → tool_use blocks →
+/// message_delta(stop_reason) → message_stop. yggdrasil's anthropic::Stream
+/// feeds on `data:` lines with `type` fields.
+fn sse_anthropic_response(p: Planned) -> tiny_http::Response<ChanReader> {
+    let (tx, rx) = std::sync::mpsc::sync_channel::<Vec<u8>>(8);
+    std::thread::Builder::new()
+        .name("ygg-sim-sse-a".into())
+        .spawn(move || {
+            let send = |v: Value| -> bool { tx.send(sse_data(&v.to_string())).is_err() == false };
+            let _ = send(json!({
+                "type": "message_start",
+                "message": {"id": "msg_ygg_sim", "type": "message", "role": "assistant", "content": []},
+            }));
+            let mut index = 0u64;
+            if !p.text.is_empty() {
+                let _ = send(json!({"type": "content_block_start", "index": index,
+                    "content_block": {"type": "text", "text": ""}}));
+                for chunk in split_chunks(&p.text, 12) {
+                    let _ = send(json!({"type": "content_block_delta", "index": index,
+                        "delta": {"type": "text_delta", "text": chunk}}));
+                    if p.chunk_ms > 0 {
+                        std::thread::sleep(Duration::from_millis(p.chunk_ms));
+                    }
+                }
+                let _ = send(json!({"type": "content_block_stop", "index": index}));
+                index += 1;
+            }
+            for call in &p.calls {
+                let _ = send(json!({"type": "content_block_start", "index": index,
+                    "content_block": {"type": "tool_use", "id": call.id, "name": call.name, "input": {}}}));
+                let cut = call.args.len() / 2;
+                for piece in [call.args[..cut].to_string(), call.args[cut..].to_string()] {
+                    let _ = send(json!({"type": "content_block_delta", "index": index,
+                        "delta": {"type": "input_json_delta", "partial_json": piece}}));
+                }
+                let _ = send(json!({"type": "content_block_stop", "index": index}));
+                index += 1;
+            }
+            let stop_reason = if p.calls.is_empty() { "end_turn" } else { "tool_use" };
+            let _ = send(json!({"type": "message_delta", "delta": {"stop_reason": stop_reason, "stop_sequence": null},
+                "usage": {"output_tokens": 1}}));
+            let _ = send(json!({"type": "message_stop"}));
+            let _ = tx.send(b"data: [DONE]\n\n".to_vec());
+        })
+        .expect("sse anthropic writer");
+    tiny_http::Response::new(
+        tiny_http::StatusCode(200),
+        vec![
+            tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"text/event-stream"[..]).unwrap(),
+            tiny_http::Header::from_bytes(&b"Cache-Control"[..], &b"no-cache"[..]).unwrap(),
+        ],
+        ChanReader { rx, buf: vec![] },
+        None,
+        None,
+    )
 }

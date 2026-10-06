@@ -168,6 +168,31 @@ pub fn profile_congested() -> NetProfile {
     NetProfile::new("congested-cell", f, r)
 }
 
+/// Congested cell, UPCAPPED UPLINK: the client's paced 20ms mic stream against
+/// a 64 kbps send pipe — the paced-reference half of the bandwidth law.
+#[allow(dead_code)] // used from bridge.paced-uplink-starved (v4)
+pub fn profile_congested_uplink() -> NetProfile {
+    let f = FlowProfile {
+        latency: Duration::from_millis(60),
+        jitter: Duration::from_millis(25),
+        loss: 0.03,
+        dup: 0.0,
+        reorder_frac: 0.0,
+        reorder_delay: Duration::from_millis(0),
+        bps: 8000, // 64 kbps uplink
+    };
+    let r = FlowProfile {
+        latency: Duration::from_millis(55),
+        jitter: Duration::from_millis(25),
+        loss: 0.01,
+        dup: 0.0,
+        reorder_frac: 0.0,
+        reorder_delay: Duration::from_millis(0),
+        bps: 0,
+    };
+    NetProfile::new("congested-uplink", f, r)
+}
+
 /// m0's proof profile: lossy enough that nothing survives by luck.
 pub fn profile_m0() -> NetProfile {
     let f = FlowProfile {

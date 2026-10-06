@@ -53,16 +53,27 @@ fi
 
 # --- helpers -------------------------------------------------------------------
 seed_from_prev() { # seed_from_prev <subdir>  — hardlink-clone yesterday's copy
+  # Nest-safe: only seed when the dest subdir does NOT exist yet (same-day re-run
+  # or earlier partial snapshot), and copy CONTENTS (trailing slashes) — a bare
+  # `cp -Rl prev/sub snap/sub` onto an existing dir nests it as sub/sub.
   local sub="$1"
   [ -n "$PREV" ] || return 0
-  rsh "cp -Rl '$PREV/$sub' '$SNAP/$sub' 2>/dev/null" || log "seed $sub: no base (full copy)"
+  rsh "if [ ! -d '$SNAP/$sub' ]; then mkdir -p '$SNAP/$sub' && cp -Rl '$PREV/$sub/' '$SNAP/$sub/'; fi" 2>/dev/null \
+    || log "seed $sub: skipped (seed failed → full copy)"
 }
+
+# openrsync (macOS receiver) does not mkdir the dest root itself: it only
+# creates dirs as a side effect of materializing directory entries from the
+# file list — a dest holding just files (db/, meta/) fails with
+# "open: No such file or directory" (rsync code 12). Pre-create every dest.
+mkdest() { rsh "mkdir -p '$SNAP/$1'" || fail "cannot create $SNAP/$1 on $DEST_HOST"; }
 
 push() { # push <local-src/> <remote-subdir> [excludes...]
   local src="$1" sub="$2"; shift 2
   local ex=() e
   for e in "$@"; do ex+=(--exclude="$e"); done
   seed_from_prev "$sub"
+  mkdest "$sub"
   "${RSYNC[@]}" -e "ssh ${SSH_OPTS[*]}" "${ex[@]}" "$src" "$DEST_HOST:$SNAP/$sub/"
 }
 
@@ -75,6 +86,7 @@ if [ -d "$HOME/.local/share/opencode" ]; then
     opencode.db opencode.db-wal opencode.db-shm
   if [ -f "$STAGE/opencode.db" ]; then
     seed_from_prev "db"
+    mkdest "db"
     mkdir -p "$STAGE/dbout" && mv "$STAGE/opencode.db" "$STAGE/dbout/"
     "${RSYNC_ADD[@]}" -e "ssh ${SSH_OPTS[*]}" "$STAGE/dbout/" "$DEST_HOST:$SNAP/db/"
   fi
@@ -118,6 +130,7 @@ find "$HOME/Work" -maxdepth 1 -type f \( -name '*.md' -o -name 'opencode.json' \
 } > "$STAGE/manifest.txt"
 mkdir -p "$STAGE/meta" && mv "$STAGE/manifest.txt" "$STAGE/meta/"
 seed_from_prev "meta"
+mkdest "meta"
 "${RSYNC_ADD[@]}" -e "ssh ${SSH_OPTS[*]}" "$STAGE/meta/" "$DEST_HOST:$SNAP/meta/"
 
 # --- prune old snapshots (BSD-safe) ---------------------------------------------
@@ -129,6 +142,10 @@ rsh "test -f '$SNAP/db/opencode.db'" || fail "verify: db/opencode.db missing"
 rsh "test -d '$SNAP/work'"       || fail "verify: work/ missing on $DEST_HOST"
 rsh "test -f '$SNAP/work/AGENTS.md'" || fail "verify: bifrost tree incomplete (AGENTS.md)"
 rsh "test -f '$SNAP/meta/manifest.txt'" || fail "verify: meta/manifest.txt missing"
+# nest detector: a snapshot set copied INTO itself (dest-path bug recurrence)
+for sub in store state config work work-root systemd-user db meta; do
+  rsh "test ! -e '$SNAP/$sub/$sub'" || fail "verify: NEST detected: $SNAP/$sub/$sub"
+done
 log "verified snapshot contents:"
 rsh "ls -1 '$SNAP' | sed 's/^/  - /'"
 log "snapshot size: $(rsh "du -sh '$SNAP' | cut -f1")   all snapshots: $(rsh "du -sh '$RDEST' | cut -f1")"

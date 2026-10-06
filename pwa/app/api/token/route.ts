@@ -8,7 +8,9 @@ import {
 } from 'livekit-server-sdk';
 
 // must match agent/agent.py: @server.rtc_session(agent_name=...)
-const AGENT_NAME = 'bifrost';
+// The agent name is env-driven so the sandbox stack dispatches to its own
+// worker: live = "bifrost", sandbox = "bifrost-ygg" (never random).
+const AGENT_NAME = process.env.AGENT_NAME || 'bifrost';
 
 type ConnectionDetails = {
   serverUrl: string;
@@ -87,7 +89,8 @@ export async function POST(req: Request) {
         'http$1:'
       );
       const dispatchClient = new AgentDispatchClient(apiHost, API_KEY, API_SECRET);
-      await dispatchClient.createDispatch(roomName, AGENT_NAME);
+      const dispatchName = process.env.AGENT_NAME || AGENT_NAME;
+      await dispatchClient.createDispatch(roomName, dispatchName);
     } catch (dispatchError) {
       console.error(`agent dispatch failed for room ${roomName}:`, dispatchError);
     }

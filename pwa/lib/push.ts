@@ -1,7 +1,7 @@
 /** Web Push (VAPID): the proxy knows exactly when a run finishes (its async
  *  POST resolves on completion), so it can wake the phone even when Chrome
  *  froze the tab — in-page notifications can't do that on Android. */
-import { readFile, writeFile } from 'fs/promises';
+import { readFile, writeFile, appendFile, mkdir } from 'fs/promises';
 import path from 'path';
 import webpush from 'web-push';
 
@@ -49,7 +49,10 @@ export async function removeSub(endpoint: string): Promise<void> {
   await saveSubs((await loadSubs()).filter((s) => s.endpoint !== endpoint));
 }
 
-/** Best-effort broadcast to every device; dead subscriptions are pruned. */
+/** Best-effort broadcast to every device; dead subscriptions are pruned.
+ *  Delivery ratio instrumentation (native-app-eval Rung 0): the denominator
+ *  lands here as `[push] sent`; the service worker posts `[push] shown` to
+ *  /api/diag on display — ratio = shown/sent in pwa/.diag/diag-YYYY-MM-DD.log. */
 export async function pushRunDone(slug: string): Promise<void> {
   if (!ensureConfigured()) return;
   const subs = await loadSubs();
@@ -60,11 +63,13 @@ export async function pushRunDone(slug: string): Promise<void> {
     tag: `oz-${slug}`,
   });
   const alive: Sub[] = [];
+  let ok = 0;
   await Promise.all(
     subs.map(async (s) => {
       try {
-        await webpush.sendNotification(s, payload, { TTL: 3600 });
+        await webpush.sendNotification(s, payload, { TTL: 3600, urgency: 'high' });
         alive.push(s);
+        ok += 1;
       } catch (e: any) {
         // 404/410 = subscription expired — drop it
         if (e?.statusCode !== 404 && e?.statusCode !== 410) alive.push(s);
@@ -72,4 +77,14 @@ export async function pushRunDone(slug: string): Promise<void> {
     })
   );
   if (alive.length !== subs.length) await saveSubs(alive);
+  try {
+    const day = new Date().toISOString().slice(0, 10);
+    await mkdir(path.join(process.cwd(), '.diag'), { recursive: true });
+    await appendFile(
+      path.join(process.cwd(), '.diag', `diag-${day}.log`),
+      `${new Date().toISOString()} [push] (server · sent) slug=${slug} ok=${ok}/${subs.length} urgency=high\n`
+    );
+  } catch {
+    /* diag is best-effort — never fail the push */
+  }
 }

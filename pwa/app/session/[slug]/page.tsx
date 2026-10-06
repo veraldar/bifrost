@@ -1335,6 +1335,57 @@ export default function SessionView({
   freeCycleRef.current = freeCycle;
   const freeLevels = useMicLevels(mode === 'free' && voiceState === 'ready', roomRef);
 
+  // Rung 0 (native-app-eval): while hands-free, hold a screen wake lock (the
+  // honest PWA answer to lock-screen voice loss) and instrument `bvl` —
+  // background voice loss: hands-free active AND the page hides or the mic
+  // track dies/mutes. Counts feed the native-shell triggers; no behavior
+  // change beyond keeping the screen awake.
+  const hfActive = mode === 'free' && voiceState === 'ready';
+  useEffect(() => {
+    if (!hfActive) return;
+    type WakeLockSentinel = { release: () => Promise<void>; addEventListener: (t: string, f: () => void) => void };
+    const nav = navigator as Navigator & { wakeLock?: { request: (t: 'screen') => Promise<WakeLockSentinel> } };
+    let lock: WakeLockSentinel | null = null;
+    let released = false;
+    const acquire = async () => {
+      if (released || lock || !nav.wakeLock) return;
+      try {
+        lock = await nav.wakeLock.request('screen');
+        lock.addEventListener('release', () => {
+          lock = null;
+          diagEvent('bvl', `wake-lock released (auto or manual) ${slug}`);
+        });
+        diagEvent('bvl', `wake-lock acquired ${slug}`);
+      } catch (e) {
+        diagEvent('bvl', `wake-lock denied: ${String(e).slice(0, 120)} ${slug}`);
+      }
+    };
+    const onVis = () => {
+      if (document.hidden) {
+        diagEvent('bvl', `page hidden while hands-free ${slug}`);
+      } else {
+        void acquire(); // wake lock auto-releases on hide — re-arm
+      }
+    };
+    const onTrackGone = (why: string) => () => {
+      diagEvent('bvl', `mic track ${why} while hands-free ${slug}`);
+    };
+    const pub = roomRef.current?.localParticipant.getTrackPublication(Track.Source.Microphone);
+    const mic = pub?.track;
+    mic?.on('ended', onTrackGone('ended'));
+    mic?.on('muted', onTrackGone('muted'));
+    document.addEventListener('visibilitychange', onVis);
+    void acquire();
+    return () => {
+      released = true;
+      document.removeEventListener('visibilitychange', onVis);
+      mic?.off('ended', onTrackGone('ended'));
+      mic?.off('muted', onTrackGone('muted'));
+      void lock?.release().catch(() => {});
+      lock = null;
+    };
+  }, [hfActive, slug]);
+
   // auto-listen cycle: while waiting for the reply (free_state "processing"),
   // the first assistant message that lands is spoken via the same TTS as the
   // listen chip. The mic stays muted from "over" until the playback is

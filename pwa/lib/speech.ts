@@ -419,6 +419,11 @@ async function run(text: string, myGen: number): Promise<void> {
       enqueuePiece(start, pendingLen);
       pendingFloat = null;
       pendingLen = 0;
+    } else if (curIdx < 0 && pieces.length > 0) {
+      // the whole reply landed in ONE piece and the stream ended exactly on
+      // its boundary: the in-loop enqueue held it for a second piece that
+      // never comes — start it now (fast short replies: eternal 'synthesizing')
+      playPiece(0);
     }
     // if the last piece already ended while we were wrapping, finish now
     if (curIdx >= pieces.length - 1) maybeFinish();

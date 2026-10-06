@@ -381,7 +381,7 @@ import sys, json, re, glob, os, difflib
 tmp = sys.argv[1]
 # tokensBefore (session.compacted) is an estimate over the stored history, which holds upstream-minted
 # call ids — the mock's short call_0_0 vs the re-keyed call_<32 hex> — so only its direction is compared.
-TS = {"created", "updated", "completed", "start", "end", "tokensBefore"}
+TS = {"created", "updated", "completed", "start", "end", "tokensBefore", "first_delta"}
 def norm(text, d):
     text = text.replace(f"{d}/proj", "<PROJ>")
     ids = {}
@@ -498,6 +498,14 @@ VOICE=$(curl -sf http://$YGG/session/$SID/message | python3 -c '
 import sys, json
 m = json.load(sys.stdin)
 print(m[-1]["parts"][0]["text"])')
+echo "- first-delta latency stamp (the pipeline measures itself)"
+curl -sf http://$YGG/session/$SID/message | python3 -c '
+import sys, json
+m = json.load(sys.stdin)
+fd = m[-1]["info"]["time"].get("first_delta")
+assert fd is not None and 0 < fd < 60000, f"first_delta missing/bad: {fd}"
+print(f"first_delta: {fd}ms")'
+echo "slice-9 self-measurement ok"
 kill $SRV; wait $SRV 2>/dev/null || true; SRV=
 python3 - "$VOICE" <<'PY' || { echo "FAIL: voice sanitizer"; exit 1; }
 import sys, re
@@ -512,4 +520,5 @@ print(f"voice reply: {v[:120]}")
 assert bad is None, bad
 PY
 echo "slice-8 voice mode ok"
+echo "slice-9 self-measurement ok"
 echo PASS

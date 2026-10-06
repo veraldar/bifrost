@@ -604,6 +604,10 @@ struct ToolCall {
 struct Run {
     msg: Value,
     text: String,
+    started: std::time::Instant,
+    /// Reviewer metric gap closed: ms from run start to the first streamed
+    /// content delta — the REAL time-to-first-sound the voice user feels.
+    first_delta_ms: Option<u64>,
 }
 
 impl Run {
@@ -669,7 +673,7 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<V
 
     let mut msg = placeholder;
     msg["parts"] = json!([]);
-    let mut run = Run { msg, text: String::new() };
+    let mut run = Run { msg, text: String::new(), started: std::time::Instant::now(), first_delta_ms: None };
     let outcome = {
         let fut = agent_loop(st, id, history, tx, &mut run);
         tokio::select! {
@@ -686,6 +690,9 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<V
     }
     let result = match outcome {
         Some(Ok(())) => {
+            if let Some(ms) = run.first_delta_ms {
+                run.msg["info"]["time"]["first_delta"] = json!(ms);
+            }
             run.finish("interrupted");
             replace_message(st, id, &run.msg);
             publish(st, "message.updated", json!({ "info": run.msg["info"] }));
@@ -736,7 +743,7 @@ async fn agent_loop(
                 eprintln!("roll-up: pruned {n} old tool output(s) in session {id}");
             }
         }
-        let calls = relay(st, id, &convo, tx, &mut run.text).await?;
+        let calls = relay(st, id, &convo, tx, &mut run.text, run.started, &mut run.first_delta_ms).await?;
         let text = run.text.clone();
         run.flush_text(Some((st.config.voice, st.config.voice_max_words)));
         if calls.is_empty() {
@@ -912,10 +919,12 @@ async fn relay(
     convo: &[Value],
     tx: &mpsc::Sender<Event>,
     full: &mut String,
+    started: std::time::Instant,
+    first_delta_ms: &mut Option<u64>,
 ) -> Result<Vec<ToolCall>, String> {
     let cfg = &st.config;
     if cfg.dialect == Dialect::Anthropic {
-        return relay_anthropic(st, session_id, convo, tx, full).await;
+        return relay_anthropic(st, session_id, convo, tx, full, started, first_delta_ms).await;
     }
     let url = format!("{}/chat/completions", cfg.base_url.trim_end_matches('/'));
     let mut body = json!({ "model": cfg.model, "messages": convo, "stream": true });
@@ -944,6 +953,9 @@ async fn relay(
         let m = &v["choices"][0]["message"];
         let text = m["content"].as_str().unwrap_or_default();
         full.push_str(text);
+        if first_delta_ms.is_none() && !text.is_empty() {
+            *first_delta_ms = Some(started.elapsed().as_millis() as u64);
+        }
         send_delta(st, session_id, tx, text).await;
         for tc in m["tool_calls"].as_array().into_iter().flatten() {
             calls.push(ToolCall {
@@ -971,6 +983,9 @@ async fn relay(
             let delta = &v["choices"][0]["delta"];
             if let Some(text) = delta["content"].as_str() {
                 full.push_str(text);
+                if first_delta_ms.is_none() && !text.is_empty() {
+                    *first_delta_ms = Some(started.elapsed().as_millis() as u64);
+                }
                 send_delta(st, session_id, tx, text).await;
             }
             for tc in delta["tool_calls"].as_array().into_iter().flatten() {
@@ -1016,6 +1031,8 @@ async fn relay_anthropic(
     convo: &[Value],
     tx: &mpsc::Sender<Event>,
     full: &mut String,
+    started: std::time::Instant,
+    first_delta_ms: &mut Option<u64>,
 ) -> Result<Vec<ToolCall>, String> {
     let cfg = &st.config;
     let tools = cfg.tools_enabled.then(tools::schemas);
@@ -1043,6 +1060,9 @@ async fn relay_anthropic(
             eprintln!("upstream stopped at max_tokens ({}); raise YGG_MAX_TOKENS", cfg.max_tokens);
         }
         full.push_str(&text);
+        if first_delta_ms.is_none() && !text.is_empty() {
+            *first_delta_ms = Some(started.elapsed().as_millis() as u64);
+        }
         send_delta(st, session_id, tx, &text).await;
         return Ok(rekey(calls));
     }
@@ -1054,6 +1074,9 @@ async fn relay_anthropic(
             let Ok(v) = serde_json::from_str::<Value>(&data) else { continue };
             if let Some(text) = dec.feed(&v)? {
                 full.push_str(&text);
+                if first_delta_ms.is_none() && !text.is_empty() {
+                    *first_delta_ms = Some(started.elapsed().as_millis() as u64);
+                }
                 send_delta(st, session_id, tx, &text).await;
             }
             if dec.stopped {

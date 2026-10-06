@@ -87,14 +87,14 @@ test('model picker: filter + apply persists; models without think levels say so'
   pickerSessionId = (await cr.json()).id;
   await page.goto(`/session/${BASE_NAME}-picker/settings`);
   await page.getByRole('button', { name: 'tap to choose ›' }).click();
-  await page.getByLabel('filter models').fill('5.2');
-  const pick = page.locator('ul button', { hasText: /^zai-coding-plan\/glm-5\.2$/ }).first();
+  await page.getByLabel('filter models').fill('4.7');
+  const pick = page.locator('ul button', { hasText: /^zai-coding-plan\/glm-4\.7$/ }).first();
   await expect(pick).toBeVisible();
   await pick.click();
-  await expect(page.getByText(/zai-coding-plan\/glm-5\.2/).first()).toBeVisible();
+  await expect(page.getByText(/zai-coding-plan\/glm-4\.7/).first()).toBeVisible();
   const s = await (await request.get(`/api/session/${pickerSessionId}`)).json();
-  expect(s.model?.modelID).toBe('glm-5.2');
-  // glm-5.2 has no derived think models → honest empty state
+  expect(s.model?.modelID).toBe('glm-4.7');
+  // glm-4.7 exposes no think variants → honest empty state
   await expect(page.getByText('no think levels configured for this model')).toBeVisible();
 });
 

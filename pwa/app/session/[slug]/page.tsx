@@ -919,6 +919,12 @@ export default function SessionView({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ room: slug }),
       });
+      // a 4xx/5xx body may be empty (Next error pages) — surface the status,
+      // never let r.json() mask it as "Unexpected end of JSON input"
+      if (!r.ok) {
+        const d = (await r.json().catch(() => ({}))) as { error?: string };
+        throw new Error(d.error || `token endpoint returned ${r.status}`);
+      }
       const d = await r.json();
       const room = new Room({ adaptiveStream: false });
       room.on(RoomEvent.SignalConnected, () => diagEvent('voice', 'signal connected'));
@@ -942,7 +948,14 @@ export default function SessionView({
       });
       room.on(RoomEvent.MediaDevicesError, (e: Error) => diagEvent('voice-fail', String(e)));
       diagEvent('voice', 'connecting signal…');
-      await withTimeout(room.connect(d.serverUrl, d.participantToken), 12_000, 'signal');
+      try {
+        await withTimeout(room.connect(d.serverUrl, d.participantToken), 12_000, 'signal');
+      } catch (e) {
+        // a timed-out connect leaves the signal websocket open (zombie
+        // socket, mic-in-use ghost) — always tear the half-built room down
+        void room.disconnect().catch(() => {});
+        throw e;
+      }
       diagEvent('voice', 'connected, mic stays muted until a mode/handler turns it on');
       // the agent calls this on "over and out": leave hands-free, teardown
       // to keyboard (the final reply lands as text in the session instead

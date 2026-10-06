@@ -1,0 +1,26 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Simulation evolution — the self-improving loop</title>
+<style>body{background:#080810;color:#e8e8f2;font:13px/1.6 ui-monospace,Menlo,monospace;padding:24px;max-width:760px;margin:0 auto}
+h1{font-size:21px}h1 span{color:#4ade80}h2{font-size:14px;color:#4ade80;text-transform:uppercase;letter-spacing:.1em;margin:26px 0 10px}h2::before{content:'▲ ';color:#8b8ba3}
+.v{background:#0e0e1a;border:1px solid #26263a;border-radius:10px;padding:14px;margin-bottom:12px}
+.v b{color:#4ade80}.v i{color:#8b8ba3;font-style:normal;font-size:11px}
+table{width:100%;border-collapse:collapse;font-size:12px;margin:10px 0}td,th{border:1px solid #26263a;padding:7px 10px;text-align:left}th{color:#8b8ba3;font-size:10px;text-transform:uppercase}
+.pass{color:#4ade80}.break{color:#fbbf24}.skip{color:#8b8ba3}
+.note{border-left:3px solid #4ade80;padding-left:12px;color:#8b8ba3;font-size:11.5px;margin:16px 0}</style></head><body>
+<h1><span>Simulation evolution</span> — the self-improving loop</h1>
+<p style="color:#8b8ba3;font-size:12px">the cycle: run matrix → validate → mine findings → build v+1 → commit → loop · every v+1 must measurably add coverage</p>
+
+<h2>the versions</h2>
+<div class="v"><b>v1 — baseline</b> <i>landed 10-04</i><br>17 scenarios · 15 pass · 1 break-documented · 1 known · 0 FAIL<br>shaped wire (latency/jitter/loss/dup/reorder/bw-cap/blackout/rebind, seeded) · SimClient (signaling + app channel + Opus mic from real TTS) · in-binary deterministic upstream · world spawning the REAL yggdrasil + REAL bifrost-net bridge<br><b>caught:</b> bridge run.done starvation · tokenHash camelCase contract · str0m reorder-hold law</div>
+<div class="v"><b>v2 — the cycle machine</b> <i>landed 10-04</i><br>+tool_calls mock streaming · real agent loop (real bash) · parallel sessions (4 concurrent) · bandwidth-starved bridge (64kbps — the no-BWE law: 35% burst, channel survives) · STT∘TTS quality gate (hands-free 3/3) · CYCLE 1 VALID: 20 ran · 17 pass · 2 break · 1 known · 0 FAIL</div>
+<div class="v"><b>v3 — the sim contains the app</b> <i>landed 10-05</i><br>+AppDriver (local-KVM + ssh-mac adb hosts, probed live; android-lab AVD found BOOTED) · +4 app.* scenarios (install-pair / push-notification / background-audio / hot-reload) SKIP-loud until the wrap lands · +THE EVOLUTION RULE enforced in cycle (ledger pairing app 0.6.0 ↔ sim 0.3.0; app-bump-without-sim-bump fails the cycle) · +self-caught: the TTS homophone trap ('essay'→'F.A.'), spoken fixture fixed · CYCLE 3 VALID: 24 ran · 17 pass · 2 break · 1 known · 4 skip · 0 FAIL</div>
+
+<h2>the trend</h2>
+<table>
+<tr><th>version</th><th>scenarios</th><th>pass</th><th>gates added</th><th>self-caught</th></tr>
+<tr><td>v1</td><td>17</td><td class="pass">15</td><td>—</td><td>3 real findings</td></tr>
+<tr><td>v2</td><td>20</td><td class="pass">17</td><td>STT∘TTS gate · parallel-sessions · bw-starved</td><td>homophone trap</td></tr>
+<tr><td>v3</td><td>24</td><td class="pass">17</td><td>evolution rule · app containment · SKIP-loud discipline</td><td>app-version pairing enforced</td></tr>
+</table>
+
+<div class="note"><b>the loop is the product.</b> each version: run → validate → mine → build → commit. the matrix stays green or the loop stops for a fix. the next gate: the APK wrap lands → the 4 app.* scenarios un-SKIP → the full matrix runs with the native app in the loop.</div>
+</body></html>

@@ -45,6 +45,7 @@ edge/*.log
 !/artifacts/opencode-full-prompt.md
 !/artifacts/opencode-full-prompt-raw.txt
 !/artifacts/agi-board.html
+!/artifacts/sim-evolution-report.html
 !/artifacts/network-plan.html
 !/artifacts/user-setup-steps.html
 

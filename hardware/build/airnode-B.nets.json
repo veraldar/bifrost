@@ -1,0 +1,463 @@
+{
+ "device": "airnode-B",
+ "parts": [
+  {
+   "ref": "U1",
+   "name": "ESP32-C3-WROOM-02",
+   "value": "ESP32-C3-WROOM-02-N4",
+   "footprint": "RF_Module:ESP32-C3-WROOM-02"
+  },
+  {
+   "ref": "J1",
+   "name": "Conn_01x05",
+   "value": "PROG",
+   "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical"
+  },
+  {
+   "ref": "R1",
+   "name": "R",
+   "value": "1k",
+   "footprint": "Resistor_SMD:R_0603_1608Metric"
+  },
+  {
+   "ref": "D1",
+   "name": "LED",
+   "value": "PWR",
+   "footprint": "LED_SMD:LED_0603_1608Metric"
+  },
+  {
+   "ref": "R2",
+   "name": "R",
+   "value": "10k",
+   "footprint": "Resistor_SMD:R_0603_1608Metric"
+  },
+  {
+   "ref": "U2",
+   "name": "ADXL343",
+   "value": "ADXL343",
+   "footprint": "Sensor_Motion:ADXL343LCC-14"
+  },
+  {
+   "ref": "R3",
+   "name": "R",
+   "value": "10k",
+   "footprint": "Resistor_SMD:R_0603_1608Metric"
+  },
+  {
+   "ref": "R4",
+   "name": "R",
+   "value": "10k",
+   "footprint": "Resistor_SMD:R_0603_1608Metric"
+  },
+  {
+   "ref": "U3",
+   "name": "ME6211C33M5",
+   "value": "ME6211C33M5",
+   "footprint": "Package_TO_SOT_SMD:SOT-23-5"
+  },
+  {
+   "ref": "U4",
+   "name": "TP4056-42-ESOP8",
+   "value": "TP4056",
+   "footprint": "Package_SO:ESOP-8_3.9x4.9mm_P1.27mm"
+  },
+  {
+   "ref": "R5",
+   "name": "R",
+   "value": "1.2k",
+   "footprint": "Resistor_SMD:R_0603_1608Metric"
+  },
+  {
+   "ref": "R6",
+   "name": "R",
+   "value": "1k",
+   "footprint": "Resistor_SMD:R_0603_1608Metric"
+  },
+  {
+   "ref": "R7",
+   "name": "R",
+   "value": "1k",
+   "footprint": "Resistor_SMD:R_0603_1608Metric"
+  },
+  {
+   "ref": "D2",
+   "name": "LED",
+   "value": "CHRG",
+   "footprint": "LED_SMD:LED_0603_1608Metric"
+  },
+  {
+   "ref": "C1",
+   "name": "C",
+   "value": "10uF",
+   "footprint": "Capacitor_SMD:C_0805_2012Metric"
+  },
+  {
+   "ref": "C2",
+   "name": "C",
+   "value": "10uF",
+   "footprint": "Capacitor_SMD:C_0805_2012Metric"
+  },
+  {
+   "ref": "C3",
+   "name": "C",
+   "value": "100nF",
+   "footprint": "Resistor_SMD:R_0603_1608Metric"
+  },
+  {
+   "ref": "R8",
+   "name": "R",
+   "value": "10k",
+   "footprint": "Resistor_SMD:R_0603_1608Metric"
+  },
+  {
+   "ref": "TH1",
+   "name": "Thermistor_NTC",
+   "value": "NTC_10K_B3950",
+   "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
+  },
+  {
+   "ref": "J2",
+   "name": "Conn_01x02",
+   "value": "BAT_18650",
+   "footprint": "Connector_JST:JST_PH_B2B-PH-K_1x02_P2.00mm_Vertical"
+  },
+  {
+   "ref": "J3",
+   "name": "Conn_01x02",
+   "value": "RELAY",
+   "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
+  },
+  {
+   "ref": "#FLG1",
+   "name": "PWR_FLAG",
+   "value": "PWR_FLAG",
+   "footprint": ""
+  },
+  {
+   "ref": "#FLG2",
+   "name": "PWR_FLAG",
+   "value": "PWR_FLAG",
+   "footprint": ""
+  },
+  {
+   "ref": "#PWR1",
+   "name": "GND",
+   "value": "GND",
+   "footprint": ""
+  },
+  {
+   "ref": "#PWR2",
+   "name": "+3V3",
+   "value": "+3V3",
+   "footprint": ""
+  },
+  {
+   "ref": "U5",
+   "name": "ESP32-C3-WROOM-02",
+   "value": "ESP32-C3-WROOM-02-N4",
+   "footprint": "RF_Module:ESP32-C3-WROOM-02"
+  },
+  {
+   "ref": "J4",
+   "name": "Conn_01x05",
+   "value": "PROG",
+   "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical"
+  },
+  {
+   "ref": "R9",
+   "name": "R",
+   "value": "1k",
+   "footprint": "Resistor_SMD:R_0603_1608Metric"
+  },
+  {
+   "ref": "D3",
+   "name": "LED",
+   "value": "PWR",
+   "footprint": "LED_SMD:LED_0603_1608Metric"
+  },
+  {
+   "ref": "R10",
+   "name": "R",
+   "value": "10k",
+   "footprint": "Resistor_SMD:R_0603_1608Metric"
+  },
+  {
+   "ref": "R11",
+   "name": "R",
+   "value": "10k",
+   "footprint": "Resistor_SMD:R_0603_1608Metric"
+  },
+  {
+   "ref": "R12",
+   "name": "R",
+   "value": "10k",
+   "footprint": "Resistor_SMD:R_0603_1608Metric"
+  },
+  {
+   "ref": "U6",
+   "name": "SCD41-D-R2",
+   "value": "SCD41",
+   "footprint": "Sensor:Sensirion_DFN-4_2x2mm"
+  },
+  {
+   "ref": "U7",
+   "name": "SGP41",
+   "value": "SGP41",
+   "footprint": ""
+  },
+  {
+   "ref": "U8",
+   "name": "ME6211C33M5",
+   "value": "ME6211C33M5",
+   "footprint": "Package_TO_SOT_SMD:SOT-23-5"
+  },
+  {
+   "ref": "C4",
+   "name": "C",
+   "value": "10uF",
+   "footprint": "Capacitor_SMD:C_0805_2012Metric"
+  },
+  {
+   "ref": "C5",
+   "name": "C",
+   "value": "100nF",
+   "footprint": "Resistor_SMD:R_0603_1608Metric"
+  },
+  {
+   "ref": "C6",
+   "name": "C",
+   "value": "100nF",
+   "footprint": "Resistor_SMD:R_0603_1608Metric"
+  },
+  {
+   "ref": "J5",
+   "name": "Conn_01x02",
+   "value": "PIR",
+   "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
+  },
+  {
+   "ref": "J6",
+   "name": "Conn_01x02",
+   "value": "FAN_RELAY",
+   "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
+  },
+  {
+   "ref": "J7",
+   "name": "Conn_01x02",
+   "value": "5V_IN",
+   "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
+  },
+  {
+   "ref": "#FLG3",
+   "name": "PWR_FLAG",
+   "value": "PWR_FLAG",
+   "footprint": ""
+  },
+  {
+   "ref": "#PWR3",
+   "name": "GND",
+   "value": "GND",
+   "footprint": ""
+  },
+  {
+   "ref": "#PWR4",
+   "name": "+3V3",
+   "value": "+3V3",
+   "footprint": ""
+  }
+ ],
+ "pads": {
+  "U1.1": "+3V3",
+  "U1.11": "UART_RX",
+  "U1.12": "UART_TX",
+  "U1.15": "SCL",
+  "U1.16": "SDA",
+  "U1.19": "GND",
+  "U1.2": "EN",
+  "U1.3": "NTC_ADC",
+  "U1.4": "ACC_INT",
+  "U1.5": "RELAY_TRIG",
+  "U1.8": "IO9_BOOT",
+  "U1.9": "GND",
+  "J1.1": "+3V3",
+  "J1.2": "GND",
+  "J1.3": "UART_TX",
+  "J1.4": "UART_RX",
+  "J1.5": "IO9_BOOT",
+  "R1.1": "+3V3",
+  "R1.2": "N$1",
+  "D1.1": "N$1",
+  "D1.2": "GND",
+  "R2.1": "+3V3",
+  "R2.2": "EN",
+  "U2.1": "+3V3",
+  "U2.12": "GND",
+  "U2.13": "SDA",
+  "U2.14": "SCL",
+  "U2.2": "GND",
+  "U2.4": "GND",
+  "U2.5": "GND",
+  "U2.6": "+3V3",
+  "U2.7": "+3V3",
+  "U2.8": "ACC_INT",
+  "R3.1": "+3V3",
+  "R3.2": "SDA",
+  "R4.1": "+3V3",
+  "R4.2": "SCL",
+  "U3.1": "VBAT",
+  "U3.2": "GND",
+  "U3.3": "VBAT",
+  "U3.5": "+3V3",
+  "U4.1": "GND",
+  "U4.2": "N$2",
+  "U4.3": "GND",
+  "U4.4": "VIN_5V",
+  "U4.5": "VBAT",
+  "U4.6": "NSTDBY",
+  "U4.7": "NCHRG",
+  "U4.8": "VIN_5V",
+  "R5.1": "GND",
+  "R5.2": "N$2",
+  "R6.1": "NCHRG",
+  "R6.2": "LED_A",
+  "R7.1": "NSTDBY",
+  "R7.2": "LED_A",
+  "D2.1": "LED_A",
+  "D2.2": "GND",
+  "C1.1": "VIN_5V",
+  "C1.2": "GND",
+  "C2.1": "VBAT",
+  "C2.2": "GND",
+  "C3.1": "+3V3",
+  "C3.2": "GND",
+  "R8.1": "NTC_ADC",
+  "R8.2": "+3V3",
+  "TH1.1": "NTC_ADC",
+  "TH1.2": "GND",
+  "J2.1": "VBAT",
+  "J2.2": "GND",
+  "J3.1": "RELAY_TRIG",
+  "J3.2": "GND",
+  "U5.1": "+3V3_1",
+  "U5.11": "UART_RX1",
+  "U5.12": "UART_TX1",
+  "U5.15": "SCL1",
+  "U5.16": "SDA1",
+  "U5.19": "GND1",
+  "U5.2": "EN1",
+  "U5.3": "PIR_IN",
+  "U5.4": "NC_IO5",
+  "U5.5": "FAN_TRIG",
+  "U5.8": "IO9_BOOT1",
+  "U5.9": "GND1",
+  "J4.1": "+3V3_1",
+  "J4.2": "GND1",
+  "J4.3": "UART_TX1",
+  "J4.4": "UART_RX1",
+  "J4.5": "IO9_BOOT1",
+  "R9.1": "+3V3_1",
+  "R9.2": "N$3",
+  "D3.1": "N$3",
+  "D3.2": "GND1",
+  "R10.1": "+3V3_1",
+  "R10.2": "EN1",
+  "R11.1": "+3V3_1",
+  "R11.2": "SDA1",
+  "R12.1": "+3V3_1",
+  "R12.2": "SCL1",
+  "U6.10": "SDA1",
+  "U6.19": "+3V3_1",
+  "U6.20": "GND1",
+  "U6.21": "GND1",
+  "U6.6": "GND1",
+  "U6.7": "+3V3_1",
+  "U6.9": "SCL1",
+  "U7.1": "+3V3_1",
+  "U7.2": "GND1",
+  "U7.3": "SDA1",
+  "U7.4": "SCL1",
+  "U8.1": "VIN_5V1",
+  "U8.2": "GND1",
+  "U8.3": "VIN_5V1",
+  "U8.5": "+3V3_1",
+  "C4.1": "VIN_5V1",
+  "C4.2": "GND1",
+  "C5.1": "+3V3_1",
+  "C5.2": "GND1",
+  "C6.1": "+3V3_1",
+  "C6.2": "GND1",
+  "J5.1": "PIR_IN",
+  "J5.2": "GND1",
+  "J6.1": "FAN_TRIG",
+  "J6.2": "GND1",
+  "J7.1": "VIN_5V1",
+  "J7.2": "GND1"
+ },
+ "anchors": {
+  "U1": [
+   40,
+   26,
+   0
+  ],
+  "U2": [
+   40,
+   8,
+   0
+  ],
+  "U3": [
+   58,
+   26,
+   0
+  ],
+  "U4": [
+   66,
+   26,
+   0
+  ],
+  "J1": [
+   8,
+   44,
+   0
+  ],
+  "J2": [
+   20,
+   56,
+   0
+  ],
+  "J3": [
+   40,
+   56,
+   0
+  ],
+  "J4": [
+   60,
+   56,
+   0
+  ],
+  "TH1": [
+   24,
+   8,
+   0
+  ],
+  "D1": [
+   12,
+   26,
+   0
+  ],
+  "D2": [
+   30,
+   26,
+   0
+  ],
+  "FLG+3": [
+   74,
+   8,
+   0
+  ],
+  "FLGGN": [
+   74,
+   12,
+   0
+  ]
+ }
+}

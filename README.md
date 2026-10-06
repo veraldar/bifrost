@@ -149,9 +149,20 @@ LiveKit (and a network-reachable opencode).
 
 ## Roadmap
 
-See `docs/plan.md` — invariants, current phase, deferred work. `docs/environments.md`
-records where the system is installed and every automated test run (`npm run verify`,
-also scheduled daily via a systemd timer).
+One structural change per version; each is gated (`scripts/gate.py`) and lives on
+daily use before the next. Every version is a frozen release you can switch back to
+in about a minute (`scripts/promote.sh --list / --switch / --rollback`). Full contract:
+`docs/STABLE.md`.
+
+| version | the one change |
+|---|---|
+| v0.6.1 | releases carry their own env; switch/rollback between any built version |
+| v0.6.2 | speech-to-text in-process in the voice agent (no STT service) |
+| v0.7 | yggdrasil becomes the brain (opencode-compatible, light prompt) |
+| v0.8 | bifrost-net bridge as a second transport + an Android app as its first client |
+| v0.9 | bridge-first: no tailnet needed |
+
+`docs/plan.md` keeps the working board; `docs/environments.md` records installs and test runs.
 
 ## Support
 

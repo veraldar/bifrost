@@ -21,7 +21,9 @@ sim evolution + an Android app as the accelerator.
 
 Releases: `v0.6-stable.1` (10-06 21:39 — c6a1b2d + the WIP overlay that ran, now
 committed as a0b12b8) and `v0.6.1` (232b25c: the frozen source + the fixes below).
-`v0.6.1` becomes **stable** after 48h of daily use with zero hand fixes.
+**Live since 10-06 23:17: `v0.6.1`** — gate `--full` GREEN (22 pass, 2 warn: lab worker
+:18082 on 0.0.0.0, bridge lab spec skipped), e2e 46/46 on the release's own suite.
+`v0.6.1` becomes **stable** after 48h of daily use with zero hand fixes (10-08 23:17).
 
 Runtime state stays where it was (`~/Work/bifrost/pwa/.diag`, `.push-subs.json`,
 `.oc-*.json`, `.devices.json` are symlinked into every release; artifacts via `ARTIFACTS_DIR`).

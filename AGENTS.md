@@ -15,15 +15,17 @@ This box runs everything. Mac Studio serves speech models (MLX Qwen3-ASR/TTS) on
 - pwa: `cd pwa && npm run build` + e2e: `cd pwa && npx playwright test`
 - agent: `cd agent && uv run agent.py console` (local mic test)
 - deploy: `cd deploy && docker compose up -d`
-- live stack: `python3 scripts/gate.py` (is live healthy?) · ship: `scripts/promote.sh <commit>` · undo: `scripts/promote.sh --rollback`
+- live stack: `python3 scripts/gate.py` (is live healthy?) · ship: `scripts/promote.sh <commit> --label vX` · versions: `scripts/promote.sh --list` / `--switch <label>` · undo: `scripts/promote.sh --rollback` (again = redo)
 - live diag: `tail pwa/.diag/$(date +%F).log`
 
 ## Production boundary (10-06 — full contract: docs/STABLE.md)
-Live (`lk-pwa` :8080 + `lk-agent`) runs a FROZEN release from `~/.local/share/bifrost/live`,
-never from this worktree. Building or restarting here changes nothing live.
+Live (`lk-pwa` :8080 + `lk-agent`) runs a FROZEN release from `~/.local/share/bifrost/live`
+(code + build + its own `env/`), never from this worktree. Building or restarting here changes nothing live.
 - The only way in: `scripts/promote.sh <commit>` — builds, switches, runs the gate, rolls back on RED.
-- Never by hand: restart/kill/edit the live units or `~/.config/bifrost/env/*`, `kill -9`,
+- Never by hand: restart/kill/edit the live units or anything inside a release, `kill -9`,
   detached `setsid`/`nohup` servers, or spawning `claude -p` to "fix the box".
+- Settings change (brain, STT model, voice): edit the draft `~/.config/bifrost/env/live-*.env`,
+  then `scripts/promote.sh --env-only --label …` — it becomes a gated release you can roll back.
 - Live looks broken → run `python3 scripts/gate.py`, report its RED lines to the user, roll back only with their go.
 - Labs never use ports 8080/4096, the agent name `bifrost-live`, or listen beyond loopback without device tokens.
 

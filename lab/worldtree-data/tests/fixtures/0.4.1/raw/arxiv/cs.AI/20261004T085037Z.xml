@@ -1,0 +1,31 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/PbyeHZtJR7+By5a1aMx/umv4Hko</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202007010000 TO 202007312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:37:39Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202007010000+TO+202007312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>523</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2007.11038v1</id>
+    <title>Sistema experto para el diagnóstico de enfermedades y plagas en los cultivos del arroz, tabaco, tomate, pimiento, maíz, pepino y frijol</title>
+    <updated>2020-07-21T18:39:37Z</updated>
+    <link href="https://arxiv.org/abs/2007.11038v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2007.11038v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Agricultural production has become a complex business that requires the accumulation and integration of knowledge, in addition to information from many different sources. To remain competitive, the modern farmer often relies on agricultural specialists and advisors who provide them with information for decision making in their crops. But unfortunately, the help of the agricultural specialist is not always available when the farmer needs it. To alleviate this problem, expert systems have become a powerful instrument that has great potential within agriculture. This paper presents an Expert System for the diagnosis of diseases and pests in rice, tobacco, tomato, pepper, corn, cucumber and bean crops. For the development of this Expert System, SWI-Prolog was used to create the knowledge base, so it works with predicates and allows the system to be based on production rules. This system allows a fast and reliable diagnosis of pests and diseases that affect these crops.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2020-07-21T18:39:37Z</published>
+    <arxiv:comment>in Spanish</arxiv:comment>
+    <arxiv:primary_category term="cs.AI"/>
+    <author>
+      <name>Ing. Yosvany Medina Carbó</name>
+    </author>
+    <author>
+      <name>MSc. Iracely Milagros Santana Ges</name>
+    </author>
+    <author>
+      <name>Lic. Saily Leo González</name>
+    </author>
+  </entry>
+</feed>

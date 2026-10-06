@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/b7Vdf5fzr7Qrvc9W+csZ6WnmMmc</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202510010000 TO 202510312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:57:23Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202510010000+TO+202510312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>4844</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2510.00728v1</id>
+    <title>Extreme Blind Image Restoration via Prompt-Conditioned Information Bottleneck</title>
+    <updated>2025-10-01T10:13:27Z</updated>
+    <link href="https://arxiv.org/abs/2510.00728v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2510.00728v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Blind Image Restoration (BIR) methods have achieved remarkable success but falter when faced with Extreme Blind Image Restoration (EBIR), where inputs suffer from severe, compounded degradations beyond their training scope. Directly learning a mapping from extremely low-quality (ELQ) to high-quality (HQ) images is challenging due to the massive domain gap, often leading to unnatural artifacts and loss of detail. To address this, we propose a novel framework that decomposes the intractable ELQ-to-HQ restoration process. We first learn a projector that maps an ELQ image onto an intermediate, less-degraded LQ manifold. This intermediate image is then restored to HQ using a frozen, off-the-shelf BIR model. Our approach is grounded in information theory; we provide a novel perspective of image restoration as an Information Bottleneck problem and derive a theoretically-driven objective to train our projector. This loss function effectively stabilizes training by balancing a low-quality reconstruction term with a high-quality prior-matching term. Our framework enables Look Forward Once (LFO) for inference-time prompt refinement, and supports plug-and-play strengthening of existing image restoration models without need for finetuning. Extensive experiments under severe degradation regimes provide a thorough analysis of the effectiveness of our work.</summary>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2025-10-01T10:13:27Z</published>
+    <arxiv:primary_category term="cs.CV"/>
+    <author>
+      <name>Hongeun Kim</name>
+    </author>
+    <author>
+      <name>Bryan Sangwoo Kim</name>
+    </author>
+    <author>
+      <name>Jong Chul Ye</name>
+    </author>
+  </entry>
+</feed>

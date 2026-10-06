@@ -1,0 +1,23 @@
+{
+ "attribution": "GitHub REST API (api.github.com, keyless: 60 core req/h + 10 search req/min — no token by design)",
+ "bytes": 8083,
+ "content_type": "application/json",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://api.github.com/search/commits?q=repo:tensorflow/tensorflow+committer-date:2020-07-01..2020-07-31&per_page=1",
+ "http_status": 200,
+ "license": "GitHub ToS — counts are facts; metadata via public API",
+ "license_url": "https://docs.github.com/site-policy/github-terms/github-terms-of-service",
+ "path": "raw/github/commits/20261004T193034Z.json",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-04T19:30:34Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "4e34af3035c35809c30cf7553ac8c0293ec17b3ed5016b5d3f3062fc29dfc106",
+ "slug": "commits",
+ "source_id": "github",
+ "stored_bytes": true,
+ "upstream_next_update": null,
+ "upstream_updated": null,
+ "url": "https://api.github.com/search/commits?q=repo:tensorflow/tensorflow+committer-date:2020-07-01..2020-07-31&per_page=1"
+}

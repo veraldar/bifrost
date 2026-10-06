@@ -1,0 +1,59 @@
+{
+ "attribution": "Agent Restriction Index (ARI), dweeb.xyz — weekly 0-100 index of restriction pressure on AI agents, Mac Studio ARI pipeline; methodology at report §method (https://dweeb-xzys-mac-studio.tail5435b1.ts.net/api/artifact/report-ari.html#method)",
+ "bytes": 103856,
+ "content_type": "text/html",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://dweeb-xzys-mac-studio.tail5435b1.ts.net/api/artifact/report-ari.html",
+ "http_status": 200,
+ "license": "dweeb.xyz Agent Restriction Index — verbatim capture, © pipeline output, methodology at report §method",
+ "license_url": "https://dweeb-xzys-mac-studio.tail5435b1.ts.net/api/artifact/report-ari.html#method",
+ "methodology": {
+  "K": 5.77,
+  "K_frozen_on": "2026-10-04",
+  "calibration": "K fixed so the median week of the calibration window scores 50",
+  "components": [
+   {
+    "id": "os_restriction",
+    "label": "OS & app-store walls",
+    "weight": 3
+   },
+   {
+    "id": "platform_ban",
+    "label": "Platform bans & blocks",
+    "weight": 3
+   },
+   {
+    "id": "datacenter_backlash",
+    "label": "Datacenter backlash",
+    "weight": 2
+   },
+   {
+    "id": "safety_exit",
+    "label": "Safety exits",
+    "weight": 2
+   },
+   {
+    "id": "legal_wall",
+    "label": "Legal & regulatory walls",
+    "weight": 1
+   }
+  ],
+  "score": "ARI = 100 × (1 − e^(−S/K)), S = Σ category weight over deduplicated events dated that week (Mon–Sun UTC)",
+  "trend_test": "Mann-Kendall on complete weeks + OLS slope"
+ },
+ "methodology_url": "https://dweeb-xzys-mac-studio.tail5435b1.ts.net/api/artifact/report-ari.html#method",
+ "path": "raw/ari/report/20261004T163040Z.html",
+ "report_generated": "2026-10-04T16:22:15+00:00",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-04T16:30:40Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "5273c73fff8a881ebf371f6a8ab87bf8a3f0fb5d3bc2bfe45f6f1a7faa797a41",
+ "slug": "report",
+ "source_id": "ari",
+ "stored_bytes": true,
+ "upstream_next_update": null,
+ "upstream_updated": "2026-10-04T16:22:15+00:00",
+ "url": "https://dweeb-xzys-mac-studio.tail5435b1.ts.net/api/artifact/report-ari.html"
+}

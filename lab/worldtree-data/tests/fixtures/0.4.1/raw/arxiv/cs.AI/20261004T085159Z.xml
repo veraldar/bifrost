@@ -1,0 +1,28 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/anlLeRgY+p5cqZFLLSMkYcXZhBA</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202108010000 TO 202108312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:51:59Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202108010000+TO+202108312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>895</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2108.10717v1</id>
+    <title>Improvement of a Prediction Model for Heart Failure Survival through Explainable Artificial Intelligence</title>
+    <updated>2021-08-20T09:03:26Z</updated>
+    <link href="https://arxiv.org/abs/2108.10717v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2108.10717v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Cardiovascular diseases and their associated disorder of heart failure are one of the major death causes globally, being a priority for doctors to detect and predict its onset and medical consequences. Artificial Intelligence (AI) allows doctors to discover clinical indicators and enhance their diagnosis and treatments. Specifically, explainable AI offers tools to improve the clinical prediction models that experience poor interpretability of their results. This work presents an explainability analysis and evaluation of a prediction model for heart failure survival by using a dataset that comprises 299 patients who suffered heart failure. The model employs a data workflow pipeline able to select the best ensemble tree algorithm as well as the best feature selection technique. Moreover, different post-hoc techniques have been used for the explainability analysis of the model. The paper's main contribution is an explainability-driven approach to select the best prediction model for HF survival based on an accuracy-explainability balance. Therefore, the most balanced explainable prediction model implements an Extra Trees classifier over 5 selected features (follow-up time, serum creatinine, ejection fraction, age and diabetes) out of 12, achieving a balanced-accuracy of 85.1% and 79.5% with cross-validation and new unseen data respectively. The follow-up time is the most influencing feature followed by serum-creatinine and ejection-fraction. The explainable prediction model for HF survival presented in this paper would improve a further adoption of clinical prediction models by providing doctors with intuitions to better understand the reasoning of, usually, black-box AI clinical solutions, and make more reasonable and data-driven decisions.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2021-08-20T09:03:26Z</published>
+    <arxiv:comment>arXiv admin note: text overlap with arXiv:2105.10368</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Pedro A. Moreno-Sanchez</name>
+    </author>
+    <arxiv:doi>10.3389/fcvm.2023.1219586</arxiv:doi>
+    <link rel="related" href="https://doi.org/10.3389/fcvm.2023.1219586" title="doi"/>
+  </entry>
+</feed>

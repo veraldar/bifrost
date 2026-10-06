@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/NXZ/U7fDtK9q38g6kKiXfBkwq9U</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"201903010000 TO 201903312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:36:36Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22201903010000+TO+201903312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>350</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/1903.04413v1</id>
+    <title>Building an Affordances Map with Interactive Perception</title>
+    <updated>2019-03-11T16:24:04Z</updated>
+    <link href="https://arxiv.org/abs/1903.04413v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/1903.04413v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Robots need to understand their environment to perform their task. If it is possible to pre-program a visual scene analysis process in closed environments, robots operating in an open environment would benefit from the ability to learn it through their interaction with their environment. This ability furthermore opens the way to the acquisition of affordances maps in which the action capabilities of the robot structure its visual scene understanding. We propose an approach to build such affordances maps by relying on an interactive perception approach and an online classification. In the proposed formalization of affordances, actions and effects are related to visual features, not objects, and they can be combined. We have tested the approach on three action primitives and on a real PR2 robot.</summary>
+    <category term="cs.RO" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2019-03-11T16:24:04Z</published>
+    <arxiv:comment>14 pages, 15 figures</arxiv:comment>
+    <arxiv:primary_category term="cs.RO"/>
+    <author>
+      <name>Leni K. Le Goff</name>
+    </author>
+    <author>
+      <name>Oussama Yaakoubi</name>
+    </author>
+    <author>
+      <name>Alexandre Coninx</name>
+    </author>
+    <author>
+      <name>Stephane Doncieux</name>
+    </author>
+  </entry>
+</feed>

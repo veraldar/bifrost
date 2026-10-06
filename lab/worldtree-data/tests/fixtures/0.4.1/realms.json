@@ -1,0 +1,383 @@
+{
+ "updated": "2026-10-04T17:00:00Z",
+ "window": "structured indicators · method 0.4.1 · 25 series · data 2023-12-31 → 2026-10-04",
+ "colors": {
+  "utopia": "#4ade80",
+  "divergence": "#38bdf8",
+  "drift": "#a78bfa",
+  "control": "#fbbf24",
+  "terminus": "#f87171",
+  "stagnation": "#94a3b8",
+  "transcendence": "#f0abfc"
+ },
+ "definitions": {
+  "utopia": "AI broadly solves material problems — health, abundance, education",
+  "divergence": "intelligence escapes the few — open weights, local models, many small actors",
+  "drift": "attention eats everything — virality, slop, synthetic media, no direction",
+  "control": "humans keep the leash — regulation, audits, lawsuits, treaties",
+  "terminus": "the leash breaks badly — job losses, weapons, scams, existential risk",
+  "stagnation": "the revolution stalls — winters, plateaus, overpromising, disillusion",
+  "transcendence": "the horizon dissolves — superintelligence, minds beyond minds"
+ },
+ "weights": {
+  "utopia": 14.4,
+  "divergence": 11.1,
+  "drift": 16.4,
+  "control": 17.1,
+  "terminus": 18.4,
+  "stagnation": 10.5,
+  "transcendence": 12.1
+ },
+ "world_weights": {
+  "utopia": 14.4,
+  "divergence": 11.1,
+  "drift": 16.4,
+  "control": 17.1,
+  "terminus": 18.4,
+  "stagnation": 10.5,
+  "transcendence": 12.1
+ },
+ "dimensions": {
+  "economy": 25.9,
+  "environment": 2.0,
+  "geopolitics": 23.7,
+  "society": 14.9,
+  "tech": 33.5
+ },
+ "top": {
+  "utopia": [
+   "Life expectancy: 73.17 years (2023) · score 0.93",
+   "PubMed AI×biomed papers: 583 count (2026-09) · score 0.65"
+  ],
+  "divergence": [
+   "AI repos: commits per month (GitHub): 7,004 count (2026-09) · score 0.88"
+  ],
+  "drift": [
+   "Attention: Synthetic media: 1,846 views (2026-09) · score 0.72",
+   "Share of people using generative AI: 17.8% (2026-03-31) · score 0.67"
+  ],
+  "control": [
+   "Agent Restriction Index (ARI): 79 index 0-100 (2026-10-04) · score 0.90",
+   "US federal AI documents: 29 count (2026-09) · score 0.58"
+  ],
+  "terminus": [
+   "Deaths in armed conflicts (UCDP): 244,579 count (2025) · score 0.97",
+   "Unemployment (ILO modeled): 4.791% (2025) · score 0.57"
+  ],
+  "stagnation": [
+   "Largest training run (12 mo): 27 log10 FLOP (2026-09) · score 0.75"
+  ],
+  "transcendence": [
+   "FrontierMath best score to date: 93.68% (2026-09) · score 0.90",
+   "Attention: AGI: 125,720 views (2026-09) · score 0.63"
+  ]
+ },
+ "sources": {
+  "Our World in Data": 8,
+  "World Bank": 2,
+  "PubMed (NCBI E-utilities)": 1,
+  "Epoch AI": 4,
+  "GitHub": 2,
+  "Wikimedia": 4,
+  "Federal Register": 1,
+  "Mac Studio ARI pipeline": 1,
+  "NOAA GML": 1,
+  "arXiv": 1
+ },
+ "feeds": [
+  {
+   "name": "Extreme poverty ($3/day)",
+   "state": "2025 · score 0.10"
+  },
+  {
+   "name": "Life expectancy",
+   "state": "2023 · score 0.93"
+  },
+  {
+   "name": "GDP per capita (const. 2015 $)",
+   "state": "2025 · score 0.53"
+  },
+  {
+   "name": "PubMed AI×biomed papers",
+   "state": "2026-09 · score 0.65"
+  },
+  {
+   "name": "Open-weights share of notable models (12 mo)",
+   "state": "2026-09 · score 0.35"
+  },
+  {
+   "name": "Organisation diversity of notable models (12 mo)",
+   "state": "2026-09 · score 0.42"
+  },
+  {
+   "name": "Country diversity of notable models (12 mo)",
+   "state": "2026-09 · score 0.37"
+  },
+  {
+   "name": "AI repos: releases per year (GitHub)",
+   "state": "2025 · divergence 0.00 · transcendence 0.00"
+  },
+  {
+   "name": "AI repos: commits per month (GitHub)",
+   "state": "2026-09 · score 0.88"
+  },
+  {
+   "name": "Share of people using generative AI",
+   "state": "2026-03-31 · score 0.67"
+  },
+  {
+   "name": "Attention: Deepfake",
+   "state": "2026-09 · score 0.55"
+  },
+  {
+   "name": "Attention: Synthetic media",
+   "state": "2026-09 · score 0.72"
+  },
+  {
+   "name": "Attention: AI regulation",
+   "state": "2026-09 · score 0.35"
+  },
+  {
+   "name": "Electoral democracy (V-Dem)",
+   "state": "2025 · score 0.27"
+  },
+  {
+   "name": "US federal AI documents",
+   "state": "2026-09 · score 0.58"
+  },
+  {
+   "name": "Agent Restriction Index (ARI)",
+   "state": "2026-10-04 · score 0.90"
+  },
+  {
+   "name": "Deaths in armed conflicts (UCDP)",
+   "state": "2025 · score 0.97"
+  },
+  {
+   "name": "Unemployment (ILO modeled)",
+   "state": "2025 · score 0.57"
+  },
+  {
+   "name": "Attention: AI existential risk",
+   "state": "excluded: short_history (22/24)"
+  },
+  {
+   "name": "Mauna Loa CO₂ monthly mean",
+   "state": "2026-08 · score 0.28"
+  },
+  {
+   "name": "Private AI investment",
+   "state": "2025 · score 0.00"
+  },
+  {
+   "name": "Companies using AI",
+   "state": "2025 · score 0.12"
+  },
+  {
+   "name": "Largest training run (12 mo)",
+   "state": "2026-09 · stagnation 0.75 · transcendence 0.25"
+  },
+  {
+   "name": "arXiv cs.AI submissions",
+   "state": "2026-09 · score 0.47"
+  },
+  {
+   "name": "FrontierMath best score to date",
+   "state": "2026-09 · score 0.90"
+  },
+  {
+   "name": "Attention: AGI",
+   "state": "2026-09 · score 0.63"
+  }
+ ],
+ "method_version": "0.4.1",
+ "provenance": "realms.provenance.json",
+ "refresh": {
+  "cadence": "nightly",
+  "local_time": "14:30 Europe/Berlin",
+  "sources": [
+   {
+    "id": "ari",
+    "updated_from": "Mac Studio ARI report (tailnet) report-ari.html — embedded <script id=\"ari-data\"> JSON block, every week since 2026-04-06; the report is rebuilt daily, weeks dated after the as-of are not read"
+   },
+   {
+    "id": "arxiv",
+    "updated_from": "export.arxiv.org/api/query — cs.AI submission count per month; new complete months + the previous one re-fetched"
+   },
+   {
+    "id": "epoch",
+    "updated_from": "epoch.ai/data/notable_ai_models.csv — full model list, 12-month windows derived locally"
+   },
+   {
+    "id": "fedreg",
+    "updated_from": "federalregister.gov/api/v1/documents — documents mentioning \"artificial intelligence\" per month; new complete months + the previous one re-fetched"
+   },
+   {
+    "id": "github",
+    "updated_from": "api.github.com (keyless, no token) — 12 AI repos: stargazers_count every night, release lists re-fetched monthly (pages 2-5 once until the history is complete), commits per month via search total_count since 2019-01 (missing months first, then the last complete month re-checked); budget ≤ 45 core + ≤ 150 search requests a night, the rest next night"
+   },
+   {
+    "id": "ne",
+    "pulls": "Natural Earth 110m country polygons (map asset, fetched when upstream changes)"
+   },
+   {
+    "id": "noaa_gml",
+    "updated_from": "gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv — Mauna Loa monthly mean CO₂, full record since 1958-03"
+   },
+   {
+    "id": "owid",
+    "updated_from": "ourworldindata.org/grapher/<slug>.csv + .metadata.json — full history re-downloaded each night (9 charts)"
+   },
+   {
+    "id": "pubmed",
+    "updated_from": "eutils.ncbi.nlm.nih.gov esearch — AI×biomed paper count per month; new complete months + the previous one re-fetched"
+   },
+   {
+    "id": "unsdg",
+    "pulls": "SDG series values (country×year, all areas, one request per series)"
+   },
+   {
+    "id": "who_gho",
+    "pulls": "GHO indicator values (country×year, keyless OData)"
+   },
+   {
+    "id": "wikimedia",
+    "updated_from": "wikimedia.org/api/rest_v1/metrics/pageviews — monthly en.wikipedia user views since 2015-07 (5 articles + all-pages total)"
+   },
+   {
+    "id": "worldbank",
+    "updated_from": "api.worldbank.org/v2/country/WLD/indicator/{NY.GDP.PCAP.KD,SL.UEM.TOTL.ZS} — full annual history"
+   }
+  ],
+  "timer": "worldtree-fetch.timer",
+  "utc_note": "12:30 UTC while Central European Summer Time applies; 13:30 UTC in winter (CET) — the timer fires at 14:30 local",
+  "utc_time": "12:30 UTC",
+  "pipeline": "worldtree-data method 0.4.1"
+ },
+ "geography": {
+  "regions": {
+   "AF": "Sub-Saharan Africa",
+   "ASIA": "Asia",
+   "EUR": "Europe",
+   "GLOBAL": "world aggregate / not regionally split",
+   "LATAM": "Latin America & Caribbean",
+   "MENA": "Middle East & North Africa",
+   "NA": "North America",
+   "OC": "Oceania"
+  },
+  "ari": {
+   "detail": "event-sourced restriction pressure on AI agents — global platforms, scored weekly (English-language tech news + HN + OS-vendor blogs; bias B14)",
+   "license": "dweeb.xyz Agent Restriction Index — verbatim capture, © pipeline output, methodology at report §method",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://dweeb-xzys-mac-studio.tail5435b1.ts.net/api/artifact/report-ari.html"
+  },
+  "arxiv": {
+   "detail": "cs.AI preprints submitted worldwide (US, CN, EU authors largest); counts not split by country",
+   "license": "CC0 1.0 (metadata)",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://info.arxiv.org/help/api/"
+  },
+  "epoch": {
+   "detail": "notable AI models attributed to the developer organisation's country (mostly US, CN, UK, EU, CA, KR, JP) — global industry, concentrated in a few countries",
+   "license": "CC BY 4.0",
+   "regions": [
+    "NA",
+    "ASIA",
+    "EUR",
+    "GLOBAL"
+   ],
+   "source_doc": "https://epoch.ai/data/notable-ai-models"
+  },
+  "fedreg": {
+   "detail": "US federal rulemaking and notices only — no other government is covered",
+   "license": "public domain (US gov work)",
+   "regions": [
+    "NA"
+   ],
+   "source_doc": "https://www.federalregister.gov/reader-aids/using-federalregister-gov/understanding-the-federal-register"
+  },
+  "github": {
+   "detail": "12 AI repositories on GitHub (US labs and companies, Alibaba Qwen, global contributor bases) — activity is not split by country; GitHub itself is US-hosted",
+   "license": "GitHub ToS — counts are facts; metadata via public API",
+   "regions": [
+    "NA",
+    "ASIA",
+    "EUR",
+    "GLOBAL"
+   ],
+   "source_doc": "https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api"
+  },
+  "ne": {
+   "detail": "country polygons for the map layer — geometry only, no indicators",
+   "license": "public domain",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://www.naturalearthdata.com"
+  },
+  "noaa_gml": {
+   "detail": "one station: Mauna Loa Observatory (US-HI), the long-running reference for well-mixed global background CO₂ (bias B13)",
+   "license": "public domain (US gov)",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://gml.noaa.gov/ccgg/trends/data.html"
+  },
+  "owid": {
+   "detail": "World aggregates only (entity World / All geographies) — OWID compiles UN WPP, World Bank PIP, V-Dem, UCDP, Stanford AI Index; no regional series used",
+   "license": "CC BY 4.0",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://ourworldindata.org/faqs#how-is-the-data-for-world-calculated"
+  },
+  "pubmed": {
+   "detail": "biomedical literature indexed by the US National Library of Medicine from journals worldwide",
+   "license": "public domain (NLM; US gov)",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://www.nlm.nih.gov/bsd/difference.html"
+  },
+  "unsdg": {
+   "detail": "UN member-state reporting — ~250 areas, country×year SDG series",
+   "license": "UN terms — free reuse with attribution",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://unstats.un.org/sdgapi"
+  },
+  "who_gho": {
+   "detail": "194 WHO member states reporting health indicators",
+   "license": "public domain (WHO)",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://www.who.int/data/gho"
+  },
+  "wikimedia": {
+   "detail": "English-Wikipedia page views from readers worldwide — English-language skew disclosed (bias B1)",
+   "license": "CC0 1.0",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://wikitech.wikimedia.org/wiki/Analytics/AQS/Pageviews"
+  },
+  "worldbank": {
+   "detail": "WLD aggregate over the 217 economies in World Development Indicators",
+   "license": "CC BY 4.0",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://datahelpdesk.worldbank.org/knowledgebase/articles/906519-world-bank-country-and-lending-groups"
+  }
+ },
+ "history": {
+  "file": "realms-history.json",
+  "sha256": "d766b763c9e60324fc4b127edff5423e7c3a84866492c6fb65bdb867c568a9ae"
+ }
+}

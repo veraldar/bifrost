@@ -1,0 +1,23 @@
+{
+ "attribution": "Federal Register API v1",
+ "bytes": 318,
+ "content_type": "application/json",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://www.federalregister.gov/api/v1/documents.json?conditions[term]=%22artificial+intelligence%22&conditions[publication_date][gte]=2020-02-01&conditions[publication_date][lte]=2020-02-29&per_page=1&fields[]=publication_date",
+ "http_status": 200,
+ "license": "public domain (US gov work)",
+ "license_url": "https://www.federalregister.gov/reader-aids/developer-resources/rest-api",
+ "path": "raw/fedreg/ai_documents/20261004T082316Z.json",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-04T08:23:16Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "a9e2a4a9b6d145549e1a1d628c9b93455e8e261eb29bdb3bec1cd66f9b7c6aa1",
+ "slug": "ai_documents",
+ "source_id": "fedreg",
+ "stored_bytes": true,
+ "upstream_next_update": null,
+ "upstream_updated": null,
+ "url": "https://www.federalregister.gov/api/v1/documents.json?conditions[term]=%22artificial+intelligence%22&conditions[publication_date][gte]=2020-02-01&conditions[publication_date][lte]=2020-02-29&per_page=1&fields[]=publication_date"
+}

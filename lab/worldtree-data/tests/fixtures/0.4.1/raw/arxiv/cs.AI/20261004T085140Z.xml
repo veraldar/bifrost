@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/ds2BsDF7GV+EvqwZ+8R2N7vgQmU</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202105010000 TO 202105312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:51:40Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202105010000+TO+202105312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>975</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2105.09975v1</id>
+    <title>Pseudo Pixel-level Labeling for Images with Evolving Content</title>
+    <updated>2021-05-20T18:14:19Z</updated>
+    <link href="https://arxiv.org/abs/2105.09975v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2105.09975v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Annotating images for semantic segmentation requires intense manual labor and is a time-consuming and expensive task especially for domains with a scarcity of experts, such as Forensic Anthropology. We leverage the evolving nature of images depicting the decay process in human decomposition data to design a simple yet effective pseudo-pixel-level label generation technique to reduce the amount of effort for manual annotation of such images. We first identify sequences of images with a minimum variation that are most suitable to share the same or similar annotation using an unsupervised approach. Given one user-annotated image in each sequence, we propagate the annotation to the remaining images in the sequence by merging it with annotations produced by a state-of-the-art CAM-based pseudo label generation technique. To evaluate the quality of our pseudo-pixel-level labels, we train two semantic segmentation models with VGG and ResNet backbones on images labeled using our pseudo labeling method and those of a state-of-the-art method. The results indicate that using our pseudo-labels instead of those generated using the state-of-the-art method in the training process improves the mean-IoU and the frequency-weighted-IoU of the VGG and ResNet-based semantic segmentation models by 3.36%, 2.58%, 10.39%, and 12.91% respectively.</summary>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2021-05-20T18:14:19Z</published>
+    <arxiv:primary_category term="cs.CV"/>
+    <author>
+      <name>Sara Mousavi</name>
+    </author>
+    <author>
+      <name>Zhenning Yang</name>
+    </author>
+    <author>
+      <name>Kelley Cross</name>
+    </author>
+    <author>
+      <name>Dawnie Steadman</name>
+    </author>
+    <author>
+      <name>Audris Mockus</name>
+    </author>
+  </entry>
+</feed>

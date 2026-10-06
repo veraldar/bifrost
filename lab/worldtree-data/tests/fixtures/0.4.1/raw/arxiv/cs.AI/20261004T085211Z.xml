@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/Awiz+oiJgbpgqqNoUEStjL2TU9E</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202110010000 TO 202110312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:42:16Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202110010000+TO+202110312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>1320</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2110.11048v3</id>
+    <title>K-Lane: Lidar Lane Dataset and Benchmark for Urban Roads and Highways</title>
+    <updated>2023-11-07T17:06:32Z</updated>
+    <link href="https://arxiv.org/abs/2110.11048v3" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2110.11048v3" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Lane detection is a critical function for autonomous driving. With the recent development of deep learning and the publication of camera lane datasets and benchmarks, camera lane detection networks (CLDNs) have been remarkably developed. Unfortunately, CLDNs rely on camera images which are often distorted near the vanishing line and prone to poor lighting condition. This is in contrast with Lidar lane detection networks (LLDNs), which can directly extract the lane lines on the bird's eye view (BEV) for motion planning and operate robustly under various lighting conditions. However, LLDNs have not been actively studied, mostly due to the absence of large public lidar lane datasets. In this paper, we introduce KAIST-Lane (K-Lane), the world's first and the largest public urban road and highway lane dataset for Lidar. K-Lane has more than 15K frames and contains annotations of up to six lanes under various road and traffic conditions, e.g., occluded roads of multiple occlusion levels, roads at day and night times, merging (converging and diverging) and curved lanes. We also provide baseline networks we term Lidar lane detection networks utilizing global feature correlator (LLDN-GFC). LLDN-GFC exploits the spatial characteristics of lane lines on the point cloud, which are sparse, thin, and stretched along the entire ground plane of the point cloud. From experimental results, LLDN-GFC achieves the state-of-the-art performance with an F1- score of 82.1%, on the K-Lane. Moreover, LLDN-GFC shows strong performance under various lighting conditions, which is unlike CLDNs, and also robust even in the case of severe occlusions, unlike LLDNs using the conventional CNN. The K-Lane, LLDN-GFC training code, pre-trained models, and complete development kits including evaluation, visualization and annotation tools are available at https://github.com/kaist-avelab/k-lane.</summary>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.RO" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2021-10-21T10:46:50Z</published>
+    <arxiv:comment>20 pages, 20 figures, 11 tables</arxiv:comment>
+    <arxiv:primary_category term="cs.CV"/>
+    <arxiv:journal_ref>2022 IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) Workshop on Autonomous Driving (WAD)</arxiv:journal_ref>
+    <author>
+      <name>Donghee Paek</name>
+    </author>
+    <author>
+      <name>Seung-Hyun Kong</name>
+    </author>
+    <author>
+      <name>Kevin Tirta Wijaya</name>
+    </author>
+    <arxiv:doi>10.1109/CVPRW56347.2022.00491</arxiv:doi>
+    <link rel="related" href="https://doi.org/10.1109/CVPRW56347.2022.00491" title="doi"/>
+  </entry>
+</feed>

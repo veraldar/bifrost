@@ -9,7 +9,7 @@ SITE=https://veraldar.org
 SHOT=~/Work/bifrost/artifacts/worldtree-github-chart.png
 
 step "1 unit tests (frozen release page, Link-count + search-count parse, extraction rules, budget guard)"
-python3 -m unittest tests.test_github 2>&1 | tail -1 | grep -qx OK || fail $LINENO; echo "test_github OK"
+python3 -m unittest tests.test_github 2>&1 | grep -q '^OK$' || fail $LINENO; echo "test_github OK"
 
 step "2 stored data w/ provenance sidecars (sha256, url, license)"
 python3 - <<'PY'

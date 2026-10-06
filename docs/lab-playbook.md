@@ -138,3 +138,21 @@ the app crashes client-side while every probe says 200. Rules:
 2. Long builds happen in worktrees, not the live tree.
 3. Probes must check the page AND a chunk asset — a 200 HTML with dead
    chunks is the failure shape probes miss.
+
+## Rule 10-04: HARDWARE/NEW-DOMAIN LABS — THE CONCRETE DELIVERABLE PATTERN
+The hardware lane needed 4 user pushes. Root causes: an open-ended mission,
+toolchain gaps discovered mid-flight, blockers absorbed silently. The
+correct pattern for any NEW-DOMAIN lab (hardware, ML training, anything
+with an unfamiliar toolchain):
+1. **M0 ENFORCED before the mission**: the tool must run (extract, verify
+   --version) before any design/build work. Missing prerequisites get
+   installed or escalated AT M0 — never mid-mission.
+2. **File-exact deliverable spec**: the paths, the formats, the acceptance
+   command per deliverable. "See how far you can get" is not a spec.
+3. **Every long op detached** — Rule 10-02 applies doubly: message arrival
+   reaps in-process children (the triple-murder lesson).
+4. **Blockers surface at attempt ONE** — a session flagging retries without
+   executing violates BLOCKED=VISIBLE; the driver escalates at the second
+   miss, not the fourth user push.
+5. **The coordinator verifies the execution model** — not just the
+   delegation: detached? pollable? committed where?

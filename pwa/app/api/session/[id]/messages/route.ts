@@ -41,6 +41,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
           .filter((p: any) => p.type === 'image' || p.mime?.startsWith('image/'))
           .map((p: any) => p.url || p.data || null),
         time: m.info?.time?.created || 0,
+        firstDelta: m.info?.time?.first_delta,
         // assistant replies stream: time.completed only lands when the run
         // finished. The hands-free auto-listen must speak COMPLETE replies —
         // speaking a growing message mid-run reads out a fragment.

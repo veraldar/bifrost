@@ -126,22 +126,30 @@ class OpenCodeLLM(llm.LLM):
 
     async def ask(self, text: str) -> str:
         sid = await self._ensure_session()
+        t0 = asyncio.get_running_loop().time()
         async with httpx.AsyncClient(timeout=300) as c:
             # no `model` in the body on purpose: sending one would clobber the
             # session's model every turn (opencode replaces the whole model
             # ref, think level included). Omitted → the runner uses the
             # session's current model: VOICE_MODEL seeds it once at session
             # creation (below), and a settings-page switch replaces it.
-            r = await c.post(
-                f"{self._base}/session/{sid}/message",
-                json={"parts": [{"type": "text", "text": text}]},
-            )
-            r.raise_for_status()
+            try:
+                r = await c.post(
+                    f"{self._base}/session/{sid}/message",
+                    json={"parts": [{"type": "text", "text": text}]},
+                )
+                r.raise_for_status()
+            except Exception as e:  # noqa: BLE001 — 10-06: ask() failures were
+                # swallowed by the caller's speech fallback and never logged;
+                # the turn vanished with zero trace on either opencode
+                logger.error("oc.ask FAILED sid=%s lat=%.2fs prompt=%r err=%s", sid, asyncio.get_running_loop().time() - t0, text[:60], e)
+                raise
             data = r.json()
-        parts = data.get("parts") or []
-        return "\n".join(
-            p.get("text", "") for p in parts if p.get("type") == "text"
+        reply = "\n".join(
+            p.get("text", "") for p in data.get("parts", []) if p.get("type") == "text"
         ).strip() or "(opencode returned no text)"
+        logger.info("oc.ask ok sid=%s lat=%.2fs reply=%d chars", sid, asyncio.get_running_loop().time() - t0, len(reply))
+        return reply
 
     def chat(
         self,
@@ -214,10 +222,23 @@ class OpenCodeStream(LLMStream):
         )
 
 
-server = AgentServer()
+# load_threshold: prod default is 0.7 against a load_fnc that reads the
+# systemd USER-SLICE cgroup — it sums EVERY process on the box (other agent
+# sessions, the PWA proxy, e2e runs) and produced "impossible cgroup cpu
+# usage delta" warnings all through 10-06. Result: the worker flapped "at
+# full capacity, marking as unavailable" with ZERO jobs running and silently
+# dropped room dispatches — phone held PTT 17s, no agent ever joined, no STT
+# event at all (pwa/.diag/stt-*.log empty, journal 18:13-18:14). Dev mode
+# already runs inf; this is a single-tenant personal box, so the garbage
+# metric must never gate availability (inf = never unavailable by load).
+server = AgentServer(load_threshold=float("inf"))
+
+_voice_probe_started = False  # one Mac-endpoint probe task per process
 
 
-@server.rtc_session(agent_name="bifrost")
+AGENT_NAME = os.environ.get("AGENT_NAME", "bifrost")
+
+@server.rtc_session(agent_name=AGENT_NAME)
 async def entrypoint(ctx: JobContext) -> None:
     _api_key = "not-needed"
     session = AgentSession(
@@ -352,12 +373,21 @@ async def entrypoint(ctx: JobContext) -> None:
         nonlocal commit_in_flight
         commit_in_flight = True
         session.input.set_audio_enabled(False)
+        t0 = asyncio.get_running_loop().time()
+        # 10-06 metric: the JoJo turn produced NO bridge log, NO user message
+        # on either opencode instance — invisible failure inside this call.
+        # Log entry, outcome and timing so the failing step names itself.
+        logger.info("commit_user_turn: start (ptt flush)")
         try:
             # transcript_timeout must cover the Mac Studio batch STT POST after
             # the flush: the final landed ~4-5s after commit start (live
             # 2026-09-29 room 'bug') — at 3.0 the commit gave up EMPTY, the
             # late final hit the closed session and was skipped
             await session.commit_user_turn(transcript_timeout=8.0, stt_flush_duration=1.5)
+            logger.info("commit_user_turn: done in %.2fs", asyncio.get_running_loop().time() - t0)
+        except Exception as e:  # noqa: BLE001 — metric first, then re-raise
+            logger.error("commit_user_turn: FAILED after %.2fs: %s", asyncio.get_running_loop().time() - t0, e)
+            raise
         finally:
             session.input.set_audio_enabled(True)
             commit_in_flight = False
@@ -427,9 +457,96 @@ async def entrypoint(ctx: JobContext) -> None:
         # punctuation → space so "over." / "over!" match
         return re.sub(r"[^a-z0-9\u4e00-\u9fff]+", " ", text.lower()).strip()
 
+    # STT metric (req 10-06 'I speak no txt'): every transcript event —
+    # interim AND final — lands in pwa/.diag/stt-<date>.log. The 10-06 Mac
+    # restart outage was invisible in our logs: empty transcripts looked
+    # identical to no audio. This line answers "did audio reach STT and what
+    # came back" per event.
+    from datetime import datetime, timezone
+    from pathlib import Path
+
+    _diag_dir = Path(__file__).resolve().parent.parent / "pwa" / ".diag"
+
+    # 10-06 defense layer (req 'this cannot happen again'):
+    # (a) SPLIT-BRAIN GUARD — the sandbox lane once left OPENCODE_URL pointing
+    #     at the SANDBOX brain (:4100) in this live .env; voice turns landed
+    #     in a session nobody was viewing. .env is gitignored so the fix
+    #     can't be committed — instead every boot compares the resolved brain
+    #     against the committed .env.example and screams on drift.
+    _expected_oc = None
+    try:
+        for _line in (_diag_dir.parent.parent / "agent" / ".env.example").read_text().splitlines():
+            if _line.startswith("OPENCODE_URL="):
+                _expected_oc = _line.split("=", 1)[1].strip()
+                break
+    except OSError:
+        pass
+    logger.warning("brain: OPENCODE_URL=%s speaches=%s", OPENCODE_URL, SPEACHES_URL)
+    if _expected_oc and OPENCODE_URL != _expected_oc:
+        logger.critical(
+            "BRAIN MISMATCH: OPENCODE_URL=%s but agent/.env.example expects %s — voice turns will land in the wrong opencode (10-06 split-brain)",
+            OPENCODE_URL,
+            _expected_oc,
+        )
+
+    # (b) MAC WATCHDOG — the Mac Studio serves STT+TTS; its restart took all
+    #     voice down with zero signal in our own logs (found by hand-probing).
+    #     Probe SPEACHES_URL every 60s; any HTTP answer = alive. Transitions
+    #     go to the journal (CRITICAL when down) and .diag/voice-health-*.log.
+    global _voice_probe_started
+    if not _voice_probe_started:
+        _voice_probe_started = True
+
+        async def _voice_probe() -> None:
+            alive = None
+            while True:
+                try:
+                    async with httpx.AsyncClient(timeout=4) as c:
+                        r = await c.get(f"{SPEACHES_URL.rstrip('/')}/models")
+                        ok = r.status_code < 600
+                except Exception:  # noqa: BLE001 — probe must never die
+                    ok = False
+                if ok != alive:
+                    first = alive is None
+                    alive = ok
+                    try:
+                        row = {
+                            "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+                            "endpoint": SPEACHES_URL,
+                            "up": ok,
+                        }
+                        with (_diag_dir / f"voice-health-{datetime.now(timezone.utc):%Y-%m-%d}.log").open("a") as f:
+                            f.write(f"{row}\n")
+                    except Exception:  # noqa: BLE001
+                        pass
+                    if not ok:
+                        logger.critical("SPEACHES endpoint DOWN (%s) — voice will not transcribe or speak", SPEACHES_URL)
+                    elif first:
+                        logger.info("SPEACHES endpoint up: %s", SPEACHES_URL)
+                    else:
+                        logger.info("SPEACHES endpoint recovered: %s", SPEACHES_URL)
+                await asyncio.sleep(60)
+
+        asyncio.ensure_future(_voice_probe())
+
+    def _diag_stt(ev) -> None:
+        try:
+            row = {
+                "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+                "room": ctx.room.name,
+                "final": bool(ev.is_final),
+                "chars": len(ev.transcript or ""),
+                "head": (ev.transcript or "")[:48],
+            }
+            with (_diag_dir / f"stt-{datetime.now(timezone.utc):%Y-%m-%d}.log").open("a") as f:
+                f.write(f"{row}\n")
+        except Exception:  # noqa: BLE001 — metric must never break voice
+            pass
+
     @session.on("user_input_transcribed")
     def _on_transcript(ev) -> None:
         nonlocal turn_text, keyword_busy
+        _diag_stt(ev)
         if not ev.is_final:
             return
         turn_text = f"{turn_text} {ev.transcript}".strip()

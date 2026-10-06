@@ -8,7 +8,7 @@ import {
 } from 'livekit-server-sdk';
 
 // must match agent/agent.py: @server.rtc_session(agent_name=...)
-const AGENT_NAME = 'bifrost';
+const AGENT_NAME = process.env.AGENT_NAME || 'bifrost';
 
 type ConnectionDetails = {
   serverUrl: string;

@@ -6,7 +6,8 @@ import fs from 'node:fs';
 
 const SHOTS = process.argv[2] || '/tmp/android-lab-screen-off';
 const PWA_URL = process.env.PWA_URL || 'http://localhost:8080';
-const LK_HOST = process.env.LK_HOST || 'omarchy.tail5435b1.ts.net';
+const LK_HOST = process.env.LK_HOST; // the box's tailnet name — docs/local.md (private)
+if (!LK_HOST) { console.error('set LK_HOST (docs/local.md)'); process.exit(2); }
 const LK_LOCAL = process.env.LK_LOCAL || '127.0.0.1:18443';
 const OFF_MS = Number(process.env.OFF_MS || 60_000);
 const NAME = `screen-off-${Date.now().toString(36)}`;

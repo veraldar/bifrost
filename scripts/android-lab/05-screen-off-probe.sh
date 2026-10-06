@@ -9,8 +9,8 @@ PWA_PORT="${PWA_PORT:-8080}"  # live PWA; override to probe a privately served b
 MAC_TUNNEL_PORT=18080   # PWA            -> omarchy 127.0.0.1:$PWA_PORT
 MAC_LK_SIGNAL=18443     # LiveKit signal -> omarchy tailscale serve :443 (/livekit)
 MAC_LK_TCP=17881        # LiveKit ICE/TCP -> omarchy 127.0.0.1:7881
-OMARCHY_TS=100.104.229.17
-OMARCHY_LAN=192.168.50.2
+OMARCHY_TS="${OMARCHY_TS:?set OMARCHY_TS (tailnet IP, docs/local.md)}"
+OMARCHY_LAN="${OMARCHY_LAN:?set OMARCHY_LAN (LAN IP, docs/local.md)}"
 REMOTE_LAB='$HOME/Library/android-lab'
 inconclusive() { echo "PROBE RESULT: INCONCLUSIVE reason=$1"; exit 2; }
 

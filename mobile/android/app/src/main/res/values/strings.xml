@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Bifrost</string>
+    <string name="title_activity_main">Bifrost</string>
+    <string name="package_name">org.veraldar.bifrost</string>
+    <string name="custom_url_scheme">org.veraldar.bifrost</string>
+</resources>

@@ -442,6 +442,7 @@ export default function SessionsPage() {
         localStorage.setItem(TF_PREV_MODE_KEY, localStorage.getItem('oz-mode') || 'text');
       }
       localStorage.setItem('oz-mode', 'free');
+      localStorage.setItem('labmic', '1'); // LAB: synthetic mic for this device
     } catch {
       /* private mode — the session opens in keyboard mode */
     }
@@ -453,7 +454,7 @@ export default function SessionsPage() {
     });
     const d = (await r.json().catch(() => ({}))) as { id?: string; slug?: string; error?: string };
     if (!r.ok || !d.slug) throw new Error(d.error || `onboard ${r.status}`);
-    return `/session/${d.slug}?id=${d.id}`;
+    return `/session/${d.slug}?id=${d.id}&labmic=1`;
   }
 
   if (tf === null) return null;

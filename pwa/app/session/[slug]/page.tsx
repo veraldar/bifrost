@@ -29,6 +29,7 @@ import {
   subscribeSpeech,
 } from '@/lib/speech';
 import { diagEvent } from '@/lib/diag';
+import '@/lib/labmic';
 import { clearAsked, ensureNotifyPermission, markAsked, notifyReply } from '@/lib/notify';
 import { PENDING_TTL_MS } from '@/lib/pending-ttl';
 import { markRead } from '@/lib/read';

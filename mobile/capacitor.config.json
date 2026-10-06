@@ -1,0 +1,13 @@
+{
+  "appId": "org.veraldar.bifrost",
+  "appName": "Bifrost",
+  "webDir": "www",
+  "server": {
+    "url": "http://localhost:8090",
+    "cleartext": true,
+    "allowNavigation": ["192.168.50.2:*", "192.168.1.89:*", "127.0.0.1:*"]
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

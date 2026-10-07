@@ -7,7 +7,7 @@
       "addressBar": "<tailnet-host>",
       "gum": {
         "label": "Default",
-        "ms": 6515,
+        "ms": 6333,
         "muted": false,
         "ok": true,
         "readyState": "live",
@@ -51,7 +51,7 @@
       "addressBar": "<tailnet-host>:8443",
       "gum": {
         "label": "Default",
-        "ms": 5096,
+        "ms": 4488,
         "muted": false,
         "ok": true,
         "readyState": "live",
@@ -92,7 +92,7 @@
       "url": "https://<tailnet-host>:8443/"
     },
     {
-      "addressBar": "10.0.2.2:46145",
+      "addressBar": "10.0.2.2:42289",
       "gum": {
         "message": "navigator.mediaDevices is undefined",
         "name": "TypeError",
@@ -103,29 +103,29 @@
       "navError": null,
       "post": {
         "getUserMedia": "undefined",
-        "href": "http://10.0.2.2:46145/",
+        "href": "http://10.0.2.2:42289/",
         "isSecureContext": false,
         "mediaDevices": "undefined",
-        "origin": "http://10.0.2.2:46145",
+        "origin": "http://10.0.2.2:42289",
         "perm": "denied"
       },
       "pre": {
         "getUserMedia": "undefined",
-        "href": "http://10.0.2.2:46145/",
+        "href": "http://10.0.2.2:42289/",
         "isSecureContext": false,
         "mediaDevices": "undefined",
-        "origin": "http://10.0.2.2:46145",
+        "origin": "http://10.0.2.2:42289",
         "perm": "denied"
       },
       "prompt": null,
       "shot": null,
-      "url": "http://10.0.2.2:46145/"
+      "url": "http://10.0.2.2:42289/"
     },
     {
-      "addressBar": "localhost:46145",
+      "addressBar": "localhost:42289",
       "gum": {
         "label": "Default",
-        "ms": 3998,
+        "ms": 4124,
         "muted": false,
         "ok": true,
         "readyState": "live",
@@ -136,18 +136,18 @@
       "navError": null,
       "post": {
         "getUserMedia": "function",
-        "href": "http://localhost:46145/",
+        "href": "http://localhost:42289/",
         "isSecureContext": true,
         "mediaDevices": "object",
-        "origin": "http://localhost:46145",
+        "origin": "http://localhost:42289",
         "perm": "granted"
       },
       "pre": {
         "getUserMedia": "function",
-        "href": "http://localhost:46145/",
+        "href": "http://localhost:42289/",
         "isSecureContext": true,
         "mediaDevices": "object",
-        "origin": "http://localhost:46145",
+        "origin": "http://localhost:42289",
         "perm": "prompt"
       },
       "prompt": {
@@ -158,12 +158,12 @@
         ],
         "tapped": "Allow while visiting the site",
         "text": [
-          "http://localhost:46145 wants to use your microphone"
+          "http://localhost:42289 wants to use your microphone"
         ]
       },
       "promptShot": null,
       "shot": null,
-      "url": "http://localhost:46145/"
+      "url": "http://localhost:42289/"
     }
   ]
 }

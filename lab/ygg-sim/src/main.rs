@@ -20,6 +20,7 @@ mod rng;
 mod runner;
 mod scenarios;
 mod slo;
+mod sources;
 mod speech;
 mod stt;
 mod wire;

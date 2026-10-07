@@ -1,5 +1,6 @@
 //! Scenario runner — one command, the whole matrix, a pass/fail board.
 
+use std::collections::BTreeMap;
 use std::time::Instant;
 
 pub struct Metrics {
@@ -259,14 +260,54 @@ fn headline_ms(h: &str) -> Option<u64> {
 }
 
 /// The loop's mechanized half: run + validate + diff vs the previous cycle
-/// snapshot + THE EVOLUTION RULE (app bumps need sim bumps). The
+/// snapshot + THE EVOLUTION RULE (app bumps need sim bumps) + THE THREE
+/// EVOLUTION SOURCES (incidents, environment drift, usage shifts). The
 /// proposal/build half is the agent's; this command hands it the evidence.
 pub fn run_cycle() -> i32 {
-    // evolution gate BEFORE burning three minutes on the matrix
+    // evolution gate BEFORE burning time on the matrix
     if let Err(v) = check_evolution_rule() {
         eprintln!("CYCLE INVALID — {v}");
         return 1;
     }
+
+    // the three evolution sources
+    let env_now = crate::sources::environment();
+    let usage_now = crate::sources::usage();
+
+    // cycle numbering up front so the incident gate can use it
+    let cycles_dir =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("report/cycles");
+    let _ = std::fs::create_dir_all(&cycles_dir);
+    let prev_n = (1..)
+        .take_while(|n| cycles_dir.join(format!("cycle-{n}.json")).exists())
+        .count();
+    let this_n = prev_n + 1;
+
+    let registry_names: Vec<&str> = crate::scenarios::registry().iter().map(|s| s.name).collect();
+    let (inc_total, inc_uncovered) = crate::sources::incidents(&registry_names);
+    // the incident-to-scenario pipeline has ONE cycle of grace: an incident
+    // registered at cycle N must be covered by cycle N+1, or the pipeline
+    // stalled — that fails the cycle (co-evolution law with teeth)
+    let stale_incidents: Vec<String> = inc_uncovered
+        .iter()
+        .filter(|u| {
+            u.split("since cycle ")
+                .nth(1)
+                .and_then(|s| s.trim_end_matches(')').parse::<u32>().ok())
+                .map(|since| since < this_n as u32)
+                .unwrap_or(false)
+        })
+        .cloned()
+        .collect();
+    if !stale_incidents.is_empty() {
+        eprintln!(
+            "CYCLE INVALID — incident-to-scenario pipeline stalled: {} uncovered past its grace cycle: {}",
+            stale_incidents.len(),
+            stale_incidents.join("; ")
+        );
+        return 1;
+    }
+
     let t0 = Instant::now();
     let run = collect(None);
     if run.results.is_empty() {
@@ -274,13 +315,7 @@ pub fn run_cycle() -> i32 {
     }
     let (pass, brk, known, skip, fail) = summarize(&run);
 
-    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("report/cycles");
-    let _ = std::fs::create_dir_all(&dir);
-    let prev_n = (1..)
-        .take_while(|n| dir.join(format!("cycle-{n}.json")).exists())
-        .count();
-    let this_n = prev_n + 1;
-
+    let dir = cycles_dir.clone();
     let snap = |n: u32| -> Option<serde_json::Value> {
         let txt = std::fs::read_to_string(dir.join(format!("cycle-{n}.json"))).ok()?;
         serde_json::from_str(&txt).ok()
@@ -346,6 +381,57 @@ pub fn run_cycle() -> i32 {
         }
     }
 
+    // THE THREE EVOLUTION SOURCES — the digest names what moved in reality
+    digest_lines.push(format!(
+        "incidents: {inc_total} tracked, {} uncovered (grace until next cycle: the pipeline fails at cycle {}+1)",
+        inc_uncovered.len(),
+        this_n
+    ));
+    if let Some(prev) = snap(prev_n as u32) {
+        // environment drift: manifest facts changing under the model
+        let prev_env: BTreeMap<String, String> = prev["environment"]
+            .as_object()
+            .map(|o| o.iter().map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_string())).collect())
+            .unwrap_or_default();
+        let drifted: Vec<String> = env_now
+            .iter()
+            .filter(|(k, v)| prev_env.get(*k).map(|pv| pv != *v).unwrap_or(false))
+            .map(|(k, v)| format!("{} → {}", k, &v[..v.len().min(40)]))
+            .collect();
+        let added_facts: Vec<String> = env_now
+            .keys()
+            .filter(|k| !prev_env.contains_key(*k))
+            .cloned()
+            .collect();
+        if !drifted.is_empty() || !added_facts.is_empty() {
+            digest_lines.push(format!(
+                "environment drift: {} changed, {} new — owes a chaos profile or scenario dimension",
+                drifted.len(),
+                added_facts.len()
+            ));
+            for d in drifted.iter().take(3) {
+                digest_lines.push(format!("  env: {d}"));
+            }
+        }
+        // usage shifts: the live store moving under the matrix
+        if let (Some(u_prev), Some(u_now)) = (
+            prev["usage"].as_array().and_then(|a| {
+                Some((a.first()?.as_u64()?, a.get(1)?.as_u64()?, a.get(2)?.as_u64()?))
+            }),
+            usage_now,
+        ) {
+            if u_prev.0 > 0 {
+                let growth = u_now.1 as f64 / u_prev.1 as f64;
+                if growth > 1.15 || growth < 0.85 {
+                    digest_lines.push(format!(
+                        "usage shift: {} → {} messages ({:.2}×) — the matrix's life is moving",
+                        u_prev.1, u_now.1, growth
+                    ));
+                }
+            }
+        }
+    }
+
     // snapshot this cycle
     let mut json = serde_json::json!({
         "cycle": this_n,
@@ -355,6 +441,9 @@ pub fn run_cycle() -> i32 {
         "ran": run.results.len(),
         "pass": pass, "break_ok": brk, "known": known, "skip": skip, "fail": fail,
         "slo": { "held": slo_tally(&run).0, "checked": slo_tally(&run).1, "over_target": slo_tally(&run).2 },
+        "incidents": { "total": inc_total, "uncovered": inc_uncovered },
+        "environment": env_now,
+        "usage": usage_now,
         "wall_s": t0.elapsed().as_secs(),
         "scenarios": [],
     });

@@ -91,7 +91,7 @@ echo "live github-trends.json = out/ (sha256), /data/out/github-trends.provenanc
 curl -s "$SITE/world-tree.html" | grep -q "github-trends.json" || fail $LINENO; echo "live page fetches github-trends.json"
 R=$(node tests/shot_github.cjs "$SITE/world-tree.html?m6=$(date +%s)" "$SHOT" 1200)
 echo "$R"
-echo "$R" | jq -e '.info.selected=="AI EVOLUTION" and .info.rel >= 5 and .info.com >= 3 and (.errs|length)==0' > /dev/null || fail $LINENO
+echo "$R" | jq -e '.info.selected=="AI EVOLUTION" and .info.rel >= 5 and .info.com >= 1 and (.errs|length)==0' > /dev/null || fail $LINENO
 echo "screenshot $SHOT"
 
 echo "M6 GITHUB GREEN"

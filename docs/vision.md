@@ -113,3 +113,18 @@ OPEN (needs decision before v0.9):
 3. PHONE WITHOUT TAILSCALE OUTSIDE HOME (pre-bifrost-net interim): the
    tailscale app on the phone is the interim answer (2-min install) —
    document it as the official interim remote path in v0.8.
+
+## The evolutionary populations (10-03, user — the completion of the vision)
+The simulations don't just run — they EVOLVE in parallel: populations of
+designs per domain, different parents, different epochs, mutating, crossing,
+selecting. The PCB designs evolve against JLCPCB-manufacturability + the
+user's function; the mechanics evolve against physics; the finance against
+the market; the biology against the data. Populations multiply with the
+hardware — no speed limit except the silicon. The domains compose: the
+electronics informs the mechanics, the mechanics the robotics.
+THE TWO HONEST BOUNDARIES: (1) the fitness functions are the hard design —
+garbage fitness evolves garbage (AGI + the user judgment design them per
+domain), (2) the reality gate per N generations — the evolution proposes,
+reality decides (the JLCPCB print, the trade). The first population: the
+PCB designs (the A/B/C variants evolving against manufacturability + the
+user function).

@@ -78,7 +78,7 @@ step "10 manifest"
 jq -r '.raw[] | "\(.sha256)  \(.path)"' manifest.json | sha256sum -c --quiet || { echo "FAIL line $LINENO"; exit 1; }; echo ALL-RAW-OK
 jq -e --arg v "$(cat method/VERSION)" '.schema=="worldtree.manifest/1" and .method_version==$v and .last_run.published==true and (.series|length)==54' manifest.json
 jq -r '.out.realms.sha256' manifest.json | diff - <(sha256sum out/realms.json | cut -d' ' -f1) || { echo "FAIL line $LINENO"; exit 1; }; echo OUT-HASH-OK
-git log -10 --format=%s | grep -qE '^run [0-9]{8}T[0-9]{6}Z: published$'
+git log --since='2 days ago' --format=%s | grep -qE '^run [0-9]{8}T[0-9]{6}Z: published$'
 [ "$(git status --porcelain . | wc -l)" = 0 ] || { echo "FAIL line $LINENO"; exit 1; }; echo "worktree clean"  # lab dir; other sessions' WIP elsewhere is not ours
 
 echo "M3 GREEN"

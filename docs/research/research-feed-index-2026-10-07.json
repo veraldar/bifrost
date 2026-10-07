@@ -1,0 +1,2754 @@
+{
+ "run_at": "2026-10-07T13:14:15.266572+00:00",
+ "window_days": 35,
+ "cutoff": "2026-09-02T13:14:15.266555+00:00",
+ "endpoint": "https://export.arxiv.org/api/query",
+ "params": "search_query=<q>&sortBy=submittedDate&sortOrder=descending&max_results=30",
+ "queries": [
+  {
+   "name": "self-improving-agents",
+   "query": "(abs:\"self-improving\" OR abs:\"self-improvement\") AND (abs:agent OR abs:LLM)",
+   "http_status": 200,
+   "fetched_at": "2026-10-07T13:14:15.882986+00:00",
+   "duration_s": 0.6,
+   "total_results": 742,
+   "n_entries": 30,
+   "n_recent": 30,
+   "error": null
+  },
+  {
+   "name": "agent-self-modification",
+   "query": "(abs:\"self-evolving\" OR abs:\"self-modification\" OR abs:\"self-modifying\") AND (abs:\"language model\" OR abs:LLM OR abs:agent)",
+   "http_status": 200,
+   "fetched_at": "2026-10-07T13:14:23.011249+00:00",
+   "duration_s": 0.6,
+   "total_results": 759,
+   "n_entries": 30,
+   "n_recent": 30,
+   "error": null
+  },
+  {
+   "name": "agentic-search",
+   "query": "(abs:\"agentic search\" OR abs:\"agentic retrieval\" OR ti:\"deep research\") AND (abs:agent OR abs:LLM OR abs:\"language model\")",
+   "http_status": 200,
+   "fetched_at": "2026-10-07T13:14:29.996331+00:00",
+   "duration_s": 0.5,
+   "total_results": 654,
+   "n_entries": 30,
+   "n_recent": 30,
+   "error": null
+  },
+  {
+   "name": "agent-reliability-eval",
+   "query": "(abs:\"LLM agent\" OR abs:\"language agent\" OR abs:\"AI agent\") AND (abs:\"evaluation\" OR abs:reliability OR abs:benchmark)",
+   "http_status": 200,
+   "fetched_at": "2026-10-07T13:14:36.939755+00:00",
+   "duration_s": 0.4,
+   "total_results": 5071,
+   "n_entries": 30,
+   "n_recent": 30,
+   "error": null
+  },
+  {
+   "name": "multi-agent-coordination",
+   "query": "(abs:\"multi-agent\" AND abs:coordination) AND (abs:LLM OR abs:\"language model\" OR abs:\"large language\")",
+   "http_status": 200,
+   "fetched_at": "2026-10-07T13:14:43.924109+00:00",
+   "duration_s": 0.5,
+   "total_results": 976,
+   "n_entries": 30,
+   "n_recent": 30,
+   "error": null
+  },
+  {
+   "name": "experience-memory",
+   "query": "(abs:\"agent memory\" OR abs:\"experience reuse\" OR abs:\"experience library\") AND (abs:LLM OR abs:\"language model\")",
+   "http_status": 200,
+   "fetched_at": "2026-10-07T13:14:51.004691+00:00",
+   "duration_s": 0.6,
+   "total_results": 304,
+   "n_entries": 30,
+   "n_recent": 30,
+   "error": null
+  },
+  {
+   "name": "agent-workflows",
+   "query": "(abs:\"agent workflow\" OR abs:\"workflow evolution\" OR abs:\"workflow optimization\") AND (abs:LLM OR abs:\"language model\")",
+   "http_status": 200,
+   "fetched_at": "2026-10-07T13:14:58.399182+00:00",
+   "duration_s": 0.9,
+   "total_results": 664,
+   "n_entries": 30,
+   "n_recent": 30,
+   "error": null
+  }
+ ],
+ "unique_after_dedupe": 193,
+ "papers": [
+  {
+   "id": "2610.08761v1",
+   "title": "VeriFine: Scaling Verification for Self-Improvement in Embodied Reasoning",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI",
+    "cs.RO"
+   ],
+   "summary": "Self-improving policies continually expose new failure patterns, changing what their judges must be able to verify. However, current fixed judges constrain both optimization feedback and the discovery of useful training examples, limiting further self-improvement. This challenge is even more acute in embodied reasoning, where reliable evaluation must account for spatial grounding, causal reasoning",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2610.08630v1",
+   "title": "Towards In-Parameter Memory Augmentation for Large Language Models",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.CL"
+   ],
+   "summary": "Recently Large Language Models (LLMs) and LLM-based agents increasingly need to incorporate knowledge acquired after pretraining, e.g., domain facts, user preferences, documents, and interaction experience. In-context learning (ICL) and ICL-based agent harness remain flexible, but they consume context capacity and incur repeated discretized encoding cost that grows with context length. \\textbf{In-",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2610.07979v1",
+   "title": "Learning from Revision Consequences: Hindsight Meta-Experience Distillation for Self-Improving Agents",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "As agents continuously improve by generating and revising Skills, the process that discovers and refines those Skills becomes a learnable object in its own right. Task-Skills directly act on task execution, whereas Meta-Skills govern how agents discover and improve future Skills; their value therefore emerges through the subsequent search processes they induce. Existing approaches improve Meta-Ski",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2610.07969v1",
+   "title": "EmbodiedSmith: Scaling Embodied Data through Recursive Self-Improvement Flywheel in Simulation",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.CV",
+    "cs.RO"
+   ],
+   "summary": "Scaling robotic foundation models requires diverse training data and reliable evaluation environments. Simulation offers a scalable solution, yet existing generation pipelines remain constrained by predefined assets and skills, a disconnect between scene generation and task generation, and limited support for complex embodiments and physics. We introduce EmbodiedSmith, a framework for scalable emb",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2610.07935v1",
+   "title": "SIGMA: Self-Improving Alignment Generalization from a Model Spec",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "LLM agents are increasingly capable of executing complex tasks and of recursively improving themselves on easy-to-verify objectives such as software engineering and mathematics. Since alignment is much harder to verify, this creates a growing risk of capabilities increasing without appropriate safety alignment, especially as capabilities expand to auto-research and cybersecurity. Existing approach",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2610.07645v1",
+   "title": "SkillPoison: Progressive Skill Poisoning via Successful Experiences",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI",
+    "cs.CR"
+   ],
+   "summary": "Self-improving LLM agents increasingly distill successful experiences into persistent, reusable skills. Existing skill attack methods corrupt this learning pipeline by injecting malicious triggers, behaviors, or false facts into individual experiences or extracted skills. However, such attacks are easily detected, and the injected malicious behaviors often fail to accumulate as persistent skills. ",
+   "queries": [
+    "self-improving-agents",
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.08432v1",
+   "title": "EMHO: EMbodied Agent Harness Optimization via Experience Traces",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Improving embodied agents often focuses on optimizing the underlying model through training, while the surrounding agent harness that controls planning, context, and tool use is typically engineered. We ask whether this harness can instead improve itself directly from experience traces under sparse environmental feedback. We propose EMbodied Agent Harness Optimization (EMHO), a self-evolving frame",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2610.08327v1",
+   "title": "MedZERO: Self-Evolving Agents for Open-Ended Medical Reasoning Through Controlled Knowledge Accumulation",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Large language models (LLMs) have shown promise in medical question answering and clinical reasoning, yet their improvement remains constrained by static parametric knowledge and costly expert supervision. Self-evolving agents offer a promising alternative by enabling models to improve through iterative task generation and problem-solving. However, most existing self-evolving methods are designed ",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2610.08215v1",
+   "title": "Learn2Play Bench: How Well Do LLM Agents Learn from Experience in Unfamiliar Environments?",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Learning from experience is essential for LLM agents to adapt to unfamiliar and dynmaic environments. Evaluating this ability is therefore important for understanding how effectively agents acquire and use new knowledge. Existing benchmarks have sought to evaluate this ability, but they primarily evaluate tasks whose rules are provided in the instructions or already familiar to pretrained models, ",
+   "queries": [
+    "agent-self-modification",
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.07832v1",
+   "title": "Harness Engineering for Software Engineering via Modular Executable Dev-Primitives",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI",
+    "cs.CL",
+    "cs.MA",
+    "cs.SE"
+   ],
+   "summary": "Large language models (LLMs) equipped with terminal access have demonstrated strong capabilities in automating software engineering tasks. However, existing agents remain brittle on long-horizon workflows, where they must repeatedly reconstruct program state scattered across source files, configurations, tests, dependencies, and runtime behavior, leading to increasingly long interaction histories,",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2610.07960v1",
+   "title": "From Delivery to Stateful Exploration: Rethinking the Index for Agentic Search",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.IR"
+   ],
+   "summary": "Recent advances in agentic search have given large language model (LLM) agents finer control over corpus exploration. However, search interfaces often return matching passages even when feedback about the candidate set would suffice for the next decision, coupling candidate refinement with source-text exposure. We propose IndexAct, an interface for Index-Native Corpus Interaction that separates ca",
+   "queries": [
+    "agentic-search",
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.08775v1",
+   "title": "Agent in a Bottle: Can LLM Agents Turn Their Capabilities Into Cheap, Scalable Artifacts?",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Large language models (LLMs) can solve many narrow tasks, but querying them separately for millions of related instances can be prohibitively expensive. Can LLM agents autonomously create cheaper solutions for such workloads? We call this ability \"bottling\": the ability to turn general capabilities into task-specific solutions that balance answer quality and amortised cost. We introduce BOTTLED, a",
+   "queries": [
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.08720v1",
+   "title": "WorldSolver: Can LLM Agents Simulate the Physical Dynamics via Solver Generation?",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "LLM-based agents are increasingly advancing scientific and engineering problem solving, with physics simulation emerging as a challenging yet practical testbed for reproducing complex physical phenomena with application in embodied AI, games and films. As the workhorse of such simulation, a solver computes how the state of a dynamic system evolves over time. Building such solvers requires physical",
+   "queries": [
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.08668v1",
+   "title": "Semantic Behavioral Watermarking: Paraphrase-Robust and Forgery-Resistant Provenance for LLM Agents",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI",
+    "cs.CR"
+   ],
+   "summary": "Behavioral watermarking embeds an owner identifier in an LLM agent's high-level action choices, giving provenance without touching output tokens. Prior agent watermarks break in two ways. First, all three prior schemes bind the watermark to the exact action symbol, so renaming a tool desynchronizes decoding even when the observation is untouched; in AgentMark's own robustness test, paraphrasing th",
+   "queries": [
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.08622v1",
+   "title": "Agentic RCA for Internet-Scale Services Using Constrained Creativity",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI",
+    "cs.NI"
+   ],
+   "summary": "System administrators of Internet-scale services need to resolve failure incidents to maintain reliability of such services. Ideally, we want a troubleshooting system to be: (1) expressive to known and unknown incidents with high accuracy; (2) cost efficient at scale; (3) explainable to provide actionable insights operators can act on; and (4) entail low effort from the operators. Unfortunately, m",
+   "queries": [
+    "agent-reliability-eval",
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2610.08452v1",
+   "title": "Agentic AutoRAG: RAG Pipeline Optimization through Reasoning-Driven Agents",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.CL",
+    "cs.IR",
+    "cs.LG"
+   ],
+   "summary": "Retrieval-augmented generation (RAG) is a widely used approach for grounding large language models (LLMs) in external knowledge. However, configuring a pipeline is an expensive hyperparameter optimization problem over many interacting choices, from chunking and embedding model to reranking and generation. Existing optimizers, from greedy search to Bayesian optimization, reduce each trial to an agg",
+   "queries": [
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.08402v1",
+   "title": "VETTA: Coordinating Turn- and Token-Level Credit Assignment for Multi-Turn LLM Agents",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.LG"
+   ],
+   "summary": "Multi-turn LLM agents often receive sparse task feedback across several interactions, while generating each response token by token. This creates two related credit-assignment questions: which responses helped achieve the outcome, and which generation decisions mattered within each response? Existing methods typically focus on only one level: turn-level methods evaluate complete responses but do n",
+   "queries": [
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.08098v1",
+   "title": "Surviving the Router: Optimizing Skill Injections for Retrieval and Execution",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.CR",
+    "cs.LG"
+   ],
+   "summary": "AI agents increasingly rely on modular third-party \"skills\" that are dynamically selected by skill routers to execute complex tasks. While recent studies highlight the threat of prompt injections embedded in these skills, existing evaluations often assume settings where the malicious skill is already selected for execution. We show that this assumption can substantially overestimate attack success",
+   "queries": [
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.08076v1",
+   "title": "SpeedrunBench: Challenging LLM Agents with Video Game Speedrunning",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Frontier LLM agents have been shown to be capable of solving increasingly complex tasks for which humans have measurable solutions. This begs the pertinent question of whether LLM agents can go beyond what humans have already solved. The ability to develop sophisticated strategies to tackle consequential problems becomes paramount as well-trodden, human-developed solutions become insufficient for ",
+   "queries": [
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.08048v1",
+   "title": "DAEDALUS: Bootstrapping Agent Memory from Self-Generated Tasks",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI",
+    "cs.CL",
+    "cs.LG"
+   ],
+   "summary": "LLM agents often lack the operational knowledge to act reliably in new environments, as they must discover specific tool behaviors or environment conventions on their own. Without memory of past attempts, they repeat the same mistakes across tasks, leading to more task failures and longer trajectories. To address this, agentic systems typically rely on human-written guidelines or on procedural mem",
+   "queries": [
+    "agent-reliability-eval",
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2610.08036v1",
+   "title": "Same Feedback, Different Answer: Measuring Run-to-Run Instability in Frontier-Model Customer Feedback Analysis",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "AI agents are increasingly being programmed to automate knowledge work over large collections of unstructured data. Such automation requires repeatability: when the underlying evidence is unchanged, the agent's categories, priorities, and counts should not shift materially between runs, even if each individual answer appears plausible. We introduce a repeat-run evaluation framework that aligns sem",
+   "queries": [
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.07967v1",
+   "title": "DecepEval: A Benchmark for Evaluating Deception in LLM Agents",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.LG"
+   ],
+   "summary": "As large language model (LLM) agents become increasingly autonomous, they may pursue task performance through deception, raising concerns about their reliable deployment. Existing evaluations show that LLM agents can deceive, but often examine isolated scenarios or narrowly defined conditions, limiting systematic understanding of when deception becomes more likely. To address this gap, we introduc",
+   "queries": [
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.07948v1",
+   "title": "Confidence Reasoning Graphs: Structured Confidence Estimation for LLM Agents",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI",
+    "cs.CL"
+   ],
+   "summary": "When using an LLM agent in a consequential domain, making an informed decision about whether to trust its output or intervene requires calibrated confidence in the agent's success. Confidence estimation for agents is difficult because evidence about success is distributed across heterogeneous, interdependent steps of an agent's trajectory. Practical agentic deployments introduce further challenges",
+   "queries": [
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.07863v1",
+   "title": "ReFold: Training-Free Reversible Inter-Turn Context Folding for Long-Horizon Agents",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI",
+    "cs.CL",
+    "cs.LG"
+   ],
+   "summary": "Long-horizon LLM agents act on an append-only interaction history that is re-sent to the model at every step, so the context and its cost grow with steps until the sessions exceed the context window. Existing methods manage the context through context requirement prediction, relying on additional model calls, heuristic rules, or trained policies. However, these predictive approaches introduce runt",
+   "queries": [
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.07675v1",
+   "title": "EIO-Agents: The Missing Semantic Layer for AI Agent Evaluation",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI",
+    "cs.MA"
+   ],
+   "summary": "AI agents are entering production in increasingly consequential environments without a shared semantic standard for what their evaluations actually mean. Scores, traces, judge outputs, and multi juror findings are increasingly used to justify readiness and release decisions, yet they often do not specify what evidence supports a claim, what that evidence can establish, or how the claim leads to a ",
+   "queries": [
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.07625v1",
+   "title": "Stateless Language Agents: Scaling Long-Horizon Automated Research",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI",
+    "cs.CL",
+    "cs.LG"
+   ],
+   "summary": "Automated research systems increasingly run LLM agents over long horizons, but more inference does not by itself produce more progress: agents replay growing histories, duplicate one another's work, or stop experimenting while token consumption continues. Yet most evaluations use short budgets or benchmarks that saturate early, leaving these failure modes untested. We trace these failures to two c",
+   "queries": [
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.07614v1",
+   "title": "BioStudyBench: Evaluating Agents on Post-Cutoff Biomedical Studies",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "We evaluate whether AI agents can match the reported findings of published biomedical studies using public data. Existing evaluations do not consistently separate analysis from prior knowledge or retrieval of the published answer. We introduce BioStudyBench, a benchmark of 25 long-horizon analysis tasks drawn from studies first published between July and September 2026, after the developer-reporte",
+   "queries": [
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.07588v1",
+   "title": "Personal-Agent Mediated Recommendation with Cross-Platform User History",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI",
+    "cs.LG"
+   ],
+   "summary": "Modern recommendation is shifting from platform-centric personalization toward user-governed personalization, where a personal LLM agent can act on the user's behalf across services. We formalize this emerging paradigm as Personal-Agent Mediated Recommendation: a platform recommender ranks a candidate set using platform-local information, and a personal agent uses user-authorized cross-platform hi",
+   "queries": [
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.08155v1",
+   "title": "Token-Efficient Multi-Agent Collaboration via System One-Guided Computational Division of Labor",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI",
+    "cs.MA"
+   ],
+   "summary": "Large language model (LLM)-based multi-agent systems (MAS) have become a promising paradigm for complex information-seeking and reasoning tasks by enabling collaborative problem solving among specialized agents. However, existing MAS frameworks tightly couple task reasoning with coordination operations, including task selection, role assignment, message routing, and context management. As interact",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2610.07835v1",
+   "title": "DHCG: Dynamic Construction of Hierarchical Collaboration Graphs for LLM-Based Multi-Agent Reasoning",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "LLM-based multi-agent systems (MAS) have demonstrated strong capabilities in solving complex problems across diverse domains. Recently, the dynamic orchestration of agent systems has become an important research direction. However, existing methods suffer from limited composition, misaligned dependencies, and inflexible scale, restricting their ability to adapt to reasoning requirements during exe",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2610.07787v1",
+   "title": "OOPMAS: Object-Oriented Multi-Agent Systems for Query-Level Workflow Generation",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Multi-agent systems (MAS) powered by large language models have shown strong performance across code generation, mathematical reasoning, and question answering. However, existing methods for automating MAS design mostly operate at the task level, producing a single fixed workflow per benchmark that is applied uniformly to all queries. This assumption fails under realistic conditions. Query difficu",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2610.07587v1",
+   "title": "Large Language Model Orchestration under Heterogeneous Preferences via Explicit Persona Inference",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.CL"
+   ],
+   "summary": "LLM orchestration investigates how an orchestrator coordinates a group of autonomous agents to achieve common goals or maximize collective welfare. The agents are typically heterogeneous, each holding a private preference that it pursues but does not reveal. Inferring such hidden preferences from behavior has been a subject of long-standing research in game theory and multi-agent systems. The core",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2610.08101v1",
+   "title": "Beyond Corrected Memory: Execution Consistency in Multi-Agent Systems",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Shared memory coordinates agents' actions, but correct records do not establish that those actions satisfy task requirements. Memory governance and failure diagnosis regulate or inspect recorded information; they do not by themselves establish whether it is sufficient to judge task duties. We define execution consistency through duties governing state use, information handoffs, and final-state agr",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2610.07860v1",
+   "title": "WorkflowOps: Learning Agent Collaboration Priors for Multi-Agent Workflow Orchestration",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Multi-agent systems are increasingly deployed for complex knowledge work, yet their orchestration layers remain largely memoryless: each new task is decomposed, assigned, and executed from scratch with no benefit from prior successful executions. We present WorkflowOps, a multi-agent workflow orchestration framework that learns agent collaboration priors from historical workflows and expands its a",
+   "queries": [
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2610.07851v1",
+   "title": "RA-MoWE: Workflow-Affinity Embeddings for Query Clustering and Agentic Workflow Generation",
+   "published": "2026-10-06",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Agentic workflows enable large language models (LLMs) to solve complex tasks by coordinating reasoning, tool use, and verification. However, a workflow optimized for an entire task collection can overlook differences in the reasoning strategies that individual queries need, while searching for a new workflow for every query repeats costly optimization. To address this tradeoff, we introduce RA-MoW",
+   "queries": [
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2610.07335v1",
+   "title": "Selective Critique for Cost-Aware LLM Agents in Long-Horizon Decision Making",
+   "published": "2026-10-05",
+   "updated": "2026-10-05",
+   "categories": [
+    "cs.AI",
+    "cs.LG"
+   ],
+   "summary": "Improving the reliability of large language model (LLM) agents in long-horizon decision-making remains a key challenge. When deployed as autonomous agents interacting with complex environments, early mistakes can propagate through trajectories and cause cascading failures. Recent approaches improve reliability by incorporating external critique or deliberation, but invoking these mechanisms at eve",
+   "queries": [
+    "self-improving-agents",
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.05701v1",
+   "title": "Second-Order Problem Solving for Recursive Self-Improvement in Formal Verification",
+   "published": "2026-10-05",
+   "updated": "2026-10-05",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Recursive self-improvement (RSI) enables agents to iteratively optimize their workflows via execution feedback. However, standard RSI typically operates as a first-order optimizer: it repeatedly patches surface-level parameters in response to immediate failure symptoms, often leading to trial-and-error thrashing without resolving underlying mechanisms. To address this limitation, we introduce SO-R",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2610.06782v1",
+   "title": "T-Search: An Open Agentic Retriever and Playground for Hard Multi-Step Search",
+   "published": "2026-10-05",
+   "updated": "2026-10-05",
+   "categories": [
+    "cs.CL"
+   ],
+   "summary": "We present T-Search, an open-weight agentic retriever for hard multi-step search. Given a question and a search tool over a fixed corpus, it runs a bounded multi-round search and returns a ranked list of evidence chunks with short justifications, leaving answer generation to a downstream model, so backend and generator can be swapped without retraining. T-Search is built on Qwen3.6-35B-A3B and tra",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2610.06753v1",
+   "title": "Discovering New Problems for Decoded Quantum Interferometry",
+   "published": "2026-10-05",
+   "updated": "2026-10-05",
+   "categories": [
+    "quant-ph"
+   ],
+   "summary": "Decoded quantum interferometry (DQI) uses classical error correction to solve optimization problems, but it is hard to tell which problems could give it a quantum advantage. We develop soundness rules that screen candidate problems by their code parameters, decoding guarantees and classical baselines. For the standard objective of counting satisfied constraints, we prove that under worst-case Hamm",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2610.05750v1",
+   "title": "Beyond Semantic Similarity: Performance and Costs of Agentic Retrieval for Complex Tasks",
+   "published": "2026-10-05",
+   "updated": "2026-10-05",
+   "categories": [
+    "cs.AI",
+    "cs.IR"
+   ],
+   "summary": "Modern information systems, including many agentic workflows, use dense retrieval to explore large amounts of unstructured data. However, dense retrieval relies on surface-level semantic similarity, which is insufficient for increasingly complex search applications. Here, we investigate agentic retrieval that combines the reasoning capabilities of Large Language Models (LLMs) with the efficient co",
+   "queries": [
+    "agentic-search",
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2610.07473v1",
+   "title": "PsyCIDRA: A Dual-Agent Framework for Psychiatric Interviewing and Diagnostic Reasoning",
+   "published": "2026-10-05",
+   "updated": "2026-10-05",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Large language models show promise in clinical reasoning, but psychiatric interviewing requires guiding an evolving conversation. Their ability to carry out this interactive assessment remains less studied. We present PsyCIDRA, a dual-agent framework linking free-form psychiatric interviewing with diagnostic reasoning for expert review. Its interviewer agent uses tools to maintain working notes, l",
+   "queries": [
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.07459v1",
+   "title": "Auditable Claims about AI Agents",
+   "published": "2026-10-05",
+   "updated": "2026-10-05",
+   "categories": [
+    "cs.AI",
+    "cs.CL",
+    "cs.CY",
+    "cs.MA"
+   ],
+   "summary": "Organizations make claims about their AI agents: a person approves every external email, every action is logged, an evaluation shows the agent is safe to deploy. Article 12 of the EU AI Act requires high-risk systems to allow the automatic recording of events but does not say which records settle a given claim. The position is one sentence: to be checked, a claim about an agent must first name its",
+   "queries": [
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.07376v1",
+   "title": "MemCo: Memory-Centric Collaboration for Generalizing LLM Agents to Unseen Environments",
+   "published": "2026-10-05",
+   "updated": "2026-10-05",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Large language model (LLM) agents increasingly operate in interactive environments, where they need to make sequential decisions through observation, action, and feedback. Although memory can help agents reuse experience, existing work designs memory in isolation, where collecting enough trajectories to populate it is expensive. Existing shared-memory approaches mitigate isolated experience by poo",
+   "queries": [
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.07332v1",
+   "title": "Structuring MoE Expert Selection for Agentic Reinforcement Learning",
+   "published": "2026-10-05",
+   "updated": "2026-10-05",
+   "categories": [
+    "cs.CL",
+    "cs.LG"
+   ],
+   "summary": "Long-horizon LLM agents are frequently implemented using sparse mixture-of-experts (MoE) models, yet the co-design of agentic behavior and MoE structures remains underexplored. In this work, we comprehensively study the connections between agentic post-training and MoE expert selection. In off-the-shelf MoE models, we observe expert selection exhibits a specialized structure that naturally aligns ",
+   "queries": [
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.07311v1",
+   "title": "Understanding and Mitigating Inference-Time Overreliance Using Agentic Memory",
+   "published": "2026-10-05",
+   "updated": "2026-10-05",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Agentic memory allows LLM agents to reuse past experience, yet retrieved memories can also distort inference even when they are benign, correctly stored, and appropriately retrieved. We study this failure mode, which we call memory over-reliance. Across benchmarks and memory architectures, we find that memory is useful when past experience transfers to the current task, but can become misleading w",
+   "queries": [
+    "agent-reliability-eval",
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2610.07289v1",
+   "title": "Catching Developers in the Flow: Low-Latency Agentic Program Repair at Google Scale",
+   "published": "2026-10-05",
+   "updated": "2026-10-05",
+   "categories": [
+    "cs.AI",
+    "cs.SE"
+   ],
+   "summary": "Manual repair of program failures is time-consuming and disruptive for software developers, particularly during the pre-submit phase where test failures occur within continuous integration systems. While Automated Program Repair has seen significant advancement through Large Language Models, existing state-of-the-art techniques primarily focus on post-submit workflows, operating offline without th",
+   "queries": [
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.07256v1",
+   "title": "Efficient Auditing of Adversarial AI Agent Behavior from Agent Traces",
+   "published": "2026-10-05",
+   "updated": "2026-10-05",
+   "categories": [
+    "cs.CR"
+   ],
+   "summary": "AI agents powered by large language models (LLMs) can perform complex tasks but may harm the systems they operate in, either intentionally or unintentionally. Existing agent monitoring approaches rely on rule-based guardrails or LLM-based trace auditing. However, rule-based guardrails can be bypassed through obfuscation and may miss harmful actions beyond their predefined rules, whereas applying a",
+   "queries": [
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.07249v1",
+   "title": "Can Semantic Geometry Teach an AI Judgement?",
+   "published": "2026-10-05",
+   "updated": "2026-10-05",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "How can an AI agent determine what rules to follow? One rule permits an action. Another imposes a condition, exception, or conflicting obligation. Deterministic systems can resolve those relationships when they have been specified. When they remain implicit in language, an agent can follow one rule while missing another that should stop it. Refusing every unresolved action avoids that risk, but al",
+   "queries": [
+    "agent-reliability-eval"
+   ]
+  },
+  {
+   "id": "2610.06830v1",
+   "title": "MemPilot: Orchestrating On-Demand Multimodal Memory Curation for LLM Agents",
+   "published": "2026-10-05",
+   "updated": "2026-10-05",
+   "categories": [
+    "cs.AI",
+    "cs.CL",
+    "cs.LG"
+   ],
+   "summary": "Memory has become integral to the LLM agent ecosystem, supporting information retention and reuse across interactions. However, most existing agent memory systems construct memory in a query-agnostic manner, which can incur unnecessary preprocessing cost and discard details that later prove essential. Recent studies have begun shifting memory processing toward runtime adaptation, but typically spe",
+   "queries": [
+    "agent-reliability-eval",
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2610.07258v1",
+   "title": "Lineage-Aware Memory Governance: A Derivation-Gated Framework for Privacy-Preserving Column-Level Access Control in Enterprise AI Agents",
+   "published": "2026-10-05",
+   "updated": "2026-10-05",
+   "categories": [
+    "cs.AI",
+    "cs.CL",
+    "cs.CR",
+    "cs.LG"
+   ],
+   "summary": "Enterprise AI agents that share a memory store face two unaddressed risks: sensitive data can leak through legitimately computed results the requester could not derive, and departments can silently compute a same-named key performance indicator (KPI) through conflicting logic. Existing agent-memory systems (e.g., MemGPT, Zep, A-MEM) gate retrieval by content, ownership, and role, not derivation, m",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2610.06454v1",
+   "title": "AgentPrivArena: Evaluating and Auditing Real-world AI Agent Privacy",
+   "published": "2026-10-05",
+   "updated": "2026-10-05",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "The rapid advancement of LLM agents has enabled systems to autonomously perform complex tasks through external tools, but their growing access to personal data introduces significant privacy risks. Existing benchmarks primarily evaluate LLM agent privacy through simulated trajectories and outcome-based metrics, limiting their ability to capture privacy risks arising during multi-step agent executi",
+   "queries": [
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2610.06193v1",
+   "title": "Correct Code, Broken Contributions? SWE-CC: Benchmarking Repository Policy Compliance for Coding Agents",
+   "published": "2026-10-05",
+   "updated": "2026-10-05",
+   "categories": [
+    "cs.AI",
+    "cs.SE"
+   ],
+   "summary": "Autonomous coding agents now resolve a substantial share of real-world GitHub issues. However, passing functional tests differs fundamentally from producing a high-quality contribution acceptable for merging. Mature open-source projects publish repository-specific contribution policies, spanning style, git, testing workflows, to ensure code quality and long-term maintainability. Because existing b",
+   "queries": [
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2610.05151v1",
+   "title": "Recursive Self-Improvement of Visuomotor Policies through Local Recovery Supervision",
+   "published": "2026-10-04",
+   "updated": "2026-10-04",
+   "categories": [
+    "cs.RO"
+   ],
+   "summary": "Visuomotor policies can execute familiar tasks yet lack the corrective behavior needed after their own mistakes. We present a framework for recursive self-improvement through local recovery supervision. Each round audits the current policy, generates corrective demonstrations at supported failure states, and uses them to update the policy that drives the next round of collection. An offline audito",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2610.04927v1",
+   "title": "Assembling Insights for Agentic Machine Learning Engineering Systems",
+   "published": "2026-10-04",
+   "updated": "2026-10-04",
+   "categories": [
+    "cs.AI",
+    "cs.LG",
+    "cs.SE"
+   ],
+   "summary": "Agentic machine learning engineering (MLE) is an emerging AI4SE application for complex ML tasks and a step toward recursive self-improvement of AI systems. Recent agentic MLE systems show the value of leveraging insights from related MLE tasks: some systems condition code generation on expert domain knowledge, which is implicitly curated from peer MLE tasks; some systems have a loop of solving an",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2610.05383v1",
+   "title": "Sibyl: An Efficient Small-large Model Collaboration Framework for Long-horizon Tasks",
+   "published": "2026-10-04",
+   "updated": "2026-10-04",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Small language models (SLMs) offer a promising foundation for on-device agents through low-latency, resource-efficient inference, yet limited reasoning and planning capabilities constrain their performance on long-horizon tasks requiring multi-step interaction with the environment. Step-level collaboration between SLMs and larger cloud-hosted models can bridge this gap, but identifying states that",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2610.04889v1",
+   "title": "ForkPilot: Self-Evolving Policy for Retrospective Search in Long-Horizon Agents",
+   "published": "2026-10-04",
+   "updated": "2026-10-04",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Interactive language-model agents increasingly solve complex tasks through long-horizon, multi-call reasoning, where errors in beliefs or actions can compound across tool interactions. Retrospective search can recover from such failures but is prone to misallocation. Delayed outcomes obscure the contribution of intermediate search decisions, leading to Attribution Complexity, while evolving execut",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2610.05382v1",
+   "title": "Harness-Search: Guiding Long-Horizon Search through Multi-Agent Coordination",
+   "published": "2026-10-04",
+   "updated": "2026-10-04",
+   "categories": [
+    "cs.CL"
+   ],
+   "summary": "Long-horizon search requires agents to gather evidence across multiple steps and synthesize it into well-supported answers. The recent agent harnesses provide a natural and promising framework to support such long-running search processes. As interaction histories grow, one single agent in harnesses might get stuck and cause the policy to lose track of unresolved questions, overlook useful evidenc",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2610.05195v1",
+   "title": "Long-MDR: Long-Context Reinforcement Learning for Multimodal Deep-Research Agents",
+   "published": "2026-10-04",
+   "updated": "2026-10-04",
+   "categories": [
+    "cs.CV"
+   ],
+   "summary": "The next generation of multimodal research agents must reason over long-lived research histories rather than short model completions. During a single task, an agent may repeatedly search the web, inspect visual evidence, revisit earlier hypotheses, and accumulate tens of thousands of tokens of multimodal context. Despite this trend, online RL for multimodal research agents remains largely confined",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2610.05034v1",
+   "title": "Agentic RAG Evaluation: Budget Allocation Across Questions, Trajectories, and Reads",
+   "published": "2026-10-04",
+   "updated": "2026-10-04",
+   "categories": [
+    "cs.IR"
+   ],
+   "summary": "Evaluation budgets in agentic retrieval-augmented generation span questions, search trajectories, and repeated answers. We measure allocation precision, reading efficiency, and cost boundaries using a retrieval-feedback comparison on HotpotQA and MuSiQue. At 34.14--34.39M model tokens, broader question coverage lowers standard error by 33\\% versus five reads and 12.6\\% versus three trajectories. A",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2610.05176v1",
+   "title": "AECG: Asymmetric Experience Consolidation and Governance In Multi-Agent Systems",
+   "published": "2026-10-04",
+   "updated": "2026-10-04",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Large language model (LLM)-based multi-agent systems increasingly rely on memory to transform execution trajectories into reusable procedural knowledge. Yet repeated retrieval also makes memory errors persistent: memory pollution arises when outdated, weakly supported, or spuriously successful procedures become recurring components of future reasoning. Multi-agent execution introduces an additiona",
+   "queries": [
+    "multi-agent-coordination",
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2610.05284v1",
+   "title": "Fusion is the New Mutation: Bandit-Guided Evolution on Workflow Graphs",
+   "published": "2026-10-04",
+   "updated": "2026-10-04",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Automated agentic workflow optimization relies on costly evaluations, making it essential to allocate a limited evaluation budget effectively. Multi-parent fusion can reuse designs from previously discovered workflows, but identifying promising parent combinations requires learning from limited fusion feedback. We introduce DAGO (Directed Acyclic Graph Optimization), a contextual-bandit-guided fra",
+   "queries": [
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2610.04469v1",
+   "title": "Trinity: Self-Evolving Vision-Language Models with a Self-Verifier",
+   "published": "2026-10-03",
+   "updated": "2026-10-03",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Self-evolving vision-language models (VLMs), a form of self-improvement in which a model generates its own training data from unlabeled images, are a promising route toward agents that expand their reasoning capability in an unsupervised manner, without relying on ever-larger annotation budgets. Existing methods pair a Questioner that proposes problems with a Solver that answers them, but reward b",
+   "queries": [
+    "self-improving-agents",
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2610.04184v1",
+   "title": "EvalResearchBench: Can AI Agents Design Their Own Evaluations?",
+   "published": "2026-10-03",
+   "updated": "2026-10-03",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Recursive self-improvement (RSI) relies on evaluation feedback to assess progress and guide further research, yet repeatedly running complex benchmarks is costly and slows iteration. Human experts reduce this cost by selecting benchmark subsets or designing compact suites. We ask whether AI agents can automate this design process and introduce EvalResearchBench (ERB), a benchmark for autonomous ev",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2610.04756v1",
+   "title": "When Is Enough Enough in Self-Evolving LLM Systems?",
+   "published": "2026-10-03",
+   "updated": "2026-10-03",
+   "categories": [
+    "cs.AI",
+    "cs.LG",
+    "stat.ML"
+   ],
+   "summary": "Self-evolving large language model (LLM) systems repeatedly propose, evaluate, and incorporate updates to prompts, skills, or other persistent artifacts. Despite their growing effectiveness, these systems typically operate under a predetermined iteration or compute budget, without a principled criterion to determine when further evolution is no longer worthwhile. This can lead to two undesirable c",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2610.04646v1",
+   "title": "SEIS: Self-Evolving Inference Systems",
+   "published": "2026-10-03",
+   "updated": "2026-10-03",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Inference systems determine how fast and how cheaply language models can be served, so making them faster has direct practical value. However, prior work focuses mostly on optimizing certain parts such as kernels or memory within the large system. In this work, we take a holistic approach and apply agentic self-evolution to optimize the whole system end-to-end. Our SEIS (Self-Evolving Inference Sy",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2610.04672v1",
+   "title": "MASBench: Benchmarking LLM-based Multi-Agent Collaboration under Partial Observability",
+   "published": "2026-10-03",
+   "updated": "2026-10-03",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Large language models (LLMs) have progressively evolved into the core of autonomous agents. Building on this progress, LLM-based multi-agent systems (MAS) coordinate multiple agents into a synergistic team to accomplish complex tasks that exceed the capabilities of individual agents. The effectiveness of such systems depends not only on the agents themselves, but also on how collaboration mechanis",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2610.04777v1",
+   "title": "ARISE: Adaptive Agentic Reasoning with Image-grounded Self-Evaluation for Interpretable IBD Assessment",
+   "published": "2026-10-03",
+   "updated": "2026-10-03",
+   "categories": [
+    "cs.AI",
+    "cs.CV"
+   ],
+   "summary": "Inflammatory bowel disease (IBD) requires frequent imaging-based assessment, yet interpretation of modalities such as wireless capsule endoscopy (WCE) and intestinal ultrasound remains heavily dependent on specialist expertise. Vision-Language Models (VLMs) demonstrate significant potential in multimodal medical image analysis, but their clinical adoption is hindered by their insufficient domain-s",
+   "queries": [
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2610.03872v1",
+   "title": "Training Numerical Intelligence via Auto-Diagnosis and Skill Discovery",
+   "published": "2026-10-02",
+   "updated": "2026-10-02",
+   "categories": [
+    "cs.AI",
+    "cs.CL",
+    "cs.LG"
+   ],
+   "summary": "AI agents are becoming increasingly capable of generating scientific code, but generating code is not the same as improving the algorithms behind it. For numerical solvers, execution feedback can expose poor performance, but rarely reveals its underlying cause and how to address it. We introduce Auto-Diagnosis and Skill Discovery (ADSD), a framework that links numerical diagnosis to reusable solve",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2610.03476v1",
+   "title": "MobiAgent: Dual-Loop Recursive Policy Self-Improvement for Long-Horizon Mobile Manipulation",
+   "published": "2026-10-02",
+   "updated": "2026-10-02",
+   "categories": [
+    "cs.AI",
+    "cs.RO"
+   ],
+   "summary": "Long-horizon mobile manipulation presents significant challenges due to compounding execution errors and capacity interference between locomotion and arm control. While recent Vision-Language-Action models excel at short-horizon tasks, they lack the hierarchical reasoning required for multi-stage objectives. Furthermore, existing hierarchical agents suffer from rigid sub-task mapping, inflexible r",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2610.03139v1",
+   "title": "Agentic RF Intelligence: Multi-Timescale 6G Sensing and Reasoning with On-Device Foundation Models",
+   "published": "2026-10-02",
+   "updated": "2026-10-02",
+   "categories": [
+    "eess.SP"
+   ],
+   "summary": "Future 6G systems share a central challenge with Physical AI: combining sensing, reasoning, and action on network-edge infrastructure in rapidly changing physical environments under strict latency, compute, and energy constraints. Addressing this challenge requires multi-timescale intelligence, combining fast perception that tracks wireless phenomena within milliseconds with slower reasoning that ",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2610.02708v1",
+   "title": "RoboChemGym: A Protocol-Driven Generative Simulation Framework for Long-Horizon Chemical Manipulation",
+   "published": "2026-10-02",
+   "updated": "2026-10-02",
+   "categories": [
+    "cs.RO"
+   ],
+   "summary": "Wet-lab experimentation serves as the gold standard for hypothesis verification in scientific discovery; yet it is inherently labor-intensive, costly, and safety-critical. Embodied agents hold the promise of automating these tedious workflows, but their development is hindered by the scarcity of real-world training data. While simulation offers a scalable alternative for producing demonstrations, ",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2610.04109v1",
+   "title": "SEER: Self-Evolving Event Reasoning and Retrieval for Time Series Forecasting",
+   "published": "2026-10-02",
+   "updated": "2026-10-02",
+   "categories": [
+    "cs.AI",
+    "cs.CL",
+    "cs.LG"
+   ],
+   "summary": "Real-world time series are frequently driven by exogenous events and structural shifts, rendering conventional forecasting based solely on historical numerical observations insufficient. While language models can retrieve external news, standard retrieval-augmented approaches struggle with high noise, missing signals, and an inability to reason causally about event impacts. We propose SEER (Self-E",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2610.02996v1",
+   "title": "Evolutionary Computation for Trustworthy AI: From Attacks and Defenses to Self-Evolving Era",
+   "published": "2026-10-02",
+   "updated": "2026-10-02",
+   "categories": [
+    "cs.NE"
+   ],
+   "summary": "As Artificial Intelligence (AI) has evolved from task-specific models to foundation models and agents, the scope of trustworthy AI has expanded from model-level robustness to the reliability and safety of broader AI systems. This evolution has also expanded the attack surface from individual models to broader system-level interactions, including tool use, context, and interaction trajectories with",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2610.02975v1",
+   "title": "Reliable Self-Evolution with Imperfect Proxy Rewards",
+   "published": "2026-10-02",
+   "updated": "2026-10-02",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Large language model (LLM)-based self-evolving search is a promising approach to scientific discovery. However, high-fidelity evaluation of every candidate is prohibitively expensive in some domains. Self-evolving systems in such settings therefore rely on low-cost but imperfect proxy rewards, which may assign high scores to infeasible candidates. These false positives may contaminate both the fin",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2610.02616v1",
+   "title": "VERSE: Verified Self-Evolving Optimizer for Agent Harnesses",
+   "published": "2026-10-02",
+   "updated": "2026-10-02",
+   "categories": [
+    "cs.AI",
+    "cs.CL",
+    "cs.LG"
+   ],
+   "summary": "Harness evolution improves an LLM agent's prompts, tools, and workflow, while the optimizer's own tools and procedures often remain fixed. We study whether an optimizer can improve another agent more effectively by also improving how it diagnoses failures, develops edits, and tests their effects. Two observations guide our design. In a controlled study, optimizer self-evolution fails to improve pe",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2610.03174v1",
+   "title": "FinNextAssist: Towards Professional Financial Deep Research Assistant",
+   "published": "2026-10-02",
+   "updated": "2026-10-02",
+   "categories": [
+    "cs.MA",
+    "q-fin.CP"
+   ],
+   "summary": "Deep Research (DR) agents have demonstrated strong capabilities in complex, research-oriented tasks through autonomous planning, iterative retrieval, multi-step reasoning, and structured reporting. However, adapting DR agents to finance introduces unique challenges: financial analysis demands the joint completion of heterogeneous sub-tasks spanning diverse data types, tools, and analytical workflo",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2610.03033v1",
+   "title": "When Numbers Start Talking: Numerical Signalling and Strategic Behaviour Among LLMs",
+   "published": "2026-10-02",
+   "updated": "2026-10-02",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Large language model (LLM)-based agents increasingly operate in multi-agent systems (MAS) characterised by strategic interaction. However, little is known about whether, and to what extent, different types of messages affect the outcomes of strategic games. By investigating AI agents based on four popular LLMs, playing four games with different cooperation equilibria, we study whether messages of ",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2610.03010v1",
+   "title": "Engineering Sustainable Agents: A Systematic Comparison of Agentic LLMs for Developer Workflows",
+   "published": "2026-10-02",
+   "updated": "2026-10-02",
+   "categories": [
+    "cs.MA",
+    "cs.SE"
+   ],
+   "summary": "Large language models (LLMs) are increasingly used in software engineering, including agentic systems that coordinate multiple agents, but impose higher computational and environmental costs. In this paper, we present a comprehensive empirical study of agentic LLM systems across five software engineering tasks: code generation, technical debt identification, code vulnerability detection, log parsi",
+   "queries": [
+    "multi-agent-coordination",
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2610.02671v1",
+   "title": "LATHE: LAnguage-driven Toolkit for Hypothesis-based crystal Editing",
+   "published": "2026-10-02",
+   "updated": "2026-10-02",
+   "categories": [
+    "cond-mat.mtrl-sci"
+   ],
+   "summary": "Manipulating crystal structures towards targeted geometric properties or symmetry constraints is a longstanding challenge. Existing computational frameworks fall short: LLMs have poor spatial awareness and operate at coarse granularity in the token space, while diffusion- and gradient-based structure generation approaches generally produce complete structures \\textit{de novo} rather allowing for f",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2610.03999v1",
+   "title": "SERA-IDS: Structured Experience Retrieval-Augmented Intrusion Detection with Small Language Models",
+   "published": "2026-10-02",
+   "updated": "2026-10-02",
+   "categories": [
+    "cs.CR"
+   ],
+   "summary": "Large language models (LLMs) offer a flexible approach to network intrusion detection, but direct classification of numerical flow records can be unreliable without traffic- specific decision boundaries. Retrieval-augmented generation (RAG) enables LLMs to leverage external experience; however, free-form textual experience requires the model to infer the numerical conditions that distinguish traff",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2610.03020v1",
+   "title": "DyadMem: A Long-Term Memory Benchmark of How Agents Work with Users",
+   "published": "2026-10-02",
+   "updated": "2026-10-02",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Long-term agents must remember not only what is true about a user, but also how a particular agent should work with that user as their shared history evolves. Existing benchmarks primarily supervise user facts and preferences or experience reusable across users, leaving this relationship-specific agent memory implicit. Additionally, most prior works measure the model solely with final-answer QA ov",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2610.02687v2",
+   "title": "Decoupling Memory from Context: Structured Memory for Token-Efficient Test-Time Continual Learning",
+   "published": "2026-10-02",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.AI",
+    "cs.LG"
+   ],
+   "summary": "Large language models (LLMs) are increasingly deployed in enterprise, scientific, and medical applications, where agents must incorporate domain-specific knowledge and adapt from experience. Context engineering offers a practical alternative to weight updates by improving model behavior through instructions, strategies, and evidence supplied at inference time. However, adapting context online typi",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2610.02569v1",
+   "title": "Pincer: Resource Authorization for Agents using a Digital Twin",
+   "published": "2026-10-01",
+   "updated": "2026-10-01",
+   "categories": [
+    "cs.AI",
+    "cs.CR"
+   ],
+   "summary": "Coding agents have become increasingly long-horizon, autonomous, reliant on general-purpose shell and maintain their own persistent memory for self-improvement. While these capabilities have made the agents powerful, they have also made them harder to defend against external adversaries. Defenses that restrict this architecture --- typed tools, information-flow control, or policy prediction engine",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2610.02038v1",
+   "title": "Mimir: Physics-Grounded LLM Agents for Long-Horizon Irrigation Control",
+   "published": "2026-10-01",
+   "updated": "2026-10-01",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Large language model (LLM) agents increasingly combine reasoning, tool use, and action, but most evidence comes from episodic tasks with relatively immediate feedback and reset failures. Long-running physical control operates in a different regime: actions alter future states, errors compound across decisions, and an agent must improve from experience without being allowed to rewrite the physical ",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2610.01787v1",
+   "title": "Not All Experience Belongs in the Weights: Component Routing for Self-Improving GUI Agents",
+   "published": "2026-10-01",
+   "updated": "2026-10-01",
+   "categories": [
+    "cs.AI",
+    "cs.GR"
+   ],
+   "summary": "Self-improving GUI agents keep the trajectories they produce and return them to the agent, by fine-tuning or by retrieval into the prompt, and studies that compare the two destinations disagree. We attribute this to the unit of experience: a trajectory bundles items with different properties, so a conclusion about the bundle depends on its mix. To address this, (i) we introduce component routing, ",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2610.01073v1",
+   "title": "Safety Must Survive Self-Improvement: Why Failures Persist and How Agents Recover",
+   "published": "2026-10-01",
+   "updated": "2026-10-01",
+   "categories": [
+    "cs.CR",
+    "cs.SE"
+   ],
+   "summary": "Recursive self-improvement (RSI) allows agents to carry useful changes across generations. Maintaining safety across these generations involves both preventing unsafe behavior from persisting and enabling recovery when failures occur. We study these challenges through a controlled testbed of stateful authorization tasks, where fixed LLM editors optimize executable agent components and independent ",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2610.00972v1",
+   "title": "VeriHarness: Scaling Agentic Verification for Long-Horizon Tasks",
+   "published": "2026-10-01",
+   "updated": "2026-10-01",
+   "categories": [
+    "cs.AI",
+    "cs.MA"
+   ],
+   "summary": "As LLM agents undertake increasingly complex, long-horizon tasks, verifying their outputs becomes increasingly challenging. We study how verification capability can be strengthened with a fixed base model, without access to reference answers or grading rubrics at test time. Repeated sampling yields multiple rollouts that can contain complementary correct claims, but we need a reliable verification",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2610.00948v1",
+   "title": "GUI-HARVEST: Self-Improving GUI Agents through Evidence-Driven Harness Evolution",
+   "published": "2026-10-01",
+   "updated": "2026-10-01",
+   "categories": [
+    "cs.AI",
+    "cs.LG"
+   ],
+   "summary": "The executable harness surrounding a GUI model determines how observations are assembled, actions are executed, and verification, recovery, and termination are controlled. Compared with harness optimization for non-GUI agents, automatically optimizing this harness poses three coupled challenges: reconciling model intent with observed visual effects, diagnosing failures under variable execution out",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2610.01026v1",
+   "title": "It Takes Workflows to Evolve Better Workflows",
+   "published": "2026-10-01",
+   "updated": "2026-10-01",
+   "categories": [
+    "cs.AI",
+    "cs.CL"
+   ],
+   "summary": "Tackling complex real-world tasks can exceed the capabilities of a single large language model (LLM), motivating the use of multi-agent workflows that coordinate specialized agents to work together on these tasks. Recent methods train LLMs to construct better workflows from execution outcomes, but they optimize only the workflow generator, while the other agents that build or execute each workflow",
+   "queries": [
+    "agent-self-modification",
+    "multi-agent-coordination",
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2610.02500v2",
+   "title": "Proving at Scale for Universal Algebra",
+   "published": "2026-10-01",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.LO",
+    "math.GR"
+   ],
+   "summary": "We introduce SemiBase, a project that computes and formally certifies finite identity bases for small semigroups. Deciding finite basability is undecidable for finite algebras and remains open for finite semigroups. The task requires a proof that a candidate basis is complete, or a proof that none exists, rather than a single first-order validity query. LLM-guided agents search for these proofs; a",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2610.02202v1",
+   "title": "ScholarCatalyst: A Benchmark for Retrieving Papers That Inspire New Research",
+   "published": "2026-10-01",
+   "updated": "2026-10-01",
+   "categories": [
+    "cs.AI",
+    "cs.CL",
+    "cs.IR"
+   ],
+   "summary": "What makes great scientists great? Even as AI systems start to make progress on open problems, scientists remain far ahead of them at sensing which prior idea, buried in an ever-growing archive of research, a new problem needs. To study this skill, we draw on researchers who know firsthand which earlier work advanced their completed projects, with papers serving as pointers to the ideas within. Us",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2610.01027v1",
+   "title": "LawCompass: Navigating from Legal QA to Multi-Agent Deep Research with Grounded Evidence",
+   "published": "2026-10-01",
+   "updated": "2026-10-01",
+   "categories": [
+    "cs.CL"
+   ],
+   "summary": "Recent advances in Large Language Models (LLMs) and Retrieval-Augmented Generation (RAG) have significantly democratized access to legal information. Nevertheless, most existing legal assistants remain confined to multi-turn conversational QA, failing to support complex legal tasks that require systematic evidence retrieval, multi-step reasoning, and report-level synthesis. In this paper, we prese",
+   "queries": [
+    "agentic-search",
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2610.02396v1",
+   "title": "Inherit-MAS: Test-Time Evolution of Multi-Agent Systems through Workflow and Execution Inheritance",
+   "published": "2026-10-01",
+   "updated": "2026-10-01",
+   "categories": [
+    "cs.AI",
+    "cs.LG"
+   ],
+   "summary": "Multi-agent systems (MAS) built from large language models coordinate specialized agents to tackle complex tasks, but effective workflows are difficult to design in advance. Test-time evolution refines workflows using execution feedback, yet broad revisions can disturb useful components, while re-executing unchanged requests can incur redundant computation. Inspired by the interplay of inheritance",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2610.01017v2",
+   "title": "Pay for the Fault, Not the Flow: Label-Free In-Flow Multi-Agent Workflow Optimization",
+   "published": "2026-10-01",
+   "updated": "2026-10-02",
+   "categories": [
+    "cs.AI",
+    "cs.CL"
+   ],
+   "summary": "Large language models (LLMs) increasingly construct multi-agent workflows that decompose a complex task and assign specialist agents from a pool. However, building such a workflow well remains challenging: how finely to divide the task, which agent to trust with each subtask, and when to create a new specialist are all critical decisions a workflow constructor needs to settle up front. Thus, wheth",
+   "queries": [
+    "multi-agent-coordination",
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2610.02150v1",
+   "title": "From Knowledge Access to Source Learning: Developing Source-Specific Competence",
+   "published": "2026-10-01",
+   "updated": "2026-10-01",
+   "categories": [
+    "cs.AI",
+    "cs.CL",
+    "cs.LG"
+   ],
+   "summary": "Large language model (LLM) agents increasingly rely on persistent external sources to solve sequences of knowledge-intensive tasks. Existing methods improve how source content is accessed and organized, while agent-memory systems preserve reusable knowledge from prior interactions, but repeated use of the same source is still largely treated as repeated access rather than an opportunity to progres",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2610.01705v1",
+   "title": "AgentWebRec: Compact Evidence Fusion over the Agent Web for Personalized Recommendation",
+   "published": "2026-10-01",
+   "updated": "2026-10-01",
+   "categories": [
+    "cs.IR"
+   ],
+   "summary": "LLM-based personal agents are emerging as persistent carriers of user semantics and intermediaries between users and recommendation platforms, maintaining richer user knowledge locally. As agents interact with one another, the conventional \\textit{User--Platform} relation evolves into a \\textit{User--Agent Web--Platform} information pathway, enabling distributed user-side information to complement",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2610.00872v1",
+   "title": "MemFit: Efficient Long-Term Agentic Memory",
+   "published": "2026-10-01",
+   "updated": "2026-10-01",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Long-term memory systems for large language models (LLMs) have gained popularity for extending reasoning capabilities across applications. Current memory systems rely on LLM agents to organize and consolidate memory, resulting in costly, inefficient write operations. To address this limitation, we propose MemFit, a long-term memory system for conversational agents that reduces the cost and latency",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2610.01766v1",
+   "title": "VideoEvolve: Evolving Agent Harnesses for Video Temporal Grounding",
+   "published": "2026-10-01",
+   "updated": "2026-10-01",
+   "categories": [
+    "cs.AI",
+    "cs.CV"
+   ],
+   "summary": "Video temporal grounding aims to localize events in videos from natural-language queries. For agents built around frozen video-language models, the harness determines how queries guide temporal predictions and how those predictions are refined. Manually refining these harnesses requires diagnosing grounding failures and coordinating changes to both agent workflows and instructions. We introduce Vi",
+   "queries": [
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2610.01110v2",
+   "title": "How Much Can Language Models Gain from Test-Time Computation?",
+   "published": "2026-10-01",
+   "updated": "2026-10-06",
+   "categories": [
+    "cs.LG"
+   ],
+   "summary": "How much can test-time computation improve a language model, and at what cost? Test-time scaling is widely proposed as a substitute for larger models, but existing comparisons mostly evaluate one domain at a time and rarely charge selection to the budget. We introduce SELF-POT, a benchmark and evaluation framework that measures the test-time potential of a model across competition mathematics, com",
+   "queries": [
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2610.00954v1",
+   "title": "Beyond Leaderboards: Tokenomics of Agentic Small Language Model Ensembles",
+   "published": "2026-10-01",
+   "updated": "2026-10-01",
+   "categories": [
+    "cs.CL"
+   ],
+   "summary": "As large language models (LLMs) move from standalone assistants into agentic workflows, evaluation must extend beyond scalar leaderboard accuracy to account for operational reliability, cost, latency, and token efficiency. We use an agentic ensemble of small language models (SLMs) with an SLM-judge-mediated feedback loop as a case study for such beyond-leaderboard evaluation. On the 541-prompt IFE",
+   "queries": [
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2610.00943v1",
+   "title": "Automated Many-Body Simulations of Strongly Correlated Systems Using a Correlation-Aware Agentic Framework",
+   "published": "2026-10-01",
+   "updated": "2026-10-01",
+   "categories": [
+    "physics.chem-ph",
+    "physics.comp-ph"
+   ],
+   "summary": "We present CAFES, a correlation-aware agentic framework for electronic-structure simulations of strongly correlated systems. CAFES addresses two challenges: the fragmented software landscape for many-body calculations and the difficulty of selecting appropriate methods across diverse correlation regimes. It combines correlation diagnostics, adaptive method selection, and large language model (LLM)",
+   "queries": [
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2609.40330v1",
+   "title": "Turbo Harness: Instance-Adaptive Harness Optimization",
+   "published": "2026-09-30",
+   "updated": "2026-09-30",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Automating the search for effective harnesses is an important step toward enabling agents to recursively self-improve. Existing harness optimizations typically produce a single global harness that is applied uniformly across task instances. However, a harness that works well on average may not be optimal for every instance. We introduce Turbo Harness, a framework that can adapt a globally optimize",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2609.39306v1",
+   "title": "ReSAIL: Mitigating Collapse in Iterative Agent Self-Distillation",
+   "published": "2026-09-30",
+   "updated": "2026-09-30",
+   "categories": [
+    "cs.AI",
+    "cs.LG"
+   ],
+   "summary": "Iterative self-distillation enables LLM agents to learn from successive deployments, offering a path toward recursive self-improvement (RSI). Yet our experiments with existing methods reveal a collapse in deployment performance across cycles, while task performance with privileged information (PI) also declines. We address this collapse by prioritizing informative interaction steps for distillatio",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2609.39149v1",
+   "title": "Rep2Skill: Representation-Guided Skill Self-Evolution for LLM Agents",
+   "published": "2026-09-30",
+   "updated": "2026-09-30",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Textual skills enable large language model (LLM) based agents to accumulate reusable procedural knowledge without updating model parameters. Yet existing skill evolution remains largely confined to the text space: an optimizer must diagnose success and failure patterns, and revise skills solely from long execution trajectories and sparse task outcomes. This text-only paradigm leaves the agent's in",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2609.39045v1",
+   "title": "RSIGame: Autonomous Agentic Game Development with Recursive Self-improvement",
+   "published": "2026-09-30",
+   "updated": "2026-09-30",
+   "categories": [
+    "cs.CL",
+    "cs.GT",
+    "cs.LG",
+    "cs.MA"
+   ],
+   "summary": "Recent advances in large language models have made automatic game generation increasingly feasible, yet reliably improving generated games beyond a playable version remains challenging. Naive iterative refinement can easily overfit a small set of test cases, producing fragile games with unresolved bugs, missing behaviors, and poor generalization to broader player interactions. We introduce RSIGame",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2609.38905v3",
+   "title": "EmbodiRSI: Recursive Self-Improvement for Data-Efficient Robot Adaptation",
+   "published": "2026-09-30",
+   "updated": "2026-10-03",
+   "categories": [
+    "cs.RO"
+   ],
+   "summary": "Adapting robot manipulation policies to new tasks and environments remains highly data-intensive, while the data needed for further improvement depends on the policy's current capabilities and failure modes. We introduce EmbodiRSI, an agentic system for recursive self-improvement (RSI) in a real-to-sim-to-real setting, where task-specific simulations are constructed from target deployment scenario",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2610.00650v1",
+   "title": "Self-Evolving Coding Rules for AI Coding Agents",
+   "published": "2026-09-30",
+   "updated": "2026-09-30",
+   "categories": [
+    "cs.AI",
+    "cs.CL"
+   ],
+   "summary": "The performance of AI coding agents is highly dependent on their underlying coding rules. However, existing coding rules are typically hand-crafted and fixed, making the process labor-intensive and often suboptimal. In this work, we propose RuleEvolve, a self-evolving framework for coding rules. RuleEvolve maintains a pool of candidate coding rules and iteratively improves them. In each iteration,",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2609.40358v1",
+   "title": "Physis-Lang: Self-Evolving Language as a Physical Representation for Video World Model",
+   "published": "2026-09-30",
+   "updated": "2026-09-30",
+   "categories": [
+    "cs.CV"
+   ],
+   "summary": "Video world models are expected to predict how the physical world evolves, yet they often produce visually plausible videos that violate basic physical principles. Existing approaches commonly assume that natural language is insufficient to represent the physical knowledge required for reliable generation, and therefore introduce additional visual, latent, numerical, or planning-based signals. We ",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2609.39765v1",
+   "title": "MemCodex: Self-Programming Hierarchical Memory for Language Agents",
+   "published": "2026-09-30",
+   "updated": "2026-09-30",
+   "categories": [
+    "cs.CL"
+   ],
+   "summary": "Agent memory faces heterogeneous access needs: a single-hop question may require one piece of evidence, whereas a multi-hop question must combine evidence from multiple sources. Predefined memory workflows cannot adapt to these varying needs. Recent adaptive methods search or learn over memory components and their compositions, but the design space itself remains predefined. We introduce MemCodex,",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2609.39679v1",
+   "title": "SE-ADD: Self-Evolving Audio Deepfake Detection with Mistake-Driven Supervision",
+   "published": "2026-09-30",
+   "updated": "2026-09-30",
+   "categories": [
+    "cs.LG",
+    "cs.SD"
+   ],
+   "summary": "Audio deepfake detection (ADD) must remain effective when new spoofing attacks emerge after deployment. Emerging audio language model (ALM)-based ADD methods are built on predefined supervision from ground-truth labels or verified forensic rationales. However, this paradigm overlooks an ALM's own mistakes, which indicate where targeted supervision is most needed. To this end, we first introduce ev",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2609.39148v1",
+   "title": "Do Self-Evolving Skills Generalize to Held-Out Tasks?",
+   "published": "2026-09-30",
+   "updated": "2026-09-30",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "AI agents can externalize what they learn from past tasks into reusable \\emph{skills}, such as procedures, checklists, code, or other executable artifacts, that can be retrieved and reused when solving new tasks. Self-evolving skill methods keep rewriting these skills after each round of practice on training tasks, and the skill is then used on new tasks of the same kind. We ask a question: does t",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2609.39102v2",
+   "title": "False Frontiers: Diagnosing and Mitigating Co-Cheating in Self-Evolving Search Agents",
+   "published": "2026-09-30",
+   "updated": "2026-10-03",
+   "categories": [
+    "cs.AI",
+    "cs.CL",
+    "cs.LG"
+   ],
+   "summary": "Self-evolving search agents build their own training curricula by jointly optimizing a proposer that generates questions and a solver that answers them. This closed loop introduces a failure mode we call co-cheating: the proposer and solver increasingly agree on shared errors, so internal reward improves without a matching gain in external correctness. A post-hoc audit against source evidence show",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2609.40079v1",
+   "title": "LongEmo: Towards Emotion Understanding and Reasoning in Long Videos",
+   "published": "2026-09-30",
+   "updated": "2026-09-30",
+   "categories": [
+    "cs.AI",
+    "cs.CV"
+   ],
+   "summary": "While recent Multimodal Large Language Models (MLLMs) have shown promise in affective computing, their reasoning capabilities are largely confined to short video clips with limited interactions. However, real-world emotions are not merely isolated instantaneous reactions but dynamic and cumulative processes deeply shaped by past experiences and ongoing events. To bridge this gap, we introduce Long",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2609.40069v1",
+   "title": "Conversational Capture: A Trajectory-Level Framework for Evaluating Generative Engine Optimization in Multi-turn Human-Agent Interaction",
+   "published": "2026-09-30",
+   "updated": "2026-09-30",
+   "categories": [
+    "cs.HC",
+    "cs.IR"
+   ],
+   "summary": "Generative Engine Optimization (GEO) shapes content to increase its likelihood of being cited by answer engines built on retrieval-augmented large language models. GEO is typically evaluated as a single-turn property: for a fixed query, an evaluator measures a source's visibility in one answer. We argue that the single answer is an inadequate unit of analysis. Human-agent information seeking forms",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2609.39154v1",
+   "title": "DAGent: Evaluate-then-Grow Planning for Deep Research Agents",
+   "published": "2026-09-30",
+   "updated": "2026-09-30",
+   "categories": [
+    "cs.AI",
+    "cs.CL"
+   ],
+   "summary": "Deep research tasks require agents to navigate large knowledge spaces, synthesize evidence across many sources, and adapt their plans as findings emerge. Directed acyclic graph (DAG)-based multi-agent systems suit this setting because they support parallel execution and isolate each sub-task within a focused dependency context. Yet existing DAG-based agents instantiate a task-level plan before exe",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2609.39026v1",
+   "title": "Search Shapes Conclusions: Auditing Evidence Selection Bias in Deep Research Agents",
+   "published": "2026-09-30",
+   "updated": "2026-09-30",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Deep Research agents synthesize evidence into cited reports, yet a well-cited report can still reach a misleading conclusion. Citation correctness checks whether cited sources support individual claims. It does not show whether adaptive search exposed a representative view of all documents made available for evaluation, which we call the candidate pool. Early findings redirect later queries, docum",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2609.38743v2",
+   "title": "Learning to Route in Visual Space via Multi-Step Embedding Retrieval",
+   "published": "2026-09-30",
+   "updated": "2026-10-01",
+   "categories": [
+    "cs.AI",
+    "cs.IR"
+   ],
+   "summary": "LLM agents rely on retrieval tools to access external knowledge, yet visual agentic search remains severely bottlenecked by standard single-step retrievers. In current pipelines, the agent must issue text queries for every intermediate step, struggling when visual clues are difficult to describe or when the retriever fails to surface necessary intermediate evidence within its top results. We hypot",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2610.00629v1",
+   "title": "ASAD: Adaptive Software Agents for Debugging",
+   "published": "2026-09-30",
+   "updated": "2026-09-30",
+   "categories": [
+    "cs.SE"
+   ],
+   "summary": "The integration of Large Language Models (LLMs) into multi-agent systems has shown great potential for automated debugging. Yet nearly all current frameworks rely on rigid, predefined architectures: the number of agents, their roles, and their interaction patterns are fixed before any analysis of the bug occurs. This one-size-fits-all approach is fundamentally mismatched to the heterogeneous natur",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2609.39777v1",
+   "title": "GraphMAS: A Systematic Benchmark of Multi-Agent Coordination for Graph Learning",
+   "published": "2026-09-30",
+   "updated": "2026-09-30",
+   "categories": [
+    "cs.LG"
+   ],
+   "summary": "LLM-based multi-agent systems coordinate specialized reasoning through aggregation, interaction, and adaptive control, yet their potential for graph learning remains unexplored. Graph learning is a natural setting for such systems because useful evidence may arise from heterogeneous local, long-range, global structural, and semantic perspectives whose relevance varies across instances. Existing LL",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2610.03780v1",
+   "title": "OceanMind: A multi-agent AI system for ocean diagnosis",
+   "published": "2026-09-30",
+   "updated": "2026-09-30",
+   "categories": [
+    "cs.AI",
+    "physics.ao-ph"
+   ],
+   "summary": "Time-dependent, three-dimensional (3D) oceanic multi-variables define coherent states of the evolving ocean to facilitate ocean diagnosis and advance ocean science to better inform environmental and hazard management. However, extracting quantitative evidence from these variables requires substantial and complex analytical effort. We introduce OceanMind, a multi-agent AI system that directly coupl",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2609.38662v1",
+   "title": "CollabFlow: Recursive Self-Improvement of Agent Collaboration",
+   "published": "2026-09-29",
+   "updated": "2026-09-29",
+   "categories": [
+    "cs.AI",
+    "cs.MA"
+   ],
+   "summary": "Recursive self-improvement (RSI) lets a system improve from its own outcomes; in LLM-based multi-agent systems, Agents refine one another within a task, and outcomes improve how they collaborate across tasks. However, existing multi-agent collaboration leaves this loop open: collaboration is pre-defined at the operator level, topology-only learning keeps verbatim exchange that propagates errors, a",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2609.38516v2",
+   "title": "From Solo to Social Learning: Characterizing Recursive Social Improvement in LLMs",
+   "published": "2026-09-29",
+   "updated": "2026-10-01",
+   "categories": [
+    "cs.AI",
+    "cs.LG",
+    "cs.MA"
+   ],
+   "summary": "Large language models (LLMs) can now improve themselves by revising the instructions they follow, and LLM agents are increasingly orchestrated to work together on complex problems. However, self-improvement methods typically optimize one system at a time, and multi-agent frameworks often have every model work toward a shared goal. We ask a different question. When each agent pursues its own reward",
+   "queries": [
+    "self-improving-agents"
+   ]
+  },
+  {
+   "id": "2609.38372v1",
+   "title": "Self-Evolving Harness on Multiple Tasks with the Agent as Its Own Optimizer",
+   "published": "2026-09-29",
+   "updated": "2026-09-29",
+   "categories": [
+    "cs.AI",
+    "cs.LG"
+   ],
+   "summary": "A harness is the code around a language-model agent that organizes prompts, calls tools, manages context, and controls execution. As models grow stronger, recent work has begun to let agents improve their own harnesses, a line of work known as self-evolving harnesses. In most existing methods, a separate proposer running on a human-designed harness modifies the solver's harness, and a separate har",
+   "queries": [
+    "self-improving-agents",
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2609.38661v1",
+   "title": "EvoSteer: Online Self-Evolving Graph Orchestration via Reference-Anchored Credit Assignment",
+   "published": "2026-09-29",
+   "updated": "2026-09-29",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "In recent years, LLM-based multi-agent systems have been widely applied to orchestrate tool-using agents into executable communication graphs. However, existing self-evolving orchestration still faces key challenges, including post-hoc evolution that revises the team only after the trajectory ends, credit diffusion that gives every action the same terminal advantage under confounded baselines, and",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2609.38660v2",
+   "title": "Breaking Babel: A Self-Evolving Multi-Agent System for Long-Form Subtitle Translation",
+   "published": "2026-09-29",
+   "updated": "2026-10-01",
+   "categories": [
+    "cs.AI",
+    "cs.CL",
+    "cs.CV",
+    "cs.MA"
+   ],
+   "summary": "Long-form subtitle translation requires reasoning over discourse and cultural context spanning episodes or entire series, while maintaining consistent terminology and style. Existing single-LLM methods are largely sentence-level, and multi-agent systems often use static workflows that do not adapt to scene complexity or production context. We propose SMART, a Self-evolving Multi-Agent system for l",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2609.38639v1",
+   "title": "Component-Aware Feedback for Self-Evolving Programs",
+   "published": "2026-09-29",
+   "updated": "2026-09-29",
+   "categories": [
+    "cs.AI",
+    "cs.IR"
+   ],
+   "summary": "LLM-guided evolutionary search can discover complex programs, but existing methods mostly only save candidate programs and fitness scores while discarding which component edits produced which fitness metric changes. Existing methods force the mutator LLM to infer the effect of prior edits from cluttered histories, making program search slow and unstable. This is especially true for locally servabl",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2610.00347v1",
+   "title": "Authorization for Self-Modifying AI Agent Populations: Conserving Authority across Replacement, Forking, and Rollback",
+   "published": "2026-09-29",
+   "updated": "2026-09-29",
+   "categories": [
+    "cs.AI",
+    "cs.CR"
+   ],
+   "summary": "Self-modifying AI agents can replace, fork, and roll back identity-bearing software while descendants remain executable. Per-successor authorization does not constrain the resulting population: siblings may duplicate quotas, combine permissions, survive ancestor cuts, or overlap predecessors during promotion. We define authorization succession, which conserves authority across the active frontier ",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2609.38458v1",
+   "title": "PrivMeSA: Privacy-Aware Self-Evolving Multi-Agent System for Medicine via Local-Remote LLM Collaboration",
+   "published": "2026-09-29",
+   "updated": "2026-09-29",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Clinical large language model (LLM) agents deployed locally can consult more capable remote models, but doing so risks exposing patient information. Privacy-conscious delegation places disclosure decisions with a local agent, yet removing explicit identifiers is insufficient: quasi-identifiers can accumulate across multi-turn consultations and repeated patient visits to enable re-identification. W",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2609.37989v1",
+   "title": "TabFM-Auto: Self-Evolving Pipelines for Tabular Foundation Models",
+   "published": "2026-09-29",
+   "updated": "2026-09-29",
+   "categories": [
+    "cs.LG"
+   ],
+   "summary": "Tabular foundation models achieve strong zero-shot accuracy on structured data by pretraining on synthetic tables, but they ignore the column names, task descriptions, and auxiliary files that carry dataset semantics. Meanwhile, self-evolving machine learning engineering (MLE) agents train models from scratch on each dataset, yet jointly searching over features, architectures, and hyperparameters ",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2609.37968v2",
+   "title": "SelfSearch: Reward-Free Search for Self-Improving Agents",
+   "published": "2026-09-29",
+   "updated": "2026-09-30",
+   "categories": [
+    "cs.AI",
+    "cs.CL",
+    "cs.LG"
+   ],
+   "summary": "Advances in the coding capabilities of LLM agents allow them to inspect and modify their own instructions, tools, and execution procedures. Existing approaches use this ability to search for improved agents through repeated downstream evaluation, which incurs substantial costs and ties the search to the evaluated tasks. We introduce \\textbf{SelfSearch}, a reward-free search procedure in which agen",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2609.37953v1",
+   "title": "Topological Coherence for Self-evolving Multi-agent Systems",
+   "published": "2026-09-29",
+   "updated": "2026-09-29",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Complex tasks inherently couple workflow structure, agent responsibility, collaboration, and memory access: task regions delimit responsibility and tool scope, cross-region dependencies give rise to handoffs, and ownership boundaries delimit private and selectively shared memory. Existing methods can jointly optimize agent and communication structures, yet such optimization does not by itself requ",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2609.37025v1",
+   "title": "AnyAct: Universal Action for Self-Evolving Agents",
+   "published": "2026-09-29",
+   "updated": "2026-09-29",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "As large language models (LLMs) advance, AI agents are increasingly deployed in open-world environments to tackle complex sequential tasks (e.g., document processing, cross-application collaboration), relying heavily on actions ranging from GUI operations to semantic APIs. However, three core challenges persist: the \"scale dilemma\" of massive tool ecosystems exceeding LLM context windows, the \"non",
+   "queries": [
+    "agent-self-modification"
+   ]
+  },
+  {
+   "id": "2609.38473v1",
+   "title": "Re-ranking and Late Interaction Drive Retrieval Quality: A Controlled Comparison of RAG Strategies for Scientific Question Answering",
+   "published": "2026-09-29",
+   "updated": "2026-09-29",
+   "categories": [
+    "cs.AI",
+    "cs.IR",
+    "cs.LG"
+   ],
+   "summary": "Retrieval-Augmented Generation (RAG) is now the standard way to ground Large Language Models (LLMs) in external knowledge, yet the design space of retrieval pipelines is large and the trade-offs between variants are not well understood, especially on domain-specific corpora at realistic scale. In this work, we present a controlled comparison of six retrieval strategies for scientific question answ",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2609.38327v1",
+   "title": "Absorbing State Phase Transitions in Multi-Agent Search",
+   "published": "2026-09-29",
+   "updated": "2026-09-29",
+   "categories": [
+    "cs.MA"
+   ],
+   "summary": "Nontrivial dynamics can emerge in large language model (LLM)-based multi-agent systems, and preliminary evidence exists that formalisms from statistical mechanics can be effective at modeling and predicting such behaviors. In parallel, designing multi-agent communication topology for optimal task-solving is an active research question. In this paper, we focus on predicting the success of multi-age",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2609.37583v2",
+   "title": "RoboHarn-Evo: Evolving Hierarchical Physical Knowledge for Self-Improving Robotic Manipulation",
+   "published": "2026-09-29",
+   "updated": "2026-09-30",
+   "categories": [
+    "cs.RO"
+   ],
+   "summary": "Vision-language models can coordinate long-horizon robot manipulation, yet successful task reasoning still depends on whether local physical interactions produce the intended effects. We study how repeated interaction can improve this capability without updating the base model. We introduce RoboHarn-Evo, a dual-loop harness that evolves Hierarchical Physical Knowledge (HPK) from physical experienc",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2609.37407v1",
+   "title": "Complementary Retrieval-Augmented Prompting for Consistent Long-Form Video Generation",
+   "published": "2026-09-29",
+   "updated": "2026-09-29",
+   "categories": [
+    "cs.CV"
+   ],
+   "summary": "While recent video foundation models excel at generating high-quality short videos, long-form video generation remains a critical challenge, where a major bottleneck lies in conditioning independently generated shots to preserve consistent characters, scenes, and objects throughout a story. Existing training-free approaches typically condition target shots using retrieved historical visuals. Howev",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2609.37226v1",
+   "title": "Follow the Entities: A Corpus Map for Agentic Search",
+   "published": "2026-09-29",
+   "updated": "2026-09-29",
+   "categories": [
+    "cs.AI",
+    "cs.CL",
+    "cs.IR",
+    "cs.LG"
+   ],
+   "summary": "Answering questions and completing tasks over large document collections often requires connecting evidence spread across multiple documents, such as a project's approval recorded in one, its requirements in another, and its latest status in a third. Recent LLM agents approach this by iteratively searching the full corpus rather than reading only a fixed set of top-ranked documents. However, when ",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2609.36789v1",
+   "title": "GitHarness: Git Init Your Harness Working Memory for Perpetual User Requirements",
+   "published": "2026-09-29",
+   "updated": "2026-09-29",
+   "categories": [
+    "cs.MA",
+    "cs.SE"
+   ],
+   "summary": "LLM-based agents increasingly collaborate with users on long-horizon tasks, accumulating evidence, code, and drafts through extensive search, reasoning, and execution. As users inspect these results, they may supply missing information requirement completion, introduce new requirements requirement elicitation, or revise existing ones requirement shift. These changes often affect only part of the a",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2609.37094v1",
+   "title": "LLM-Based Multi-Agent Systems over Wireless Networks: A Joint Agent--Network Design Perspective",
+   "published": "2026-09-29",
+   "updated": "2026-09-29",
+   "categories": [
+    "cs.MA",
+    "eess.SP"
+   ],
+   "summary": "As large language models (LLMs) evolve from standalone models into collaborative agents embedded in physical systems, their reasoning and execution are increasingly distributed across wireless edge nodes. In this setting, wireless networks are experiencing a paradigm shift from only providing data connectivity to supporting the multi-agent reasoning workflow itself. The task performance of such ne",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2610.03769v1",
+   "title": "Bayes-Sufficient Compression Is Not Enough: How Does Communication Help Multi-Agent Systems?",
+   "published": "2026-09-29",
+   "updated": "2026-09-29",
+   "categories": [
+    "cs.IT",
+    "cs.LG",
+    "cs.MA"
+   ],
+   "summary": "Multi-agent LLM systems pair a sender with broad context and an executor with a limited local view. We study when a short message improves the executor's next decision, when raw context is preferable, and when a stronger sender helps. Our framework, \\emph{receiver-relative bounded coordination}, expresses message utility as receiver gain minus protocol tax. Compression beats raw context when tax s",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2609.37151v1",
+   "title": "FlowMAS: Learning Multi-Agent Workflow Topology via Information-guided Generative Flow Network",
+   "published": "2026-09-29",
+   "updated": "2026-09-29",
+   "categories": [
+    "cs.MA"
+   ],
+   "summary": "Automated multi-agent systems offer clear advantages over manually designed ones in scalability and adaptability, but existing workflow topology methods still face important limitations. Search-based methods are often computationally expensive, textual-gradient-based methods rely on coarse-grained feedback, and existing generation-based methods are not well suited to discrete workflow topologies w",
+   "queries": [
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2609.36344v1",
+   "title": "DeepRewind: Predicting and Repairing Premature Commitments in Deep Research Agents",
+   "published": "2026-09-28",
+   "updated": "2026-09-28",
+   "categories": [
+    "cs.CL"
+   ],
+   "summary": "Deep-research agents conduct long-horizon investigations through iterative search, evidence evaluation, belief revision, and synthesis. However, they may commit to claims before sufficient evidence is available, causing later reasoning to reinforce an incorrect interpretation. We introduce DeepRewind, an additive control layer for reversible deep research that represents the agent's evolving epist",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2609.35215v1",
+   "title": "ASCT: Attentive Search over Counterfactual Trees for Credit Assignment in Agentic Reinforcement Learning",
+   "published": "2026-09-28",
+   "updated": "2026-09-28",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Terminal utility evaluates a complete agentic workflow, but learning requires credit for the decisions within it. We introduce Attentive Search over Counterfactual Trees (ASCT), a framework that turns training-time multi-step search into local action credit. At actor-visited states, an auxiliary tree evaluates alternative legal actions from the same recoverable prefix. Its action-value table is ce",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2609.35912v1",
+   "title": "MMSkillRisk: Can Agents Stay Safe When Multimodal Skills Become Traps?",
+   "published": "2026-09-28",
+   "updated": "2026-09-28",
+   "categories": [
+    "cs.AI",
+    "cs.CR"
+   ],
+   "summary": "Agent skills are shareable packages of procedural instructions, tools, and examples. Multimodal skills additionally include visual references that agents retrieve and inspect during execution. Because these images guide actions, attackers can disguise malicious instructions as ordinary visual guidance within otherwise legitimate skills. Existing skill-security research primarily examines text-carr",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2609.34296v1",
+   "title": "Dr.Credit: Rubric-Grounded Process Credit Assignment for Deep Research Agents",
+   "published": "2026-09-28",
+   "updated": "2026-09-28",
+   "categories": [
+    "cs.AI",
+    "cs.CL"
+   ],
+   "summary": "Rubric-based tasks are increasingly addressed through reinforcement learning (RL), with rubric scores used as training rewards. However, these rewards typically supervise final answers without distinguishing the contributions of intermediate decisions. Many existing credit assignment methods rely on ground-truth answers to define process rewards, limiting their applicability to open-ended tasks wi",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2609.34157v1",
+   "title": "TableSeek: Structure-Preserving Agentic Evidence Seeking over Heterogeneous Table Corpora",
+   "published": "2026-09-28",
+   "updated": "2026-09-28",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Open-domain table retrieval seeks tables that contain sufficient evidence for answering a question or verifying a claim. Yet semantic relevance is often misleading: topically similar tables may lack the required facts, while answer-bearing evidence is often confined to a few cells whose meaning depends on surrounding schema and table context. Heterogeneous schemas, value formats, and serialization",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2609.35965v1",
+   "title": "Systematic Multi-Agent Vision-and-Language Navigation: Formulation, Benchmark, and Method",
+   "published": "2026-09-28",
+   "updated": "2026-09-28",
+   "categories": [
+    "cs.AI",
+    "cs.CV",
+    "cs.RO"
+   ],
+   "summary": "Vision-and-Language Navigation (VLN) has largely focused on a single agent following a single instruction, yet many real-world applications require teams of robots to tackle tasks beyond the capabilities of any individual agent. We present Systematic Multi-Agent Vision-and-Language Navigation, providing, to our knowledge, the first systematic formalization of multi-agent VLN as a constrained coord",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2609.34136v1",
+   "title": "Waggle: Learning One Anonymous Local Law for Self-Organizing LLM Swarms",
+   "published": "2026-09-28",
+   "updated": "2026-09-28",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "As LLM agents increasingly collaborate on complex tasks, how to organize their interactions becomes a central design question. Existing multi-agent systems typically learn or adapt explicit roles, hierarchies, routing policies, or communication topologies. We shift the learning target to a reusable local law that can be shared across interchangeable agents and adapt coordination as populations or ",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2609.35233v1",
+   "title": "EP-Mem: Elastic Privacy Memory for Social Relationship-Aware LLM Agents",
+   "published": "2026-09-28",
+   "updated": "2026-09-28",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Large language model (LLM) agents face critical privacy risks when acting as delegates in human-agent-human communication. To prevent such breaches, agents must understand users' social relationships and adhere to context-dependent social information disclosure boundaries. Current studies on agent memory privacy focus on instantaneous interactions, leaving the long-term relational disclosure probl",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2609.34422v2",
+   "title": "Coding Agent Memory Post-training: Unlocking the Memory Potential of Pre-trained File Operations for Long-Horizon Tasks via Reinforcement Learning",
+   "published": "2026-09-28",
+   "updated": "2026-09-30",
+   "categories": [
+    "cs.AI",
+    "cs.CL",
+    "cs.LG"
+   ],
+   "summary": "Language-model agents increasingly tackle long-horizon tasks whose interaction histories exceed the model's active context. Recent work has begun to use reinforcement learning to make memory control part of the policy, often relying on predefined memory tools within domain-specific training environments of relatively short horizons. This setup ties learned memory behavior to environment-specific i",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2609.34132v1",
+   "title": "From Attack Success to Attack Severity: Counterfactual Memory Attacks on LLM Agents",
+   "published": "2026-09-28",
+   "updated": "2026-09-28",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "As LLM agents increasingly rely on persistent memory for long-horizon and personalized behavior, they can retain and reuse information across interactions, but this also creates a lasting channel through which malicious memory writes can influence future behavior. Persistent-memory attacks are typically evaluated by whether they succeed, yet successful attacks can leave persistent states with subs",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2609.35606v1",
+   "title": "TCSAlgBench: Benchmarking Automated Proving for Research-Level Theoretical Computer Science",
+   "published": "2026-09-28",
+   "updated": "2026-09-28",
+   "categories": [
+    "cs.AI",
+    "cs.CL"
+   ],
+   "summary": "Large language models perform strongly on competition mathematics, but their research-level reasoning remains difficult to evaluate systematically. Theoretical computer science (TCS) connects algorithm design to explicit guarantees and fundamental limits, providing a setting for evaluating whether models can justify computational improvements with arguments humans can inspect. We introduce TCSAlgB",
+   "queries": [
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2609.34829v1",
+   "title": "From Weak Task Specifications to Scientific Extraction Agents: Optimizing Task Construction",
+   "published": "2026-09-28",
+   "updated": "2026-09-28",
+   "categories": [
+    "cs.CL"
+   ],
+   "summary": "Most methods that optimize LLM prompts and agent workflows assume that task-specific output schemas, extraction instructions, and evaluation criteria are predefined. For scientific extraction agents, however, a short task goal may not fully determine these components, while specifying them manually is costly. We study the upstream problem of constructing the task-specific configuration from a weak",
+   "queries": [
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2609.33509v1",
+   "title": "What Happens During Autonomous Deep Research After the User Steps Away?",
+   "published": "2026-09-27",
+   "updated": "2026-09-27",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "In autonomous deep research, a user provides a task and relevant background, then leaves the agent to conduct an extended investigation without further human intervention. We study how this initial user information is reflected in intermediate actions and how these actions relate to final recommendations. We introduce DRaligned, a counterfactual behavioral evaluation framework built on PDR-Bench. ",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2609.33871v1",
+   "title": "Population Physics, Population Problems: Safety and Emergence in LLM Societies",
+   "published": "2026-09-27",
+   "updated": "2026-09-27",
+   "categories": [
+    "cs.CL",
+    "cs.MA"
+   ],
+   "summary": "The collective behaviour of large language model (LLM) societies is not the sum of their individual outputs. It yields statistically distinct, sometimes-unpredictable phenomena, for which the tools we use to study single agents may not scale. Due to recent incidents involving autonomous agentic systems, however, understanding these systems is paramount. For that we introduce a framework for measur",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2609.33768v1",
+   "title": "DEALS: Decentralized Expertise-Aware Load Serving for Multi-Agent LLM Systems",
+   "published": "2026-09-27",
+   "updated": "2026-09-27",
+   "categories": [
+    "cs.AI",
+    "cs.LG",
+    "cs.MA"
+   ],
+   "summary": "Multi-agent systems (MAS) have recently emerged as an effective approach for coordinating large language model (LLM)-based agents to solve complex tasks through structured interactions. In practice, MASs often handle a stream of heterogeneous and complex tasks, requiring agents to decompose each task and then self-organize and self-evolve to adapt to incoming tasks while sharing execution resource",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2609.33618v1",
+   "title": "ParaAgent: Reinforcing Parallel Acting in Open-World Tool Environments",
+   "published": "2026-09-27",
+   "updated": "2026-09-27",
+   "categories": [
+    "cs.AI",
+    "cs.CL"
+   ],
+   "summary": "Language model agents are increasingly deployed in open-world tool environments, which require balancing exploring unknown capabilities and exploiting known ones. Existing methods face a performance-efficiency tradeoff: they either rigidly decouple exploration and execution or interleave them without coordination. We argue that the key lies not in whether to decouple or interleave them, but in how",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2609.33439v1",
+   "title": "Raven: The Harness of Harnesses for Composable Agentic Intelligence",
+   "published": "2026-09-27",
+   "updated": "2026-09-27",
+   "categories": [
+    "cs.AI",
+    "cs.CL",
+    "cs.GT",
+    "cs.MA",
+    "cs.NE"
+   ],
+   "summary": "As large language models advance, AI agents are moving beyond isolated, domain-specific tasks toward long-horizon, cross-domain workflows. This transition exposes two challenges: increasing harness complexity makes manual design difficult to scale, while tighter coupling to specific domains limits the generality of a single harness. The central question thus shifts from how to engineer a stronger ",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2609.35885v2",
+   "title": "Collective Regimes in Multi-Agent LLMs under Reasoning Effort and Communication Topology",
+   "published": "2026-09-27",
+   "updated": "2026-10-02",
+   "categories": [
+    "cs.MA"
+   ],
+   "summary": "Multi-agent LLM systems are increasingly used for deliberation and evaluation, often under the assumption that greater peer interaction leads to more reliable consensus. Existing work largely evaluates these systems through final accuracy or aggregate agreement. However, such measures do not reveal how agreement is organized in the panel. In this paper, we study N = 50 stateless LLM agents that up",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2609.33243v1",
+   "title": "CodeSkill: Latent Skill Abstraction for Long-Horizon Code Agents",
+   "published": "2026-09-27",
+   "updated": "2026-09-27",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Code agents require long-horizon decision-making over complex interaction trajectories. However, existing reinforcement learning (RL) approaches typically optimize behavior at the token level, creating a mismatch between low-level generation and high-level behavioral reasoning. This limitation leads to inefficient exploration and weak credit assignment under sparse rewards. Moreover, while large-s",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2609.33195v1",
+   "title": "ReVR: Dual-Path Concept Reasoning for Multimodal Fake News Detection",
+   "published": "2026-09-27",
+   "updated": "2026-09-27",
+   "categories": [
+    "cs.MM"
+   ],
+   "summary": "Vision-language models (VLMs) support multimodal fake news detection (FND) by producing explicit analyses. Recent methods further improve interpretability by organizing verification knowledge into explicit concepts. However, two questions remain: how to improve the reliability and applicability of verification concepts, and how to effectively apply reusable concepts to verify unseen news. We propo",
+   "queries": [
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2609.37468v1",
+   "title": "Backdoor in the Loop: Compromising Agentic Search via Malicious Retrievers",
+   "published": "2026-09-26",
+   "updated": "2026-09-26",
+   "categories": [
+    "cs.AI",
+    "cs.CR",
+    "cs.IR",
+    "cs.LG"
+   ],
+   "summary": "Agentic retrieval-augmented generation (RAG) interleaves reasoning with repeated retrieval, giving the retriever influence over both the evidence an agent observes and its subsequent search decisions. We study retriever backdoors that exploit this feedback loop and repurpose weak backdoor purification to conceal their presence. An attacker supplies a compromised retriever checkpoint while leaving ",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2609.32601v1",
+   "title": "VulContextBench: A Benchmark for Security Context Retrieval in Coding Agents",
+   "published": "2026-09-26",
+   "updated": "2026-09-26",
+   "categories": [
+    "cs.CR"
+   ],
+   "summary": "Vulnerability-detection benchmarks score the verdict an agent reaches, not the evidence it gathered. A model that recalls a CVE from pretraining therefore scores the same as one that traced the data flow. We study a task where this difference matters, deciding whether a commit introduces a vulnerability. Instead of scoring the verdict, we score whether the agent retrieved the code its conclusion d",
+   "queries": [
+    "agentic-search"
+   ]
+  },
+  {
+   "id": "2609.32939v1",
+   "title": "Theory of Scene: Breaking the Symmetry Trap in Multi-Agent LLM Coordination",
+   "published": "2026-09-26",
+   "updated": "2026-09-26",
+   "categories": [
+    "cs.CL",
+    "cs.LG",
+    "cs.MA"
+   ],
+   "summary": "Multi-agent systems built on large language models (LLMs) are largely homogeneous, as their agents behave alike even across distinct LLMs. We show that when such agents act concurrently without communication, they collide on targets they must split and diverge on targets they must take together, a double failure we term the symmetry trap. Theory of Mind (ToM), widely used for coordination without ",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2609.32746v1",
+   "title": "Self-Evolving Multi-Agent Symbolic Discovery for Financial Fundamental Analysis",
+   "published": "2026-09-26",
+   "updated": "2026-09-26",
+   "categories": [
+    "cs.AI",
+    "cs.LG",
+    "cs.MA",
+    "q-fin.CP"
+   ],
+   "summary": "While symbolic regression (SR) has been successfully used in science to discover new equations, its use in financial valuation is hindered by several limitations. Whereas the natural sciences provide objectively correct relationships, financial valuation constitutes a distinct class of symbolic discovery problems, as it admits multiple valid perspectives, operates under non-stationary market condi",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2609.32700v1",
+   "title": "CAIRN: Dynamic Fact-Intent DAGs for Multi-Agent Exploration",
+   "published": "2026-09-26",
+   "updated": "2026-09-26",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "LLM-powered autonomous systems have demonstrated promising capabilities in mathematical reasoning, engineering, and cybersecurity. Yet how to organize these systems for effective, reliable, and sustained performance remains an open question. In this paper, we present CAIRN, a fact-intent-driven multi-agent paradigm for goal-directed exploration. CAIRN represents observations and planned investigat",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2609.32226v1",
+   "title": "Toward Agentic Optical Networks: A Vision of LLM Agent-Driven Autonomous Lifecycle Management",
+   "published": "2026-09-26",
+   "updated": "2026-09-26",
+   "categories": [
+    "cs.AI",
+    "cs.NI"
+   ],
+   "summary": "As optical networks continue to expand in scale, complexity, and service diversity, the implementation of automation has become essential for ensuring agility, efficiency, and reliability in lifecycle management (LCM) of optical networks. Large language model (LLM) Agent, distinguished by its progressively sophisticated capabilities in logical reasoning, adaptive decision-making, complex problem s",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2609.32999v1",
+   "title": "Tessera: Demand-Driven KV Cache Management for Retrieval-Augmented LLM Serving",
+   "published": "2026-09-26",
+   "updated": "2026-09-26",
+   "categories": [
+    "cs.DC"
+   ],
+   "summary": "RAG and retrieval-based agent memory both inject retrieved content into LLM prompts, as document chunks and recalled memory records, respectively. The same content can recur across requests at different prompt positions or after different preceding contexts, preventing reuse through conventional prefix caching. Our characterization finds that records recurring outside the matching prefix account f",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2609.32256v1",
+   "title": "LAM: Efficient Lossy Agent Memory Framework With A Retrieval-Score Error Bound",
+   "published": "2026-09-26",
+   "updated": "2026-09-26",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Agent memory grows as agents read inputs, reason, and call tools. Longer histories increase inference cost and eventually exceed the context window. LLM-based summarization reduces this history but adds latency and provides no explicit bound on information loss. We propose LAM, a Lossy Agent Memory system with three components: a deterministic deduplication rule with a substitution bound on retrie",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2609.32960v1",
+   "title": "Environmental Impact of Generative and Agentic AI: An in-Depth Analysis and Green Solutions",
+   "published": "2026-09-26",
+   "updated": "2026-09-26",
+   "categories": [
+    "cs.AI",
+    "cs.CY"
+   ],
+   "summary": "The proliferation of generative and agentic artificial intelligence (AI) systems has introduced computational demands whose environmental consequences are substantial yet underexamined. This paper examines the environmental footprint of modern AI systems across energy consumption, carbon emissions, water usage, and electronic waste over the full lifecycle of large language models, multimodal found",
+   "queries": [
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2609.32458v1",
+   "title": "Streamlined Reflective Evolution for Task-Adaptive Self-Refinement Pipelines",
+   "published": "2026-09-26",
+   "updated": "2026-09-26",
+   "categories": [
+    "cs.CL"
+   ],
+   "summary": "Reflective prompt optimization improves large language model (LLM) systems without updating model weights, but fixed architectures constrain how self-refinement is organized. We introduce Workflow-Designing Agents (WDA), a framework for streamlined reflective evolution of task-adaptive self-refinement pipelines. Starting from a minimal prompt, WDA jointly evolves stage instructions and their seque",
+   "queries": [
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2609.31963v1",
+   "title": "Symbolic Guidance for LLM Agents in Distributed Multiagent Coordination",
+   "published": "2026-09-25",
+   "updated": "2026-09-25",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Large language models (LLMs) are increasingly deployed as autonomous agents in multi-agent systems, yet their ability to reliably execute distributed coordination protocols remains poorly understood. While AgentsNet, a benchmark framework for distributed coordination among LLM agents, enables such coordination, granting full reasoning autonomy often leads to inconsistent or degraded performance in",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2609.31877v1",
+   "title": "A Large-Scale Benchmark and Risk Assessment of Traffic Analysis Attacks on Cloud LLM Services",
+   "published": "2026-09-25",
+   "updated": "2026-09-25",
+   "categories": [
+    "cs.AI",
+    "cs.CR",
+    "cs.LG"
+   ],
+   "summary": "Cloud-based Large language model (LLM) services create a network-level traffic side channel that can expose model, prompt, and task behavior despite encryption. From packet sizes, directions, timing, and burst structure alone, a passive local observer can infer the serving model, the user's prompt category, and the task executed by a collaborative multi-agent system. Yet current evidence is fragme",
+   "queries": [
+    "multi-agent-coordination"
+   ]
+  },
+  {
+   "id": "2609.31874v1",
+   "title": "COUNTERMEM: World-Model Verified Counter-Factual Memory for Language Agents",
+   "published": "2026-09-25",
+   "updated": "2026-09-25",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Existing agent memory frameworks mainly create memory through an agent's interaction with the factual world, e.g., remembering feedback from actions taken to improve performance on future tasks. However, these frameworks seldom ask the \"what if\" question during memory construction: what if a different action had been taken, would the feedback have changed, and how could this feedback become useful",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2609.30541v1",
+   "title": "AutoResearch at Production Scale: Failure Modes and a Multi-Agent Framework",
+   "published": "2026-09-24",
+   "updated": "2026-09-24",
+   "categories": [
+    "cs.IR",
+    "cs.LG"
+   ],
+   "summary": "Optimizing embedding systems for production recommendation pipelines demands systematic exploration that consumes disproportionate engineering effort at scale. We apply Andrej Karpathy's AutoResearch paradigm -- a large language model that iteratively edits a training script and retains modifications that improve a held-out scalar metric -- to automate this exploration. We report on twelve weeks o",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2609.29144v1",
+   "title": "Scope Before You Persist: Preventing Cross-Family Interference in Agent Memory",
+   "published": "2026-09-24",
+   "updated": "2026-09-24",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Persistent memory lets language-model agents improve prompts and skills without updating model weights. We show that matching retrieval scope to certification scope enables these edits to support reliable repeated adaptation across recurring task families. We study frozen-model agents on ProcStream-RSI, a 12-round code-repair stream, using Orthogonal Regression Control (ORC), an execution-grounded",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2609.30137v1",
+   "title": "Screen Before You Serve: Simulation for Production Customer Experience AI Agents at 140M Scale",
+   "published": "2026-09-24",
+   "updated": "2026-09-24",
+   "categories": [
+    "cs.AI",
+    "cs.CL"
+   ],
+   "summary": "Customer experience (CX) agents use tools and large language models to address customer requests and guide conversational interactions with an organization's products. Improving these agents, especially in regulated industries, is difficult: they must detect intent, follow complex operational policies and use tools reliably. Manual end-to-end testing offers limited coverage, while live experiments",
+   "queries": [
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2609.27263v1",
+   "title": "Specifying and Maintaining Agentic Workflows: An Empirical Study of GitHub Agentic Workflows",
+   "published": "2026-09-23",
+   "updated": "2026-09-23",
+   "categories": [
+    "cs.SE"
+   ],
+   "summary": "Agentic workflows shift software development from prompting AI agents for individual tasks to defining recurring work that agents execute automatically. GitHub Agentic Workflows (gh-aw) enables this approach through Markdown files that combine natural-language instructions with configuration and compile into executable GitHub Actions workflows. Unlike conventional workflows that primarily prescrib",
+   "queries": [
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2609.24259v2",
+   "title": "MemCalib: Benchmarking and Optimizing Memory Use in LLM Agents",
+   "published": "2026-09-21",
+   "updated": "2026-09-22",
+   "categories": [
+    "cs.AI",
+    "cs.LG"
+   ],
+   "summary": "The effectiveness of agent memory ultimately depends on whether the underlying LLM gives each memory in context an appropriate degree of influence over its response. Yet this capability has remained largely overlooked. To assess this capability, we introduce MemCalib, a benchmark grounded in realistic memory-system scenarios for evaluating memory use and advancing optimization algorithms. Results ",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2609.23986v1",
+   "title": "Jev-Mem: System-One-Controlled Agentic Memory for Efficient AI Agents",
+   "published": "2026-09-21",
+   "updated": "2026-09-21",
+   "categories": [
+    "cs.AI",
+    "cs.LG"
+   ],
+   "summary": "Agentic memory is becoming essential for long-horizon AI agents, yet many existing systems rely on autoregressive LLMs to control how memories are organized, retrieved, and used, placing expensive generation on the critical path of memory operations. We introduce \\textbf{\\method}, a new agentic memory architecture inspired by System-One/System-Two cognition. System One captures fast, lightweight d",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2609.26836v1",
+   "title": "Silent Failures in Agent-Tool Interaction: An Audit of ToolUniverse",
+   "published": "2026-09-21",
+   "updated": "2026-09-21",
+   "categories": [
+    "cs.AI",
+    "cs.SE"
+   ],
+   "summary": "Agentic AI systems are increasingly adopting automated pipelines that integrate multiple tools. While prior research and benchmarks have studied about task success and task completion of these agentic systems, the research about agent to tool interaction, specifically in biology agentic workflow is limited. This study investigates specific failures in agent to tool interaction where a tool invocat",
+   "queries": [
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2609.23971v1",
+   "title": "UniK: Universal Knowledge Perception for Digital and Physical AI",
+   "published": "2026-09-21",
+   "updated": "2026-09-21",
+   "categories": [
+    "cs.AI",
+    "cs.CV",
+    "cs.IR",
+    "cs.LG"
+   ],
+   "summary": "Two transformative classes of AI systems are reshaping how organizations operate: \\textit{digital AI}, which reasons over enterprise knowledge to power chatbots and agent workflows; and \\textit{physical AI}, which learns to control robots and autonomous systems from video, gameplay, and sensor telemetry. Both face the same foundational bottleneck: raw knowledge at scale, spanning heterogeneous mod",
+   "queries": [
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2609.35808v1",
+   "title": "When Successful Memories Mislead Embodied Agents:Memory Adaption For Task-Conditioned Execution",
+   "published": "2026-09-20",
+   "updated": "2026-09-20",
+   "categories": [
+    "cs.AI",
+    "cs.CL"
+   ],
+   "summary": "Experience reuse can reduce repeated exploration in embodied agents, but a trajectory that succeeded previously may be unsuitable for the current execution context. Existing memory systems pri marily optimize construction and retrieval; semantic relevance and historical success therefore remain insufficient when retrieved ex perience contains incompatible actions or an inappropriate level of struc",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2609.23790v1",
+   "title": "Total Cost of Agency: Exact Attribution of Memory Injection Cost in Multi-Agent LLM Workflows",
+   "published": "2026-09-20",
+   "updated": "2026-09-20",
+   "categories": [
+    "cs.AI",
+    "cs.MA",
+    "cs.PF"
+   ],
+   "summary": "Every node in a multi-agent large language model (LLM) workflow retrieves context from memory and injects it into its prompt, where those injected tokens are billed as input tokens at the same per-token price as the system prompt and the user query. Production observability tools report total token cost but do not separate the tokens a node generates from the tokens it is handed, so this component",
+   "queries": [
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2609.23490v1",
+   "title": "BabelArena: A Large-Scale Multilingual Benchmark for LLM Agents",
+   "published": "2026-09-20",
+   "updated": "2026-09-20",
+   "categories": [
+    "cs.CL"
+   ],
+   "summary": "Large language model (LLM) agents increasingly execute multi-step workflows through tool use and interaction with users and environments. However, current agent evaluations are largely English-centric, limiting our understanding of agent capabilities in multilingual settings. We introduce BabelFlow, a benchmark-general agentic workflow that adapts existing agent benchmarks to new languages by anal",
+   "queries": [
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2609.21533v1",
+   "title": "MACE: Memory-Agent Co-Evolution with Adaptive Memory Graphs for Multi-Agent Systems",
+   "published": "2026-09-18",
+   "updated": "2026-09-18",
+   "categories": [
+    "cs.LG"
+   ],
+   "summary": "LLM-based multi-agent systems generate collaboration traces that record how agents plan tasks, verify intermediate results, and repair failures. Reusing these procedures requires preserving an action's prerequisites and the outputs needed by subsequent agents. Our empirical studies show that grouping these dependencies into functional memory units improves their retention, while connecting units i",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2609.21386v1",
+   "title": "AgentVidBench: A Multi-Hop Video Question Answering Benchmark for Evaluating MLLM Agents",
+   "published": "2026-09-18",
+   "updated": "2026-09-18",
+   "categories": [
+    "cs.AI",
+    "cs.CV"
+   ],
+   "summary": "Comprehensive video understanding is crucial for advancing artificial intelligence toward the intricate dynamics of the physical world. While recent advances in Multimodal Large Language Models (MLLMs) have demonstrated remarkable capabilities in video understanding, existing benchmarks remain confined to simple scene-level queries or global summaries that require only single-step inference. Real-",
+   "queries": [
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2609.19656v1",
+   "title": "Self-Evolving Search Index",
+   "published": "2026-09-17",
+   "updated": "2026-09-17",
+   "categories": [
+    "cs.AI",
+    "cs.IR"
+   ],
+   "summary": "Information retrieval is increasingly important as LLM agents tackle complex tasks involving diverse information needs. Because retrieval relies on an index that represents each document through index keys, retrieval quality depends heavily on how effectively these keys expose the knowledge contained in each document. However, effective index representations vary across retrieval environments, mak",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2609.18182v1",
+   "title": "WFM: Wiki Foundation Model for Complex Agentic Reasoning",
+   "published": "2026-09-16",
+   "updated": "2026-09-16",
+   "categories": [
+    "cs.AI"
+   ],
+   "summary": "Real-world agents fundamentally require persistent non-parametric knowledge for dynamic reasoning, i.e., long-term memory and retrieval-augmented generation. While graphs have shown reliable advantages in providing structured evidence, the sparse graph representations naturally restrict machine readability and semantic density required for complex agentic workflows. Driven by this limitation, the ",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2609.19226v1",
+   "title": "PAPC: Platform Mediation for Privacy-Propagation Externalities in AI-Mediated Workflows",
+   "published": "2026-09-16",
+   "updated": "2026-09-16",
+   "categories": [
+    "cs.AI",
+    "cs.CR"
+   ],
+   "summary": "AI-mediated platforms coordinate work through LLM agents acting for different principals. In these workflows, privacy loss can be created before a final answer appears: a memory write, shared-workspace update, inter-agent message, or tool event may impose downstream exposure cost on another principal. We model this failure mode as a privacy-propagation externality, where the cost of a raw disclosu",
+   "queries": [
+    "agent-workflows"
+   ]
+  },
+  {
+   "id": "2609.17320v1",
+   "title": "Emergence World: Adversarial Stress-Testing of Long-Horizon Multi-Agent Systems",
+   "published": "2026-09-15",
+   "updated": "2026-09-15",
+   "categories": [
+    "cs.MA"
+   ],
+   "summary": "As AI agents move from bounded tasks to persistent deployments, failures can propagate through memory, tools, other agents, and environmental state long after their interactions. This creates a safety regime that cannot be characterized by evaluating model responses in isolation. Emergence World, is a continuously running multi-agent environment for adversarial stress testing of long horizon auton",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2609.15161v1",
+   "title": "EMR: Self-Evolving Medical Multi-Agent System via Experience Mining and Reuse",
+   "published": "2026-09-14",
+   "updated": "2026-09-14",
+   "categories": [
+    "cs.AI",
+    "cs.CL"
+   ],
+   "summary": "Large language model (LLM) driven multi-agent systems have shown promise in complex clinical reasoning, yet existing approaches rely on static strategies and lack persistent clinical memory, preventing self-evolving from prior diagnostic successes and failures. We present EMR, a self-evolving medical multi-agent system via Experience Mining and Reuse. EMR introduces a hierarchical clinical experie",
+   "queries": [
+    "experience-memory"
+   ]
+  },
+  {
+   "id": "2609.12655v1",
+   "title": "LifeMem: Enabling Lifelong Experience Reuse for LLM Agents",
+   "published": "2026-09-11",
+   "updated": "2026-09-11",
+   "categories": [
+    "cs.CL"
+   ],
+   "summary": "Large language model agents are expected to continuously adapt to new tasks and environments over their lifetime by reusing past experience. However, existing memory-based agents struggle to transfer reusable experience across environments and suffer from catastrophic forgetting as experience accumulated. To address these challenges, we propose LifeMem, a lifelong learning framework that enables a",
+   "queries": [
+    "experience-memory"
+   ]
+  }
+ ]
+}

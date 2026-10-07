@@ -161,11 +161,22 @@ with an unfamiliar toolchain):
 1. **THE LOOP**: every lab runs the self-improving cycle — build → test →
    validate → mine findings → propose v+1 → build v+1 → loop. The cycle
    command exists (ygg-sim pattern); the VERSIONS.md ledger logs each cycle.
-   A lab without the loop is a one-shot, not a lab.
+   A lab without the loop is a one-shot, not a lab. Proxy GREEN is an
+   interval, not a point: a cheap check (one run, one grep) accepts only on
+   N independent passes or a stated calibration — proxy false positives
+   contaminate every later generation (CISE, arXiv 2610.02975). Playbook and
+   process edits are optimizer changes: they verify like code (VERSE, arXiv
+   2610.02616).
 2. **THE ONLINE CHECK**: every milestone compares the work to the online
    state-of-the-art before calling it done — the external reference is the
    ground truth, not the lab's self-assessment. (Proven: the Parakeet duel,
-   the tailscale research, the YouTube provenance.)
+   the tailscale research, the YouTube provenance.) Armed by the research
+   feed 10-07: self-evolving loops CO-CHEAT — in-loop signal improves while
+   external correctness declines, worsening per round (False Frontiers,
+   arXiv 2609.39102) — so CYCLE VALID is never self-certified, self-judged
+   passes need external truth or N independent samples, and the SOTA
+   comparison logs its query pool, because an online check is adaptive
+   sampling of the literature (CESS, arXiv 2609.39026).
 3. **THE COGNITIVE MATCH**: the prompt depth/freedom scales with the model's
    level — structured specs for small models, goal+data+freedom for frontier
    models (Rule 10-02). The same brief to every model wastes the strong ones
@@ -189,7 +200,11 @@ the merge is the ship.
 The doctrine generalizes: every lab is a simulation of a piece of reality,
 each with its VERSIONS ledger, each evolving from FOUR sources:
 1. The incidents (every production bug = a missing scenario)
-2. The environment drift (models, providers, transports)
+2. The environment drift (models, providers, transports) — an env-hash change
+   VOIDS carried GREEN: historical PASSes persist while their validity
+   expired and the editor keeps re-selecting them (arXiv 2610.01073); a
+   drifted env forces a full scenario re-run next cycle, no cached passes,
+   and incidents never close by version bump alone
 3. The usage shifts (the store data, the life-study)
 4. THE HUMAN-WORLD SHIFTS — the adoption, the assimilation, the layman
    feedback (the girlfriend test is an environment probe)
@@ -198,6 +213,25 @@ development pace). The labs' evolution cadence must match the environment's:
 CONTINUOUS, not per-release — the driver/watchdog cadence, the cycle command
 per lab, the ledger per lab. A lab that evolves per-release drifts from
 reality between releases. The fleet that evolves continuously never does.
+
+## Rule 10-08: RULE PROVENANCE — the loop's immune system (research feed 10-07)
+The playbook and lab rules are persistent memory, and persistent memory
+poisons itself through its wins: skill poisoning arises from VERIFIED
+successful experiences alone, no malicious trajectory needed (SkillPoison,
+arXiv 2610.07645), and skills retrieved globally while certified on one task
+family actively harm the others — retrieval scope must match certification
+scope (arXiv 2609.29144). Therefore:
+1. Every rule/playbook addition carries EVIDENCE (the run or the paper),
+   SCOPE (which labs/families certified it), and a COUNTERFACTUAL (where it
+   fails).
+2. A single-context win does NOT become fleet law. Lab→playbook promotion
+   requires certification across ≥2 task families; lab-local findings stay
+   in the lab's own AGENTS.md layer.
+3. Cheap proxy GREENs (one run, one grep) accept on N independent passes,
+   never one.
+4. Rules form a POOL, not an append log: rules that no longer certify get
+   culled by the periodic mutator/judge pass (RuleEvolve pattern, arXiv
+   2610.00650) — the playbook evolves by the same loop it teaches.
 
 ## THE RESEARCH FEED (10-03, user): papers auto-discovered, concepts feed the labs
 The labs don't invent methodology alone — the state-of-the-art is monitored
@@ -210,3 +244,10 @@ previous self-improvement episodes: up to 11.2pp gains, $4.03 search cost,
 82% Terminal-Bench. Our VERSIONS.md ledgers are those records; our cycle is
 that search. The formal methods (episode records, reward-free search,
 population-of-agents search) upgrade the loop as they publish.
+
+First pass ran 10-07 → **docs/research/research-feed.md**: 7 monitored
+queries (v1 pool), 193 unique papers in-window, 7 surfaced A-grade papers →
+the Rule 10-05/10-07 amendments + new Rule 10-08 above. Receipts + full
+index in docs/research/. The playbook's own evolution mechanism candidate:
+RuleEvolve-style pool + mutator/judge + provenance-gated cull (arXiv
+2610.00650).

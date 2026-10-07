@@ -38,6 +38,47 @@ BYTES=$(du -sb "$D" | cut -f1)
 [ "$BYTES" -lt 20000000 ] || { echo "data payload $BYTES B ≥ 20 MB — refusing"; exit 1; }
 # Caddy serves index.txt for /data/ (no directory browsing): DATA.md + file list with sha256
 { cat DATA.md; echo; echo "## Files (sha256  path)"; (cd "$D" && find . -type f ! -name index.txt | sort | sed 's|^\./||' | xargs sha256sum); } > "$D/index.txt"
+# frictionless datapackage.json (PATH A adoptable: specs.frictionlessdata.io) — machine-readable /data/ for any standard tooling
+python3 - "$D" <<'PY2'
+import csv, datetime, hashlib, json, os, sys
+D = sys.argv[1]
+def sha(p):
+    h = hashlib.sha256()
+    with open(p, "rb") as f:
+        for b in iter(lambda: f.read(1 << 20), b""):
+            h.update(b)
+    return h.hexdigest()
+srcs = json.load(open(os.path.join(D, "catalog", "sources.json")))
+lic = sorted({v["license"] for v in srcs.values()})
+resources = []
+for root, _, files in os.walk(D):
+    for f in sorted(files):
+        if f in ("datapackage.json", "index.txt"):
+            continue
+        p = os.path.join(root, f)
+        rel = os.path.relpath(p, D)
+        med = "text/csv" if f.endswith(".csv") else "application/json" if f.endswith(".json") else "text/markdown" if f.endswith(".md") else "text/plain"
+        resources.append({"path": rel, "mediatype": med, "format": f.rsplit(".", 1)[-1],
+                          "bytes": os.path.getsize(p), "hash": "sha256:" + sha(p)})
+pkg = {
+    "name": "worldtree-data",
+    "title": "worldtree-data — the open data behind veraldar.org's civilization-outcomes tree",
+    "description": ("Per-year and per-country scores for seven AI-civilization outcomes, computed from free/open "
+                    "sources only. Every number traces: output file -> series CSV -> sha256 sidecar -> raw snapshot -> source URL + license. "
+                    "Method versioned; see catalog/ and method/."),
+    "homepage": "https://veraldar.org",
+    "version": open("method/VERSION").read().strip(),
+    "created": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "licenses": [{"name": l} for l in lic],
+    "sources": [{"title": v["title"], "path": v.get("homepage", "")} for v in sorted(srcs.values(), key=lambda x: x["title"])],
+    "keywords": ["ai", "world-data", "open-data", "provenance", "civilization", "forecasting"],
+    "resources": sorted(resources, key=lambda r: r["path"]),
+}
+with open(os.path.join(D, "datapackage.json"), "w") as f:
+    json.dump(pkg, f, indent=1, sort_keys=True, ensure_ascii=False)
+    f.write("\n")
+print(f"datapackage.json: {len(resources)} resources, {len(lic)} licenses")
+PY2
 ssh "$H" "rm -rf $W/data.new"
 scp -qr "$D" "$H:$W/data.new"
 ssh "$H" "find $W/data.new -type d -exec chmod 755 {} + && find $W/data.new -type f -exec chmod 644 {} + \

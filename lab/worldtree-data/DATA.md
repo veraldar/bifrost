@@ -120,3 +120,8 @@ uv run --quiet --with duckdb python -c "import duckdb; print(duckdb.sql(\"select
 - New geo series (prefix `geo` column): `wb.*` (World Bank, country=all), `owid_geo.*` (OWID grapher country panels), `unsdg.*` (UN SDG API), `who.*` (WHO GHO OData). 25 indicators, ~190 countries.
 - Map outlines: `countries-paths.json` — Natural Earth 110m (public domain), simplified to 57KB.
 - Honest limits: WB WGI (.EST) not served by API v2; SM.POP.REFG archived; SDG 2.1.2 code returns 0 rows; WHO MMR_4 404; small states with data but no 110m outline (HKG, LUX, PRI, CPV, …) are scored and listed, not drawn. Full ceiling: docs/worldtree/expansion-ceiling.md.
+
+## Provenance standards mapping (PATH A, dual-path 2026-10-05)
+- `datapackage.json` (frictionless spec): machine-readable descriptor of every file in /data/ — path, mediatype, sha256, package licenses+sources. Any frictionless/standard tooling can ingest this directory unmodified.
+- W3C PROV mapping: entity = raw snapshot file (sha256 sidecar); activity = `wt fetch` / `wt run` / `wt history` (fetch-log.csv + runs/<id>/gates.json); agent = upstream source (attribution + license per sidecar). Our sha-chain IS the PROV subset that fits plain files; no graph store needed.
+- OWID-style origins: each series carries upstream citation in its sidecar `attribution` (OWID metadata `citationShort`, WB source line, Epoch CC-BY line) — same idea as OWID grapher `origins`, stored per snapshot instead of per chart.

@@ -170,3 +170,17 @@ with an unfamiliar toolchain):
    level — structured specs for small models, goal+data+freedom for frontier
    models (Rule 10-02). The same brief to every model wastes the strong ones
    and drowns the weak ones.
+
+## Rule 10-06: THE DUAL-PATH LAB (external knowledge vs internal inference — then compare)
+Every major build runs TWO paths in parallel, then merges best-of-both:
+- **PATH A — external**: research the online state-of-the-art (aggregated best
+  data/approaches/prior art), build with full external knowledge.
+- **PATH B — internal**: build with ONLY our materials — our data, our
+  inference, our judgment (the Rule 10-02 life-study, no external lookup).
+- **THE COMPARE**: diff the two results — (a) what the external knowledge
+  added (our inference gap = the AGI-ceiling measurement), (b) what our
+  unique context captured that the external missed (our moat), (c) the
+  best-of-both merge ships.
+The compare is the learning engine: each dual-path run measures our true
+capability and compounds the doctrine. The results are never thrown away —
+the merge is the ship.

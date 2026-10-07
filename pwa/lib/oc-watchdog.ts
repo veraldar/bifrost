@@ -129,6 +129,24 @@ async function stallScan() {
   } catch {
     busy = {};
   }
+  // permission-blocked ≠ stalled: a run waiting on a permission ask (e.g.
+  // external_directory) streams no events — aborting it kills the work, and
+  // the model only sees "Tool execution aborted" with no reason (10-04: the
+  // 10-min cancels that killed the KiCad install 3× in ses_f0d1fd3c… were
+  // exactly this shape; root cause per AGI source-read of opencode 1.18.30).
+  // One fetch per scan; a failed fetch fails OPEN to the old behavior.
+  let pendingPerms: Set<string> = new Set();
+  try {
+    const perms = (await ocFetch('/permission')) as
+      | Array<{ session_id?: string }>
+      | { permissions?: Array<{ session_id?: string }> };
+    const list = Array.isArray(perms) ? perms : (perms.permissions ?? []);
+    pendingPerms = new Set(
+      list.map((p) => p.session_id).filter(Boolean) as string[]
+    );
+  } catch {
+    pendingPerms = new Set();
+  }
   const all = new Set([...tracked, ...Object.keys(busy)]);
   const now = Date.now();
   for (const sid of all) {
@@ -151,6 +169,16 @@ async function stallScan() {
       );
     }
     if (quietFor <= STALL_MS) continue;
+    // waiting on a permission: abort SUPPRESSED, loudly — the config deny
+    // rules (opencode.json external_directory, staged 10-04) make asks fail
+    // fast with a readable error, so this state should self-resolve; the
+    // per-scan line keeps it visible if a rule gap ever hangs one again
+    if (pendingPerms.has(sid)) {
+      void diag(
+        `scan ${sid}: quiet ${Math.round(quietFor / 1000)}s but WAITING ON PERMISSION — abort suppressed (answer or reject the ask)`
+      );
+      continue;
+    }
     await stallAbort(
       sid,
       Math.round(quietFor / 1000),

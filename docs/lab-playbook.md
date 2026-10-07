@@ -156,3 +156,17 @@ with an unfamiliar toolchain):
    miss, not the fourth user push.
 5. **The coordinator verifies the execution model** — not just the
    delegation: detached? pollable? committed where?
+
+## Rule 10-05: THE THREE LAB LAWS (every lab, every model)
+1. **THE LOOP**: every lab runs the self-improving cycle — build → test →
+   validate → mine findings → propose v+1 → build v+1 → loop. The cycle
+   command exists (ygg-sim pattern); the VERSIONS.md ledger logs each cycle.
+   A lab without the loop is a one-shot, not a lab.
+2. **THE ONLINE CHECK**: every milestone compares the work to the online
+   state-of-the-art before calling it done — the external reference is the
+   ground truth, not the lab's self-assessment. (Proven: the Parakeet duel,
+   the tailscale research, the YouTube provenance.)
+3. **THE COGNITIVE MATCH**: the prompt depth/freedom scales with the model's
+   level — structured specs for small models, goal+data+freedom for frontier
+   models (Rule 10-02). The same brief to every model wastes the strong ones
+   and drowns the weak ones.

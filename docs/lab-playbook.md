@@ -198,3 +198,15 @@ development pace). The labs' evolution cadence must match the environment's:
 CONTINUOUS, not per-release — the driver/watchdog cadence, the cycle command
 per lab, the ledger per lab. A lab that evolves per-release drifts from
 reality between releases. The fleet that evolves continuously never does.
+
+## THE RESEARCH FEED (10-03, user): papers auto-discovered, concepts feed the labs
+The labs don't invent methodology alone — the state-of-the-art is monitored
+and absorbed: arXiv/Google Scholar queries per cadence (the self-improving
+agents, LLM-agent self-modification, agentic search, agent reliability),
+relevant papers surfaced, the applicable concepts extracted into this
+playbook and the lab briefs. Foundation paper: **SelfSearch** (arXiv
+2609.37968v2, SNU 2026) — agents modifying themselves from records of
+previous self-improvement episodes: up to 11.2pp gains, $4.03 search cost,
+82% Terminal-Bench. Our VERSIONS.md ledgers are those records; our cycle is
+that search. The formal methods (episode records, reward-free search,
+population-of-agents search) upgrade the loop as they publish.

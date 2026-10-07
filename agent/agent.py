@@ -14,13 +14,11 @@ from livekit.agents import (
     AgentServer,
     AgentSession,
     JobContext,
-    RoomInputOptions,
     cli,
     llm,
 )
 from livekit.agents.llm import ChatContext, LLMStream
 from livekit.agents.voice.room_io import RoomOptions
-from livekit.agents.voice.room_io.types import RoomOutputOptions
 from livekit.plugins import openai, silero
 
 load_dotenv()
@@ -258,19 +256,29 @@ async def entrypoint(ctx: JobContext) -> None:
     )
     await session.start(
         room=ctx.room,
-        # close_on_disconnect=False: the phone releases the room the moment a
-        # PTT commit resolves (mic contract — capture device must go dark on
-        # release), but the commit's flush → STT final → opencode handoff is
-        # still in flight then. The default close killed the session mid-air
-        # and dropped EVERY text-mode PTT turn (live 2026-09-29 room 'bug':
-        # "closing agent session due to participant disconnect" + "skipping
-        # user input, speech scheduling is paused" on each hold). We end the
-        # job ourselves on human-left with a commit grace window instead.
-        room_input_options=RoomInputOptions(text_enabled=True, close_on_disconnect=False),
+        # close_on_disconnect=False MUST live in room_options: the phone
+        # releases the room the moment a PTT commit resolves (mic contract —
+        # capture device must go dark on release), but the commit's flush →
+        # STT final → opencode handoff is still in flight then. The default
+        # close killed the session mid-air and dropped EVERY text-mode PTT
+        # turn (live 2026-09-29 room 'bug': "closing agent session due to
+        # participant disconnect" + "skipping user input, speech scheduling
+        # is paused" on each hold). We end the job ourselves on human-left
+        # with a commit grace window instead.
+        # ONE RoomOptions carries everything: livekit-agents 1.8.2
+        # RoomOptions._ensure_options IGNORES the deprecated
+        # room_input_options whenever room_options is given — the
+        # audio_output addition silently restored close_on_disconnect=True,
+        # and every phone refresh/disconnect killed the agent ~2s later
+        # (JS_FAILED "agent worker left the room", live 10-05 17:38+17:41).
         # the agent never speaks over the room: the phone speaks replies
         # itself through its own TTS (the "listen" voice) and drives the
         # mic on/off cycle — one voice path, no double synthesis
-        room_options=RoomOptions(audio_output=RoomOutputOptions(audio_enabled=False)),
+        room_options=RoomOptions(
+            text_input=True,
+            audio_output=False,
+            close_on_disconnect=False,
+        ),
         agent=Agent(instructions=INSTRUCTIONS),
     )
 
@@ -290,6 +298,13 @@ async def entrypoint(ctx: JobContext) -> None:
     # the old job's exit left ~30s of dead air and every hold/tap failed
     # with "no voice agent in the room". Wait out the drain; only a
     # sibling that will not leave is a real duplicate.
+    # Inert while the sibling drains: RoomIO already linked OUR session to
+    # the phone (verified live 10-05 18:19:53), so the shared mic would be
+    # STT-ed twice and VAD endpointing could auto-commit a duplicate turn.
+    # Detach the input for the wait; re-attach once the room is ours.
+    _waited = any(p.identity != human_identity for p in ctx.room.remote_participants.values())
+    if _waited:
+        session.input.set_audio_enabled(False)
     for i in range(80):  # ~20s at 250ms — drain tail is commit grace + 4s
         if not any(p.identity != human_identity for p in ctx.room.remote_participants.values()):
             break
@@ -324,6 +339,9 @@ async def entrypoint(ctx: JobContext) -> None:
             ctx.room.name,
             my_id,
         )
+
+    if _waited:
+        session.input.set_audio_enabled(True)
 
     def _end_job_with_session(_ev) -> None:
         # start() returns immediately, so the job would otherwise outlive its

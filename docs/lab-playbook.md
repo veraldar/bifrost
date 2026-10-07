@@ -184,3 +184,17 @@ Every major build runs TWO paths in parallel, then merges best-of-both:
 The compare is the learning engine: each dual-path run measures our true
 capability and compounds the doctrine. The results are never thrown away —
 the merge is the ship.
+
+## Rule 10-07: EVERY LAB IS A SIMULATION — THE WORLD SETS THE CADENCE
+The doctrine generalizes: every lab is a simulation of a piece of reality,
+each with its VERSIONS ledger, each evolving from FOUR sources:
+1. The incidents (every production bug = a missing scenario)
+2. The environment drift (models, providers, transports)
+3. The usage shifts (the store data, the life-study)
+4. THE HUMAN-WORLD SHIFTS — the adoption, the assimilation, the layman
+   feedback (the girlfriend test is an environment probe)
+The human environment now changes at AI speed (the assimilation pace = the
+development pace). The labs' evolution cadence must match the environment's:
+CONTINUOUS, not per-release — the driver/watchdog cadence, the cycle command
+per lab, the ledger per lab. A lab that evolves per-release drifts from
+reality between releases. The fleet that evolves continuously never does.

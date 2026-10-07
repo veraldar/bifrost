@@ -49,6 +49,12 @@ reference it as `/api/artifact/<name>.<ext>`. Everything renders inline:
 - PDF: plain markdown link → tap-to-view card. Audio (wav/mp3): inline player.
 - Never point the phone at LAN IPs/ports — only `/api/artifact/...` is reachable.
 
+## Delivering files
+1. Copy the file to `artifacts/<name>.<ext>` (repo root) — that is the only path the phone can reach.
+2. Notify the phone: `horn send --channel bifrost "<one line> — /api/artifact/<name>.<ext>"`.
+3. `bifrost` channel = `POST /api/bridge` (Bearer `$BRIDGE_TOKEN`): lands in session `reports` + Web Push.
+4. Never send paths, LAN links or file contents through horn — the link is enough.
+
 ## Parallel sessions (avoid overlap)
 Before working: `git log --oneline -8` + read `docs/claims.md`. Working on something
 non-trivial? Claim it FIRST (one line: scope + files + session name), delete the claim

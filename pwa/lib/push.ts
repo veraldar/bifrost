@@ -49,19 +49,20 @@ export async function removeSub(endpoint: string): Promise<void> {
   await saveSubs((await loadSubs()).filter((s) => s.endpoint !== endpoint));
 }
 
+export async function pushRunDone(slug: string): Promise<void> {
+  await pushNotify({ slug, body: `reply ready — ${slug}`, tag: `oz-${slug}` });
+}
+
 /** Best-effort broadcast to every device; dead subscriptions are pruned.
+ *  sw.js reads {slug, body, tag} — slug is the notification-click target.
  *  Delivery ratio instrumentation (native-app-eval Rung 0): the denominator
  *  lands here as `[push] sent`; the service worker posts `[push] shown` to
  *  /api/diag on display — ratio = shown/sent in pwa/.diag/diag-YYYY-MM-DD.log. */
-export async function pushRunDone(slug: string): Promise<void> {
+export async function pushNotify(msg: { slug: string; body: string; tag: string }): Promise<void> {
   if (!ensureConfigured()) return;
   const subs = await loadSubs();
   if (!subs.length) return;
-  const payload = JSON.stringify({
-    slug,
-    body: `reply ready — ${slug}`,
-    tag: `oz-${slug}`,
-  });
+  const payload = JSON.stringify(msg);
   const alive: Sub[] = [];
   let ok = 0;
   await Promise.all(
@@ -82,7 +83,7 @@ export async function pushRunDone(slug: string): Promise<void> {
     await mkdir(path.join(process.cwd(), '.diag'), { recursive: true });
     await appendFile(
       path.join(process.cwd(), '.diag', `diag-${day}.log`),
-      `${new Date().toISOString()} [push] (server · sent) slug=${slug} ok=${ok}/${subs.length} urgency=high\n`
+      `${new Date().toISOString()} [push] (server · sent) slug=${msg.slug} ok=${ok}/${subs.length} urgency=high\n`
     );
   } catch {
     /* diag is best-effort — never fail the push */

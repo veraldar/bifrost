@@ -1,0 +1,43 @@
+# MISSION — verification read of an Opus decision doc (session NATIVE-EVAL-CHECK)
+
+You are the Sonnet rung of the model ladder (playbook 10-04b): cheap, fast,
+adversarial verification. Opus wrote `docs/reviews/native-app-eval.md` (the
+native-vs-PWA decision). Your job is a claim-by-claim verification read —
+NOT a rewrite, NOT a second opinion on the decision itself. If you disagree
+with the JUDGMENT, record it as one flagged line; Sonnet never overrules
+Opus — disagreements escalate via the orchestrator.
+
+## Deliverable
+
+`docs/reviews/native-app-eval-verify.md` (~60 lines max): a table with one
+row per checked claim — claim · where the doc says it · verdict
+(VERIFIED / FALSE / UNCHECKABLE-LOCAL) · evidence. Then a short "gaps" list
+(TO-VERIFY items in the doc that are actually locally checkable and what you
+found), and at most 3 "flagged" lines if you believe any judgment call is
+wrong. End with one line: PASS / PASS-WITH-NOTES / FAIL.
+
+## What to verify (locally checkable claims only)
+
+1. **Store citations**: the doc cites sessions with ids + phrases
+   (e.g. ses_f2d393db "never receive notifications", ses_f0f5bbcd Tesla,
+   ses_f28e2fdf girlfriend/auto-setup). The store is
+   `~/.local/share/opencode/opencode.db` (SQLite, READ-ONLY). Check the
+   phrases exist (fuzzy: same session, same intent — wording may differ
+   slightly; mark FAULTY-QUOTE only if no matching intent exists in that
+   session).
+2. **Code claim**: `pwa/lib/push.ts:66` sends `{ TTL: 3600 }` with no
+   `urgency` header.
+3. **Diag claims**: `pwa/.diag/` — 18 `ctx state → suspended` events, 7 push
+   TimeoutErrors, zero iPhone user-agents.
+4. **Plan claim**: plan.md merged the old v0.8 into a single v0.9.0 arc
+   ("no separate v0.8 release"), and S1 device tokens are part of it.
+5. **Doc-consistency**: does the eval respect its own "locked decisions"
+   (no ladder re-sequencing, S1 seam, evidence triggers)? Any internal
+   contradiction between verdict, rungs, and triggers?
+
+## Referee
+
+- Honesty: a claim you cannot check locally gets UNCHECKABLE-LOCAL, never a
+  guess. Links/external sources are out of your reach — skip them.
+- Read-only except your ONE output file (`docs/reviews/native-app-eval-verify.md`).
+- No commits.

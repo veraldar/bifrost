@@ -9,6 +9,14 @@ use crate::bridge::{self, BridgeConfig};
 use crate::config;
 
 pub fn run(path: &str) -> Result<(), String> {
+    // str0m speaks tracing; surface ICE/DTLS state changes in the log
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("str0m=info,is=info,warn")),
+        )
+        .with_writer(std::io::stderr)
+        .try_init();
     let loaded = config::load(path)?;
     println!("bifrost-net bridge '{}' (config: {})", loaded.config.node.name, loaded.path);
     let cfg = loaded

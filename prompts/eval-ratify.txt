@@ -1,0 +1,33 @@
+# MISSION — final ratification of the native-app decision (session EVAL-RATIFY)
+
+You are the Opus rung of the model ladder doing a FINAL JUDGMENT pass. The
+decision doc `docs/reviews/native-app-eval.md` has been amended twice since
+your (the fleet's) original authorship:
+
+1. A Sonnet verification read (`docs/reviews/native-app-eval-verify.md`,
+   PASS-WITH-NOTES) found one FALSE citation (push TimeoutErrors are client
+   net-fails, not delivery evidence) and an over-eager trigger (emulator RED
+   alone firing Rung A). The orchestrator applied fixes: the field-data
+   paragraph was corrected and Rung A's trigger now requires owner-device
+   (S22) data alongside any emulator signal.
+2. Rung 0 is partially implemented: push urgency:high + shown/sent delivery
+   ratio are LIVE (push.ts + sw.js, e2e was green); bvl + wake-lock are
+   landing tonight (page.tsx).
+
+Your job — read all three docs plus `docs/plan.md`'s ladder row for v0.9.0
+and answer with a verdict, appended to the END of
+`docs/reviews/native-app-eval.md` as:
+
+## Ratification (EVAL-RATIFY, 10-04)
+
+- VERDICT: RATIFIED / RATIFIED-WITH-EDITS / WITHDRAWN-FOR-REWORK
+- Whether the two amendments preserve the decision's integrity (verdict,
+  rungs, locked-decision compliance) or introduce drift.
+- At most 3 concrete edits if anything is off (apply them yourself, in the
+  doc, clearly attributed `[EVAL-RATIFY]`).
+- One line on whether the recommendation is SAFE to hand to the consumer-app
+  decision as-is.
+
+Rules: touch ONLY docs/reviews/native-app-eval.md. No other files. No
+commits. Judgment quality over volume — if it's right, say so in three lines
+and stop.

@@ -1,0 +1,43 @@
+# MISSION — android-lab screen-off mic probe (session SCREEN-OFF-PROBE)
+
+Context: `docs/reviews/native-app-eval.md` (Rung 0, last bullet) specs a
+screen-off probe for the android-lab. The android-lab claim is CLOSED (DONE —
+read `docs/android-lab.md` for findings: AVD boots headless on the Mac Studio
+via ssh, Playwright drives Chrome against the live PWA through an ssh -R
+tunnel; NO real mic on the Mac — the probe MUST use Chrome's fake media
+stream flags, which is fine: it asserts track LIVENESS, not audio).
+
+## What to build
+
+`scripts/android-lab/05-screen-off-probe.sh` (+ sibling .mjs if needed,
+numbered to follow 01-04's conventions). The probe, per the eval spec:
+
+1. Boot/reuse the AVD exactly like 02-boot-avd.sh; tunnel like
+   03-run-consumer-flow.sh (do not refactor the existing scripts).
+2. Launch Chrome with `--use-fake-device-for-media-stream`
+   `--use-fake-ui-for-media-stream` against the live PWA; open a session,
+   enter hands-free (or at minimum assert a live mic track exists in the
+   page — simplest honest proxy: evaluate
+   `navigator.mediaDevices.getUserMedia({audio:true})` track.readyState).
+3. `adb shell input keyevent 26` (screen OFF), wait 60s, screen back on.
+4. Assert: the audio track is STILL `live` (not `ended`), and the page's
+   WS/WebRTC connection survived (room still connected). Record both.
+5. Exit 0 = PASS (track live + room alive), exit 1 = RED (either died) —
+   this RED/GREEN is the Rung A trigger input, so the exit semantics must
+   be exact and printed (`PROBE RESULT: PASS|RED reason=...`).
+6. Append a short section to `docs/android-lab.md`: what the probe asserts,
+   how to run it, and the recorded result.
+
+## Execution
+
+Attempt at least one real run tonight (the AVD + tunnel path is proven by
+03; budget ~20 min of infra fighting — if the emulator or tunnel will not
+come up in that budget, STOP, leave the script READY, and document the
+exact remaining run step in docs/android-lab.md. A READY probe with honest
+"not yet run" status beats a half-broken auto-run).
+
+## Territory
+
+Create ONLY: `scripts/android-lab/05-*` files + one appended section in
+`docs/android-lab.md`. Touch NOTHING else (no pwa/, no existing scripts).
+No commits. Report PASS/RED/READY as the last line of your output.

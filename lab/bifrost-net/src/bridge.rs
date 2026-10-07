@@ -125,6 +125,8 @@ enum ClientOp {
     Transcript { id: String },
     #[serde(rename = "voice.commit")]
     VoiceCommit { id: String, ms: u64 },
+    #[serde(rename = "ping")]
+    Ping { t: u64 },
 }
 
 pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
@@ -152,6 +154,17 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
     let (out_tx, out_rx): (SyncSender<Outcome>, Receiver<Outcome>) = sync_channel(256);
     let (admit_tx, admit_rx): (SyncSender<Rtc>, Receiver<Rtc>) = sync_channel(8);
     let job_tx = Arc::new(job_tx);
+
+    // the address we ADVERTISE (pinned candidate or loopback) — 0.0.0.0 is a
+    // bind address, never a candidate, and str0m drops STUN whose Receive
+    // destination doesn't match a local candidate
+    let advertise_addr = SocketAddr::new(
+        cfg.candidates
+            .first()
+            .copied()
+            .unwrap_or(IpAddr::from([127, 0, 0, 1])),
+        media_addr.port(),
+    );
 
     // blocking workers: opencode + speaches never run on the RTC loop
     let job_rx = Arc::new(Mutex::new(job_rx));
@@ -201,9 +214,18 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
                 match server.recv_timeout(Duration::from_millis(100)) {
                     Ok(Some(mut request)) => {
                         let url = request.url().trim_end_matches('/').to_string();
+                        // CORS: the PWA (any origin) posts offers with an
+                        // Authorization header — the token IS the gate, so
+                        // the bridge is origin-permissive by design.
+                        let preflight = request.method() == &tiny_http::Method::Options;
+                        if preflight {
+                            let _ = request.respond(cors(tiny_http::Response::empty(204)));
+                            continue;
+                        }
                         if url != "/offer" {
-                            let _ = request
-                                .respond(tiny_http::Response::from_string("bifrost bridge"));
+                            let _ = request.respond(cors(
+                                tiny_http::Response::from_string("bifrost bridge"),
+                            ));
                             continue;
                         }
                         let auth = request
@@ -213,56 +235,104 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
                             .map(|h| h.value.as_str().to_string())
                             .unwrap_or_default();
                         let Some(raw) = bearer(&auth) else {
-                            let _ = request
-                                .respond(tiny_http::Response::from_string("device token required")
-                                    .with_status_code(401));
+                            let _ = request.respond(cors(
+                                tiny_http::Response::from_string("device token required")
+                                    .with_status_code(401),
+                            ));
                             continue;
                         };
                         if !tokens.validate(raw) {
-                            let _ = request.respond(
+                            let _ = request.respond(cors(
                                 tiny_http::Response::from_string("unknown or revoked device")
                                     .with_status_code(401),
-                            );
+                            ));
                             continue;
                         }
                         let mut body = String::new();
                         let _ = request.as_reader().read_to_string(&mut body);
-                        let offer: SdpOffer = match serde_json::from_str(&body) {
-                            Ok(o) => o,
+                        // Chrome is trickle-only: the offer SDP carries NO
+                        // candidates; they arrive in the same POST as a
+                        // `candidates` array (gathered client-side).
+                        let parsed: serde_json::Value = match serde_json::from_str(&body) {
+                            Ok(v) => v,
                             Err(e) => {
-                                let _ = request.respond(
+                                let _ = request.respond(cors(
                                     tiny_http::Response::from_string(format!("bad offer: {e}"))
                                         .with_status_code(400),
-                                );
+                                ));
                                 continue;
                             }
                         };
+                        let Some(sdp_str) = parsed.get("sdp").and_then(|s| s.as_str()) else {
+                            let _ = request.respond(cors(
+                                tiny_http::Response::from_string("offer missing sdp")
+                                    .with_status_code(400),
+                            ));
+                            continue;
+                        };
+                        let offer = match SdpOffer::from_sdp_string(sdp_str) {
+                            Ok(o) => o,
+                            Err(e) => {
+                                let _ = request.respond(cors(
+                                    tiny_http::Response::from_string(format!("bad sdp: {e}"))
+                                        .with_status_code(400),
+                                ));
+                                continue;
+                            }
+                        };
+                        let trickle: Vec<String> = parsed
+                            .get("candidates")
+                            .and_then(|c| c.as_array())
+                            .map(|a| {
+                                a.iter()
+                                    .filter_map(|c| c.as_str().map(String::from))
+                                    .collect()
+                            })
+                            .unwrap_or_default();
                         let mut rtc = Rtc::new(Instant::now());
-                        let host = Candidate::host(media_addr, "udp").expect("media candidate");
-                        let _ = rtc.add_local_candidate(host);
+                        // advertise a REAL ip: first pinned candidate, else
+                        // loopback (0.0.0.0 is not a valid ICE candidate —
+                        // this panic'd the signaling thread once already)
+                        let advertise = candidates
+                            .first()
+                            .copied()
+                            .unwrap_or(IpAddr::from([127, 0, 0, 1]));
+                        let ca = SocketAddr::new(advertise, media_addr.port());
+                        if let Ok(host) = Candidate::host(ca, "udp") {
+                            let _ = rtc.add_local_candidate(host);
+                        }
                         for ip in &candidates {
-                            let ca = SocketAddr::new(*ip, media_addr.port());
-                            if let Ok(c) = Candidate::host(ca, "udp") {
+                            if *ip == advertise {
+                                continue;
+                            }
+                            let caddr = SocketAddr::new(*ip, media_addr.port());
+                            if let Ok(c) = Candidate::host(caddr, "udp") {
                                 let _ = rtc.add_local_candidate(c);
                             }
                         }
                         let answer = match rtc.sdp_api().accept_offer(offer) {
                             Ok(a) => a,
                             Err(e) => {
-                                let _ = request.respond(
+                                let _ = request.respond(cors(
                                     tiny_http::Response::from_string(format!(
                                         "offer rejected: {e}"
                                     ))
                                     .with_status_code(400),
-                                );
+                                ));
                                 continue;
                             }
                         };
+                        for c in &trickle {
+                            match str0m::Candidate::from_sdp_string(c) {
+                                Ok(cand) => rtc.add_remote_candidate(cand),
+                                Err(_) => {} // malformed trickle lines are ignored
+                            }
+                        }
                         let body = serde_json::to_string(&answer).expect("answer json");
                         if admit_tx.send(rtc).is_err() {
                             break;
                         }
-                        let _ = request.respond(
+                        let _ = request.respond(cors(
                             tiny_http::Response::from_string(body).with_header(
                                 tiny_http::Header::from_bytes(
                                     &b"Content-Type"[..],
@@ -270,7 +340,7 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
                                 )
                                 .unwrap(),
                             ),
-                        );
+                        ));
                     }
                     Ok(None) => {}
                     Err(_) => break,
@@ -368,7 +438,7 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
                                 Receive {
                                     proto: Protocol::Udp,
                                     source,
-                                    destination: media_addr,
+                                    destination: advertise_addr,
                                     contents: (&buf[..n]).try_into().expect("contents"),
                                 },
                             );
@@ -548,6 +618,12 @@ fn handle_req(
                 serde_json::json!({ "id": sid, "accepted": true }),
             ))
         }
+        ClientOp::Ping { t } => Ok(reply_json(
+            client,
+            cid,
+            reply_to,
+            serde_json::json!({ "pong": t }),
+        )),
         ClientOp::VoiceCommit { .. } => unreachable!("routed as Job::Voice"),
     }
 }
@@ -576,9 +652,7 @@ fn wait_run_done(oc: &OpencodeClient, client: usize, sid: &str) -> Outcome {
 }
 
 fn assistant_count(msgs: &[crate::opencode::MessageInfo]) -> usize {
-    msgs.iter()
-        .filter(|m| m.role.as_deref() == Some("assistant"))
-        .count()
+    msgs.iter().filter(|m| m.role() == Some("assistant")).count()
 }
 
 /// opus frames in (from the browser mic) → transcript → prompt → reply → TTS pcm48
@@ -646,7 +720,7 @@ fn voice_pipeline(
 }
 
 fn last_assistant_text(msgs: &[crate::opencode::MessageInfo]) -> Option<String> {
-    let last = msgs.iter().rev().find(|m| m.role.as_deref() == Some("assistant"))?;
+    let last = msgs.iter().rev().find(|m| m.role() == Some("assistant"))?;
     let parts = last.parts.as_ref()?;
     let arr = parts.as_array()?;
     let text: String = arr
@@ -1045,4 +1119,21 @@ fn correlate(a: &[i16], b: &[i16]) -> f64 {
         return 0.0;
     }
     num / (da.sqrt() * db.sqrt())
+}
+
+fn cors<T: std::io::Read>(r: tiny_http::Response<T>) -> tiny_http::Response<T> {
+    use tiny_http::Header;
+    r.with_header(
+        Header::from_bytes(&b"Access-Control-Allow-Origin"[..], &b"*"[..]).unwrap(),
+    )
+    .with_header(
+        Header::from_bytes(
+            &b"Access-Control-Allow-Headers"[..],
+            &b"Authorization, Content-Type"[..],
+        )
+        .unwrap(),
+    )
+    .with_header(
+        Header::from_bytes(&b"Access-Control-Allow-Methods"[..], &b"POST, OPTIONS"[..]).unwrap(),
+    )
 }

@@ -67,12 +67,14 @@ impl TokenStore {
 }
 
 #[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct TokenFile {
     #[serde(default)]
     devices: Vec<DeviceEntry>,
 }
 
 #[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct DeviceEntry {
     token_hash: String,
     #[serde(default)]

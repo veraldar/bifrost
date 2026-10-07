@@ -1,0 +1,54 @@
+WARNING: KICAD10_SYMBOL_DIR environment variable is missing, so the default KiCad symbol libraries won't be searched. @ [/home/dweeb_xyz/Work/bifrost/<frozen importlib._bootstrap_external>:1023=>/home/dweeb_xyz/Work/bifrost/<frozen importlib._bootstrap>:488]
+WARNING: KICAD8_SYMBOL_DIR environment variable is missing, so the default KiCad symbol libraries won't be searched. @ [/home/dweeb_xyz/Work/bifrost/<frozen importlib._bootstrap_external>:1023=>/home/dweeb_xyz/Work/bifrost/<frozen importlib._bootstrap>:488]
+WARNING: KICAD6_SYMBOL_DIR environment variable is missing, so the default KiCad symbol libraries won't be searched. @ [/home/dweeb_xyz/Work/bifrost/<frozen importlib._bootstrap_external>:1023=>/home/dweeb_xyz/Work/bifrost/<frozen importlib._bootstrap>:488]
+WARNING: KICAD7_SYMBOL_DIR environment variable is missing, so the default KiCad symbol libraries won't be searched. @ [/home/dweeb_xyz/Work/bifrost/<frozen importlib._bootstrap_external>:1023=>/home/dweeb_xyz/Work/bifrost/<frozen importlib._bootstrap>:488]
+WARNING: KICAD9_SYMBOL_DIR environment variable is missing, so the default KiCad symbol libraries won't be searched. @ [/home/dweeb_xyz/Work/bifrost/<frozen importlib._bootstrap_external>:1023=>/home/dweeb_xyz/Work/bifrost/<frozen importlib._bootstrap>:488]
+WARNING: fp-lib-table file was not found. Component footprints are not available.
+WARNING: fp-lib-table file was not found. Component footprints are not available.
+WARNING: fp-lib-table file was not found. Component footprints are not available.
+WARNING: fp-lib-table file was not found. Component footprints are not available.
+WARNING: fp-lib-table file was not found. Component footprints are not available.
+ERROR: No footprint for INA226/U2 added at /home/dweeb_xyz/Work/bifrost/hardware/tools/skidl_devices.py:139.
+ERROR: No footprint for PWR_FLAG/#FLG1 added at /home/dweeb_xyz/Work/bifrost/hardware/tools/skidl_devices.py:157.
+ERROR: No footprint for GND/#PWR1 added at /home/dweeb_xyz/Work/bifrost/hardware/tools/skidl_devices.py:158.
+ERROR: No footprint for +3V3/#PWR2 added at /home/dweeb_xyz/Work/bifrost/hardware/tools/skidl_devices.py:159.
+WARNING: Missing tag on ESP32-C3-WROOM-02 instantiated at /home/dweeb_xyz/Work/bifrost/hardware/tools/skidl_devices.py:33.
+WARNING: Random tag aqND6HqD2T generated for ESP32-C3-WROOM-02.
+WARNING: Missing tag on Conn_01x05 instantiated at /home/dweeb_xyz/Work/bifrost/hardware/tools/skidl_devices.py:42.
+WARNING: Random tag x8ro6mUl79 generated for Conn_01x05.
+WARNING: Missing tag on R instantiated at /home/dweeb_xyz/Work/bifrost/hardware/tools/skidl_devices.py:47.
+WARNING: Random tag nXXn0_1V9_ generated for R.
+WARNING: Missing tag on LED instantiated at /home/dweeb_xyz/Work/bifrost/hardware/tools/skidl_devices.py:48.
+WARNING: Random tag 67LUYuRtWA generated for LED.
+WARNING: Missing tag on R instantiated at /home/dweeb_xyz/Work/bifrost/hardware/tools/skidl_devices.py:53.
+WARNING: Random tag wXxsxK1spQ generated for R.
+WARNING: Missing tag on R instantiated at /home/dweeb_xyz/Work/bifrost/hardware/tools/skidl_devices.py:53.
+WARNING: Random tag _WpfrfUpbZ generated for R.
+WARNING: Missing tag on R instantiated at /home/dweeb_xyz/Work/bifrost/hardware/tools/skidl_devices.py:53.
+WARNING: Random tag QsHqqKLNAO generated for R.
+WARNING: Missing tag on INA226 instantiated at /home/dweeb_xyz/Work/bifrost/hardware/tools/skidl_devices.py:139.
+WARNING: Random tag 04DwrMcCtk generated for INA226.
+WARNING: Missing tag on ME6211C33M5 instantiated at /home/dweeb_xyz/Work/bifrost/hardware/tools/skidl_devices.py:144.
+WARNING: Random tag F99oiPdDbE generated for ME6211C33M5.
+WARNING: Missing tag on R_Shunt instantiated at /home/dweeb_xyz/Work/bifrost/hardware/tools/skidl_devices.py:146.
+WARNING: Random tag 3xGVJIg_RZ generated for R_Shunt.
+WARNING: Missing tag on C instantiated at /home/dweeb_xyz/Work/bifrost/hardware/tools/skidl_devices.py:149.
+WARNING: Random tag WQrwY8uhvk generated for C.
+WARNING: Missing tag on C instantiated at /home/dweeb_xyz/Work/bifrost/hardware/tools/skidl_devices.py:149.
+WARNING: Random tag hVg7RN5VfK generated for C.
+WARNING: Missing tag on C instantiated at /home/dweeb_xyz/Work/bifrost/hardware/tools/skidl_devices.py:149.
+WARNING: Random tag Am3739Kq4C generated for C.
+WARNING: Missing tag on Conn_01x02 instantiated at /home/dweeb_xyz/Work/bifrost/hardware/tools/skidl_devices.py:151.
+WARNING: Random tag aqJnlCXCR2 generated for Conn_01x02.
+WARNING: Missing tag on Conn_01x02 instantiated at /home/dweeb_xyz/Work/bifrost/hardware/tools/skidl_devices.py:153.
+WARNING: Random tag 0VrvfrfU9Z generated for Conn_01x02.
+WARNING: Missing tag on Conn_01x02 instantiated at /home/dweeb_xyz/Work/bifrost/hardware/tools/skidl_devices.py:155.
+WARNING: Random tag _1o0muA0aE generated for Conn_01x02.
+WARNING: Missing tag on PWR_FLAG instantiated at /home/dweeb_xyz/Work/bifrost/hardware/tools/skidl_devices.py:157.
+WARNING: Random tag nXCkA1SYlO generated for PWR_FLAG.
+WARNING: Missing tag on GND instantiated at /home/dweeb_xyz/Work/bifrost/hardware/tools/skidl_devices.py:158.
+WARNING: Random tag sABN5lZz_l generated for GND.
+WARNING: Missing tag on +3V3 instantiated at /home/dweeb_xyz/Work/bifrost/hardware/tools/skidl_devices.py:159.
+WARNING: Random tag _I1xBqh92O generated for +3V3.
+WARNING: Missing tag on  instantiated at /home/dweeb_xyz/Work/bifrost/<frozen importlib._bootstrap>:488.
+ERROR: Can't make copies of a net that already has pins attached to it! @ [/home/dweeb_xyz/Work/bifrost/<stdin>:6]

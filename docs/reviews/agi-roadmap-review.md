@@ -873,3 +873,137 @@ second reviewer (Part 8), pivot + factual-baseline architecture (Part 9, 11,
 user decisions (Part 6, deltas in 9/11/13), costs (Part 7), the door (Part
 12), and the desktop vocal flow (this part). Standing decisions deferred to
 the user are indexed in Part 6 + Part 13.4; nothing else pends a reviewer.
+
+---
+
+# ADDENDUM 6 — v0.9 NO-TAILSCALE FULL STACK: REVIEW BEFORE BUILD (10-03)
+
+*The redefinition (docs/plan.md, user pivot 10-03): the phone pairs DIRECT
+to the bridge — API + voice over WebRTC (data channel for app semantics,
+audio for voice), P2P first, bifrost-net relay as NAT fallback; device
+tokens (S1) load-bearing immediately; bifrost-net = signaling + optional
+access point with country choice; validated on this machine (browser
+automation, fake mic) before any real phone.*
+
+## Part 15 — VERDICT: GO-WITH-CHANGES
+
+The goal (no tailnet dependency, direct pairing, sovereign access point,
+tokens as the gate) is right and the build-waits-for-review order is right.
+One part ships as proposed; one part is the wrong layer to cut.
+
+### (a) SECURITY — what WebRTC-transport changes
+
+1. **The boundary moves from network to credential — for real this time.**
+   Today a leaked credential is scoped by the tailnet; under no-tailnet a
+   leaked device token is a globally reachable, shell-capable agent (via the
+   relay). S1 stops being defense-in-depth and becomes the whole model:
+   short-lived access tokens + refresh, hashed at rest, device list with
+   revoke and kill-switch ("sever all bridges"), token bound to first-seen
+   network region with re-auth on region change, rate limits per token.
+   This is why the v0.8 pairing release is a HARD prerequisite — the lab
+   must not start before the token middleware exists (it is scheduled
+   there; keep that order).
+2. **Relay exposure:** if the relay is OURS, the org operates
+   infrastructure that sees who-talks-to-what — the loyalty clause and
+   "nothing public" die quietly. If the relay is the USER'S VPS (their
+   country, their account — which "country choice" implies), the story
+   survives and gets stronger. Spec it: **the access point is the user's;
+   the org never operates one** (or only as explicit paid sovereign tier,
+   named as such).
+3. **Signaling is the new attack surface.** Unauthenticated signaling =
+   candidate injection = MITM of media AND data channels. Fix is classic
+   trust-on-first-scan: the QR carries the box fingerprint (hash of the
+   DTLS cert / WireGuard pubkey) + a one-time pairing code + the token.
+   No stranger-organized signaling: LAN pairing needs no signaling server
+   at all; remote pairing signals through the user's own access point.
+4. **A genuine security WIN to keep:** done right, the box dials OUT only —
+   P2P hole-punching and relay connections are outbound; no inbound ports,
+   ever. That is stronger than today's posture. Write it into the spec as
+   an invariant: **the box never accepts inbound connections from the
+   internet.**
+5. **ICE/TURN privacy:** candidates leak topology; STUN to public servers
+   discloses the box's IP to third parties. Keep discovery in-family
+   (bifrost-net STUN/TURN, user-hosted) or LAN-only candidates.
+6. **Copy law consequence:** "nothing goes public, ever" needs one honest
+   sentence for the relay world: *relayed, when needed, only through a
+   server you rent, in the country you choose.* Write it before any launch
+   copy touches the sovereign tier.
+
+### (b) FEASIBILITY — the cut is at the wrong layer
+
+Voice over WebRTC P2P-first with relay fallback: **as proposed — that is
+what LiveKit already negotiates** (direct ICE when the path allows, TURN
+when not). Point LiveKit's ICE at bifrost-net TURN and the voice half of
+this plan is mostly configuration, not invention.
+
+App semantics over the data channel: **defer.** Three reasons:
+
+- **Lifecycle fight:** locking a phone suspends the WebRTC stack;
+  Wi-Fi↔5G handovers kill peer connections; every background/foreground
+  cycle re-signals and re-authenticates. HTTP + retry (today's app
+  transport) survives all of this; a data-channel app must rebuild what
+  LiveKit already owns for audio — for a channel that carries fetchable
+  semantics. iOS PWA backgrounding alone makes this the top bug generator.
+- **Transport rewrite tax:** every /api route gains a second transport
+  (RPC framing, auth frames, backpressure, ordering) — double the surface
+  S1 must secure and the e2e suite must drive, to gain latency the app
+  doesn't need (the voice path already carries the latency-critical half).
+- **The no-tailscale goal doesn't require it.** The saner cut: **HTTP(S)
+  stays the app protocol; WebRTC carries voice only.** LAN pairing = direct
+  HTTPS with a QR-pinned cert (mDNS or IP-from-QR) — the 90% case needs no
+  coordination plane at all. Remote = the user's access point tunnels the
+  HTTP (plain WireGuard first; boringtun swap is a lab upgrade). Note what
+  this really is: bifrost-net's relay ≈ self-hosted DERP. The delta vs
+  tailscale is sovereignty of the coordination plane, not capability — so
+  M0 can even validate the tunnel with a plain WireGuard container and swap
+  boringtun in later without changing the product seam.
+- Data-channel-for-API becomes a **v1.x experiment behind a flag**, taken
+  only if real metrics show the HTTP path is the bottleneck.
+
+### (c) EFFORT vs fleet velocity
+
+- Full datachannel-everything + own signaling + relay: **4–8 weeks**,
+  monopolizes the fleet, invalidates the transport assumptions of all 13
+  e2e specs (the harness needs an RTC client before a single spec runs),
+  and freezes the consumer ladder (girlfriend gate, wave 3) for two
+  months. That is a v1.x-sized bet priced into the v0.9 slot.
+- The saner cut: **2–3 weeks** — voice ICE→relay (config), LAN HTTPS + QR
+  pinning, relay tunnel, token middleware (already v0.8), door flows.
+  Fleet-proven velocity (~16 commits/day, 41/41 suite) says this fits the
+  v0.9 window; the rewrite does not.
+
+### (d) BLIND SPOTS
+
+1. **"Validated on this machine" has a structural hole: localhost.** Both
+   endpoints on one host makes P2P trivially succeed and never exercises
+   the relay — the exact fallback this plan exists for. The lab plan MUST
+   include path emulation: `tc netem` (loss/latency/jitter) + a network
+   namespace or container as the "phone" + the relay node in a container.
+   Without that, validated-on-this-machine means validated-on-loopback.
+2. **First-pair trust** (§a.3) — the QR is now a security artifact, not a
+   convenience; it carries fingerprint + one-time code + token and needs
+   its own spec section + tests (replay, expiry, revoke-on-repair).
+3. **Signaling ownership** (§a.2) — decide "user's access point only" NOW;
+   an org-run signaling service is a permanent loyalty-clause liability.
+4. **DERP déjà vu** (§b) — name the tailscale comparison in the spec so the
+   lab doesn't spend a week rediscovering relay design.
+5. **Kill switch UX** — no-tailnet makes "sever all bridges" a first-class
+   safety control; it should ship with the device list in v0.8, not after.
+6. **What stays true:** the girlfriend gate, the door flows, and the
+   sovereign story all survive this plan — arguably improve (no app
+   install at all on the coordination side, country choice is a real
+   differentiator). The plan is worth building — at the right layer.
+
+### Verdict recap
+
+**GO** for: voice WebRTC P2P-first + relay fallback (LiveKit ICE→bifrost-net
+TURN); device tokens load-bearing (via v0.8, prerequisite); user-owned
+signaling/access point with country choice; QR trust-on-first-scan; outbound-
+only invariant; this-machine validation WITH netem + namespace + relay-node
+emulation.
+**CHANGE:** app semantics stay HTTP(S) in v0.9 — LAN direct HTTPS + relay
+tunnel replace the tailnet; data-channel API demoted to a v1.x flagged
+experiment. Effort honesty: the rewrite is 4–8 weeks and a fleet monopoly;
+the cut is 2–3 weeks and ships v0.9 on time.
+**NO** to: starting the lab before v0.8's token middleware lands; org-run
+relays/signaling; loopback-only "validation."

@@ -1,0 +1,157 @@
+(kicad_sch
+  (version 20230409)
+  (generator "skidl")
+  (generator_version "2.3.0")
+  (uuid 11fc330e-267a-493a-a5a5-0c472862d12a)
+  (paper "A4")
+  (title_block
+    (title "SKiDL-Generated Schematic")
+    (date "2026-10-06")
+    (company "")
+    (comment 1 "Generated with SKiDL")
+    (comment 2 "")
+    (comment 3 "")
+    (comment 4 ""))
+  (lib_symbols
+    (symbol "Device:R"
+      (pin_numbers
+        (hide yes))
+      (pin_names
+        (offset 0))
+      (exclude_from_sim no)
+      (in_bom yes)
+      (on_board yes)
+      (property "Reference" "R"
+        (at 2.032 0 90)
+        (effects
+          (font
+            (size 1.27 1.27))))
+      (property "Value" "R"
+        (at 0 0 90)
+        (effects
+          (font
+            (size 1.27 1.27))))
+      (property "Footprint" ""
+        (at 0 0 0)
+        (effects
+          (font
+            (size 1.27 1.27))
+          (hide yes)))
+      (property "Datasheet" "~"
+        (at 0 0 0)
+        (effects
+          (font
+            (size 1.27 1.27))
+          (hide yes)))
+      (property "Description" "Resistor"
+        (at 0 0 0)
+        (effects
+          (font
+            (size 1.27 1.27))
+          (hide yes)))
+      (symbol "R_0_1"
+        (rectangle
+          (start -1.016 -2.54)
+          (end 1.016 2.54)
+          (stroke
+            (width 0.254)
+            (type default))
+          (fill
+            (type none))))
+      (symbol "R_1_1"
+        (rectangle
+          (start -1.016 -2.54)
+          (end 1.016 2.54)
+          (stroke
+            (width 0.254)
+            (type default))
+          (fill
+            (type none)))
+        (pin passive line
+          (at 0 3.81 270)
+          (length 1.27)
+          (name "~"
+            (effects
+              (font
+                (size 1.27 1.27))))
+          (number "1"
+            (effects
+              (font
+                (size 1.27 1.27)))))
+        (pin passive line
+          (at 0 -3.81 90)
+          (length 1.27)
+          (name "~"
+            (effects
+              (font
+                (size 1.27 1.27))))
+          (number "2"
+            (effects
+              (font
+                (size 1.27 1.27))))))
+      (embedded_fonts no)))
+  (symbol
+    (lib_id "Device:R")
+    (at 148.59 105.41 0)
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (fields_autoplaced yes)
+    (uuid 7dd8a1a5-160a-5702-bc78-d0672ca1efc0)
+    (property "Reference" "R1"
+      (at 148.59 102.86999999999999 0)
+      (effects
+        (font
+          (size 1.27 1.27))
+        (justify left)))
+    (property "Value" "10k"
+      (at 148.59 107.95 0)
+      (effects
+        (font
+          (size 1.27 1.27))
+        (justify left)))
+    (property "Footprint" ""
+      (at 148.59 105.41 0)
+      (effects
+        (font
+          (size 1.27 1.27))
+        (hide yes)))
+    (property "Datasheet" "~"
+      (at 148.59 105.41 0)
+      (effects
+        (font
+          (size 1.27 1.27))
+        (hide yes)))
+    (property "Description" "Resistor"
+      (at 148.59 105.41 0)
+      (effects
+        (font
+          (size 1.27 1.27))
+        (hide yes)))
+    (pin "1"
+      (uuid d3f92ef5-3aa7-584c-b3a4-5e3ee6e09e37))
+    (pin "2"
+      (uuid a19dba2a-832b-5f5d-b158-cc39d3fbabfa))
+    (instances
+      (project "SKiDL-Generated"
+        (path "/11fc330e-267a-493a-a5a5-0c472862d12a"
+          (reference "R1")
+          (unit 1)))))
+  (global_label "A"
+    (shape bidirectional)
+    (at 148.59 101.6 90)
+    (effects
+      (font
+        (size 1.27 1.27))
+      (justify left))
+    (uuid 1b0ccac0-c174-5df4-9ee4-07296fc3c00b))
+  (global_label "B"
+    (shape bidirectional)
+    (at 148.59 109.22 270)
+    (effects
+      (font
+        (size 1.27 1.27))
+      (justify right))
+    (uuid c1e90746-e3e4-5ba7-b880-03af7fa3d352)))

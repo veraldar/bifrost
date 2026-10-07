@@ -24,10 +24,23 @@ pub struct SessionInfo {
 
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct MessageInfo {
+    /// opencode wraps role (and model/agent) inside `info`
     #[serde(default)]
-    pub role: Option<String>,
+    pub info: Option<MessageInfoMeta>,
     #[serde(default)]
     pub parts: Option<serde_json::Value>,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct MessageInfoMeta {
+    #[serde(default)]
+    pub role: Option<String>,
+}
+
+impl MessageInfo {
+    pub fn role(&self) -> Option<&str> {
+        self.info.as_ref().and_then(|i| i.role.as_deref())
+    }
 }
 
 impl OpencodeClient {

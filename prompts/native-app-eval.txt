@@ -1,0 +1,115 @@
+# MISSION — native Android/iOS evaluation for bifrost (session NATIVE-EVAL)
+
+You are writing a decision document. The question, in the owner's words:
+
+> Should bifrost go NATIVE Android/iOS? Evaluate honestly: the pains a native
+> (or Capacitor-wrapped) app fixes vs the PWA — background audio/mic
+> reliability (screen-off hands-free), echo cancellation quality, push
+> solidity, the call-like "HER experience" via iOS CallKit / Android
+> ConnectionService — the costs (two platforms, store reviews vs APK
+> sideload, maintenance), and the recommended path + timing relative to the
+> roadmap (PWA-first through v0.9? Capacitor wrap after transport+tokens
+> stabilize?).
+
+## Deliverable
+
+`docs/reviews/native-app-eval.md` — concise (~150 lines max), verdict FIRST,
+then: honest fix/no-fix table per pain per platform, what native does NOT
+fix, costs, recommended path with triggers, what only the owner decides.
+
+## Charter (fleet-wide, 10-04 — binds this document)
+
+- The owner has moved to validate-at-end mode: no questions, decisions are
+  ours. Your document must DECIDE (recommendation + recorded rationale +
+  triggers), not present an option menu. The end validation is the
+  lambda-user test (girlfriend-iPhone + owner hands-free) — design for it.
+- The look and brand are FROZEN (v0.6.0 cohesive design) — out of scope.
+- UX, quality, safety, performance, architecture, packaging, and the
+  native-vs-PWA call are all ours to rework.
+
+## Requirements source — the opencode store (the user's full history)
+
+The owner's 178 sessions / 9,892 messages live in
+`~/.local/share/opencode/opencode.db` (SQLite; read-only — never write).
+If `sqlite3` CLI is missing, use python3's sqlite3 module. Mine it for
+requirements evidence before writing:
+- every mention of phone/Android/iPhone/native app/push/background/lock
+  screen/hands-free/echo/TV/girlfriend — what did the owner actually ask
+  for, in his words?
+- recurring pains (voice failures, notification misses, mic issues) —
+  these are the pains a native/wrapped app must be judged against.
+Quote sparingly (session id + short phrase). This is the requirements doc;
+your pain table should cite it, not just platform folklore.
+
+## Source of truth — read these before writing (in this order)
+
+1. `docs/plan.md` — the adopted release ladder (pre-wave → v0.7 → WAVE 1 →
+   v0.8 layman release → conditional Windows v0.9 → v1.0 → v1.1).
+2. `docs/reviews/agi-roadmap-review.md` — Addendum 2: the girlfriend-iPhone
+   gate (v0.8 EXIT GATE, pre-registered script), Part 13 (peering = client-side
+   fan-out over a static bridge list), and Part 3's security debts S1–S8
+   (S1 = device tokens at the /api seam, v0.8, blocking v1.0).
+3. `docs/roadmap-proposal-v2.md` — the measured-velocity re-base: the
+   bottleneck law (codegen ≈ 1 day/slice; verification + human gates are the
+   schedule), parallel vs serial lanes.
+4. `docs/tts-voice.md` — measured client-side audio facts (WebAudio
+   AudioContext suspension ~4s after screen-lock; native <audio> survives
+   background; the whole production playback contract).
+5. `docs/open-questions.md` — OQ#3 (on-device voice tier: Moonshine-js /
+   kokoro-js / silero-vad, iOS cache-eviction caveat), OQ#4 (edge/Termux).
+6. `README.md` + a skim of `pwa/` (Next.js 15 PWA; /api/* proxy is the only
+   seam to opencode) and `agent/` (Python LiveKit agents worker: STT →
+   opencode → TTS; LiveKit rooms carry the voice media).
+
+## Locked decisions your recommendation must respect
+
+- PWA remains the shipped product through v1.0 wave 3 — the ladder does not
+  re-sequence for this question; your timing advice slots INTO it.
+- The v0.8 girlfriend-iPhone gate (real person, real iPhone, pre-registered
+  script) is the evidence instrument — it already exists; use it.
+- S1 device tokens land at v0.8 — any non-browser client authenticates
+  through that same seam. Nothing in your proposal may bypass it.
+- Evidence-triggered culture: Windows v0.9 fires only on ≥ ~10 inbound asks;
+  connectors were demoted until demand. A native push must name its trigger
+  metric the same way.
+- Measured velocity: 1 day per slice of build; store-review latency and
+  device-verification are the costs that do NOT compress.
+- No store review may gate a launch wave.
+
+## Ecosystem research — verify current facts (Oct 2026), link sources
+
+Check the live ecosystem before writing; facts carry links, unverified
+claims are marked TO-VERIFY:
+- iOS PWA push status today (16.4+ install requirement; any iOS 26 changes),
+  Safari PWA storage eviction rules for installed web apps.
+- Safari/WebKit background behavior: mic capture and audio playback when
+  screen-off / backgrounded, for BOTH the page and installed PWA.
+- Capacitor: what its plugins actually cover in 2026 (push notifications,
+  background audio modes, storage) — and what they do NOT (webview mic
+  capture limits; LiveKit JS inside a webview = still the browser stack).
+- LiveKit native SDKs (livekit-client-swift / -android / react-native):
+  CallKit and ConnectionService support, background audio, audio routing.
+- WebRTC AEC in-browser vs native platform voice processing (iOS voice
+  processing unit, Android AcousticEchoCanceler/hardware AEC, BT SCO).
+- Web Push reliability on Android OEMs (battery killers), FCM high priority.
+- Store mechanics: Apple $99/yr + review times, guideline 4.2 risk for
+  account-less clients, TestFlight flow + beta review, Google $25 + APK
+  sideload without review.
+
+## Referee (how this gets judged)
+
+- Honesty and verifiability: every platform-behavior claim carries a source
+  link or TO-VERIFY; no vibes.
+- Fidelity to locked decisions: a recommendation that re-sequences the ladder
+  or bypasses S1 fails.
+- Decision usefulness: the owner must be able to act — concrete triggers
+  ("if the v0.8 ledger shows X → do Y"), not hedged essays. Under the
+  charter, the doc ENDS in a decision: PWA-only, Capacitor wrap (when), or
+  native (when) — with the trigger metric that fires the next rung.
+- Scope discipline: you write ONE file (below). You change NOTHING else.
+  You do NOT commit.
+
+## Territory
+
+Write exactly one file: `docs/reports/` does not exist — your file is
+`docs/reviews/native-app-eval.md` (create it). Everything else read-only.

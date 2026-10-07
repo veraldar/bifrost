@@ -147,3 +147,74 @@ this lab (pwa/e2e, `uv run agent.py console`).
 - `scripts/android-lab/03-run-consumer-flow.sh` — orchestrator (runs here)
 - `scripts/android-lab/04-consumer-flow.mjs` — the Playwright flow
 - `artifacts/android-lab/` — screenshots + `report.json` of the last run
+
+## Screen-off mic probe (native-app-eval Rung 0) — `05-screen-off-probe`
+
+Resolves the eval's Android TO-VERIFY ("Chrome stops WebRTC mic shortly after
+screen-off") without a human. Its RED/GREEN is a Rung A trigger **input**: an
+emulator RED alone never fires Rung A (needs the owner's S22 data too).
+
+**Asserts:** Chrome launched with `--use-fake-device-for-media-stream
+--use-fake-ui-for-media-stream` (no real mic on the Mac; this checks that the track
+stays **live**, not that audio sounds right). It opens a fresh session, taps the mic
+(hands-free), and takes its own `getUserMedia({audio:true})` track (the minimal proxy).
+Then `input keyevent 26`, 60 s off, `keyevent 224` on. An init script records every
+WebSocket, RTCPeerConnection and audio track with timestamped lifecycle events, so the
+verdict is based on what happened *during* the window, not only the final state. A drop
+followed by LiveKit's auto-reconnect still counts as a death.
+
+| exit | line | meaning |
+|---|---|---|
+| 0 | `PROBE RESULT: PASS reason=…` | every audio track live and never `ended`; the LiveKit signal WS and peer connections up at screen-off never closed or dropped, no reconnect, room still connected |
+| 1 | `PROBE RESULT: RED reason=track-ended:…\|room-died:…` | either one died |
+| 2 | `PROBE RESULT: INCONCLUSIVE reason=…` | the lab couldn't establish the precondition (room never connected, screen never went off, setup failed). Never read as RED. |
+
+`warn=` flags are recorded but don't change the verdict: `hands-free-not-entered`,
+`muted:<i>` (track muted while off), and `no-mic-bytes-while-off` (publisher sent 0 audio
+bytes during the window).
+
+**Run:** `scripts/android-lab/05-screen-off-probe.sh` (`OFF_MS` overrides the 60 s,
+`PWA_PORT` probes a privately served build instead of live :8080). Evidence lands in
+`artifacts/android-lab/screen-off/`: `report.json` (pre/during/post snapshots,
+events), `01-before-off.png`, `02-after-on.png`, and `diag.log` (this slug's
+`pwa/.diag` lines).
+
+**Routing LiveKit to the AVD** (new compared with 03, which only reaches the PWA):
+- Signal: `ssh -R 18443 → omarchy tailscale-serve :443`, `adb reverse tcp:18443`, and
+  Chrome `--host-resolver-rules=MAP omarchy.tail5435b1.ts.net 127.0.0.1:18443`. Only
+  DNS is rewritten, so SNI and the cert still match. **Works**: signal connects.
+- Media: LiveKit advertises `192.168.50.2` / `100.104.229.17` on `:7881` TCP and
+  `:50000-50100` UDP. The Mac can't open TCP to omarchy on either path: the LAN
+  firewall blocks it too, alongside the tailnet ACL from the topology section. The
+  probe DNATs both TCP candidates inside the (rooted) AVD to `127.0.0.1:17881`, then
+  `adb reverse` → `ssh -R` → omarchy `:7881`. Plain TCP through that chain works,
+  including from Chrome's uid 10147. UDP can't ride an ssh tunnel.
+
+**Recorded result (2026-10-04 20:33): INCONCLUSIVE (track half GREEN, room half unproven).**
+- Screen went off for real (`mWakefulness=Asleep`, back to `Awake`). The probe's fake-mic
+  track stayed `live`, unmuted, and had no `ended`/`mute` events across 60 s off,
+  sampled every 15 s *while off*. Finding: `document.visibilityState` stayed `visible`
+  during screen-off on this Chrome 113 AVD, so a `bvl` diag keyed on `visibilitychange`
+  would not fire for screen-off on this build.
+- The room never reached `connected`, before or after: the signal WS opened, the PC sat
+  in `connecting`, and LiveKit closed the participant after 15 s (`removing participant
+  without connection`; only UDP pairs listed, all `failed`, with no ICE-TCP pair even
+  though Chrome's SYNs hit the DNAT rules). So the PWA's own hands-free mic never got
+  published, and only the probe track was asserted.
+- That run targeted the on-disk build served privately on :8097. **Live :8080 was
+  broken at the time:** `.next` had been rebuilt at 19:47 without restarting `lk-pwa`,
+  so the running server's HTML pointed at a session chunk that no longer exists
+  (`ChunkLoadError`, the chunk returns 400). Every session page failed, phone included.
+  This was left alone because a parallel e2e run was in flight.
+
+**Remaining run step (to get a full PASS/RED):** give the AVD a working media path. In
+order of cost:
+1. Debug ICE-TCP: `tcpdump -i lo port 7881` on omarchy during a run, to see whether
+   Chrome's STUN-over-TCP reaches LiveKit's TCP mux.
+2. Or open UDP `50000-50100` + TCP `7881` on omarchy's LAN firewall for `192.168.50.1`
+   only. Then the DNAT goes away and UDP host candidates connect directly.
+3. Or a TURN/TCP relay on the Mac.
+
+Then rerun `05-screen-off-probe.sh` against live :8080 (after `lk-pwa` is restarted
+onto the current build). The probe is READY: the exit semantics and evidence are
+final, only the media path is missing.

@@ -63,6 +63,16 @@ pub fn start(cfg: RelayConfig) -> Result<RelayHandle, String> {
 
     let (new_rtc_tx, new_rtc_rx): (SyncSender<Rtc>, Receiver<Rtc>) = sync_channel(8);
 
+    // advertised address (pinned candidate or loopback) — 0.0.0.0 is never a
+    // valid ICE candidate and str0m drops STUN with mismatched destinations
+    let advertise_addr = SocketAddr::new(
+        cfg.candidates
+            .first()
+            .copied()
+            .unwrap_or(IpAddr::from([127, 0, 0, 1])),
+        media_addr.port(),
+    );
+
     // signaling thread: POST /offer -> build Rtc -> answer -> hand to media loop
     {
         let stop = stop.clone();
@@ -163,7 +173,7 @@ pub fn start(cfg: RelayConfig) -> Result<RelayHandle, String> {
                                 Receive {
                                     proto: Protocol::Udp,
                                     source,
-                                    destination: media_addr,
+                                    destination: advertise_addr,
                                     contents: (&buf[..n]).try_into().expect("contents"),
                                 },
                             );

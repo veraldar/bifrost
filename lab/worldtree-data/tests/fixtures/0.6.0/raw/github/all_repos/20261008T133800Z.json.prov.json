@@ -1,0 +1,23 @@
+{
+ "attribution": "GitHub REST API (api.github.com, keyless: 60 core req/h + 10 search req/min — no token by design)",
+ "bytes": 5676,
+ "content_type": "application/json",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://api.github.com/search/repositories?q=is:public+created:2022-10-01..2022-10-31&per_page=1",
+ "http_status": 200,
+ "license": "GitHub ToS — counts are facts; metadata via public API",
+ "license_url": "https://docs.github.com/site-policy/github-terms/github-terms-of-service",
+ "path": "raw/github/all_repos/20261008T133800Z.json",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-08T13:38:00Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "d22ed4f3e7be3e3e05ed1a6543a365b04848552d74d70a8e4c1094db44c280fe",
+ "slug": "all_repos",
+ "source_id": "github",
+ "stored_bytes": true,
+ "upstream_next_update": null,
+ "upstream_updated": null,
+ "url": "https://api.github.com/search/repositories?q=is:public+created:2022-10-01..2022-10-31&per_page=1"
+}

@@ -65,10 +65,24 @@ class TestExtract(unittest.TestCase):
                  meta(GH.releases_url("ollama/ollama", 1), "2026-10-04T00:00:00Z", full, store)]
         rows = GH.x_releases(metas, lambda m: store[m["path"]], "2026-10-04")
         by = {p: (v, x) for p, _, v, _, x in rows}
-        self.assertEqual(by["2024"], (2, [1, 0, 61]))  # ollama (incomplete) contributes nothing
+        self.assertEqual(by["2024"], (2, [1, 0, 61, 0]))  # ollama (incomplete) contributes nothing; no bot author
         self.assertEqual(by["2023"][0], 1)
         self.assertNotIn("2026", by)  # in-progress year never emitted
         self.assertEqual(rows[0][0], "2015")
+
+    def test_releases_bot_count(self):
+        """0.6.0: releases cut by automation are counted and disclosed — GitHub App bots (type Bot) and *-bot accounts."""
+        store = {}
+        rel = lambda i, d, login, typ: {"id": i, "draft": False, "prerelease": False, "published_at": d + "T00:00:00Z",
+                                        "author": {"login": login, "type": typ}}
+        metas = [meta(GH.releases_url("openai/openai-python", 1), "2026-10-04T00:00:00Z",
+                      [rel(1, "2025-01-02", "stainless-app[bot]", "Bot"), rel(2, "2025-02-02", "stainless-bot", "User"),
+                       rel(3, "2025-03-02", "hallacy", "User"), rel(4, "2024-03-02", "github-actions[bot]", "Bot")], store)]
+        by = {p: x for p, _, _, _, x in GH.x_releases(metas, lambda m: store[m["path"]], "2026-10-04")}
+        self.assertEqual(by["2025"][3], 2)
+        self.assertEqual(by["2024"][3], 1)
+        self.assertFalse(GH.is_bot({"login": "botanist", "type": "User"}))
+        self.assertFalse(GH.is_bot(None))
 
     def test_releases_union_across_vintages(self):
         store = {}

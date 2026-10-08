@@ -95,11 +95,12 @@ class TestExtract(unittest.TestCase):
             self.assertEqual(GH.unit_files("tool_stars", d, end), [("json", GH.stars_url(r)) for r in GH.TOOL_REPOS])
 
     def test_tools_block_years_and_provenance_files(self):
-        store, metas = {}, {"tool_repos": [], "lean_repos": [], "mathlib": [], "tool_stars": []}
+        store, metas = {}, {"tool_repos": [], "lean_repos": [], "mathlib": [], "tool_stars": [], "all_repos": []}
         for y, m, n in ((2025, 11, 1), (2025, 12, 2), (2026, 1, 3)):
             metas["tool_repos"] += [meta(GH.repos_url(k, y, m), "2026-10-08T12:00:00Z", cnt(n), store) for k in TOPICS]
         metas["lean_repos"].append(meta(GH.repos_url(GH.LEAN, 2026, 1), "2026-10-08T12:00:00Z", cnt(7), store))
         metas["mathlib"].append(meta(GH.commits_url(GH.MATHLIB, 2026, 1), "2026-10-08T12:00:00Z", cnt(889), store))
+        metas["all_repos"].append(meta(GH.repos_url(GH.ALL_REPOS, 2026, 1), "2026-10-08T12:00:00Z", cnt(6000000), store))
         metas["tool_stars"] += [meta(GH.stars_url(r), "2026-10-08T12:30:00Z", {"stargazers_count": 2}, store)
                                 for r in GH.TOOL_REPOS]
         b, used = GH.tools_block("2026-10-08", lambda k: metas[k], lambda m: store[m["path"]], month_end)
@@ -109,7 +110,9 @@ class TestExtract(unittest.TestCase):
         self.assertEqual(b["lean_repos_by_month"], [{"month": "2026-01", "repos": 7}])
         self.assertEqual(b["mathlib_commits_by_month"], [{"month": "2026-01", "commits": 889}])
         self.assertEqual(sum(b["stars"].values()), 2 * len(GH.TOOL_REPOS))
-        self.assertEqual(len(used), 3 * len(TOPICS) + 2 + len(GH.TOOL_REPOS))  # every raw file read is cited
+        self.assertEqual(b["all_repos_by_month"], [{"month": "2026-01", "repos": 6000000}])  # 0.6.0 platform total
+        self.assertEqual(GH.count_key(GH.repos_url(GH.ALL_REPOS, 2026, 1)), (GH.ALL_REPOS, (2026, 1)))
+        self.assertEqual(len(used), 3 * len(TOPICS) + 3 + len(GH.TOOL_REPOS))  # every raw file read is cited
 
 
 class TestBudgetOrder(unittest.TestCase):
@@ -139,8 +142,10 @@ class TestBudgetOrder(unittest.TestCase):
             self.assertEqual(len(search), search_n)
             self.assertTrue(all(GH.count_key(u)[0] in GH.REPOS for u in search))  # empty tree: the 0.4.1 backfill first
             # unit priority inside the shared buckets: snapshots, releases, commits, then the mapped tool counts first
+            # (0.6.0: their denominator, the platform total, leads them)
             slugs = sorted((s for s in GH.META), key=lambda s: (F.GH_ORDER[s], s))
-            self.assertEqual(slugs, ["stars", "tool_stars", "releases", "commits", "tool_repos", "lean_repos", "mathlib"])
+            self.assertEqual(slugs, ["stars", "tool_stars", "releases", "commits", "all_repos", "tool_repos", "lean_repos",
+                                     "mathlib"])
 
     def test_search_wall_clock_cap(self):
         """10-08: two full search budgets in one nightly overran the unit's 1800 s — the search bucket stops at the cap."""

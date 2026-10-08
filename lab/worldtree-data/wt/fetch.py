@@ -165,7 +165,8 @@ def newest_sha(slug_dir: Path, ext: str, url=None):
 
 
 GH_ORDER = {"stars": 0, "tool_stars": 0, "releases": 1, "commits": 2,  # snapshots first: a missed night is a missing
-            "tool_repos": 3, "lean_repos": 4, "mathlib": 5}  # star point forever; then the mapped counts before page-only ones
+            "all_repos": 3, "tool_repos": 3, "lean_repos": 4, "mathlib": 5}  # star point forever; then the mapped counts
+# (0.6.0: their denominator, the platform total, first) before page-only ones
 GH_SLEEP = {"core": 1.0, "search": 6.5}  # keyless search: 10 req/min
 
 

@@ -95,7 +95,7 @@ python3 - <<'PY'
 import hashlib, json
 from wt import github as GH
 d = json.load(open('out/github-trends.json')); v = open('method/VERSION').read().strip()
-assert d['schema'] == 'worldtree.github/1' and d['method_version'] == v == '0.5.0', (d['schema'], v)
+assert d['schema'] == 'worldtree.github/1' and d['method_version'] == v and v >= '0.5.0', (d['schema'], v)  # 0.6.0: + all_repos
 t = d['tools']
 assert len(t['tool_repos_by_month']) >= 93 and len(t['lean_repos_by_month']) >= 93 and len(t['mathlib_commits_by_month']) >= 93
 assert [x['topic'] for x in t['topics']] == list(GH.TOOL_TOPICS) and len(t['stars']) == len(GH.TOOL_REPOS)
@@ -143,7 +143,7 @@ bash tests/m6_countries.sh > /tmp/m6c.txt 2>&1 || { tail -5 /tmp/m6c.txt; fail $
 
 step "8 live: github-trends.json tools block + page TOOLS block + screenshot"
 L=$(curl -s "$SITE/github-trends.json?m10=$(date +%s)")
-echo "$L" | jq -e '.schema=="worldtree.github/1" and .method_version=="0.5.0" and (.tools.tool_repos_by_month|length)>=93' > /dev/null || fail $LINENO
+echo "$L" | jq -e --arg v "$(cat method/VERSION)" '.schema=="worldtree.github/1" and .method_version==$v and (.tools.tool_repos_by_month|length)>=93' > /dev/null || fail $LINENO
 [ "$(echo "$L" | sha256sum | cut -d' ' -f1)" = "$(sha256sum out/github-trends.json | cut -d' ' -f1)" ] || fail $LINENO
 for f in data/series/github.tool_repos_month.csv data/series/github.lean_repos_month.csv data/out/github-trends.provenance.json; do
   c=$(curl -s -o /dev/null -w '%{http_code}' "$SITE/$f"); [ "$c" = 200 ] || { echo "$f → $c"; fail $LINENO; }

@@ -1,0 +1,23 @@
+{
+ "attribution": "GitHub REST API (api.github.com, keyless: 60 core req/h + 10 search req/min — no token by design)",
+ "bytes": 6687,
+ "content_type": "application/json",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://api.github.com/search/commits?q=repo:langchain-ai/langchain+committer-date:2024-02-01..2024-02-29&per_page=1",
+ "http_status": 200,
+ "license": "GitHub ToS — counts are facts; metadata via public API",
+ "license_url": "https://docs.github.com/site-policy/github-terms/github-terms-of-service",
+ "path": "raw/github/commits/20261004T183250Z.json",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-04T18:32:50Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "b9180b9066498ed5cef1b6ad3e33a34cbbe584efcce78da8be3dbe62f7c0e70d",
+ "slug": "commits",
+ "source_id": "github",
+ "stored_bytes": true,
+ "upstream_next_update": null,
+ "upstream_updated": null,
+ "url": "https://api.github.com/search/commits?q=repo:langchain-ai/langchain+committer-date:2024-02-01..2024-02-29&per_page=1"
+}

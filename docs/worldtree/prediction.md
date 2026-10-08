@@ -16,6 +16,19 @@ indicators). A world moving exactly as usual scores 0.5 everywhere and prints
 14.3 % per realm. The output is an **evidence share** (README), not a
 probability.
 
+Amended 0.6.0 (M8 honesty review, `honesty-review.md`): the page now says so
+where the numbers are (hero: "a share of the evidence, not a probability: 14.3 %
+each would mean nothing unusual anywhere"; rings and dials draw/label the even
+line). Two kinds of indicator feed the realms, declared per series in
+`catalog/series.csv` column `measures`: `ai` (the quantity would not exist
+without machine intelligence) and `world` (a condition of the world AI lands in,
+measured without reference to AI); `norm` marks denominators, never mapped.
+`weights` use both. `modes.strict` = the same aggregation (§4) over the `ai`
+indicators only, with W_map restricted to the `ai` rows — a realm with no `ai`
+indicator rests at e = 0.5; `modes.wide` = `weights` (nothing measured is left
+out of the headline). Never published as the headline; it is the page's STRICT AI
+lens and the visible answer to "how much of this is about AI itself" (B18).
+
 ## 1. Series registry (`catalog/series.csv`, v0.2.0 core)
 `series_id` prefix is a short alias (`owid`, `wb`, `epoch`, `wiki`); the
 `source_id` column carries the catalog id (`owid`, `worldbank`, `epoch`,
@@ -208,8 +221,9 @@ p_r    = 100 · e_r / Σ_k e_k
 | `weights`, `world_weights` | §4 |
 | `dimensions` | for each dimension with ≥1 used indicator: Σ w_i·\|s_i − 0.5\| of its indicators, normalised to 100, 1 decimal ("where the movement comes from"); `{}` if all scores are exactly 0.5 |
 | `top` | per realm, up to 2 strings for the used indicators with largest w_i·\|s_i − 0.5\| pointing the realm's way (s_i > 0.5): `"<label>: <latest value + unit> (<latest_period>) · score <s>"` |
-| `sources` | `{<source title>: <number of series used>}` e.g. `{"Our World in Data": 9, "Epoch AI": 4, "Wikimedia": 4, "World Bank": 2}` — real counts; the page labels them "items" (known wording mismatch, page is frozen) |
-| `feeds` | one `{name: label, state}` per mapped series: used → `"<latest_period> · score 0.71"`; excluded → `"excluded: stale (2023-12-31)"` / `"excluded: short_history (11/24)"` — exclusions are shown on the page, not hidden |
+| `sources` | `{<source title>: <number of series used>}` e.g. `{"Our World in Data": 9, "Epoch AI": 4, "Wikimedia": 4, "World Bank": 2}` — real counts; the page labelled them "items" until 0.6.0, now "series" |
+| `feeds` | one `{name: label, state, tier}` per mapped series: used → `"<latest_period> · score 0.71"`; excluded → `"excluded: stale (2023-12-31)"` / `"excluded: short_history (11/24)"` — exclusions are shown on the page, not hidden; `tier` (0.6.0) = the series' `measures` (`ai` / `world`), the page's lens tiers (before 0.6.0 the page guessed tiers from feed names with news-era regexes and hid 25 of 28 indicators at its default lens) |
+| `modes` | 0.6.0: `{strict: <weights over measures=ai indicators>, wide: <= weights>, strict_top: <top over measures=ai>}` (§0 amendment); provenance `realms.<r>.strict` carries weight, evidence, coverage, mass, w_used, w_map and the series used |
 | `agent_roots` | only when §7.2 is configured; same shape as today |
 | `method_version`, `provenance` | extra keys (`"0.1.0"`, `"realms.provenance.json"`); the page ignores unknown keys |
 
@@ -313,6 +327,11 @@ what changed, why, and the fixture weights before → after.
 | B11 | Rank-vs-own-history calls a series' *usual* behaviour neutral — a decades-long trend (e.g. falling poverty) is not itself evidence | rank_* | by design (§0); stated on README |
 | B12 | Query-shaped counts: the query string defines the series (AI×biomed, "artificial intelligence", cs.AI); counts are facts, selection is judgement | arxiv.*, pubmed.*, fedreg.* | w=2 cap; `rank_delta` vs own history only |
 | B13 | Mauna Loa is one station, a global-mean proxy | noaa.co2 | w=1; growth rate vs own trend (`diff=abs`, lag 12), never the level |
+| B14 | ARI is event-sourced from news headlines: attention bias, keyword classification, judgment-call component weights, one curator (0.3.1) | ari.index | w=2; ranked as a level vs its own weekly history; methodology cited per sidecar |
+| B15 | Survivorship: the GitHub repo set is 2026's winners picked in 2026; repos born after 2019 add to the totals from their first release (0.4.1) | github.releases_year, commits_month, stars_snapshot | w=1 each; 0.6.0: the page shows the like-for-like ratio (repos releasing in both years: 2019 → 2025 ×1.6, not ×8.0) and the bot-cut share beside the raw × |
+| B16 | Self-tagged topics: owners add topics any time; counts are as retrieved; deleted repos vanish; topic:mcp before 2024-11 is retro-tagging (0.5.0) | github.tool_repos_month, lean_repos_month | 0.6.0: scored per million new GitHub repos (`norm=github.all_repos_month`) — GitHub's own growth went ×2.25 in the 12 months to 2026-09 |
+| B17 | A lag-1 rebound after a shock reads as a beyond-trend gain: world life expectancy 2022–23 is mostly recovery from the 2020–21 COVID fall (0.6.0) | owid.life_expectancy | disclosed in the mapping rationale and provenance `bias[]`; level shown beside the score |
+| B18 | World-condition indicators in AI realms: war deaths, unemployment, CO₂, poverty, life expectancy, GDP, democracy, Lean repos describe the world AI lands in; they show nothing about AI causing it (0.6.0) | every `measures=world` series | `measures` column; `modes.strict` (the AI-only set) published beside the headline and drawn by the page's STRICT AI lens; the conflict-deaths rationale no longer calls war "the weapons arm of the leash breaking" |
 
 ### 7.2 The existing news/attention pipeline (`veraldar-site/pipeline/`) — decision
 **Dropped from the percentages in v0. A `pulse` channel is specified but off.

@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/oRWL5FM9LoxwvP72mjgw5pLxvhw</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202202010000 TO 202202282359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:42:30Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202202010000+TO+202202282359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>1106</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2202.01850v2</id>
+    <title>A Robust Phased Elimination Algorithm for Corruption-Tolerant Gaussian Process Bandits</title>
+    <updated>2022-03-28T21:57:13Z</updated>
+    <link href="https://arxiv.org/abs/2202.01850v2" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2202.01850v2" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We consider the sequential optimization of an unknown, continuous, and expensive to evaluate reward function, from noisy and adversarially corrupted observed rewards. When the corruption attacks are subject to a suitable budget $C$ and the function lives in a Reproducing Kernel Hilbert Space (RKHS), the problem can be posed as corrupted Gaussian process (GP) bandit optimization. We propose a novel robust elimination-type algorithm that runs in epochs, combines exploration with infrequent switching to select a small subset of actions, and plays each action for multiple time instants. Our algorithm, Robust GP Phased Elimination (RGP-PE), successfully balances robustness to corruptions with exploration and exploitation such that its performance degrades minimally in the presence (or absence) of adversarial corruptions. When $T$ is the number of samples and $γ_T$ is the maximal information gain, the corruption-dependent term in our regret bound is $O(C γ_T^{3/2})$, which is significantly tighter than the existing $O(C \sqrt{T γ_T})$ for several commonly-considered kernels. We perform the first empirical study of robustness in the corrupted GP bandit setting, and show that our algorithm is robust against a variety of adversarial attacks.</summary>
+    <category term="stat.ML" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2022-02-03T21:19:36Z</published>
+    <arxiv:comment>Added references</arxiv:comment>
+    <arxiv:primary_category term="stat.ML"/>
+    <author>
+      <name>Ilija Bogunovic</name>
+    </author>
+    <author>
+      <name>Zihan Li</name>
+    </author>
+    <author>
+      <name>Andreas Krause</name>
+    </author>
+    <author>
+      <name>Jonathan Scarlett</name>
+    </author>
+  </entry>
+</feed>

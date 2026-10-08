@@ -1,5 +1,53 @@
 # Method changelog
 
+## 0.6.0 — 2026-10-08 (M8: the honesty review — briefs/M8-review.md, docs/worldtree/honesty-review.md)
+- Minor: the review judged what a visitor could misread and fixed what was a defect, not a taste.
+  World-tree numbers move only through the GitHub normalisation below; everything else is additive
+  or country-panel only.
+- `catalog/series.csv` gains column `measures` (`ai` | `world` | `norm`): whether a series measures AI
+  itself (it would not exist without machine intelligence), a condition of the world AI lands in, or a
+  denominator. Catalog gate: every series declares it; `norm` series are never mapped.
+- realms.json gains `modes` — the page's three pertinence lenses, real numbers again: `strict` = the same
+  aggregation over the `measures=ai` indicators only (W_map restricted to them; a realm with none rests at
+  e = 0.5), `wide` = `weights`, `strict_top` = `top` over the AI indicators; provenance `realms.<r>.strict`
+  (weight, evidence, coverage, mass, w_used, w_map, series). Feeds gain `tier` (= `measures`). Why: since the
+  news pipeline was retired the lens showed identical numbers at every level while saying "the switch changes
+  the numbers", and its name regexes filed 25 of 28 indicators as "news plumbing", hidden by default. Today:
+  terminus leads the headline (17.6) on war deaths; with AI indicators only it is neutral (14.1, its one AI
+  indicator excluded for short history) and control leads (17.9) — bias B18.
+- GitHub normaliser: new series `github.all_repos_month` (every new public repo a month, forks excluded,
+  `q=is:public+created:<month>`, keyless search, 93 months backfilled 10-08 13:32–13:43 UTC, search bucket
+  only; +1 search a night after). GitHub's own growth: ×1.14 a year 2023→24, ×1.40 2024→25, ×2.25 to
+  2026-09 (5.35 M → 12.03 M). `norm=` now takes a series id besides `total`; the tool-repo rows (divergence,
+  transcendence) and the Lean row (utopia) score per million new repos, as Wikipedia attention is scored per
+  million en.wiki views (B1). Tool repos 0.97 → 0.75 (share growth ×5.9 a year vs raw ×13.4), Lean stays 1.00.
+- Releases gain `n_bot` / `bot_releases`: releases cut by GitHub App bots (author type Bot) or the
+  stainless-bot machine account — 2025: 265 of 362 (73 %). github-trends.json notes say how to read the ×;
+  `tools.all_repos_by_month` added. Counted, not removed: they are real releases.
+- Country panel (countries.json): (1) sign defect fixed — the three stagnation rows (R&D % GDP, researchers
+  per million, resident patents) had direction +1 while their rationales call them evidence against the
+  stall; the atlas ranked South Korea, Sweden, Japan, Germany, the US as the most stagnant. Now −1.
+  (2) per-capita rule `percap=wb.SP_POP_TOTL` (World Bank population, new `norm` geo series) on the 8 rows
+  that rank absolute totals (patents, high-tech exports, solar/nuclear TWh, terrorism and disaster deaths) —
+  transcendence ranked China, Germany, the US first by export volume; now Ireland, Switzerland, the
+  Netherlands per person. (3) +1 indicator `owid_geo.deaths_in_armed_conflicts_by_country` (UCDP via OWID,
+  where deaths occurred, per person) → terminus w2: the world tree's terminus driver is now visible per
+  country (Ukraine, Sudan, Palestine). (4) the note says none of these indicators measures AI. (5) the
+  nightly now recomputes it (`scripts/nightly.sh`); before, only gate runs did — live was 0.4.1 / 10-07.
+- Bias register: B17 (lag-1 rebound reads as beyond-trend: life expectancy 2022–23), B18 (world-condition
+  indicators in AI realms; `measures`, `modes.strict`); B14–B16 copied into prediction.md §7.1. Mapping
+  rationale of conflict deaths no longer calls war "the weapons arm of the leash breaking".
+- Robustness: a core series with no snapshot on/before the as-of builds as an empty series (it crashed an
+  older fixture's replay); a missing normaliser excludes the row, never scores it raw.
+- Fixture weights: before (`tests/fixtures/0.5.0`, as-of 2026-10-08) — 15.0 · 13.3 · 15.4 · 16.0 · 17.2 ·
+  9.7 · 13.4; after (`tests/fixtures/0.6.0`, as-of 2026-10-08) — 15.2 · 12.5 · 15.7 · 16.4 · 17.6 · 9.9 ·
+  12.7; STRICT AI 15.7 · 12.9 · 16.2 · 17.9 · 14.1 · 10.1 · 13.1. The 0.6.0 fixture with the three `norm=`
+  params removed reproduces 0.5.0 exactly, so the whole move is the GitHub normalisation: utopia +0.2,
+  divergence −0.8, drift +0.3, control +0.4, terminus +0.4, stagnation +0.2, transcendence −0.7.
+- Erratum (found by this review, history not rewritten): 0.3.1 and 0.4.1 are labelled "Patch" below but each
+  added mapped rows and moved numbers (control +3.3; 0.4.0 → 0.4.1 every realm) — by §6 they were minor
+  releases. Their fixtures and entries stand as written.
+
 ## 0.5.0 — 2026-10-08 (M10: the tools evolve with the models)
 - Minor: a new indicator family — the tool ecosystem co-evolving with the models, the
   variable the tree under-weighted (briefs/M10-tools.md: "humans evolved with their

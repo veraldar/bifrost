@@ -1,0 +1,23 @@
+{
+ "attribution": "World Health Organization (2024) – with major processing by Our World in Data",
+ "bytes": 106281,
+ "content_type": "text/csv",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://ourworldindata.org/grapher/death-rate-from-suicides-ghe.csv?v=1&csvType=full&useColumnShortNames=true",
+ "http_status": 200,
+ "license": "CC BY 4.0",
+ "license_url": "https://creativecommons.org/licenses/by/4.0/",
+ "path": "raw/owid/suicide-rate/20261004T170332Z.csv",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-04T17:03:32Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "6bb6b5a1ae06ca651f7e8123e794783c52694c5423145c6232a7b1a706004515",
+ "slug": "suicide-rate",
+ "source_id": "owid",
+ "stored_bytes": true,
+ "upstream_next_update": null,
+ "upstream_updated": "2024-07-30",
+ "url": "https://ourworldindata.org/grapher/suicide-rate.csv?v=1&csvType=full&useColumnShortNames=true"
+}

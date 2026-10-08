@@ -6,6 +6,7 @@ import io
 import json
 import math
 import re
+import sys
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 
@@ -492,7 +493,11 @@ def build_all(as_of):
     for sid, s in sorted(load_series().items()):
         if s["stage"] != "core":
             continue
-        rows = build(s, as_of)
+        try:
+            rows = build(s, as_of)
+        except FileNotFoundError as e:  # 0.6.0: a series with no snapshot on/before the as-of is empty (no rows), not a
+            print(f"series {sid}: empty — {e}", file=sys.stderr)  # crash; a mapped one is then excluded no_data
+            rows = []
         write_text(root() / "series" / f"{sid}.csv", csv_text(header(s), rows))
         n += 1
     print(f"series OK {n} files as of {as_of}")

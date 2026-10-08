@@ -1,0 +1,23 @@
+{
+ "attribution": "GitHub REST API (api.github.com, keyless: 60 core req/h + 10 search req/min — no token by design)",
+ "bytes": 5599,
+ "content_type": "application/json",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://api.github.com/search/repositories?q=topic:ai-agents+created:2021-05-01..2021-05-31&per_page=1",
+ "http_status": 200,
+ "license": "GitHub ToS — counts are facts; metadata via public API",
+ "license_url": "https://docs.github.com/site-policy/github-terms/github-terms-of-service",
+ "path": "raw/github/tool_repos/20261008T122221Z.json",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-08T12:22:21Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "80f7a9f6e6a114fdf29b1399d99dea1bcce5e063f72ada77053b65df6e8b88f5",
+ "slug": "tool_repos",
+ "source_id": "github",
+ "stored_bytes": true,
+ "upstream_next_update": null,
+ "upstream_updated": null,
+ "url": "https://api.github.com/search/repositories?q=topic:ai-agents+created:2021-05-01..2021-05-31&per_page=1"
+}

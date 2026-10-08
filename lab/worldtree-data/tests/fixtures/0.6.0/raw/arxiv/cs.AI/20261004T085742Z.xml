@@ -1,0 +1,57 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/zr/reiRnDMorR0/yCpiMt+FfpFA</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202601010000 TO 202601312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:57:43Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202601010000+TO+202601312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>4208</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2601.06431v3</id>
+    <title>LsrIF: Enhancing Logic-Structured Instruction Following of Large Language Models</title>
+    <updated>2026-05-28T02:42:22Z</updated>
+    <link href="https://arxiv.org/abs/2601.06431v3" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2601.06431v3" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Instruction following is critical for large language models, yet real-world instructions often involve multiple constraints with logical structures, such as parallel composition, sequential dependencies, and conditional branching. Existing methods typically construct data by simply combining constraints and aggregate rewards by averaging individual constraint scores during training, overlooking logical dependencies and introducing noisy signals. We propose LsrIF, a training framework for logic-structured instruction following. LsrIF constructs data by organizing atomic constraints into parallel, sequential, conditional, and nested structures, and applies structure-aware reward aggregation aligned with their execution semantics: averaging rewards for parallel constraints, decaying later rewards after early failures in sequential structures, and rewarding only active branches in conditional structures. Experiments show that LsrIF improves instruction following in both in-domain and out-of-domain settings while also benefiting logic reasoning. Further analysis indicates that logic-structured training increases attention to constraint-related tokens and logical connectors, suggesting improved modeling of instruction logic. We will release our data and code for future research.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-01-10T05:11:38Z</published>
+    <arxiv:primary_category term="cs.AI"/>
+    <author>
+      <name>Qingyu Ren</name>
+    </author>
+    <author>
+      <name>Qianyu He</name>
+    </author>
+    <author>
+      <name>Jingwen Chang</name>
+    </author>
+    <author>
+      <name>Geng Zhang</name>
+    </author>
+    <author>
+      <name>Jiajie Zhu</name>
+    </author>
+    <author>
+      <name>Xingzhou Chen</name>
+    </author>
+    <author>
+      <name>Zhuofei Shi</name>
+    </author>
+    <author>
+      <name>Jiaqing Liang</name>
+    </author>
+    <author>
+      <name>Yanghua Xiao</name>
+    </author>
+    <author>
+      <name>Han Xia</name>
+    </author>
+    <author>
+      <name>Zeye Sun</name>
+    </author>
+    <author>
+      <name>Fei Yu</name>
+    </author>
+  </entry>
+</feed>

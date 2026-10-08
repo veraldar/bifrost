@@ -1,0 +1,54 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/8jjbxg1NI1dh1vSOpa6jfMnLHzM</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202508010000 TO 202508312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:57:11Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202508010000+TO+202508312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>3827</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2508.12798v1</id>
+    <title>A Shift in Perspective on Causality in Domain Generalization</title>
+    <updated>2025-08-18T10:19:33Z</updated>
+    <link href="https://arxiv.org/abs/2508.12798v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2508.12798v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>The promise that causal modelling can lead to robust AI generalization has been challenged in recent work on domain generalization (DG) benchmarks. We revisit the claims of the causality and DG literature, reconciling apparent contradictions and advocating for a more nuanced theory of the role of causality in generalization. We also provide an interactive demo at https://chai-uk.github.io/ukairs25-causal-predictors/.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2025-08-18T10:19:33Z</published>
+    <arxiv:comment>2 pages, 1 figure, to be presented at the UK AI Research Symposium (UKAIRS) 2025</arxiv:comment>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Damian Machlanski</name>
+    </author>
+    <author>
+      <name>Stephanie Riley</name>
+    </author>
+    <author>
+      <name>Edward Moroshko</name>
+    </author>
+    <author>
+      <name>Kurt Butler</name>
+    </author>
+    <author>
+      <name>Panagiotis Dimitrakopoulos</name>
+    </author>
+    <author>
+      <name>Thomas Melistas</name>
+    </author>
+    <author>
+      <name>Akchunya Chanchal</name>
+    </author>
+    <author>
+      <name>Steven McDonagh</name>
+    </author>
+    <author>
+      <name>Ricardo Silva</name>
+    </author>
+    <author>
+      <name>Sotirios A. Tsaftaris</name>
+    </author>
+  </entry>
+</feed>

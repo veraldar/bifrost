@@ -1,0 +1,23 @@
+{
+ "attribution": "GitHub REST API (api.github.com, keyless: 60 core req/h + 10 search req/min — no token by design)",
+ "bytes": 8342,
+ "content_type": "application/json",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://api.github.com/search/commits?q=repo:anthropics/anthropic-sdk-python+committer-date:2026-08-01..2026-08-31&per_page=1",
+ "http_status": 200,
+ "license": "GitHub ToS — counts are facts; metadata via public API",
+ "license_url": "https://docs.github.com/site-policy/github-terms/github-terms-of-service",
+ "path": "raw/github/commits/20261004T175124Z.json",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-04T17:51:24Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "f58f0ea7ceb0068c9e86d4d382e0a6e127792070303beec3f052fa789e2a468a",
+ "slug": "commits",
+ "source_id": "github",
+ "stored_bytes": true,
+ "upstream_next_update": null,
+ "upstream_updated": null,
+ "url": "https://api.github.com/search/commits?q=repo:anthropics/anthropic-sdk-python+committer-date:2026-08-01..2026-08-31&per_page=1"
+}

@@ -1,61 +1,64 @@
-series_id,source_id,slug,extract,unit,cadence,max_age_days,stage,label
-owid.extreme_poverty,owid,share-of-population-in-extreme-poverty,owid:entity=World;col=headcount_ratio__ppp_version_2021__poverty_line_300__welfare_type_income_or_consumption__table_income_or_consumption_consolidated__survey_comparability_no_spells,%,annual,1100,core,Extreme poverty ($3/day)
-owid.life_expectancy,owid,life-expectancy,owid:entity=World;col=life_expectancy_0,years,annual,1100,core,Life expectancy
-wb.gdp_per_capita,worldbank,NY.GDP.PCAP.KD,wb:WLD,US$,annual,1100,core,GDP per capita (const. 2015 $)
-epoch.open_weights_share,epoch,notable_ai_models,epoch:open_share,%,monthly,100,core,Open-weights share of notable models (12 mo)
-epoch.org_diversity,epoch,notable_ai_models,epoch:org_diversity,index 0-1,monthly,100,core,Organisation diversity of notable models (12 mo)
-epoch.country_diversity,epoch,notable_ai_models,epoch:country_diversity,index 0-1,monthly,100,core,Country diversity of notable models (12 mo)
-epoch.frontier_compute,epoch,notable_ai_models,epoch:frontier_compute,log10 FLOP,monthly,100,core,Largest training run (12 mo)
-owid.genai_user_share,owid,estimated-share-people-generative-ai,owid:entity=World;col=ai_user_share,%,daily,300,core,Share of people using generative AI
-wiki.deepfake,wikimedia,Deepfake,wiki:monthly,views,monthly,100,core,Attention: Deepfake
-wiki.synthetic_media,wikimedia,Synthetic_media,wiki:monthly,views,monthly,100,core,Attention: Synthetic media
-wiki.ai_regulation,wikimedia,Regulation_of_artificial_intelligence,wiki:monthly,views,monthly,100,core,Attention: AI regulation
-wiki.ai_xrisk,wikimedia,Existential_risk_from_artificial_intelligence,wiki:monthly,views,monthly,100,core,Attention: AI existential risk
-wiki.agi,wikimedia,Artificial_general_intelligence,wiki:monthly,views,monthly,100,core,Attention: AGI
-wiki.en_total,wikimedia,_aggregate,wiki:aggregate,views,monthly,100,core,"en.wikipedia total user views (normaliser, not mapped)"
-owid.electoral_democracy,owid,electoral-democracy-index,owid:entity=World;col=electdem_vdem__estimate_best,index 0-1,annual,1100,core,Electoral democracy (V-Dem)
-owid.conflict_deaths,owid,deaths-in-armed-conflicts-by-region,owid:entity=World;col=number_deaths_ongoing_conflicts__conflict_type_all,count,annual,1100,core,Deaths in armed conflicts (UCDP)
-wb.unemployment,worldbank,SL.UEM.TOTL.ZS,wb:WLD,%,annual,1100,core,Unemployment (ILO modeled)
-owid.ai_private_investment,owid,private-investment-in-artificial-intelligence,owid:entity=World;col=private_investment,US$,annual,1100,core,Private AI investment
-owid.ai_company_adoption,owid,share-companies-using-artificial-intelligence,owid:entity=All geographies;col=pct_of_respondents,%,annual,1100,core,Companies using AI
-owid.frontiermath_best,owid,ai-frontiermath-over-time,owid:runmax;col=mean_score,%,monthly,120,core,FrontierMath best score to date
-owid.large_scale_ai_systems,owid,cumulative-number-of-large-scale-ai-systems-by-country,owid:entity=World;col=cumulative_count,count,annual,1100,candidate,"Large-scale AI systems (cumulative; cross-check, unmapped)"
-arxiv.cs_ai,arxiv,cs.AI,arxiv:monthly,count,monthly,100,core,arXiv cs.AI submissions
-pubmed.ai_biomed,pubmed,ai_biomed,pubmed:monthly,count,monthly,100,core,PubMed AI×biomed papers
-fedreg.ai_documents,fedreg,ai_documents,fedreg:monthly,count,monthly,100,core,US federal AI documents
-noaa.co2,noaa_gml,co2_mm_mlo,noaa:monthly,ppm,monthly,100,core,Mauna Loa CO₂ monthly mean
-ari.index,ari,report,ari:weekly,index 0-100,weekly,21,core,Agent Restriction Index (ARI)
-wb.EG_ELC_ACCS_ZS,worldbank,EG.ELC.ACCS.ZS,wb_geo,%,annual,1100,core,Access to electricity (% population)
-wb.SH_H2O_BASW_ZS,worldbank,SH.H2O.BASW.ZS,wb_geo,%,annual,1100,core,Basic drinking water (% population)
-wb.SH_IMM_IDPT,worldbank,SH.IMM.IDPT,wb_geo,%,annual,1100,core,DPT immunization (% infants)
-wb.SH_XPD_CHEX_GD_ZS,worldbank,SH.XPD.CHEX.GD.ZS,wb_geo,%,annual,1100,core,Health expenditure (% GDP)
-wb.SE_XPD_TOTL_GD_ZS,worldbank,SE.XPD.TOTL.GD.ZS,wb_geo,%,annual,1100,core,Government education spend (% GDP)
-wb.SI_POV_DDAY,worldbank,SI.POV.DDAY,wb_geo,%,annual,1100,core,Extreme poverty $2.15 (% population)
-wb.IT_CEL_SETS_P2,worldbank,IT.CEL.SETS.P2,wb_geo,per100,annual,1100,core,Mobile subscriptions (per 100 people)
-wb.IP_PAT_RESD,worldbank,IP.PAT.RESD,wb_geo,count,annual,1100,core,Patent applications by residents
-wb.VC_IHR_PSRC_P5,worldbank,VC.IHR.PSRC.P5,wb_geo,per100k,annual,1100,core,Intentional homicides (per 100k)
-wb.TX_VAL_TECH_CD,worldbank,TX.VAL.TECH.CD,wb_geo,US$,annual,1100,core,High-tech exports (US$)
-wb.GB_XPD_RSDV_GD_ZS,worldbank,GB.XPD.RSDV.GD.ZS,wb_geo,%,annual,1100,core,R&D expenditure (% GDP)
-owid_geo.share_of_individuals_using_the_internet,owid,share-of-individuals-using-the-internet,owid_geo:col=it_net_user_zs,%,annual,1100,core,Individuals using the internet (%)
-owid_geo.annual_healthcare_expenditure_per_capita,owid,annual-healthcare-expenditure-per-capita,owid_geo:col=sh_xpd_chex_pp_cd,US$,annual,1100,core,Health expenditure per capita (US$)
-owid_geo.researchers_in_rd_per_million_people,owid,researchers-in-rd-per-million-people,owid_geo:col=sp_pop_scie_rd_p6,per_million,annual,1100,core,Researchers in R&D (per million)
-owid_geo.per_capita_energy_use,owid,per-capita-energy-use,owid_geo:col=total_energy_supply_per_capita_kwh,kwh,annual,1100,core,Energy use per capita (kWh)
-owid_geo.solar_energy_consumption,owid,solar-energy-consumption,owid_geo:col=solar_generation__twh,twh,annual,1100,core,Solar generation (TWh)
-owid_geo.nuclear_energy_generation,owid,nuclear-energy-generation,owid_geo:col=nuclear_generation__twh,twh,annual,1100,core,Nuclear generation (TWh)
-owid_geo.terrorism_deaths,owid,terrorism-deaths,owid_geo:col=total_killed,count,annual,1100,core,Terrorism deaths
-owid_geo.deaths_from_natural_disasters,owid,deaths-from-natural-disasters,owid_geo:col=death_count__age_group_allages__sex_both_sexes__cause_natural_disasters,count,annual,1100,core,Deaths from natural disasters
-owid_geo.suicide_rate,owid,suicide-rate,owid_geo:col=death_rate100k__age_group_allages__sex_both_sexes__cause_self_harm,per100k,annual,1100,core,Suicide rate (per 100k)
-owid_geo.electoral_democracy_index,owid,electoral-democracy-index,owid_geo:col=electdem_vdem__estimate_best,index,annual,1100,core,Electoral democracy index (V-Dem)
-owid_geo.liberal_democracy_index,owid,liberal-democracy-index,owid_geo:col=libdem_vdem__estimate_best,index,annual,1100,core,Liberal democracy index (V-Dem)
-unsdg.sn_itk_defc,unsdg,SN_ITK_DEFC,unsdg_geo,%,annual,1100,core,Prevalence of undernourishment (%)
-unsdg.sn_itk_dfct,unsdg,SN_ITK_DFCT,unsdg_geo,%,annual,1100,core,Severe food insecurity (%)
-who.uhc_index_reported,who_gho,UHC_INDEX_REPORTED,who_geo,index,annual,1100,core,UHC service coverage index
-who.whs4_100,who_gho,WHS4_100,who_geo,%,annual,1100,core,DTP3 immunization coverage (%)
-ne.ne110,ne,ne110,ne_static:,,"daily",99999,candidate,Natural Earth 110m country polygons (map asset only)
-github.releases_year,github,releases,github:releases,count,annual,1100,core,AI repos: releases per year (GitHub)
-github.commits_month,github,commits,github:commits,count,monthly,100,core,AI repos: commits per month (GitHub)
-github.stars_snapshot,github,stars,github:stars,stars,daily,30,core,"AI repos: total stars, nightly snapshot (in-repo growth, not mapped)"
-github.tool_repos_month,github,tool_repos,github:tool_repos,count,monthly,100,core,"AI-tool repos created per month (GitHub topics llm · ai-agents · mcp · ai-tools)"
-github.lean_repos_month,github,lean_repos,github:lean_repos,count,monthly,100,core,Lean (formal-math) repos created per month (GitHub)
-github.mathlib_commits_month,github,mathlib,github:mathlib,count,monthly,100,core,"mathlib4 commits per month (formal-math library velocity, not mapped)"
-github.tool_stars_snapshot,github,tool_stars,github:tool_stars,stars,daily,30,core,"Tool-layer repos: total stars, nightly snapshot (in-repo growth, not mapped)"
+series_id,source_id,slug,extract,unit,cadence,max_age_days,stage,label,measures
+owid.extreme_poverty,owid,share-of-population-in-extreme-poverty,owid:entity=World;col=headcount_ratio__ppp_version_2021__poverty_line_300__welfare_type_income_or_consumption__table_income_or_consumption_consolidated__survey_comparability_no_spells,%,annual,1100,core,Extreme poverty ($3/day),world
+owid.life_expectancy,owid,life-expectancy,owid:entity=World;col=life_expectancy_0,years,annual,1100,core,Life expectancy,world
+wb.gdp_per_capita,worldbank,NY.GDP.PCAP.KD,wb:WLD,US$,annual,1100,core,GDP per capita (const. 2015 $),world
+epoch.open_weights_share,epoch,notable_ai_models,epoch:open_share,%,monthly,100,core,Open-weights share of notable models (12 mo),ai
+epoch.org_diversity,epoch,notable_ai_models,epoch:org_diversity,index 0-1,monthly,100,core,Organisation diversity of notable models (12 mo),ai
+epoch.country_diversity,epoch,notable_ai_models,epoch:country_diversity,index 0-1,monthly,100,core,Country diversity of notable models (12 mo),ai
+epoch.frontier_compute,epoch,notable_ai_models,epoch:frontier_compute,log10 FLOP,monthly,100,core,Largest training run (12 mo),ai
+owid.genai_user_share,owid,estimated-share-people-generative-ai,owid:entity=World;col=ai_user_share,%,daily,300,core,Share of people using generative AI,ai
+wiki.deepfake,wikimedia,Deepfake,wiki:monthly,views,monthly,100,core,Attention: Deepfake,ai
+wiki.synthetic_media,wikimedia,Synthetic_media,wiki:monthly,views,monthly,100,core,Attention: Synthetic media,ai
+wiki.ai_regulation,wikimedia,Regulation_of_artificial_intelligence,wiki:monthly,views,monthly,100,core,Attention: AI regulation,ai
+wiki.ai_xrisk,wikimedia,Existential_risk_from_artificial_intelligence,wiki:monthly,views,monthly,100,core,Attention: AI existential risk,ai
+wiki.agi,wikimedia,Artificial_general_intelligence,wiki:monthly,views,monthly,100,core,Attention: AGI,ai
+wiki.en_total,wikimedia,_aggregate,wiki:aggregate,views,monthly,100,core,"en.wikipedia total user views (normaliser, not mapped)",norm
+owid.electoral_democracy,owid,electoral-democracy-index,owid:entity=World;col=electdem_vdem__estimate_best,index 0-1,annual,1100,core,Electoral democracy (V-Dem),world
+owid.conflict_deaths,owid,deaths-in-armed-conflicts-by-region,owid:entity=World;col=number_deaths_ongoing_conflicts__conflict_type_all,count,annual,1100,core,Deaths in armed conflicts (UCDP),world
+wb.unemployment,worldbank,SL.UEM.TOTL.ZS,wb:WLD,%,annual,1100,core,Unemployment (ILO modeled),world
+owid.ai_private_investment,owid,private-investment-in-artificial-intelligence,owid:entity=World;col=private_investment,US$,annual,1100,core,Private AI investment,ai
+owid.ai_company_adoption,owid,share-companies-using-artificial-intelligence,owid:entity=All geographies;col=pct_of_respondents,%,annual,1100,core,Companies using AI,ai
+owid.frontiermath_best,owid,ai-frontiermath-over-time,owid:runmax;col=mean_score,%,monthly,120,core,FrontierMath best score to date,ai
+owid.large_scale_ai_systems,owid,cumulative-number-of-large-scale-ai-systems-by-country,owid:entity=World;col=cumulative_count,count,annual,1100,candidate,"Large-scale AI systems (cumulative; cross-check, unmapped)",ai
+arxiv.cs_ai,arxiv,cs.AI,arxiv:monthly,count,monthly,100,core,arXiv cs.AI submissions,ai
+pubmed.ai_biomed,pubmed,ai_biomed,pubmed:monthly,count,monthly,100,core,PubMed AI×biomed papers,ai
+fedreg.ai_documents,fedreg,ai_documents,fedreg:monthly,count,monthly,100,core,US federal AI documents,ai
+noaa.co2,noaa_gml,co2_mm_mlo,noaa:monthly,ppm,monthly,100,core,Mauna Loa CO₂ monthly mean,world
+ari.index,ari,report,ari:weekly,index 0-100,weekly,21,core,Agent Restriction Index (ARI),ai
+wb.EG_ELC_ACCS_ZS,worldbank,EG.ELC.ACCS.ZS,wb_geo,%,annual,1100,core,Access to electricity (% population),world
+wb.SH_H2O_BASW_ZS,worldbank,SH.H2O.BASW.ZS,wb_geo,%,annual,1100,core,Basic drinking water (% population),world
+wb.SH_IMM_IDPT,worldbank,SH.IMM.IDPT,wb_geo,%,annual,1100,core,DPT immunization (% infants),world
+wb.SH_XPD_CHEX_GD_ZS,worldbank,SH.XPD.CHEX.GD.ZS,wb_geo,%,annual,1100,core,Health expenditure (% GDP),world
+wb.SE_XPD_TOTL_GD_ZS,worldbank,SE.XPD.TOTL.GD.ZS,wb_geo,%,annual,1100,core,Government education spend (% GDP),world
+wb.SI_POV_DDAY,worldbank,SI.POV.DDAY,wb_geo,%,annual,1100,core,Extreme poverty $2.15 (% population),world
+wb.IT_CEL_SETS_P2,worldbank,IT.CEL.SETS.P2,wb_geo,per100,annual,1100,core,Mobile subscriptions (per 100 people),world
+wb.IP_PAT_RESD,worldbank,IP.PAT.RESD,wb_geo,count,annual,1100,core,Patent applications by residents,world
+wb.VC_IHR_PSRC_P5,worldbank,VC.IHR.PSRC.P5,wb_geo,per100k,annual,1100,core,Intentional homicides (per 100k),world
+wb.TX_VAL_TECH_CD,worldbank,TX.VAL.TECH.CD,wb_geo,US$,annual,1100,core,High-tech exports (US$),world
+wb.GB_XPD_RSDV_GD_ZS,worldbank,GB.XPD.RSDV.GD.ZS,wb_geo,%,annual,1100,core,R&D expenditure (% GDP),world
+wb.SP_POP_TOTL,worldbank,SP.POP.TOTL,wb_geo,count,annual,1100,core,"Population (World Bank — per-capita denominator for the atlas, not scored)",norm
+owid_geo.share_of_individuals_using_the_internet,owid,share-of-individuals-using-the-internet,owid_geo:col=it_net_user_zs,%,annual,1100,core,Individuals using the internet (%),world
+owid_geo.annual_healthcare_expenditure_per_capita,owid,annual-healthcare-expenditure-per-capita,owid_geo:col=sh_xpd_chex_pp_cd,US$,annual,1100,core,Health expenditure per capita (US$),world
+owid_geo.researchers_in_rd_per_million_people,owid,researchers-in-rd-per-million-people,owid_geo:col=sp_pop_scie_rd_p6,per_million,annual,1100,core,Researchers in R&D (per million),world
+owid_geo.per_capita_energy_use,owid,per-capita-energy-use,owid_geo:col=total_energy_supply_per_capita_kwh,kwh,annual,1100,core,Energy use per capita (kWh),world
+owid_geo.solar_energy_consumption,owid,solar-energy-consumption,owid_geo:col=solar_generation__twh,twh,annual,1100,core,Solar generation (TWh),world
+owid_geo.nuclear_energy_generation,owid,nuclear-energy-generation,owid_geo:col=nuclear_generation__twh,twh,annual,1100,core,Nuclear generation (TWh),world
+owid_geo.terrorism_deaths,owid,terrorism-deaths,owid_geo:col=total_killed,count,annual,1100,core,Terrorism deaths,world
+owid_geo.deaths_from_natural_disasters,owid,deaths-from-natural-disasters,owid_geo:col=death_count__age_group_allages__sex_both_sexes__cause_natural_disasters,count,annual,1100,core,Deaths from natural disasters,world
+owid_geo.suicide_rate,owid,suicide-rate,owid_geo:col=death_rate100k__age_group_allages__sex_both_sexes__cause_self_harm,per100k,annual,1100,core,Suicide rate (per 100k),world
+owid_geo.deaths_in_armed_conflicts_by_country,owid,deaths-in-armed-conflicts-by-country,owid_geo:col=number_deaths_ongoing_conflicts__conflict_type_all,count,annual,1100,core,"Deaths in armed conflicts, where they occurred (UCDP)",world
+owid_geo.electoral_democracy_index,owid,electoral-democracy-index,owid_geo:col=electdem_vdem__estimate_best,index,annual,1100,core,Electoral democracy index (V-Dem),world
+owid_geo.liberal_democracy_index,owid,liberal-democracy-index,owid_geo:col=libdem_vdem__estimate_best,index,annual,1100,core,Liberal democracy index (V-Dem),world
+unsdg.sn_itk_defc,unsdg,SN_ITK_DEFC,unsdg_geo,%,annual,1100,core,Prevalence of undernourishment (%),world
+unsdg.sn_itk_dfct,unsdg,SN_ITK_DFCT,unsdg_geo,%,annual,1100,core,Severe food insecurity (%),world
+who.uhc_index_reported,who_gho,UHC_INDEX_REPORTED,who_geo,index,annual,1100,core,UHC service coverage index,world
+who.whs4_100,who_gho,WHS4_100,who_geo,%,annual,1100,core,DTP3 immunization coverage (%),world
+ne.ne110,ne,ne110,ne_static:,,daily,99999,candidate,Natural Earth 110m country polygons (map asset only),world
+github.releases_year,github,releases,github:releases,count,annual,1100,core,AI repos: releases per year (GitHub),ai
+github.commits_month,github,commits,github:commits,count,monthly,100,core,AI repos: commits per month (GitHub),ai
+github.stars_snapshot,github,stars,github:stars,stars,daily,30,core,"AI repos: total stars, nightly snapshot (in-repo growth, not mapped)",ai
+github.tool_repos_month,github,tool_repos,github:tool_repos,count,monthly,100,core,AI-tool repos created per month (GitHub topics llm · ai-agents · mcp · ai-tools),ai
+github.lean_repos_month,github,lean_repos,github:lean_repos,count,monthly,100,core,Lean (formal-math) repos created per month (GitHub),world
+github.mathlib_commits_month,github,mathlib,github:mathlib,count,monthly,100,core,"mathlib4 commits per month (formal-math library velocity, not mapped)",world
+github.tool_stars_snapshot,github,tool_stars,github:tool_stars,stars,daily,30,core,"Tool-layer repos: total stars, nightly snapshot (in-repo growth, not mapped)",ai
+github.all_repos_month,github,all_repos,github:all_repos,count,monthly,100,core,"All new public repos per month (GitHub — the platform's own growth; normaliser, not mapped)",norm

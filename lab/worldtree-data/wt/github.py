@@ -12,6 +12,12 @@ Method 0.5.0 (M10, the tool ecosystem co-evolving with the models) — same buck
 - lean_repos: GET /search/repositories?q=language:Lean+created:{month}&per_page=1 — new formal-math (Lean) repos per month.
 - mathlib:    GET /search/commits?q=repo:leanprover-community/mathlib4+committer-date:{month} — formal-math library velocity.
 - tool_stars: GET /repos/{r} — nightly stargazers_count of the tool layer (MCP, agent frameworks, tool-use benchmarks).
+Method 0.6.0 (M8 honesty review):
+- all_repos:  GET /search/repositories?q=is:public+created:{month}&per_page=1 — every new public repo that month (forks
+  excluded, like the topic counts): GitHub's own growth, the denominator the repo counts are normalised by (it went
+  ×1.14 a year 2023→24, ×1.40 2024→25, ×2.25 2025-09→2026-09 — a raw count would score the platform, not the tools).
+- releases gain a bot count: a release whose author is a GitHub App bot (type Bot) or a machine account named *-bot
+  (stainless-bot) was cut by automation (SDK generators, CI) — counted, and disclosed per year.
 """
 import calendar
 import datetime as dt
@@ -60,6 +66,8 @@ TOOL_TOPICS = {
            "repos created before that and tagged mcp are older AI projects that added MCP later — retro-tagging, B16)",
     "ai-tools": "tools made for AI use or with AI, self-described",
 }
+ALL_REPOS = "is:public"  # 0.6.0: the platform total — `is:public` is a no-op filter (search only sees public repos;
+# probe 2025-09: 5,345,649 vs 5,345,656 unqualified, minutes apart) that keeps the qualifier+created URL shape
 LEAN = "language:Lean"  # formal mathematics + proof engineering: the medium AI provers work in (AlphaProof-era signal)
 MATHLIB = "leanprover-community/mathlib4"  # the formal-math library every Lean prover is checked against
 # tool layer, nightly stars only (no history: growth observed since 2026-10, never world-mapped) — one reason line each
@@ -115,6 +123,7 @@ COUNTS = {
     "tool_repos": ([f"topic:{t}" for t in TOOL_TOPICS], repos_url),
     "lean_repos": ([LEAN], repos_url),
     "mathlib": ([MATHLIB], commits_url),
+    "all_repos": ([ALL_REPOS], repos_url),
 }
 
 
@@ -162,8 +171,18 @@ def search_count(body: bytes):
     return v
 
 
-def parse_releases(body: bytes):
-    """Release-list page → [(id, published_at date, prerelease)] (drafts are never public); None if unparseable."""
+BOT_LOGIN = re.compile(r"(\[bot\]|-bot)$", re.I)
+
+
+def is_bot(author):
+    """A release cut by automation: a GitHub App bot (type Bot) or a machine account named *-bot (stainless-bot)."""
+    a = author or {}
+    return a.get("type") == "Bot" or bool(BOT_LOGIN.search(a.get("login") or ""))
+
+
+def parse_releases(body: bytes, bots=False):
+    """Release-list page → [(id, published_at date, prerelease)] (+ bot flag when bots) (drafts are never public);
+    None if unparseable."""
     try:
         d = json.loads(body)
     except ValueError:
@@ -175,7 +194,7 @@ def parse_releases(body: bytes):
         p = r.get("published_at") or r.get("created_at")
         if r.get("draft") or not p:
             continue
-        out.append((r["id"], p[:10], bool(r.get("prerelease"))))
+        out.append((r["id"], p[:10], bool(r.get("prerelease"))) + ((is_bot(r.get("author")),) if bots else ()))
     return out
 
 
@@ -281,7 +300,7 @@ def _newest_by_url(metas):
 
 
 def release_history(metas, read):
-    """→ ({repo: {id: (date, pre)}}, {repo: complete?}, used sidecars). Union by id over every stored page;
+    """→ ({repo: {id: (date, pre, bot)}}, {repo: complete?}, used sidecars). Union by id over every stored page;
     a repo counts only if some stored page had < 100 items (history reaches its first release)."""
     rel, complete, used = defaultdict(dict), defaultdict(bool), []
     for m in sorted(metas, key=lambda m: (m["retrieved_at"], m["path"])):  # newer snapshot overwrites
@@ -289,20 +308,20 @@ def release_history(metas, read):
         if r not in REPOS or r in RELEASES_SKIP:
             continue
         body = read(m)
-        items = parse_releases(body)
+        items = parse_releases(body, bots=True)
         if items is None:
             continue
         used.append(m)
         if len(json.loads(body)) < PAGE:
             complete[r] = True
-        for i, d, pre in items:
-            rel[r][i] = (d, pre)
+        for i, d, pre, bot in items:
+            rel[r][i] = (d, pre, bot)
     return rel, complete, used
 
 
 def x_releases(metas, read, as_of):
-    """Per complete year: (period, date, value, sha, [n_repos, n_prerelease, median_gap_days]) — summed over the
-    repos whose history is proven complete; the in-progress year is never emitted (its Dec-31 is after as_of)."""
+    """Per complete year: (period, date, value, sha, [n_repos, n_prerelease, median_gap_days, n_bot]) — summed over
+    the repos whose history is proven complete; the in-progress year is never emitted (its Dec-31 is after as_of)."""
     rel, complete, used = release_history(metas, read)
     if not used:
         return []
@@ -311,9 +330,9 @@ def x_releases(metas, read, as_of):
     for r, items in rel.items():
         if not complete[r]:
             continue
-        ds = sorted(d for d, _ in items.values())
+        ds = sorted(d for d, _, _ in items.values())
         pre = {d: 0 for d in ds}
-        for d, p in items.values():
+        for d, p, _ in items.values():
             pre[d] += p
         for d in ds:
             years[int(d[:4])].append((r, d, pre[d]))
@@ -328,9 +347,10 @@ def x_releases(metas, read, as_of):
         for r, d, _ in rows:
             by[r].append(dt.date.fromisoformat(d))
         gaps = [(b - a).days for ds in by.values() for a, b in zip(sorted(ds), sorted(ds)[1:])]
-        n_pre = sum(1 for r in rel if complete[r] for d, p in rel[r].values() if p and d[:4] == str(y))
+        n_pre = sum(1 for r in rel if complete[r] for d, p, _ in rel[r].values() if p and d[:4] == str(y))
+        n_bot = sum(1 for r in rel if complete[r] for d, _, b in rel[r].values() if b and d[:4] == str(y))
         med = statistics.median(gaps) if gaps else ""
-        out.append((str(y), date, len(rows), sha, [len(by), n_pre, med]))
+        out.append((str(y), date, len(rows), sha, [len(by), n_pre, med, n_bot]))
     return out
 
 
@@ -417,12 +437,12 @@ def x_month_counts(metas, read, as_of, month_end, keys, per_key=False):
 
 
 STARS_META = [f"stars_{slug(r)}" for r in REPOS]
-RELEASES_META = ["n_repos", "n_prerelease", "median_gap_days"]
+RELEASES_META = ["n_repos", "n_prerelease", "median_gap_days", "n_bot"]
 COMMITS_META = ["n_repos"]
 TOOL_STARS_META = [f"stars_{slug(r)}" for r in TOOL_REPOS]
 TOOL_REPOS_META = [f"topic_{t.replace('-', '_')}" for t in TOOL_TOPICS]
 META = {"releases": RELEASES_META, "commits": COMMITS_META, "stars": STARS_META, "tool_stars": TOOL_STARS_META,
-        "tool_repos": TOOL_REPOS_META, "lean_repos": [], "mathlib": []}
+        "tool_repos": TOOL_REPOS_META, "lean_repos": [], "mathlib": [], "all_repos": []}
 
 
 def rows_of(what, metas, read, as_of, month_end):
@@ -445,7 +465,8 @@ PROV_FILE = "github-trends.provenance.json"
 
 
 TOOLS_SERIES = ["series/github.tool_repos_month.csv", "series/github.lean_repos_month.csv",
-                "series/github.mathlib_commits_month.csv", "series/github.tool_stars_snapshot.csv"]
+                "series/github.mathlib_commits_month.csv", "series/github.tool_stars_snapshot.csv",
+                "series/github.all_repos_month.csv"]
 
 
 def tools_block(as_of, metas_of, read, month_end):
@@ -454,13 +475,15 @@ def tools_block(as_of, metas_of, read, month_end):
     (`months` < 12 = the year in progress or a backfill still filling)."""
     def upto(kind):
         return [m for m in metas_of(kind) if m["retrieved_at"][:10] <= as_of]
-    tr, lr, mr, ts = upto("tool_repos"), upto("lean_repos"), upto("mathlib"), upto("tool_stars")
+    tr, lr, mr, ts, ar = upto("tool_repos"), upto("lean_repos"), upto("mathlib"), upto("tool_stars"), upto("all_repos")
     keys = COUNTS["tool_repos"][0]
     trow = x_month_counts(tr, read, as_of, month_end, keys, per_key=True)
     lrow = x_month_counts(lr, read, as_of, month_end, COUNTS["lean_repos"][0])
     mrow = x_month_counts(mr, read, as_of, month_end, COUNTS["mathlib"][0])
     srow = x_stars(ts, read, as_of, TOOL_REPOS)
+    arow = x_month_counts(ar, read, as_of, month_end, COUNTS["all_repos"][0])
     used = ([v[1] for v in month_counts(tr, read, keys).values()]
+            + [v[1] for v in month_counts(ar, read, COUNTS["all_repos"][0]).values()]
             + [v[1] for v in month_counts(lr, read, COUNTS["lean_repos"][0]).values()]
             + [v[1] for v in month_counts(mr, read, COUNTS["mathlib"][0]).values()] + ts)
     topics = list(TOOL_TOPICS)
@@ -479,6 +502,7 @@ def tools_block(as_of, metas_of, read, month_end):
         "tool_repos_by_year": [years[y] for y in sorted(years)],
         "lean_repos_by_month": [{"month": p, "repos": int(v)} for p, _, v, _, _ in lrow],
         "mathlib_commits_by_month": [{"month": p, "commits": int(v)} for p, _, v, _, _ in mrow],
+        "all_repos_by_month": [{"month": p, "repos": int(v)} for p, _, v, _, _ in arow],
         "repos": [{"repo": r, "why": TOOL_REPOS[r]} for r in TOOL_REPOS],
         "stars": dict(zip(TOOL_REPOS, srow[-1][4])) if srow else {},
         "stars_by_night": [{"date": p, "total": int(v)} for p, _, v, _, _ in srow],
@@ -498,6 +522,10 @@ def tools_block(as_of, metas_of, read, month_end):
             "total_count). Its 2023 peak is the mathlib3 → mathlib4 port, so it is drawn as velocity and not mapped.",
             "Tool stars: nightly stargazers_count of the tool layer (MCP servers + SDKs + registry, agent frameworks, "
             "tool-use benchmarks, mathlib4) — growth observed since 2026-10 only, so not mapped.",
+            "GitHub itself (method 0.6.0): all_repos_by_month = every new public repository a month (forks excluded, the "
+            "same rule as the topic counts). The platform's own growth sped up — ×1.14 a year 2023→24, ×1.40 2024→25, "
+            "×2.25 2025-09→2026-09 — so a raw repo count partly measures GitHub. The world method scores tool and Lean "
+            "repos per million new repos (their share of everything built); the curves here stay raw counts.",
         ],
     }, used
 
@@ -509,7 +537,7 @@ def trends(as_of, metas_of, read, month_end, method_version):
     rows = x_releases([m for m in rm if m["retrieved_at"][:10] <= as_of], read, as_of)
     per_repo = {r: {} for r in rel if complete[r]}
     for r in per_repo:
-        for d, _ in rel[r].values():
+        for d, _, _ in rel[r].values():
             if f"{d[:4]}-12-31" <= as_of:
                 per_repo[r][d[:4]] = per_repo[r].get(d[:4], 0) + 1
     cc = commit_counts([m for m in cm if m["retrieved_at"][:10] <= as_of], read)
@@ -533,7 +561,8 @@ def trends(as_of, metas_of, read, month_end, method_version):
                                ("counted" if complete.get(r) else "pending: history not yet proven complete"),
                    "commit_months": months_have.get(r, 0)} for r in REPOS],
         "releases_by_year": [{"year": int(p), "releases": int(v), "repos_releasing": meta[0],
-                              "prereleases": meta[1], "median_gap_days": meta[2]} for p, _, v, _, meta in rows],
+                              "prereleases": meta[1], "median_gap_days": meta[2], "bot_releases": meta[3]}
+                             for p, _, v, _, meta in rows],
         "releases_by_repo_year": per_repo,
         "commits_by_month": [{"month": p, "commits": int(v)} for p, _, v, _, _ in crow],
         "stars": stars,
@@ -546,7 +575,12 @@ def trends(as_of, metas_of, read, month_end, method_version):
             "Stars: nightly stargazers_count snapshots — growth observed since 2026-10 only; star history before that "
             "is not reconstructed (pagination-prohibitive keyless).",
             "Bias B15 (survivorship): the repo set is today's winners, chosen in 2026; repos born after 2019 add to "
-            "the totals from their first release — ecosystem growth includes repo births by design.",
+            "the totals from their first release — ecosystem growth includes repo births by design. The like-for-like "
+            "view is releases_by_repo_year: the repos that released in both years compared.",
+            "Bots (method 0.6.0): bot_releases counts the releases a year cut by automation — GitHub App bots (author "
+            "type Bot: stainless-app[bot], github-actions[bot], openai-sdks[bot]) and the stainless-bot machine account "
+            "(the Stainless SDK generator). They are real releases, but each merged API change can become one, so they "
+            "measure release tooling as much as shipping speed.",
         ],
         "tools": tools,
         "provenance": {

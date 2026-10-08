@@ -6,22 +6,23 @@ utopia,wb.SH_XPD_CHEX_GD_ZS,+1,1,rank_geo,,society,societal investment in health
 utopia,wb.SE_XPD_TOTL_GD_ZS,+1,1,rank_geo,,society,investment in the next generation's capability
 utopia,wb.SI_POV_DDAY,-1,2,rank_geo,,economy,the direct material-deprivation count
 divergence,wb.IT_CEL_SETS_P2,+1,1,rank_geo,,tech,connectivity spreads capability beyond the few
-divergence,wb.IP_PAT_RESD,+1,2,rank_geo,,tech,domestic inventive activity outside the few labs
-stagnation,wb.IP_PAT_RESD,+1,1,rank_geo,,tech,resident patenting momentum vs stagnation
+divergence,wb.IP_PAT_RESD,+1,2,rank_geo,percap=wb.SP_POP_TOTL,tech,domestic inventive activity outside the few labs
+stagnation,wb.IP_PAT_RESD,-1,1,rank_geo,percap=wb.SP_POP_TOTL,tech,resident patenting momentum vs stagnation (fewer patents = closer to the stall; sign fixed 0.6.0)
 terminus,wb.VC_IHR_PSRC_P5,+1,2,rank_geo,,society,lethal violence
-divergence,wb.TX_VAL_TECH_CD,+1,1,rank_geo,,tech,advanced capability spreading through trade
-transcendence,wb.TX_VAL_TECH_CD,+1,1,rank_geo,,tech,frontier-adjacent output in the economy
-stagnation,wb.GB_XPD_RSDV_GD_ZS,+1,1,rank_geo,,tech,investment against the stall
+divergence,wb.TX_VAL_TECH_CD,+1,1,rank_geo,percap=wb.SP_POP_TOTL,tech,advanced capability spreading through trade
+transcendence,wb.TX_VAL_TECH_CD,+1,1,rank_geo,percap=wb.SP_POP_TOTL,tech,frontier-adjacent output in the economy
+stagnation,wb.GB_XPD_RSDV_GD_ZS,-1,1,rank_geo,,tech,investment against the stall (less R&D = closer to the stall; sign fixed 0.6.0)
 divergence,owid_geo.share_of_individuals_using_the_internet,+1,2,rank_geo,,tech,the network escapes the few
 utopia,owid_geo.annual_healthcare_expenditure_per_capita,+1,1,rank_geo,,society,health investment per person
 divergence,owid_geo.researchers_in_rd_per_million_people,+1,1,rank_geo,,tech,many minds at work
-stagnation,owid_geo.researchers_in_rd_per_million_people,+1,1,rank_geo,,tech,research workforce vs the stall
+stagnation,owid_geo.researchers_in_rd_per_million_people,-1,1,rank_geo,,tech,research workforce vs the stall (fewer researchers = closer to the stall; sign fixed 0.6.0)
 utopia,owid_geo.per_capita_energy_use,+1,1,rank_geo,,economy,energy abundance
-utopia,owid_geo.solar_energy_consumption,+1,1,rank_geo,,environment,cheap clean energy scaling
-utopia,owid_geo.nuclear_energy_generation,+1,1,rank_geo,,environment,dense clean energy
-terminus,owid_geo.terrorism_deaths,+1,2,rank_geo,,geopolitics,terror's toll
-terminus,owid_geo.deaths_from_natural_disasters,+1,1,rank_geo,,environment,nature's toll
+utopia,owid_geo.solar_energy_consumption,+1,1,rank_geo,percap=wb.SP_POP_TOTL,environment,cheap clean energy scaling
+utopia,owid_geo.nuclear_energy_generation,+1,1,rank_geo,percap=wb.SP_POP_TOTL,environment,dense clean energy
+terminus,owid_geo.terrorism_deaths,+1,2,rank_geo,percap=wb.SP_POP_TOTL,geopolitics,terror's toll
+terminus,owid_geo.deaths_from_natural_disasters,+1,1,rank_geo,percap=wb.SP_POP_TOTL,environment,nature's toll
 terminus,owid_geo.suicide_rate,+1,1,rank_geo,,society,despair's toll
+terminus,owid_geo.deaths_in_armed_conflicts_by_country,+1,2,rank_geo,percap=wb.SP_POP_TOTL,geopolitics,"war where it happens (UCDP, per person) — the world tree's terminus driver, drawn country by country; it measures war, not AI (added 0.6.0)"
 control,owid_geo.electoral_democracy_index,+1,2,rank_geo,,society,the ballot as leash
 control,owid_geo.liberal_democracy_index,+1,1,rank_geo,,society,rights as leash
 utopia,unsdg.sn_itk_defc,-1,2,rank_geo,,economy,"hunger, counted"

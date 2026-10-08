@@ -1,0 +1,23 @@
+{
+ "attribution": "GitHub REST API (api.github.com, keyless: 60 core req/h + 10 search req/min — no token by design)",
+ "bytes": 7864,
+ "content_type": "application/json",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://api.github.com/search/commits?q=repo:huggingface/transformers+committer-date:2024-02-01..2024-02-29&per_page=1",
+ "http_status": 200,
+ "license": "GitHub ToS — counts are facts; metadata via public API",
+ "license_url": "https://docs.github.com/site-policy/github-terms/github-terms-of-service",
+ "path": "raw/github/commits/20261004T183155Z.json",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-04T18:31:55Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "941e358c56818bc53a205fb5e96978e68868325a9fbf723bd856c0370fc3f0dd",
+ "slug": "commits",
+ "source_id": "github",
+ "stored_bytes": true,
+ "upstream_next_update": null,
+ "upstream_updated": null,
+ "url": "https://api.github.com/search/commits?q=repo:huggingface/transformers+committer-date:2024-02-01..2024-02-29&per_page=1"
+}

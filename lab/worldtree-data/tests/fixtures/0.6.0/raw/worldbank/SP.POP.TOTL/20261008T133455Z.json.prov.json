@@ -1,0 +1,23 @@
+{
+ "attribution": "World Bank, World Development Indicators (CC BY 4.0)",
+ "bytes": 3512353,
+ "content_type": "application/json",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://api.worldbank.org/v2/country/all/indicator/SP.POP.TOTL?format=json&per_page=25000",
+ "http_status": 200,
+ "license": "CC BY 4.0",
+ "license_url": "https://creativecommons.org/licenses/by/4.0/",
+ "path": "raw/worldbank/SP.POP.TOTL/20261008T133455Z.json",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-08T13:34:55Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "27950884766c00c60f7ce5c25ee1882c264b6e5597e1511016579dd034998d54",
+ "slug": "SP.POP.TOTL",
+ "source_id": "worldbank",
+ "stored_bytes": true,
+ "upstream_next_update": null,
+ "upstream_updated": "2026-07-13",
+ "url": "https://api.worldbank.org/v2/country/all/indicator/SP.POP.TOTL?format=json&per_page=25000"
+}

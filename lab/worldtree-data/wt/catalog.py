@@ -8,6 +8,7 @@ GEO_TRANSFORMS = {"rank_geo"}
 DIMENSIONS = {"tech", "geopolitics", "economy", "environment", "society"}
 CADENCES = {"annual", "monthly", "weekly", "daily"}
 STAGES = {"core", "m3", "candidate"}
+MEASURES = {"ai", "world", "norm"}  # 0.6.0: what a series measures — AI itself, the world AI lands in, or a denominator
 
 
 def check():
@@ -28,6 +29,8 @@ def check():
             errs.append(f"series {sid}: bad stage {s['stage']}")
         if not s["max_age_days"].isdigit():
             errs.append(f"series {sid}: bad max_age_days")
+        if s.get("measures") not in MEASURES:
+            errs.append(f"series {sid}: measures must be ai|world|norm (got {s.get('measures')!r})")
     realms_of = defaultdict(set)
     for i, r in enumerate(mapping, 2):
         where = f"mapping.csv line {i}"
@@ -52,6 +55,11 @@ def check():
             params = {}
         if params.get("unborn", "drop") != "drop":
             errs.append(f"{where}: unborn must be 'drop'")
+        n = params.get("norm")
+        if n and n != "total" and (n not in series or series[n].get("measures") != "norm"):
+            errs.append(f"{where}: norm must be 'total' or a measures=norm series (got {n!r})")
+        if series.get(r["series_id"], {}).get("measures") == "norm":
+            errs.append(f"{where}: a normaliser series is never mapped ({r['series_id']})")
         if r["realm"] in realms_of[r["series_id"]]:
             errs.append(f"{where}: duplicate {r['realm']}/{r['series_id']}")
         realms_of[r["series_id"]].add(r["realm"])
@@ -69,6 +77,9 @@ def check():
             errs.append(f"{where}: geo rows use transform rank_geo (got {r['transform']!r})")
         if r["dimension"] not in DIMENSIONS:
             errs.append(f"{where}: unknown dimension {r['dimension']!r}")
+        pc = parse_params(r["params"]).get("percap")
+        if pc and (pc not in series or series[pc].get("measures") != "norm"):
+            errs.append(f"{where}: percap must name a measures=norm series (got {pc!r})")
         realms_of[r["series_id"]].add(r["realm"])
     for sid, rs in realms_of.items():
         if len(rs) > 2:

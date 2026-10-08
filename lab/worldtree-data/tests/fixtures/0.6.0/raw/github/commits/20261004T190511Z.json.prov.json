@@ -1,0 +1,23 @@
+{
+ "attribution": "GitHub REST API (api.github.com, keyless: 60 core req/h + 10 search req/min — no token by design)",
+ "bytes": 7693,
+ "content_type": "application/json",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://api.github.com/search/commits?q=repo:openai/openai-python+committer-date:2022-02-01..2022-02-28&per_page=1",
+ "http_status": 200,
+ "license": "GitHub ToS — counts are facts; metadata via public API",
+ "license_url": "https://docs.github.com/site-policy/github-terms/github-terms-of-service",
+ "path": "raw/github/commits/20261004T190511Z.json",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-04T19:05:11Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "07d41ef19269205af9076c3b96033739857eba2fcea5bc891cd82d24f99d6f9d",
+ "slug": "commits",
+ "source_id": "github",
+ "stored_bytes": true,
+ "upstream_next_update": null,
+ "upstream_updated": null,
+ "url": "https://api.github.com/search/commits?q=repo:openai/openai-python+committer-date:2022-02-01..2022-02-28&per_page=1"
+}

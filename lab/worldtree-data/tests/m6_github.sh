@@ -38,7 +38,14 @@ print(f"releases/yr 2019 → 2025: {r[2019]['value']} → {r[2025]['value']} (×
 print(f"mean {first[0]}-{first[-1]} {mf:.1f} vs {last[0]}-{last[-1]} {ml:.1f} → ×{ml/mf:.1f} (gate > 3×)")
 assert ml > 3 * mf
 pr = lambda y: int(r[y]['value']) / max(1, int(r[y]['n_repos']))
-print(f"per releasing repo {first[0]} {pr(first[0]):.1f} → {last[-1]} {pr(last[-1]):.1f} (×{pr(last[-1])/pr(first[0]):.1f}; growth net of repo births)")
+print(f"per releasing repo {first[0]} {pr(first[0]):.1f} → {last[-1]} {pr(last[-1]):.1f} (×{pr(last[-1])/pr(first[0]):.1f}; still composition — not net of births)")
+t = json.load(open('out/github-trends.json'))  # 0.6.0 (M8): the like-for-like + bot share the page shows beside the ×
+ry = t['releases_by_repo_year']; a, b = '2019', str(ys[-1])
+same = [k for k in ry if ry[k].get(a, 0) > 0 and ry[k].get(b, 0) > 0]
+sa, sb = sum(ry[k][a] for k in same), sum(ry[k][b] for k in same)
+lb = int(r[ys[-1]]['value']); bots = int(r[ys[-1]]['n_bot'])
+print(f"like for like {a} → {b}: the {len(same)} repos releasing in both {sa} → {sb} (×{sb/sa:.1f}); {lb - sb} of {b}'s {lb} from repos with no {a} release; {bots} ({100*bots/lb:.0f}%) cut by bots")
+assert len(same) >= 2 and 'bot_releases' in t['releases_by_year'][-1]
 print(f"median days between releases {first[0]} {r[first[0]]['median_gap_days']} → {last[-1]} {r[last[-1]]['median_gap_days']}")
 c = list(csv.DictReader(open('series/github.commits_month.csv')))
 a = sum(int(x['value']) for x in c[:12]); b = sum(int(x['value']) for x in c[-12:])

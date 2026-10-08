@@ -1,0 +1,23 @@
+{
+ "attribution": "UN Statistics Division, SDG Global Database (unstats.un.org/sdgapi) — reuse with attribution",
+ "bytes": 3164559,
+ "content_type": "application/json",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://unstats.un.org/sdgapi/v1/sdg/Series/Data?seriesCode=SN_ITK_DEFC&pageSize=20000",
+ "http_status": 200,
+ "license": "UN terms (free reuse w/ attribution)",
+ "license_url": "https://www.un.org/en/about-us/terms-of-use",
+ "path": "raw/unsdg/SN_ITK_DEFC/20261004T170333Z.json",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-04T17:03:33Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "9ddb508aa5a0312a8efc86da66ad1ad87c00ee4a95fd11f948e4c3637405cd65",
+ "slug": "SN_ITK_DEFC",
+ "source_id": "unsdg",
+ "stored_bytes": true,
+ "upstream_next_update": null,
+ "upstream_updated": null,
+ "url": "https://unstats.un.org/sdgapi/v1/sdg/Series/Data?seriesCode=SN_ITK_DEFC&pageSize=20000"
+}

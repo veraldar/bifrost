@@ -34,6 +34,8 @@ def bias_ids(sid, s, transform):
         b += ["B4"]
     if sid == "owid.conflict_deaths":
         b += ["B5"]
+    if sid == "owid.life_expectancy":  # 0.6.0: a lag-1 rebound after a shock reads as a beyond-trend gain
+        b += ["B17"]
     if s["cadence"] == "annual":
         b += ["B6"]
     if transform == "logistic_delta":
@@ -54,6 +56,8 @@ def bias_ids(sid, s, transform):
         b += ["B15"]
     if transform.startswith("rank_"):
         b += ["B11"]
+    if s.get("measures") == "world":  # 0.6.0: a condition of the world AI lands in, not a measure of AI itself
+        b += ["B18"]
     return b
 
 
@@ -116,8 +120,19 @@ def compute(as_of, run_id, updated, cut=None):
     feed_ids = list(OrderedDict((r["series_id"], 1) for r in mapping))
     mapping = [r for r in mapping if r["series_id"] not in unborn]
     w_map = {k: sum(int(r["weight"]) for r in mapping if r["realm"] == k) for k in REALMS}
-    total_rows = cut_rows("wiki.en_total", cut)[0]
-    total_meta = snapshot("wikimedia", series["wiki.en_total"]["slug"], "json", as_of)[1]
+    # normalisers (`norm=` param): `total` = wiki.en_total (0.1.0), else the named series (0.6.0: github.all_repos_month)
+    norms = {}
+
+    def norm_of(n):
+        nid = "wiki.en_total" if n == "total" else n
+        if nid not in norms:
+            sn = series[nid]
+            try:
+                meta_n = snapshot(sn["source_id"], sn["slug"], ext_of(sn), as_of)[1]
+            except FileNotFoundError:  # no denominator stored yet ⇒ no normalised value (the row is excluded), never raw
+                meta_n = None
+            norms[nid] = (cut_rows(nid, cut)[0] if meta_n else [], meta_n)
+        return norms[nid]
 
     per_realm = {k: {"used": [], "excluded": []} for k in REALMS}
     snaps_used = {}
@@ -147,9 +162,9 @@ def compute(as_of, run_id, updated, cut=None):
             per_realm[realm]["excluded"].append({"series_id": sid, "reason": "snapshot_age",
                                                  "detail": f"snapshot {snap_age} d old > {SNAPSHOT_MAX_AGE} d"})
             continue
-        norm = params.get("norm") == "total"
+        norm = norm_of(params["norm"]) if params.get("norm") else None
         try:
-            res = M.score(r["transform"], rows, s["cadence"], params, direction, total_rows if norm else None)
+            res = M.score(r["transform"], rows, s["cadence"], params, direction, norm[0] if norm else None)
         except M.Excluded as e:
             gate(e.reason, scope, False, e.detail)
             per_realm[realm]["excluded"].append({"series_id": sid, "reason": e.reason, "detail": e.detail})
@@ -171,7 +186,7 @@ def compute(as_of, run_id, updated, cut=None):
             cite = next(m for m in reversed(by_month[(y, mo)]) if m["sha256"] in shas)
         snaps_used[cite["path"]] = cite
         if norm:
-            snaps_used[total_meta["path"]] = total_meta
+            snaps_used[norm[1]["path"]] = norm[1]
         per_realm[realm]["used"].append({
             "series_id": sid, "source_id": s["source_id"], "label": s["label"],
             "direction": direction, "weight": int(r["weight"]), "transform": r["transform"], "params": r["params"],
@@ -180,7 +195,7 @@ def compute(as_of, run_id, updated, cut=None):
             "latest_period": rows[-1][0], "latest_date": rows[-1][1], "latest_value": num_out(rows[-1][2]),
             "unit": s["unit"],
             "series_path": f"series/{sid}.csv", "series_sha256": series_sha,
-            "snapshot": snap_ref(cite), "norm_snapshot": snap_ref(total_meta) if norm else None,
+            "snapshot": snap_ref(cite), "norm_snapshot": snap_ref(norm[1]) if norm else None,
             "source_url": cite["url"], "license": cite["license"], "attribution": cite["attribution"],
             "bias": bias_ids(sid, s, r["transform"]),
         })
@@ -198,6 +213,18 @@ def compute(as_of, run_id, updated, cut=None):
             i["contribution"] = round(M.contribution(i["weight"], i["score"], a["mass"], a["w_used"]), 4)
         agg[k], e[k] = a, round(a["evidence"], 4)
     weights = M.largest_remainder(e)
+    # method 0.6.0 — the STRICT AI lens: the same aggregation over only the indicators whose series measures AI itself
+    # (catalog/series.csv `measures=ai`); world-condition series (`measures=world`) are left out, W_map shrinks with
+    # them, a realm with no AI-specific indicator rests at neutral (e = 0.5). Never published as the headline.
+    is_ai = lambda sid: series[sid].get("measures") == "ai"
+    w_map_ai = {k: sum(int(r["weight"]) for r in mapping if r["realm"] == k and is_ai(r["series_id"])) for k in REALMS}
+    agg_ai, e_ai = {}, {}
+    for k in REALMS:
+        used_ai = [i for i in per_realm[k]["used"] if is_ai(i["series_id"])]
+        agg_ai[k] = M.aggregate([(i["weight"], i["score"]) for i in used_ai], w_map_ai[k])
+        agg_ai[k]["series"] = [i["series_id"] for i in used_ai]
+        e_ai[k] = round(agg_ai[k]["evidence"], 4)
+    weights_ai = M.largest_remainder(e_ai)
     low = [k for k in REALMS if agg[k]["coverage"] < 0.5]
     gate("realm_coverage", "run", not low,
          "all realms ≥ 0.5" if not low else ", ".join(f"{k} {agg[k]['coverage']:.2f}" for k in low) + " < 0.5")
@@ -218,12 +245,15 @@ def compute(as_of, run_id, updated, cut=None):
         dim[i["dimension"]] = dim.get(i["dimension"], 0.0) + i["weight"] * abs(i["score"] - 0.5)
     dtot = sum(dim.values())
     dimensions = {d: round(100.0 * v / dtot, 1) for d, v in sorted(dim.items())} if dtot > 0 else {}
-    top = {}
-    for k in REALMS:
-        cand = [i for i in per_realm[k]["used"] if i["score"] > 0.5]
-        cand.sort(key=lambda i: -i["weight"] * abs(i["score"] - 0.5))  # stable: mapping order breaks ties
-        top[k] = [f"{i['label']}: {human(i['latest_value'], i['unit'])} ({i['latest_period']}) · score {i['score']:.2f}"
-                  for i in cand[:2]]
+    def top_of(keep):
+        out = {}
+        for k in REALMS:
+            cand = [i for i in per_realm[k]["used"] if i["score"] > 0.5 and keep(i["series_id"])]
+            cand.sort(key=lambda i: -i["weight"] * abs(i["score"] - 0.5))  # stable: mapping order breaks ties
+            out[k] = [f"{i['label']}: {human(i['latest_value'], i['unit'])} ({i['latest_period']}) · score {i['score']:.2f}"
+                      for i in cand[:2]]
+        return out
+    top = top_of(lambda sid: True)
     src_count = {}
     for i in used_series.values():
         t = sources[i["source_id"]]["title"]
@@ -231,7 +261,8 @@ def compute(as_of, run_id, updated, cut=None):
     feeds = []
     for sid in feed_ids:
         if sid in unborn:
-            feeds.append({"name": series[sid]["label"], "state": f"not yet started (first week {unborn[sid]})"})
+            feeds.append({"name": series[sid]["label"], "state": f"not yet started (first week {unborn[sid]})",
+                          "tier": series[sid].get("measures", "")})
             continue
         uses = [(k, i) for k in REALMS for i in per_realm[k]["used"] if i["series_id"] == sid]
         exs = [x for k in REALMS for x in per_realm[k]["excluded"] if x["series_id"] == sid]
@@ -250,12 +281,15 @@ def compute(as_of, run_id, updated, cut=None):
                 state = f"excluded: short_history ({n}/{need})"
             else:
                 state = f"excluded: {x['reason']}"
-        feeds.append({"name": series[sid]["label"], "state": state})
+        feeds.append({"name": series[sid]["label"], "state": state, "tier": series[sid].get("measures", "")})
     realms = {
         "updated": updated, "window": window,
         "colors": {k: static["colors"][k] for k in REALMS}, "definitions": {k: static["definitions"][k] for k in REALMS},
         "weights": weights, "world_weights": dict(weights),
         "dimensions": dimensions, "top": top, "sources": src_count, "feeds": feeds,
+        # 0.6.0: the page's three pertinence lenses, now real numbers — strict = AI-specific indicators only; wide = every
+        # indicator = the headline `weights` (in this method nothing measured is left out of the headline)
+        "modes": {"strict": weights_ai, "wide": dict(weights), "strict_top": top_of(is_ai)},
         "method_version": method_version(), "provenance": "realms.provenance.json",
         "refresh": refresh_block(), "geography": geography_block(),
     }
@@ -285,6 +319,9 @@ def compute(as_of, run_id, updated, cut=None):
             "mass": round(agg[k]["mass"], 4), "w_used": agg[k]["w_used"], "w_map": w_map[k],
             "indicators": [{x: i[x] for x in sorted(i) if x != "dimension"} for i in per_realm[k]["used"]],
             "excluded": [{x: ex[x] for x in sorted(ex) if x != "last_date"} for ex in per_realm[k]["excluded"]],
+            "strict": {"weight": weights_ai[k], "evidence": e_ai[k], "mean_score": round(agg_ai[k]["mean_score"], 4),
+                       "coverage": round(agg_ai[k]["coverage"], 4), "mass": round(agg_ai[k]["mass"], 4),
+                       "w_used": agg_ai[k]["w_used"], "w_map": w_map_ai[k], "series": agg_ai[k]["series"]},
         } for k in REALMS},
     }
     return realms, prov, gates, first_fail

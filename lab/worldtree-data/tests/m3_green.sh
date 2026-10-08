@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # M3 finish line (briefs/M3-build.md): the M2 gate updated for method 0.2.0 — pins at method 0.3.1 (+ARI): 9 core sources, 26 series, 25 mapping rows;
 # at method 0.4.1 (+GitHub): 10 world sources, 28 mapping rows (divergence 9, transcendence 5), 26 feeds;
-# at method 0.5.0 (+tools, M10): 60 series, 31 mapping rows (utopia 10, divergence 11, transcendence 6), 28 feeds.
+# at method 0.5.0 (+tools, M10): 60 series, 31 mapping rows (utopia 10, divergence 11, transcendence 6), 28 feeds;
+# at method 0.6.0 (M8 honesty review): 63 series (+github.all_repos_month, +wb.SP_POP_TOTL normalisers, +country conflict deaths), 30 geo rows, manifest 61.
 set -e
 cd "$(dirname "$0")/.."
 step() { echo "== $*"; }
@@ -11,7 +12,7 @@ step "1 proofs"
 [ "$(grep -vc '^200 ' /tmp/proofs.txt || true)" = 0 ] && [ "$(wc -l < /tmp/proofs.txt)" = 32 ] || { echo "FAIL line $LINENO"; exit 1; }; echo "proofs 32/32 200"
 
 step "2 catalog"
-python3 -m wt check catalog | grep -qx 'catalog OK 60 series 31 rows 29 geo rows' || { echo "FAIL line $LINENO"; exit 1; }; echo "catalog OK 60 series 31 rows 29 geo rows"
+python3 -m wt check catalog | grep -qx 'catalog OK 63 series 31 rows 30 geo rows' || { echo "FAIL line $LINENO"; exit 1; }; echo "catalog OK 63 series 31 rows 30 geo rows"
 python3 - <<'PY'
 import csv; from collections import Counter
 m=list(csv.DictReader(open('catalog/mapping.csv'))); c=Counter()
@@ -77,7 +78,7 @@ python3 -m unittest discover -s tests -p 'test_fixture.py' 2>&1 | tail -1 | grep
 
 step "10 manifest"
 jq -r '.raw[] | "\(.sha256)  \(.path)"' manifest.json | sha256sum -c --quiet || { echo "FAIL line $LINENO"; exit 1; }; echo ALL-RAW-OK
-jq -e --arg v "$(cat method/VERSION)" '.schema=="worldtree.manifest/1" and .method_version==$v and .last_run.published==true and (.series|length)==58' manifest.json
+jq -e --arg v "$(cat method/VERSION)" '.schema=="worldtree.manifest/1" and .method_version==$v and .last_run.published==true and (.series|length)==61' manifest.json
 jq -r '.out.realms.sha256' manifest.json | diff - <(sha256sum out/realms.json | cut -d' ' -f1) || { echo "FAIL line $LINENO"; exit 1; }; echo OUT-HASH-OK
 git log --since='2 days ago' --format=%s | grep -qE '^run [0-9]{8}T[0-9]{6}Z: published$'
 [ "$(git status --porcelain . | wc -l)" = 0 ] || { echo "FAIL line $LINENO"; exit 1; }; echo "worktree clean"  # lab dir; other sessions' WIP elsewhere is not ours

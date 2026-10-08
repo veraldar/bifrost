@@ -83,6 +83,18 @@ def check(j, now=None):
     for x in f:
         if not isinstance(x, dict) or not isinstance(x.get("name"), str) or not isinstance(x.get("state"), str):
             return "feeds: need list of {name: str, state: str}"
+        if "tier" in x and x["tier"] not in ("ai", "world"):  # 0.6.0: what the feed measures (the page's lens tiers)
+            return f"feeds: tier must be ai|world ({x.get('name')}: {x['tier']!r})"
+    m = j.get("modes")
+    if m is not None:  # 0.6.0: the pertinence lenses — strict (AI-specific only) and wide (= weights), each Σ 100
+        if not isinstance(m, dict):
+            return "modes: not an object"
+        for name in ("strict", "wide"):
+            e = _seven(m.get(name), f"modes.{name}") or _sum100(m[name], f"modes.{name}")
+            if e:
+                return e
+        if m["wide"] != j["weights"]:
+            return "modes.wide: must equal weights (every measured indicator is in the headline)"
     n = len({r["series_id"] for r in load_mapping()})
     if len(f) != n:
         return f"feeds: {len(f)} entries, expected {n} (one per mapped series)"

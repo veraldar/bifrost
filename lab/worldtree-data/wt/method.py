@@ -47,7 +47,7 @@ def f_scale(x, diff):
 def prepare(rows, cadence, params, total=None):
     """norm → agg → diff. Returns {period index: f(x)} (undefined rows absent)."""
     x = {pidx(p, cadence): v for p, _, v in rows}
-    if params.get("norm") == "total":
+    if params.get("norm"):  # `total` (wiki.en_total) or, since 0.6.0, any normaliser series — per million of it
         tot = {pidx(p, cadence): v for p, _, v in (total or [])}
         x = {t: v / tot[t] * 1e6 for t, v in x.items() if t in tot and tot[t]}
     if params.get("agg") == "mean3":

@@ -55,3 +55,7 @@ ne.ne110,ne,ne110,ne_static:,,"daily",99999,candidate,Natural Earth 110m country
 github.releases_year,github,releases,github:releases,count,annual,1100,core,AI repos: releases per year (GitHub)
 github.commits_month,github,commits,github:commits,count,monthly,100,core,AI repos: commits per month (GitHub)
 github.stars_snapshot,github,stars,github:stars,stars,daily,30,core,"AI repos: total stars, nightly snapshot (in-repo growth, not mapped)"
+github.tool_repos_month,github,tool_repos,github:tool_repos,count,monthly,100,core,"AI-tool repos created per month (GitHub topics llm · ai-agents · mcp · ai-tools)"
+github.lean_repos_month,github,lean_repos,github:lean_repos,count,monthly,100,core,Lean (formal-math) repos created per month (GitHub)
+github.mathlib_commits_month,github,mathlib,github:mathlib,count,monthly,100,core,"mathlib4 commits per month (formal-math library velocity, not mapped)"
+github.tool_stars_snapshot,github,tool_stars,github:tool_stars,stars,daily,30,core,"Tool-layer repos: total stars, nightly snapshot (in-repo growth, not mapped)"

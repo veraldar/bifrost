@@ -8,6 +8,11 @@ cd "$(dirname "$0")/.."
 H=veraldar
 W=/var/www/veraldar
 [ -f out/realms.json ] || { echo "no out/realms.json — run first"; exit 1; }
+# github-trends.json (model-side curves + the 0.5.0 tools block) ships only if its provenance file still chains (sha256)
+if [ -f out/github-trends.json ]; then
+  python3 -c "import hashlib,json; d=json.load(open('out/github-trends.json')); assert hashlib.sha256(open('out/github-trends.provenance.json','rb').read()).hexdigest()==d['provenance']['sha256']" \
+    || { echo "github-trends.json → provenance sha256 chain broken — refusing"; exit 1; }
+fi
 
 python3 - "$W" <<'PY' > /tmp/wt-feed.xml
 import json, sys, email.utils, datetime
@@ -88,7 +93,7 @@ ssh "$H" "grep -qxF '$LINE' $W/llms.txt || printf '\n%s\n' '$LINE' >> $W/llms.tx
 
 # history before realms.json: the realms.json history.sha256 pointer must never dangle
 scp -q out/realms-history.json "$H:$W/"
-# GitHub evolution-speed lines (method 0.4.1): the rings chart's dashed context, next to realms.json
+# GitHub evolution speed (method 0.4.1) + the tools block (0.5.0): the AI EVOLUTION tab, next to realms.json
 [ -f out/github-trends.json ] && scp -q out/github-trends.json "$H:$W/github-trends.json"
 scp -q out/realms.provenance.json "$H:$W/"
 scp -q out/realms.json "$H:$W/"

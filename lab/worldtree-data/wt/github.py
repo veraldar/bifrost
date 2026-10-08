@@ -7,6 +7,11 @@ Keyless only (60 core req/h + 10 search req/min per IP): no token, ever ([accoun
   (search bucket, not the 60/h core bucket). Cross-checked against the commits-list Link-header method
   (per_page=1 → rel="last" page = count): vllm-project/vllm 2025-01 = 413 both (10-04 probe).
 - stars:    GET /repos/{r} — stargazers_count, one snapshot per night (growth observed since 2026-10 only).
+Method 0.5.0 (M10, the tool ecosystem co-evolving with the models) — same buckets, same guard:
+- tool_repos: GET /search/repositories?q=topic:{t}+created:{month}&per_page=1 — new repos per month per AI-tool topic.
+- lean_repos: GET /search/repositories?q=language:Lean+created:{month}&per_page=1 — new formal-math (Lean) repos per month.
+- mathlib:    GET /search/commits?q=repo:leanprover-community/mathlib4+committer-date:{month} — formal-math library velocity.
+- tool_stars: GET /repos/{r} — nightly stargazers_count of the tool layer (MCP, agent frameworks, tool-use benchmarks).
 """
 import calendar
 import datetime as dt
@@ -45,7 +50,38 @@ CORE_BUDGET = 45  # core requests per nightly fetch (60/h keyless, shared by eve
 SEARCH_BUDGET = 150  # search requests per nightly fetch (10/min keyless → SLEEP 6.5 s)
 COMMITS_FROM = (2019, 1)  # same backfill start as arxiv/pubmed/fedreg
 FIRST_YEAR = 2015
+# --- method 0.5.0 (M10): the tools evolve with the models — "anyone is building new tools for AI" -------------------
+# topics: one search request per topic-month (keyless search has no OR across topics → the value is the SUM, a repo
+# carrying two tracked topics counts twice — probe 2025-06: 175 repos carry both mcp and llm vs 1,082 mcp, 1,931 llm)
+TOOL_TOPICS = {
+    "llm": "repos built on or around large language models — the broadest 'building with models' tag",
+    "ai-agents": "agents: models given tools, memory and a loop",
+    "mcp": "Model Context Protocol servers/clients — the open plug between any model and any tool (since 2024-11; "
+           "before that the tag means other things, Minecraft Coder Pack, microcontrollers — a small baseline)",
+    "ai-tools": "tools made for AI use or with AI, self-described",
+}
+LEAN = "language:Lean"  # formal mathematics + proof engineering: the medium AI provers work in (AlphaProof-era signal)
+MATHLIB = "leanprover-community/mathlib4"  # the formal-math library every Lean prover is checked against
+# tool layer, nightly stars only (no history: growth observed since 2026-10, never world-mapped) — one reason line each
+TOOL_REPOS = {
+    "modelcontextprotocol/servers": "MCP reference servers — the protocol that lets any model use any tool",
+    "modelcontextprotocol/python-sdk": "MCP Python SDK — what tool builders import",
+    "modelcontextprotocol/typescript-sdk": "MCP TypeScript SDK — what tool builders import",
+    "modelcontextprotocol/registry": "the official MCP server registry",
+    "langchain-ai/langgraph": "agent orchestration as graphs",
+    "run-llama/llama_index": "data/retrieval tooling for LLM apps",
+    "crewAIInc/crewAI": "multi-agent framework",
+    "microsoft/autogen": "multi-agent conversation framework (Microsoft Research)",
+    "openai/openai-agents-python": "OpenAI's agent SDK (successor of swarm)",
+    "huggingface/smolagents": "agents that act by writing code",
+    "browser-use/browser-use": "the web browser as a tool for models",
+    "ShishirPatil/gorilla": "Berkeley Function-Calling Leaderboard (BFCL) — the tool-use benchmark",
+    "sierra-research/tau2-bench": "τ²-bench — agents using tools with a user in the loop",
+    "SWE-bench/SWE-bench": "SWE-bench — agents using a developer's tools on real issues",
+    MATHLIB: "mathlib4 — formal mathematics as a tool AI provers stand on",
+}
 _SEARCH_RE = re.compile(r"repo:([^ +&]+)\+committer-date:(\d{4})-(\d{2})-01\.\.")
+_CREATED_RE = re.compile(r"[?&]q=([^&]+?)\+created:(\d{4})-(\d{2})-01\.\.")
 _REPO_RE = re.compile(r"/repos/([^/]+/[^/?]+)")
 _PAGE_RE = re.compile(r"[?&]page=(\d+)")
 _LAST_RE = re.compile(r'<[^>]*[?&]page=(\d+)[^>]*>;\s*rel="last"')
@@ -66,6 +102,27 @@ def releases_url(repo, page):
 def commits_url(repo, y, m):
     last = calendar.monthrange(y, m)[1]
     return f"{API}/search/commits?q=repo:{repo}+committer-date:{y:04d}-{m:02d}-01..{y:04d}-{m:02d}-{last:02d}&per_page=1"
+
+
+def repos_url(qual, y, m):
+    """New public repos created in month (y, m) matching one search qualifier (topic:…, language:…); forks excluded."""
+    last = calendar.monthrange(y, m)[1]
+    return f"{API}/search/repositories?q={qual}+created:{y:04d}-{m:02d}-01..{y:04d}-{m:02d}-{last:02d}&per_page=1"
+
+
+# per-month search counts, one request per key-month (the commits machinery): kind → (keys, url(key, y, m))
+COUNTS = {
+    "tool_repos": ([f"topic:{t}" for t in TOOL_TOPICS], repos_url),
+    "lean_repos": ([LEAN], repos_url),
+    "mathlib": ([MATHLIB], commits_url),
+}
+
+
+def count_key(url):
+    """(key, (y, m)) of a per-month search-count url (repos created / commits), else None."""
+    u = urllib.parse.unquote(url)
+    m = _CREATED_RE.search(u) or _SEARCH_RE.search(u)
+    return (m.group(1), (int(m.group(2)), int(m.group(3)))) if m else None
 
 
 def repo_of(url):
@@ -157,6 +214,18 @@ def unit_files(kind, d, end):
     have = _have(d)
     if kind == "stars":
         return [("json", stars_url(r)) for r in REPOS]
+    if kind == "tool_stars":
+        return [("json", stars_url(r)) for r in TOOL_REPOS]
+    if kind in COUNTS:  # the commits rule, any key set: missing months newest first, then the last complete month re-checked
+        keys, url = COUNTS[kind]
+        stored = defaultdict(set)
+        for u in have:
+            k = count_key(u)
+            if k:
+                stored[k[0]].add(k[1])
+        missing = [("json", url(k, y, m)) for y, m in reversed(list(_months(end))) for k in keys if (y, m) not in stored[k]]
+        recheck = [("json", url(k, end.year, end.month)) for k in keys if (end.year, end.month) in stored[k]]
+        return missing + recheck
     if kind == "releases":
         out = []
         for r in REPOS:
@@ -295,12 +364,12 @@ def x_commits(metas, read, as_of, month_end):
     return out
 
 
-def x_stars(metas, read, as_of):
+def x_stars(metas, read, as_of, repos=REPOS):
     """One row per retrieval night on which every repo was snapshotted: value = Σ stars, meta = per-repo stars."""
     nights = defaultdict(dict)
     for m in sorted(metas, key=lambda m: (m["retrieved_at"], m["path"])):
         r = repo_of(m["url"])
-        if r not in REPOS or m["retrieved_at"][:10] > as_of:
+        if r not in repos or m["retrieved_at"][:10] > as_of:
             continue
         try:
             v = json.loads(read(m))["stargazers_count"]
@@ -309,20 +378,127 @@ def x_stars(metas, read, as_of):
         nights[m["retrieved_at"][:10]][r] = (v, m)
     out = []
     for d, by in sorted(nights.items()):
-        if set(by) != set(REPOS):
+        if set(by) != set(repos):
             continue
         sha = max((x[1] for x in by.values()), key=lambda x: (x["retrieved_at"], x["path"]))["sha256"]
-        out.append((d, d, sum(v for v, _ in by.values()), sha, [by[r][0] for r in REPOS]))
+        out.append((d, d, sum(v for v, _ in by.values()), sha, [by[r][0] for r in repos]))
+    return out
+
+
+def month_counts(metas, read, keys):
+    """{(key, (y, m)): (count, sidecar)} — newest parseable snapshot per (key, month)."""
+    out = {}
+    for m in sorted(metas, key=lambda m: (m["retrieved_at"], m["path"])):
+        k = count_key(m["url"])
+        if not k or k[0] not in keys:
+            continue
+        v = search_count(read(m))
+        if v is not None:
+            out[k] = (v, m)
+    return out
+
+
+def x_month_counts(metas, read, as_of, month_end, keys, per_key=False):
+    """One row per month in which EVERY key has a count (no hole summed as zero): value = Σ counts over the keys;
+    meta = the per-key counts (per_key) in key order."""
+    c = month_counts(metas, read, keys)
+    out = []
+    for y, m in sorted({ym for _, ym in c}):
+        if not all((k, (y, m)) in c for k in keys):
+            continue
+        me = month_end(y, m).isoformat()
+        if me > as_of:
+            continue
+        ms = [c[(k, (y, m))][1] for k in keys]
+        sha = max(ms, key=lambda x: (x["retrieved_at"], x["path"]))["sha256"]
+        vals = [c[(k, (y, m))][0] for k in keys]
+        out.append((f"{y:04d}-{m:02d}", me, sum(vals), sha, vals if per_key else []))
     return out
 
 
 STARS_META = [f"stars_{slug(r)}" for r in REPOS]
 RELEASES_META = ["n_repos", "n_prerelease", "median_gap_days"]
 COMMITS_META = ["n_repos"]
+TOOL_STARS_META = [f"stars_{slug(r)}" for r in TOOL_REPOS]
+TOOL_REPOS_META = [f"topic_{t.replace('-', '_')}" for t in TOOL_TOPICS]
+META = {"releases": RELEASES_META, "commits": COMMITS_META, "stars": STARS_META, "tool_stars": TOOL_STARS_META,
+        "tool_repos": TOOL_REPOS_META, "lean_repos": [], "mathlib": []}
+
+
+def rows_of(what, metas, read, as_of, month_end):
+    """github:<what> → rows (period, date, value, sha256, [meta…]); every raw file passed in was retrieved ≤ as_of."""
+    if what == "releases":
+        return x_releases(metas, read, as_of)
+    if what == "commits":
+        return x_commits(metas, read, as_of, month_end)
+    if what == "stars":
+        return x_stars(metas, read, as_of)
+    if what == "tool_stars":
+        return x_stars(metas, read, as_of, TOOL_REPOS)
+    if what in COUNTS:
+        return x_month_counts(metas, read, as_of, month_end, COUNTS[what][0], per_key=what == "tool_repos")
+    raise ValueError(f"unknown github extract {what}")
 
 
 FILE = "github-trends.json"
 PROV_FILE = "github-trends.provenance.json"
+
+
+TOOLS_SERIES = ["series/github.tool_repos_month.csv", "series/github.lean_repos_month.csv",
+                "series/github.mathlib_commits_month.csv", "series/github.tool_stars_snapshot.csv"]
+
+
+def tools_block(as_of, metas_of, read, month_end):
+    """github-trends.json `tools` (method 0.5.0, M10): the tool ecosystem beside the model-side curves → (block, used
+    sidecars). Months appear only once every key of the month has a count; years are summed from those months
+    (`months` < 12 = the year in progress or a backfill still filling)."""
+    def upto(kind):
+        return [m for m in metas_of(kind) if m["retrieved_at"][:10] <= as_of]
+    tr, lr, mr, ts = upto("tool_repos"), upto("lean_repos"), upto("mathlib"), upto("tool_stars")
+    keys = COUNTS["tool_repos"][0]
+    trow = x_month_counts(tr, read, as_of, month_end, keys, per_key=True)
+    lrow = x_month_counts(lr, read, as_of, month_end, COUNTS["lean_repos"][0])
+    mrow = x_month_counts(mr, read, as_of, month_end, COUNTS["mathlib"][0])
+    srow = x_stars(ts, read, as_of, TOOL_REPOS)
+    used = ([v[1] for v in month_counts(tr, read, keys).values()]
+            + [v[1] for v in month_counts(lr, read, COUNTS["lean_repos"][0]).values()]
+            + [v[1] for v in month_counts(mr, read, COUNTS["mathlib"][0]).values()] + ts)
+    topics = list(TOOL_TOPICS)
+    by_month = [{"month": p, "repos": int(v), "by_topic": dict(zip(topics, map(int, meta)))} for p, _, v, _, meta in trow]
+    years = {}
+    for r in by_month:
+        y = years.setdefault(int(r["month"][:4]), {"year": int(r["month"][:4]), "repos": 0, "months": 0,
+                                                    "by_topic": {t: 0 for t in topics}})
+        y["repos"] += r["repos"]
+        y["months"] += 1
+        for t in topics:
+            y["by_topic"][t] += r["by_topic"][t]
+    return {
+        "topics": [{"topic": t, "why": TOOL_TOPICS[t], "query": f"topic:{t} created:<month>"} for t in topics],
+        "tool_repos_by_month": by_month,
+        "tool_repos_by_year": [years[y] for y in sorted(years)],
+        "lean_repos_by_month": [{"month": p, "repos": int(v)} for p, _, v, _, _ in lrow],
+        "mathlib_commits_by_month": [{"month": p, "commits": int(v)} for p, _, v, _, _ in mrow],
+        "repos": [{"repo": r, "why": TOOL_REPOS[r]} for r in TOOL_REPOS],
+        "stars": dict(zip(TOOL_REPOS, srow[-1][4])) if srow else {},
+        "stars_by_night": [{"date": p, "total": int(v)} for p, _, v, _, _ in srow],
+        "notes": [
+            "Tool repos a month: new public repositories (forks excluded) created that month carrying the topic — "
+            "keyless search total_count, one request per topic-month since 2019-01. The value sums four topics (llm, "
+            "ai-agents, mcp, ai-tools); search has no OR across topics, so a repo tagged with two of them counts twice "
+            "(probe 2025-06: 175 repos carry both mcp and llm, against 1,082 mcp and 1,931 llm).",
+            "Bias B16 (self-tagged topics): owners add topics when they like, so the counts are what GitHub returns at "
+            "retrieval — each month is fetched once and the last complete month re-checked nightly; older months have "
+            "had longer to be tagged (this understates growth), deleted repos drop out of every month. topic:mcp means "
+            "Model Context Protocol from 2024-11; before that it is other things (a small baseline, 14 repos in 2023-06).",
+            "Lean repos a month: repositories whose primary language GitHub detects as Lean, created that month — "
+            "formal mathematics and proof engineering, the medium AI provers work in.",
+            "mathlib commits a month: leanprover-community/mathlib4 default-branch commits by committer date (search "
+            "total_count). Its 2023 peak is the mathlib3 → mathlib4 port, so it is drawn as velocity and not mapped.",
+            "Tool stars: nightly stargazers_count of the tool layer (MCP servers + SDKs + registry, agent frameworks, "
+            "tool-use benchmarks, mathlib4) — growth observed since 2026-10 only, so not mapped.",
+        ],
+    }, used
 
 
 def trends(as_of, metas_of, read, month_end, method_version):
@@ -338,7 +514,9 @@ def trends(as_of, metas_of, read, month_end, method_version):
     cc = commit_counts([m for m in cm if m["retrieved_at"][:10] <= as_of], read)
     crow = x_commits([m for m in cm if m["retrieved_at"][:10] <= as_of], read, as_of, month_end)
     srow = x_stars(sm, read, as_of)
-    used = rel_used + [v[1] for v in cc.values()] + [m for m in sm if m["retrieved_at"][:10] <= as_of]
+    tools, tools_used = tools_block(as_of, metas_of, read, month_end)
+    used = (rel_used + [v[1] for v in cc.values()] + [m for m in sm if m["retrieved_at"][:10] <= as_of]
+            + tools_used)
     stars = {}
     if srow:
         stars = dict(zip(REPOS, srow[-1][4]))
@@ -369,11 +547,12 @@ def trends(as_of, metas_of, read, month_end, method_version):
             "Bias B15 (survivorship): the repo set is today's winners, chosen in 2026; repos born after 2019 add to "
             "the totals from their first release — ecosystem growth includes repo births by design.",
         ],
+        "tools": tools,
         "provenance": {
             "source": "api.github.com (keyless: 60 core req/h + 10 search req/min)",
             "license": "GitHub ToS — counts are facts; metadata via public API",
             "series": ["series/github.releases_year.csv", "series/github.commits_month.csv",
-                       "series/github.stars_snapshot.csv"],
+                       "series/github.stars_snapshot.csv"] + TOOLS_SERIES,
             "raw_files": len(used),
             "file": PROV_FILE,  # every raw file read (path, sha256, url, retrieved_at); sha256 filled by the writer
         },

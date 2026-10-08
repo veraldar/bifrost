@@ -450,17 +450,10 @@ def read_raw(meta):
 
 
 def build_github(s, as_of):
-    """github:releases|commits|stars → rows with meta columns (wt/github.py); every raw file ≤ as_of is read."""
-    what = parse_extract(s["extract"])[1]
-    metas = snapshots("github", s["slug"], "json", as_of)
-    if "releases" in what:
-        rows = GH.x_releases(metas, read_raw, as_of)
-    elif "commits" in what:
-        rows = GH.x_commits(metas, read_raw, as_of, month_end)
-    elif "stars" in what:
-        rows = GH.x_stars(metas, read_raw, as_of)
-    else:
-        raise ValueError(f"unknown github extract {s['extract']}")
+    """github:releases|commits|stars (0.4.1) | tool_repos|lean_repos|mathlib|tool_stars (0.5.0) → rows with meta columns
+    (wt/github.py); every raw file ≤ as_of is read."""
+    what = next(iter(parse_extract(s["extract"])[1]))
+    rows = GH.rows_of(what, snapshots("github", s["slug"], "json", as_of), read_raw, as_of, month_end)
     return [(p, d, fmt(v), sha, *[x if x == "" else fmt(x) for x in meta]) for p, d, v, sha, meta in rows]
 
 
@@ -487,8 +480,7 @@ def header(s):
     if kind == "ari":
         return HEADER + ARI_META
     if kind == "github":
-        what = parse_extract(s["extract"])[1]
-        return HEADER + (GH.RELEASES_META if "releases" in what else GH.COMMITS_META if "commits" in what else GH.STARS_META)
+        return HEADER + GH.META[next(iter(parse_extract(s["extract"])[1]))]
     if kind in GEO_KINDS:
         return ["geo"] + HEADER
     return HEADER

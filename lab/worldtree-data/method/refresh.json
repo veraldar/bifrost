@@ -20,7 +20,7 @@
   },
   {
    "id": "github",
-   "updated_from": "api.github.com (keyless, no token) — 12 AI repos: stargazers_count every night, release lists re-fetched monthly (pages 2-5 once until the history is complete), commits per month via search total_count since 2019-01 (missing months first, then the last complete month re-checked); budget ≤ 45 core + ≤ 150 search requests a night, the rest next night"
+   "updated_from": "api.github.com (keyless, no token) — 12 AI repos: stargazers_count every night, release lists re-fetched monthly (pages 2-5 once until the history is complete), commits per month via search total_count since 2019-01 (missing months first, then the last complete month re-checked); tools (method 0.5.0): new repos per month per AI-tool topic (llm, ai-agents, mcp, ai-tools) and in Lean, mathlib4 commits per month — same search rule — and 15 tool-layer repos' stars every night; budget ≤ 45 core + ≤ 150 search requests a night, the rest next night"
   },
   {
    "id": "ne",

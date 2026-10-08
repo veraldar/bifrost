@@ -10,8 +10,8 @@ SITE=https://veraldar.org
 SHOT=~/Work/bifrost/artifacts/worldtree-tools.png
 
 step "1 unit tests (frozen search-repos page, url round-trip, every-topic rule, newest-wins, tools block, budget order)"
-python3 -m unittest tests.test_tools 2>&1 | tail -1 | grep -qx OK || fail $LINENO; echo "test_tools OK"
-python3 -m unittest tests.test_github 2>&1 | tail -1 | grep -qx OK || fail $LINENO; echo "test_github OK"
+python3 -m unittest tests.test_tools 2>&1 | grep -q '^OK$' || fail $LINENO; echo "test_tools OK"
+python3 -m unittest tests.test_github 2>&1 | grep -q '^OK$' || fail $LINENO; echo "test_github OK"
 
 step "2 budget guard (keyless: ≤ 45 core + ≤ 150 search a night; 403/429 stops the bucket; the rest next night)"
 python3 - <<'PY'

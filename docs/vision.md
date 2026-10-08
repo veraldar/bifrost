@@ -140,8 +140,11 @@ one tree. The self is the spread pattern, not any single machine's part.
   (the ledger — what happened), hvergelmir (the raw source feeds)
 - **the branches** = the domain interfaces/agents per machine (voice,
   vision, hardware, media, games)
-- **ratatoskr** = the messenger/relay between the parts
-- **bifrost** = the bridge to outside (the access points, the VPS nodes)
+- **rót** = a root (the cores/brains per machine); **grein** = a branch (the
+  user devices reaching Midgard)
+- **bifrost** = the trunk (the access points, the VPS nodes)
+- the messenger between the parts = a function of the trunk, not a named
+  layer (Ratatoskr dropped — keep the naming minimal)
 - per machine: a root + branches + (optionally) a well — parts of the ONE
   tree, never whole trees per machine
 

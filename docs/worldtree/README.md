@@ -11,12 +11,15 @@ Design docs (M1). No code here. The pipeline built from these docs lives in
 | [schema.md](schema.md) | repo layout, file formats, `manifest.json`, provenance sidecars, agent query contract |
 | [prediction.md](prediction.md) | method v0.1.0: indicator→realm table, transforms, sum-to-100, gates, bias register, the old news pipeline's fate |
 | [plan.md](plan.md) | M2 cut (pipeline v0): ordered steps, each with a hard verify command, ending green |
+| [honesty-review.md](honesty-review.md) | M8 (method 0.6.0): what the page and data misled about, what changed, what was only disclosed, what was rejected and why |
 
 ## What the numbers are (and are not)
 The seven percentages are an **evidence share**: of the measured movement in
 the world right now, how much points toward each realm. They are not
-probabilities that a realm "happens", and the page's wording should be read that
-way. Every number decomposes, by file lookup, into: realm weight → indicator
+probabilities that a realm "happens"; since 0.6.0 the page says so itself (14.3 %
+each = nothing unusual anywhere) and shows, as STRICT AI (`modes.strict`), how much
+of the headline comes from indicators that measure AI itself rather than the world
+it lands in (`honesty-review.md`). Every number decomposes, by file lookup, into: realm weight → indicator
 scores → indicator series → raw snapshot (sha256) → source URL + license.
 
 ## Principles

@@ -21,7 +21,8 @@ NOTES = [
     "publication lag is not modelled.",
     "provisional = a realm whose mapped-weight coverage that year is < 0.5; its weight is still normalised into "
     "the 100 (largest remainder). Pre-2018 years are thin on AI-specific series: arXiv/PubMed/Federal Register "
-    "start 2019-01, Wikimedia 2015-07, Epoch 2015-01, and 12-month deltas need ≥ 24 reference points.",
+    "and the GitHub counts (commits, AI-tool repos, Lean repos) start 2019-01, Wikimedia 2015-07, Epoch 2015-01, "
+    "and 12-month deltas need ≥ 24 reference points.",
     "Indices that did not exist before their first week (Agent Restriction Index, first week ending 2026-04-12; "
     "mapping param unborn=drop) are left out of the mapping for every earlier year — those years are unchanged.",
 ]

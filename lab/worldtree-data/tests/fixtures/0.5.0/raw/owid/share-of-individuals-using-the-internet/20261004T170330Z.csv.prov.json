@@ -1,0 +1,23 @@
+{
+ "attribution": "World Telecommunication/ICT Indicators Database - International Telecommunication Union (ITU), via World Bank (2026) – with major processing by Our World in Data",
+ "bytes": 175612,
+ "content_type": "text/csv",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://ourworldindata.org/grapher/share-of-individuals-using-the-internet.csv?v=1&csvType=full&useColumnShortNames=true",
+ "http_status": 200,
+ "license": "CC BY 4.0",
+ "license_url": "https://creativecommons.org/licenses/by/4.0/",
+ "path": "raw/owid/share-of-individuals-using-the-internet/20261004T170330Z.csv",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-04T17:03:30Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "ca27f0e15bca7e535c955e79ca63d56f14ec652d4960f905de020a7dfc293873",
+ "slug": "share-of-individuals-using-the-internet",
+ "source_id": "owid",
+ "stored_bytes": true,
+ "upstream_next_update": "2027-01-23",
+ "upstream_updated": "2026-07-27",
+ "url": "https://ourworldindata.org/grapher/share-of-individuals-using-the-internet.csv?v=1&csvType=full&useColumnShortNames=true"
+}

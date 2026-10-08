@@ -1,0 +1,27 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api//hqmRWsh07uhMM9QLGP896RP8W8</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202212010000 TO 202212312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:43:05Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202212010000+TO+202212312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>1153</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2212.02893v1</id>
+    <title>Generation and Prediction of Difficult Model Counting Instances</title>
+    <updated>2022-12-06T11:36:02Z</updated>
+    <link href="https://arxiv.org/abs/2212.02893v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2212.02893v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We present a way to create small yet difficult model counting instances. Our generator is highly parameterizable: the number of variables of the instances it produces, as well as their number of clauses and the number of literals in each clause, can all be set to any value. Our instances have been tested on state of the art model counters, against other difficult model counting instances, in the Model Counting Competition. The smallest unsolved instances of the competition, both in terms of number of variables and number of clauses, were ours. We also observe a peak of difficulty when fixing the number of variables and varying the number of clauses, in both random instances and instances built by our generator. Using these results, we predict the parameter values for which the hardest to count instances will occur.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2022-12-06T11:36:02Z</published>
+    <arxiv:primary_category term="cs.AI"/>
+    <author>
+      <name>Guillaume Escamocher</name>
+    </author>
+    <author>
+      <name>Barry O'Sullivan</name>
+    </author>
+  </entry>
+</feed>

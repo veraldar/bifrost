@@ -1,0 +1,23 @@
+{
+ "attribution": "GitHub REST API (api.github.com, keyless: 60 core req/h + 10 search req/min — no token by design)",
+ "bytes": 8252,
+ "content_type": "application/json",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://api.github.com/search/commits?q=repo:leanprover-community/mathlib4+committer-date:2021-10-01..2021-10-31&per_page=1",
+ "http_status": 200,
+ "license": "GitHub ToS — counts are facts; metadata via public API",
+ "license_url": "https://docs.github.com/site-policy/github-terms/github-terms-of-service",
+ "path": "raw/github/mathlib/20261008T130724Z.json",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-08T13:07:24Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "f9a2498a152e323edcae942249c0eda4d2d8f2b63dc8e05a0557bede3992707d",
+ "slug": "mathlib",
+ "source_id": "github",
+ "stored_bytes": true,
+ "upstream_next_update": null,
+ "upstream_updated": null,
+ "url": "https://api.github.com/search/commits?q=repo:leanprover-community/mathlib4+committer-date:2021-10-01..2021-10-31&per_page=1"
+}

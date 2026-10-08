@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/5WQ+1UXO93nBW532sYcSEe1YTVk</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202101010000 TO 202101312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:51:15Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202101010000+TO+202101312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>734</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2101.11376v3</id>
+    <title>Learning Abstract Representations through Lossy Compression of Multi-Modal Signals</title>
+    <updated>2021-09-03T09:20:46Z</updated>
+    <link href="https://arxiv.org/abs/2101.11376v3" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2101.11376v3" rel="related" type="application/pdf" title="pdf"/>
+    <summary>A key competence for open-ended learning is the formation of increasingly abstract representations useful for driving complex behavior. Abstract representations ignore specific details and facilitate generalization. Here we consider the learning of abstract representations in a multi-modal setting with two or more input modalities. We treat the problem as a lossy compression problem and show that generic lossy compression of multimodal sensory input naturally extracts abstract representations that tend to strip away modalitiy specific details and preferentially retain information that is shared across the different modalities. Furthermore, we propose an architecture to learn abstract representations by identifying and retaining only the information that is shared across multiple modalities while discarding any modality specific information.</summary>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.MM" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2021-01-27T13:19:00Z</published>
+    <arxiv:primary_category term="cs.LG"/>
+    <author>
+      <name>Charles Wilmot</name>
+    </author>
+    <author>
+      <name>Gianluca Baldassarre</name>
+    </author>
+    <author>
+      <name>Jochen Triesch</name>
+    </author>
+  </entry>
+</feed>

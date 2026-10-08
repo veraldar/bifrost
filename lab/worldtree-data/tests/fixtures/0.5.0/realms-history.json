@@ -1,0 +1,756 @@
+{
+ "schema": "worldtree.history/1",
+ "method_version": "0.5.0",
+ "as_of": "2026-10-08",
+ "updated": "2026-10-08T13:15:00Z",
+ "run_id": "20261008T131500Z",
+ "notes": [
+  "Each year = the current method run with observations dated on/before that year's Dec-31 (the as-of date for the current year). No lookahead in observation dates; same transforms, gates and normalisation.",
+  "Vintage: values come from today's source files, so later revisions of a past observation are included and publication lag is not modelled.",
+  "provisional = a realm whose mapped-weight coverage that year is < 0.5; its weight is still normalised into the 100 (largest remainder). Pre-2018 years are thin on AI-specific series: arXiv/PubMed/Federal Register and the GitHub counts (commits, AI-tool repos, Lean repos) start 2019-01, Wikimedia 2015-07, Epoch 2015-01, and 12-month deltas need ≥ 24 reference points.",
+  "Indices that did not exist before their first week (Agent Restriction Index, first week ending 2026-04-12; mapping param unborn=drop) are left out of the mapping for every earlier year — those years are unchanged."
+ ],
+ "provenance": {
+  "file": "realms-history.provenance.json",
+  "sha256": "3b838e352b7fc9c4cbc967faac856d9a507c0aa821782648d7f68245dcee1be8",
+  "year_sha256": "sha256 of json.dumps(years[<year>], indent=1, ensure_ascii=False) + newline"
+ },
+ "years": [
+  {
+   "year": 2015,
+   "as_of": "2015-12-31",
+   "weights": {
+    "utopia": 11.0,
+    "divergence": 14.2,
+    "drift": 14.2,
+    "control": 12.1,
+    "terminus": 20.1,
+    "stagnation": 14.2,
+    "transcendence": 14.2
+   },
+   "coverage": {
+    "utopia": 0.7,
+    "divergence": 0.0,
+    "drift": 0.0,
+    "control": 0.25,
+    "terminus": 0.8333,
+    "stagnation": 0.0,
+    "transcendence": 0.0
+   },
+   "provisional": {
+    "utopia": false,
+    "divergence": true,
+    "drift": true,
+    "control": true,
+    "terminus": false,
+    "stagnation": true,
+    "transcendence": true
+   },
+   "ref_n_min": 23,
+   "indicators_used": 7,
+   "sources_used": 3,
+   "gates": {
+    "catalog": true,
+    "integrity": true,
+    "realm_coverage": false,
+    "global_coverage": false,
+    "contract": true
+   },
+   "first_gate_failure": "realm_coverage",
+   "provenance": {
+    "key": "2015",
+    "sha256": "22f9d60777b8b5c03156dda7aa9ec785c048449b8439857d9f7633283f8a691a"
+   }
+  },
+  {
+   "year": 2016,
+   "as_of": "2016-12-31",
+   "weights": {
+    "utopia": 9.1,
+    "divergence": 15.0,
+    "drift": 14.9,
+    "control": 13.0,
+    "terminus": 18.2,
+    "stagnation": 14.9,
+    "transcendence": 14.9
+   },
+   "coverage": {
+    "utopia": 0.7,
+    "divergence": 0.0,
+    "drift": 0.0,
+    "control": 0.25,
+    "terminus": 0.8333,
+    "stagnation": 0.0,
+    "transcendence": 0.0
+   },
+   "provisional": {
+    "utopia": false,
+    "divergence": true,
+    "drift": true,
+    "control": true,
+    "terminus": false,
+    "stagnation": true,
+    "transcendence": true
+   },
+   "ref_n_min": 24,
+   "indicators_used": 7,
+   "sources_used": 3,
+   "gates": {
+    "catalog": true,
+    "integrity": true,
+    "realm_coverage": false,
+    "global_coverage": false,
+    "contract": true
+   },
+   "first_gate_failure": "realm_coverage",
+   "provenance": {
+    "key": "2016",
+    "sha256": "4a55b40becc210eb712e8c122fb6a8515478e6a690f6298f8ab10fe15ec26fb4"
+   }
+  },
+  {
+   "year": 2017,
+   "as_of": "2017-12-31",
+   "weights": {
+    "utopia": 10.7,
+    "divergence": 15.1,
+    "drift": 15.0,
+    "control": 12.9,
+    "terminus": 16.3,
+    "stagnation": 15.0,
+    "transcendence": 15.0
+   },
+   "coverage": {
+    "utopia": 0.7,
+    "divergence": 0.0,
+    "drift": 0.0,
+    "control": 0.25,
+    "terminus": 0.8333,
+    "stagnation": 0.0,
+    "transcendence": 0.0
+   },
+   "provisional": {
+    "utopia": false,
+    "divergence": true,
+    "drift": true,
+    "control": true,
+    "terminus": false,
+    "stagnation": true,
+    "transcendence": true
+   },
+   "ref_n_min": 25,
+   "indicators_used": 7,
+   "sources_used": 3,
+   "gates": {
+    "catalog": true,
+    "integrity": true,
+    "realm_coverage": false,
+    "global_coverage": false,
+    "contract": true
+   },
+   "first_gate_failure": "realm_coverage",
+   "provenance": {
+    "key": "2017",
+    "sha256": "6de487fd6897e097a7fd71f09e284f91f88a5822b9771edf088a06fcdbae8b34"
+   }
+  },
+  {
+   "year": 2018,
+   "as_of": "2018-12-31",
+   "weights": {
+    "utopia": 15.2,
+    "divergence": 8.9,
+    "drift": 16.3,
+    "control": 14.7,
+    "terminus": 14.8,
+    "stagnation": 12.3,
+    "transcendence": 17.8
+   },
+   "coverage": {
+    "utopia": 0.7,
+    "divergence": 0.3636,
+    "drift": 0.0,
+    "control": 0.25,
+    "terminus": 0.8333,
+    "stagnation": 0.2857,
+    "transcendence": 0.5
+   },
+   "provisional": {
+    "utopia": false,
+    "divergence": true,
+    "drift": true,
+    "control": true,
+    "terminus": false,
+    "stagnation": true,
+    "transcendence": false
+   },
+   "ref_n_min": 26,
+   "indicators_used": 12,
+   "sources_used": 5,
+   "gates": {
+    "catalog": true,
+    "integrity": true,
+    "realm_coverage": false,
+    "global_coverage": true,
+    "contract": true
+   },
+   "first_gate_failure": "realm_coverage",
+   "provenance": {
+    "key": "2018",
+    "sha256": "44bd30d7709bfebc1c2fd27921e815ed998e22b768f31a8a13125ad63a293db2"
+   }
+  },
+  {
+   "year": 2019,
+   "as_of": "2019-12-31",
+   "weights": {
+    "utopia": 6.4,
+    "divergence": 18.8,
+    "drift": 15.8,
+    "control": 13.8,
+    "terminus": 12.5,
+    "stagnation": 11.6,
+    "transcendence": 21.1
+   },
+   "coverage": {
+    "utopia": 0.7,
+    "divergence": 0.6364,
+    "drift": 0.0,
+    "control": 0.25,
+    "terminus": 0.8333,
+    "stagnation": 0.2857,
+    "transcendence": 0.5
+   },
+   "provisional": {
+    "utopia": false,
+    "divergence": false,
+    "drift": true,
+    "control": true,
+    "terminus": false,
+    "stagnation": true,
+    "transcendence": false
+   },
+   "ref_n_min": 27,
+   "indicators_used": 13,
+   "sources_used": 5,
+   "gates": {
+    "catalog": true,
+    "integrity": true,
+    "realm_coverage": false,
+    "global_coverage": true,
+    "contract": true
+   },
+   "first_gate_failure": "realm_coverage",
+   "provenance": {
+    "key": "2019",
+    "sha256": "f8755991f59d11206905a5727be12a103aa855095a94b825b8aee2f8960f12cb"
+   }
+  },
+  {
+   "year": 2020,
+   "as_of": "2020-12-31",
+   "weights": {
+    "utopia": 0.0,
+    "divergence": 17.7,
+    "drift": 15.9,
+    "control": 13.3,
+    "terminus": 23.0,
+    "stagnation": 18.0,
+    "transcendence": 12.1
+   },
+   "coverage": {
+    "utopia": 0.7,
+    "divergence": 0.6364,
+    "drift": 0.0,
+    "control": 0.25,
+    "terminus": 0.8333,
+    "stagnation": 0.2857,
+    "transcendence": 0.5
+   },
+   "provisional": {
+    "utopia": false,
+    "divergence": false,
+    "drift": true,
+    "control": true,
+    "terminus": false,
+    "stagnation": true,
+    "transcendence": false
+   },
+   "ref_n_min": 28,
+   "indicators_used": 13,
+   "sources_used": 5,
+   "gates": {
+    "catalog": true,
+    "integrity": true,
+    "realm_coverage": false,
+    "global_coverage": true,
+    "contract": true
+   },
+   "first_gate_failure": "realm_coverage",
+   "provenance": {
+    "key": "2020",
+    "sha256": "ef49b36d8ee9a14c2df82ae426f2f85247d83d0a9261f39087dbcd4bb7551a89"
+   }
+  },
+  {
+   "year": 2021,
+   "as_of": "2021-12-31",
+   "weights": {
+    "utopia": 9.9,
+    "divergence": 15.6,
+    "drift": 14.1,
+    "control": 13.1,
+    "terminus": 15.6,
+    "stagnation": 14.1,
+    "transcendence": 17.6
+   },
+   "coverage": {
+    "utopia": 0.7,
+    "divergence": 0.6364,
+    "drift": 0.3333,
+    "control": 0.25,
+    "terminus": 0.8333,
+    "stagnation": 0.2857,
+    "transcendence": 0.5
+   },
+   "provisional": {
+    "utopia": false,
+    "divergence": false,
+    "drift": true,
+    "control": true,
+    "terminus": false,
+    "stagnation": true,
+    "transcendence": false
+   },
+   "ref_n_min": 29,
+   "indicators_used": 14,
+   "sources_used": 5,
+   "gates": {
+    "catalog": true,
+    "integrity": true,
+    "realm_coverage": false,
+    "global_coverage": true,
+    "contract": true
+   },
+   "first_gate_failure": "realm_coverage",
+   "provenance": {
+    "key": "2021",
+    "sha256": "54b004adfc0a40f4e71e8c7a90f275970df8b816c4962bbe1bf1650bc208e0df"
+   }
+  },
+  {
+   "year": 2022,
+   "as_of": "2022-12-31",
+   "weights": {
+    "utopia": 11.3,
+    "divergence": 12.6,
+    "drift": 13.3,
+    "control": 14.1,
+    "terminus": 11.9,
+    "stagnation": 21.7,
+    "transcendence": 15.1
+   },
+   "coverage": {
+    "utopia": 1.0,
+    "divergence": 0.9091,
+    "drift": 0.3333,
+    "control": 0.75,
+    "terminus": 0.8333,
+    "stagnation": 1.0,
+    "transcendence": 0.6667
+   },
+   "provisional": {
+    "utopia": false,
+    "divergence": false,
+    "drift": true,
+    "control": false,
+    "terminus": false,
+    "stagnation": false,
+    "transcendence": false
+   },
+   "ref_n_min": 8,
+   "indicators_used": 23,
+   "sources_used": 9,
+   "gates": {
+    "catalog": true,
+    "integrity": true,
+    "realm_coverage": false,
+    "global_coverage": true,
+    "contract": true
+   },
+   "first_gate_failure": "realm_coverage",
+   "provenance": {
+    "key": "2022",
+    "sha256": "7126597a33e81c11c1d851f6cc5f5fa6af176b99bbf8cd689796207eed3f16fc"
+   }
+  },
+  {
+   "year": 2023,
+   "as_of": "2023-12-31",
+   "weights": {
+    "utopia": 13.0,
+    "divergence": 17.1,
+    "drift": 16.2,
+    "control": 10.6,
+    "terminus": 13.6,
+    "stagnation": 10.1,
+    "transcendence": 19.4
+   },
+   "coverage": {
+    "utopia": 1.0,
+    "divergence": 0.9091,
+    "drift": 0.6667,
+    "control": 1.0,
+    "terminus": 0.8333,
+    "stagnation": 1.0,
+    "transcendence": 0.6667
+   },
+   "provisional": {
+    "utopia": false,
+    "divergence": false,
+    "drift": false,
+    "control": false,
+    "terminus": false,
+    "stagnation": false,
+    "transcendence": false
+   },
+   "ref_n_min": 9,
+   "indicators_used": 25,
+   "sources_used": 9,
+   "gates": {
+    "catalog": true,
+    "integrity": true,
+    "realm_coverage": true,
+    "global_coverage": true,
+    "contract": true
+   },
+   "first_gate_failure": null,
+   "provenance": {
+    "key": "2023",
+    "sha256": "ee19b556a0250bbc6df9c3ca7cbe6a98aaaf247268e356ba5ba50e357bb13687"
+   }
+  },
+  {
+   "year": 2024,
+   "as_of": "2024-12-31",
+   "weights": {
+    "utopia": 14.8,
+    "divergence": 12.0,
+    "drift": 10.4,
+    "control": 15.1,
+    "terminus": 21.3,
+    "stagnation": 15.4,
+    "transcendence": 11.0
+   },
+   "coverage": {
+    "utopia": 1.0,
+    "divergence": 0.9091,
+    "drift": 0.6667,
+    "control": 1.0,
+    "terminus": 0.8333,
+    "stagnation": 1.0,
+    "transcendence": 0.8333
+   },
+   "provisional": {
+    "utopia": false,
+    "divergence": false,
+    "drift": false,
+    "control": false,
+    "terminus": false,
+    "stagnation": false,
+    "transcendence": false
+   },
+   "ref_n_min": 10,
+   "indicators_used": 26,
+   "sources_used": 9,
+   "gates": {
+    "catalog": true,
+    "integrity": true,
+    "realm_coverage": true,
+    "global_coverage": true,
+    "contract": true
+   },
+   "first_gate_failure": null,
+   "provenance": {
+    "key": "2024",
+    "sha256": "432a52f1ce5041eaf2d3e06340c008a45489bc560336fbddff8a36df0dbfce08"
+   }
+  },
+  {
+   "year": 2025,
+   "as_of": "2025-12-31",
+   "weights": {
+    "utopia": 17.6,
+    "divergence": 12.4,
+    "drift": 13.0,
+    "control": 10.9,
+    "terminus": 18.3,
+    "stagnation": 8.9,
+    "transcendence": 18.9
+   },
+   "coverage": {
+    "utopia": 1.0,
+    "divergence": 1.0,
+    "drift": 0.6667,
+    "control": 1.0,
+    "terminus": 0.8333,
+    "stagnation": 1.0,
+    "transcendence": 1.0
+   },
+   "provisional": {
+    "utopia": false,
+    "divergence": false,
+    "drift": false,
+    "control": false,
+    "terminus": false,
+    "stagnation": false,
+    "transcendence": false
+   },
+   "ref_n_min": 8,
+   "indicators_used": 28,
+   "sources_used": 9,
+   "gates": {
+    "catalog": true,
+    "integrity": true,
+    "realm_coverage": true,
+    "global_coverage": true,
+    "contract": true
+   },
+   "first_gate_failure": null,
+   "provenance": {
+    "key": "2025",
+    "sha256": "f26af01abad2194d30ee50f4c8247b94838d0265cc2742457d6cc41ea70e1f19"
+   }
+  },
+  {
+   "year": 2026,
+   "as_of": "2026-10-08",
+   "weights": {
+    "utopia": 15.0,
+    "divergence": 13.3,
+    "drift": 15.4,
+    "control": 16.0,
+    "terminus": 17.2,
+    "stagnation": 9.7,
+    "transcendence": 13.4
+   },
+   "coverage": {
+    "utopia": 1.0,
+    "divergence": 1.0,
+    "drift": 1.0,
+    "control": 1.0,
+    "terminus": 0.8333,
+    "stagnation": 1.0,
+    "transcendence": 1.0
+   },
+   "provisional": {
+    "utopia": false,
+    "divergence": false,
+    "drift": false,
+    "control": false,
+    "terminus": false,
+    "stagnation": false,
+    "transcendence": false
+   },
+   "ref_n_min": 8,
+   "indicators_used": 30,
+   "sources_used": 10,
+   "gates": {
+    "catalog": true,
+    "integrity": true,
+    "realm_coverage": true,
+    "global_coverage": true,
+    "contract": true
+   },
+   "first_gate_failure": null,
+   "provenance": {
+    "key": "2026",
+    "sha256": "38918b9dfb841aa084a735008bb65655dfbe09a27a5f0b61575ad87ca7322839"
+   }
+  }
+ ],
+ "refresh": {
+  "cadence": "nightly",
+  "local_time": "14:30 Europe/Berlin",
+  "sources": [
+   {
+    "id": "ari",
+    "updated_from": "Mac Studio ARI report (tailnet) report-ari.html — embedded <script id=\"ari-data\"> JSON block, every week since 2026-04-06; the report is rebuilt daily, weeks dated after the as-of are not read"
+   },
+   {
+    "id": "arxiv",
+    "updated_from": "export.arxiv.org/api/query — cs.AI submission count per month; new complete months + the previous one re-fetched"
+   },
+   {
+    "id": "epoch",
+    "updated_from": "epoch.ai/data/notable_ai_models.csv — full model list, 12-month windows derived locally"
+   },
+   {
+    "id": "fedreg",
+    "updated_from": "federalregister.gov/api/v1/documents — documents mentioning \"artificial intelligence\" per month; new complete months + the previous one re-fetched"
+   },
+   {
+    "id": "github",
+    "updated_from": "api.github.com (keyless, no token) — 12 AI repos: stargazers_count every night, release lists re-fetched monthly (pages 2-5 once until the history is complete), commits per month via search total_count since 2019-01 (missing months first, then the last complete month re-checked); tools (method 0.5.0): new repos per month per AI-tool topic (llm, ai-agents, mcp, ai-tools) and in Lean, mathlib4 commits per month — same search rule — and 15 tool-layer repos' stars every night; budget ≤ 45 core + ≤ 150 search requests (and ≤ 8 min of search) a night, the rest next night"
+   },
+   {
+    "id": "ne",
+    "pulls": "Natural Earth 110m country polygons (map asset, fetched when upstream changes)"
+   },
+   {
+    "id": "noaa_gml",
+    "updated_from": "gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv — Mauna Loa monthly mean CO₂, full record since 1958-03"
+   },
+   {
+    "id": "owid",
+    "updated_from": "ourworldindata.org/grapher/<slug>.csv + .metadata.json — full history re-downloaded each night (9 charts)"
+   },
+   {
+    "id": "pubmed",
+    "updated_from": "eutils.ncbi.nlm.nih.gov esearch — AI×biomed paper count per month; new complete months + the previous one re-fetched"
+   },
+   {
+    "id": "unsdg",
+    "pulls": "SDG series values (country×year, all areas, one request per series)"
+   },
+   {
+    "id": "who_gho",
+    "pulls": "GHO indicator values (country×year, keyless OData)"
+   },
+   {
+    "id": "wikimedia",
+    "updated_from": "wikimedia.org/api/rest_v1/metrics/pageviews — monthly en.wikipedia user views since 2015-07 (5 articles + all-pages total)"
+   },
+   {
+    "id": "worldbank",
+    "updated_from": "api.worldbank.org/v2/country/WLD/indicator/{NY.GDP.PCAP.KD,SL.UEM.TOTL.ZS} — full annual history"
+   }
+  ],
+  "timer": "worldtree-fetch.timer",
+  "utc_note": "12:30 UTC while Central European Summer Time applies; 13:30 UTC in winter (CET) — the timer fires at 14:30 local",
+  "utc_time": "12:30 UTC",
+  "pipeline": "worldtree-data method 0.5.0"
+ },
+ "geography": {
+  "regions": {
+   "AF": "Sub-Saharan Africa",
+   "ASIA": "Asia",
+   "EUR": "Europe",
+   "GLOBAL": "world aggregate / not regionally split",
+   "LATAM": "Latin America & Caribbean",
+   "MENA": "Middle East & North Africa",
+   "NA": "North America",
+   "OC": "Oceania"
+  },
+  "ari": {
+   "detail": "event-sourced restriction pressure on AI agents — global platforms, scored weekly (English-language tech news + HN + OS-vendor blogs; bias B14)",
+   "license": "dweeb.xyz Agent Restriction Index — verbatim capture, © pipeline output, methodology at report §method",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://dweeb-xzys-mac-studio.tail5435b1.ts.net/api/artifact/report-ari.html"
+  },
+  "arxiv": {
+   "detail": "cs.AI preprints submitted worldwide (US, CN, EU authors largest); counts not split by country",
+   "license": "CC0 1.0 (metadata)",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://info.arxiv.org/help/api/"
+  },
+  "epoch": {
+   "detail": "notable AI models attributed to the developer organisation's country (mostly US, CN, UK, EU, CA, KR, JP) — global industry, concentrated in a few countries",
+   "license": "CC BY 4.0",
+   "regions": [
+    "NA",
+    "ASIA",
+    "EUR",
+    "GLOBAL"
+   ],
+   "source_doc": "https://epoch.ai/data/notable-ai-models"
+  },
+  "fedreg": {
+   "detail": "US federal rulemaking and notices only — no other government is covered",
+   "license": "public domain (US gov work)",
+   "regions": [
+    "NA"
+   ],
+   "source_doc": "https://www.federalregister.gov/reader-aids/using-federalregister-gov/understanding-the-federal-register"
+  },
+  "github": {
+   "detail": "12 AI repositories on GitHub (US labs and companies, Alibaba Qwen, global contributor bases) plus 15 tool-layer repos, and search counts over every public repository (AI-tool topics, Lean) — activity is not split by country; GitHub itself is US-hosted",
+   "license": "GitHub ToS — counts are facts; metadata via public API",
+   "regions": [
+    "NA",
+    "ASIA",
+    "EUR",
+    "GLOBAL"
+   ],
+   "source_doc": "https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api"
+  },
+  "ne": {
+   "detail": "country polygons for the map layer — geometry only, no indicators",
+   "license": "public domain",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://www.naturalearthdata.com"
+  },
+  "noaa_gml": {
+   "detail": "one station: Mauna Loa Observatory (US-HI), the long-running reference for well-mixed global background CO₂ (bias B13)",
+   "license": "public domain (US gov)",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://gml.noaa.gov/ccgg/trends/data.html"
+  },
+  "owid": {
+   "detail": "World aggregates only (entity World / All geographies) — OWID compiles UN WPP, World Bank PIP, V-Dem, UCDP, Stanford AI Index; no regional series used",
+   "license": "CC BY 4.0",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://ourworldindata.org/faqs#how-is-the-data-for-world-calculated"
+  },
+  "pubmed": {
+   "detail": "biomedical literature indexed by the US National Library of Medicine from journals worldwide",
+   "license": "public domain (NLM; US gov)",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://www.nlm.nih.gov/bsd/difference.html"
+  },
+  "unsdg": {
+   "detail": "UN member-state reporting — ~250 areas, country×year SDG series",
+   "license": "UN terms — free reuse with attribution",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://unstats.un.org/sdgapi"
+  },
+  "who_gho": {
+   "detail": "194 WHO member states reporting health indicators",
+   "license": "public domain (WHO)",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://www.who.int/data/gho"
+  },
+  "wikimedia": {
+   "detail": "English-Wikipedia page views from readers worldwide — English-language skew disclosed (bias B1)",
+   "license": "CC0 1.0",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://wikitech.wikimedia.org/wiki/Analytics/AQS/Pageviews"
+  },
+  "worldbank": {
+   "detail": "WLD aggregate over the 217 economies in World Development Indicators",
+   "license": "CC BY 4.0",
+   "regions": [
+    "GLOBAL"
+   ],
+   "source_doc": "https://datahelpdesk.worldbank.org/knowledgebase/articles/906519-world-bank-country-and-lending-groups"
+  }
+ }
+}

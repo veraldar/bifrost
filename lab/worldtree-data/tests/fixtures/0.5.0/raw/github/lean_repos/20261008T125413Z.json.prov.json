@@ -1,0 +1,23 @@
+{
+ "attribution": "GitHub REST API (api.github.com, keyless: 60 core req/h + 10 search req/min — no token by design)",
+ "bytes": 5191,
+ "content_type": "application/json",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://api.github.com/search/repositories?q=language:Lean+created:2022-04-01..2022-04-30&per_page=1",
+ "http_status": 200,
+ "license": "GitHub ToS — counts are facts; metadata via public API",
+ "license_url": "https://docs.github.com/site-policy/github-terms/github-terms-of-service",
+ "path": "raw/github/lean_repos/20261008T125413Z.json",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-08T12:54:13Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "de4ad4e0b631d7ab7ba90dc58273a898394a521d1092c2732cf95d48d5d70aa3",
+ "slug": "lean_repos",
+ "source_id": "github",
+ "stored_bytes": true,
+ "upstream_next_update": null,
+ "upstream_updated": null,
+ "url": "https://api.github.com/search/repositories?q=language:Lean+created:2022-04-01..2022-04-30&per_page=1"
+}

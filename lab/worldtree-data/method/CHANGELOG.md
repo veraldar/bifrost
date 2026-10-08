@@ -1,5 +1,84 @@
 # Method changelog
 
+## 0.5.0 — 2026-10-08 (M10: the tools evolve with the models)
+- Minor: a new indicator family — the tool ecosystem co-evolving with the models, the
+  variable the tree under-weighted (briefs/M10-tools.md: "humans evolved with their
+  tools, so is AI"). Same source (`github`, keyless), same nightly budget (≤ 45 core +
+  ≤ 150 search), same retry-across-nights machinery; +4 series, +3 mapping rows
+  (W_map utopia 9 → 10, divergence 9 → 11, transcendence 5 → 6), bias B16.
+- `github.tool_repos_month` (extract `github:tool_repos`): new public repos created per
+  month carrying an AI-tool topic — `topic:llm`, `topic:ai-agents`, `topic:mcp`,
+  `topic:ai-tools` — one search `total_count` per topic-month since 2019-01; value = the
+  sum (no OR across topics in keyless search: a repo with two tracked topics counts
+  twice — probe 2025-06: 175 carry both mcp and llm vs 1,082 mcp, 1,931 llm); columns
+  `topic_*`. Mapped `divergence +1 w2` (anyone building, not the few) and
+  `transcendence +1 w1` (the unlock), `rank_delta lag=12;diff=log;h=60`.
+- `github.lean_repos_month` (`github:lean_repos`): new repos whose primary language is
+  Lean, per month — formal mathematics, the medium AI provers work in. Mapped
+  `utopia +1 w1`, same transform (tools for attacking hard problems spreading; the
+  science/maths signal the brief asked utopia to consider).
+- `github.mathlib_commits_month` (`github:mathlib`): leanprover-community/mathlib4
+  commits per month (search total_count, the commits_month rule). Page velocity only,
+  not mapped: the 2023 mathlib3 → 4 port dominates its own trend, so a rank against
+  that history would read the port, not the field.
+- `github.tool_stars_snapshot` (`github:tool_stars`): nightly stars of 15 tool-layer
+  repos (MCP servers/SDKs/registry, agent frameworks, tool-use benchmarks BFCL ·
+  τ²-bench · SWE-bench, mathlib4) — not mapped (no history; growth observed from
+  2026-10, the stars_snapshot rule).
+- Fetch order inside the shared buckets: stars, tool stars (snapshots first), releases,
+  commits, then tool repos → Lean → mathlib (mapped before page-only). Per-month count
+  kinds share one generic rule (`COUNTS`: missing months newest first, then the last
+  complete month re-checked; a month enters a series only once every key has a count).
+- Bias B16 (self-tagged topics): topics are added by owners at any time; counts are as
+  retrieved (each month once + last complete month nightly) — older months have had
+  longer to be tagged (understates growth), deleted repos vanish; `topic:mcp` repos
+  created before 2024-11 are older AI projects that added MCP later (372 created
+  2021–2023: dify, open-webui, LibreChat…). B15 stays on the repo-set series.
+- `github-trends.json` (schema `worldtree.github/1`, additive): new `tools` block —
+  topics + why, `tool_repos_by_month` (with `by_topic`), `tool_repos_by_year` (`months`
+  < 12 = year in progress), `lean_repos_by_month`, `mathlib_commits_by_month`, tool
+  repos + stars + stars_by_night, notes; every tools raw file joins the same
+  `github-trends.provenance.json` (sha256 each), and `provenance.series` lists the 4
+  new series.
+- Backfill 2026-10-08: supervised passes (env budget override, search bucket only, core
+  0, ≥ 6.5 s apart, kept clear of the 14:30 nightly) plus that nightly's own 150-search
+  budget — 570 search requests for 2019-01 → 2026-09. From then on the tools add 6
+  search requests a night (the last complete month re-checked; 6 more once per new
+  month) and 15 core (tool stars) — inside ≤ 45 core + ≤ 150 search.
+- Dropped after probing: the official MCP registry (keyless, but no count endpoint —
+  sizing needs a full cursor crawl: ≥ 23,000 servers, 230 pages in 23 min, then an
+  HTTP 500); topic OR queries (HTTP 422: one request per topic instead); mathlib3 (a
+  different repo — splicing it on would draw the port as growth); tool-use benchmark
+  release cadence (10-08 probe: BFCL/gorilla 8 releases 2023–25, τ²-bench 5 since
+  2025-07, SWE-bench 0 — too sparse for a cadence; their stars ride `tool_stars`).
+- Ops fix shipped with it (9859e83): the 2026-10-08 14:30 nightly was killed by the
+  unit's 1800 s timeout before run/publish — `nightly.sh` fetched twice (`wt fetch`,
+  then `wt run`'s own) and, with the backfill deferred, each fetch spent a full
+  150-search budget. Now one fetch a night (`run --no-fetch`, so the documented ≤ 45
+  core + ≤ 150 search a night holds) and a 480 s wall-clock cap on the search bucket per
+  fetch (`WT_GH_SEARCH_WALL`). Live kept the 10-07 numbers; no partial run was written.
+- Fixture weights: before (`tests/fixtures/0.4.1`, as-of 2026-10-04) — 14.4 · 11.1 ·
+  16.4 · 17.1 · 18.4 · 10.5 · 12.1; after (`tests/fixtures/0.5.0`, as-of 2026-10-08) —
+  15.0 · 13.3 · 15.4 · 16.0 · 17.2 · 9.7 · 13.4. The tools' own move, isolated on the same
+  raws (0.5.0 fixture with the 3 tool rows removed → 14.5 · 11.2 · 16.4 · 17.1 · 18.4 ·
+  10.3 · 12.1): utopia +0.5 · divergence +2.1 · drift −1.0 · control −1.1 · terminus
+  −1.2 · stagnation −0.6 · transcendence +1.3. Tool repos score 0.97 (2026-09 vs 2025-09
+  log growth 2.59 = ×13.4, 97th percentile of its last 60 months); Lean repos 1.00
+  (×9.6, the highest in 60 months). Terminus still leads.
+
+## 0.4.1 — 2026-10-04 (M6 GitHub; entry backfilled 2026-10-08 from commit 9baaa9c)
+- Patch: +1 source `github` (api.github.com, keyless: 60 core req/h + 10 search
+  req/min, no token by design), +3 series (`github.releases_year`,
+  `github.commits_month`, `github.stars_snapshot`), +3 mapping rows (releases →
+  divergence w1 + transcendence w1 `rank_delta lag=1;diff=log;h=30`; commits →
+  divergence w1 `rank_delta lag=12;diff=log;h=60`; stars not mapped), bias B15
+  (survivorship: the repo set is 2026's winners picked in 2026), nightly budget guard
+  (≤ 45 core + ≤ 150 search, deferred requests retried next night), output
+  `github-trends.json` (schema `worldtree.github/1`) + provenance.
+- Fixture weights: before (`tests/fixtures/0.4.0`) — 14.2 · 10.5 · 16.1 · 16.8 · 18.0 ·
+  10.2 · 14.2; after (`tests/fixtures/0.4.1`, as-of 2026-10-04) — 14.4 · 11.1 · 16.4 ·
+  17.1 · 18.4 · 10.5 · 12.1.
+
 ## 0.3.1 — 2026-10-04
 - Patch (one new indicator; method rules unchanged for every existing series):
   +1 source `ari` (Mac Studio ARI pipeline — the Agent Restriction Index

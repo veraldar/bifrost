@@ -1,0 +1,23 @@
+{
+ "attribution": "GitHub REST API (api.github.com, keyless: 60 core req/h + 10 search req/min — no token by design)",
+ "bytes": 5446,
+ "content_type": "application/json",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://api.github.com/search/repositories?q=topic:mcp+created:2019-10-01..2019-10-31&per_page=1",
+ "http_status": 200,
+ "license": "GitHub ToS — counts are facts; metadata via public API",
+ "license_url": "https://docs.github.com/site-policy/github-terms/github-terms-of-service",
+ "path": "raw/github/tool_repos/20261008T123717Z.json",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-08T12:37:17Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "044f0e762e33582b61807c584b49d292fe38cabe45a00cbe827d369a3f84176f",
+ "slug": "tool_repos",
+ "source_id": "github",
+ "stored_bytes": true,
+ "upstream_next_update": null,
+ "upstream_updated": null,
+ "url": "https://api.github.com/search/repositories?q=topic:mcp+created:2019-10-01..2019-10-31&per_page=1"
+}

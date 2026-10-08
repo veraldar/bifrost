@@ -1,0 +1,4658 @@
+{
+ "schema": "worldtree.history.provenance/1",
+ "run_id": "20261008T131500Z",
+ "as_of": "2026-10-08",
+ "updated": "2026-10-08T13:15:00Z",
+ "method_version": "0.5.0",
+ "years": {
+  "2015": {
+   "as_of": "2015-12-31",
+   "realms": {
+    "utopia": {
+     "weight": 11.0,
+     "coverage": 0.7,
+     "evidence": 0.3893,
+     "w_used": 7,
+     "w_map": 10,
+     "indicators": [
+      {
+       "series_id": "owid.extreme_poverty",
+       "series_path": "series/owid.extreme_poverty.csv",
+       "series_sha256": "455f68e74a7d6e1ac009535895043687f2d1d11f58098008a1cec221962302be",
+       "latest_date": "2015-12-31",
+       "source_url": "https://ourworldindata.org/grapher/share-of-population-in-extreme-poverty.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.375,
+       "contribution": -0.0536,
+       "weight": 3,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 24,
+       "snapshot_sha256": "2ec710800ef8b0ec25ddcbd96a880173ed05c5c8319ac8e2db85a020f7ade7bd"
+      },
+      {
+       "series_id": "owid.life_expectancy",
+       "series_path": "series/owid.life_expectancy.csv",
+       "series_sha256": "6f931b9ac90184ba33fd41bb03e544573d55b842c19e691cfc72ae792dd71b03",
+       "latest_date": "2015-12-31",
+       "source_url": "https://ourworldindata.org/grapher/life-expectancy.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.2,
+       "contribution": -0.0857,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "6336e80067d72cd910e5b03a4150bbb203fb8f22c6a9c0c43e91aba07038720b"
+      },
+      {
+       "series_id": "wb.gdp_per_capita",
+       "series_path": "series/wb.gdp_per_capita.csv",
+       "series_sha256": "b4f3ba34d262eb259c56f77fffee7a32c0df947ed1698b488d8aaa01d0f604eb",
+       "latest_date": "2015-12-31",
+       "source_url": "https://api.worldbank.org/v2/country/WLD/indicator/NY.GDP.PCAP.KD?format=json&per_page=100",
+       "license": "CC BY 4.0",
+       "score": 0.6,
+       "contribution": 0.0286,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "3c2820efa60c6da45bcd8beedd8c5ffaa06974314acf0ac5fb9174e93cc71d21"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "pubmed.ai_biomed",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "github.lean_repos_month",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "divergence": {
+     "weight": 14.2,
+     "coverage": 0.0,
+     "evidence": 0.5,
+     "w_used": 0,
+     "w_map": 11,
+     "indicators": [],
+     "excluded": [
+      {
+       "series_id": "epoch.open_weights_share",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "epoch.org_diversity",
+       "reason": "no_value"
+      },
+      {
+       "series_id": "epoch.country_diversity",
+       "reason": "no_value"
+      },
+      {
+       "series_id": "github.releases_year",
+       "reason": "no_value"
+      },
+      {
+       "series_id": "github.commits_month",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "github.tool_repos_month",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "drift": {
+     "weight": 14.2,
+     "coverage": 0.0,
+     "evidence": 0.5,
+     "w_used": 0,
+     "w_map": 3,
+     "indicators": [],
+     "excluded": [
+      {
+       "series_id": "owid.genai_user_share",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "wiki.deepfake",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "wiki.synthetic_media",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "control": {
+     "weight": 12.1,
+     "coverage": 0.25,
+     "evidence": 0.4278,
+     "w_used": 1,
+     "w_map": 4,
+     "indicators": [
+      {
+       "series_id": "owid.electoral_democracy",
+       "series_path": "series/owid.electoral_democracy.csv",
+       "series_sha256": "3c76a2345fec6715ff9c5908b0ee2ea5fec4e4b8936abd929dce587d5897103e",
+       "latest_date": "2015-12-31",
+       "source_url": "https://ourworldindata.org/grapher/electoral-democracy-index.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.0667,
+       "contribution": -0.0722,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "a0843a64486708e1638e5051be67dde8ddb0c82ae7be264c512173f503445afc"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "wiki.ai_regulation",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "fedreg.ai_documents",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "terminus": {
+     "weight": 20.1,
+     "coverage": 0.8333,
+     "evidence": 0.7088,
+     "w_used": 5,
+     "w_map": 6,
+     "indicators": [
+      {
+       "series_id": "owid.conflict_deaths",
+       "series_path": "series/owid.conflict_deaths.csv",
+       "series_sha256": "37fcd6fdfad27879733d4feaffc8c4380a3800154b004fa7fc3321c6be60d36b",
+       "latest_date": "2015-12-31",
+       "source_url": "https://ourworldindata.org/grapher/deaths-in-armed-conflicts-by-region.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.9231,
+       "contribution": 0.141,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_level",
+       "ref_n": 26,
+       "snapshot_sha256": "49322bd5f71f62962ef75c762fc7eb14e8f5bebfc253c325ebb95e9fa5c7b0ae"
+      },
+      {
+       "series_id": "wb.unemployment",
+       "series_path": "series/wb.unemployment.csv",
+       "series_sha256": "d8090842bc1a2fac4799553a5343597f8273976cfbdf729369dec4ddb18f8e80",
+       "latest_date": "2015-12-31",
+       "source_url": "https://api.worldbank.org/v2/country/WLD/indicator/SL.UEM.TOTL.ZS?format=json&per_page=100",
+       "license": "CC BY 4.0",
+       "score": 0.4783,
+       "contribution": -0.0072,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 23,
+       "snapshot_sha256": "043ba91ac5fb5d989495a0f9497f49b76398afb40e590b8912f9dc73b3273e53"
+      },
+      {
+       "series_id": "noaa.co2",
+       "series_path": "series/noaa.co2.csv",
+       "series_sha256": "45a6cf4c4d12af6a20287bac73a5b0b77fc20de5151de32bc456fba0313fba94",
+       "latest_date": "2015-12-31",
+       "source_url": "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv",
+       "license": "public domain (US gov)",
+       "score": 0.95,
+       "contribution": 0.075,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "dcf0198658c87ebb5e3b2ce807fe3a52e1d5f000aa0479fb1bf334afb7adde4d"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "wiki.ai_xrisk",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "stagnation": {
+     "weight": 14.2,
+     "coverage": 0.0,
+     "evidence": 0.5,
+     "w_used": 0,
+     "w_map": 7,
+     "indicators": [],
+     "excluded": [
+      {
+       "series_id": "owid.ai_private_investment",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "owid.ai_company_adoption",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "epoch.frontier_compute",
+       "reason": "no_value"
+      },
+      {
+       "series_id": "arxiv.cs_ai",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "transcendence": {
+     "weight": 14.2,
+     "coverage": 0.0,
+     "evidence": 0.5,
+     "w_used": 0,
+     "w_map": 6,
+     "indicators": [],
+     "excluded": [
+      {
+       "series_id": "owid.frontiermath_best",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "epoch.frontier_compute",
+       "reason": "no_value"
+      },
+      {
+       "series_id": "wiki.agi",
+       "reason": "no_value"
+      },
+      {
+       "series_id": "github.releases_year",
+       "reason": "no_value"
+      },
+      {
+       "series_id": "github.tool_repos_month",
+       "reason": "no_data"
+      }
+     ]
+    }
+   }
+  },
+  "2016": {
+   "as_of": "2016-12-31",
+   "realms": {
+    "utopia": {
+     "weight": 9.1,
+     "coverage": 0.7,
+     "evidence": 0.3029,
+     "w_used": 7,
+     "w_map": 10,
+     "indicators": [
+      {
+       "series_id": "owid.extreme_poverty",
+       "series_path": "series/owid.extreme_poverty.csv",
+       "series_sha256": "6c024c1cc5b57f2f524b2bc265323482d7ce76822d105becb30ac443f8276aff",
+       "latest_date": "2016-12-31",
+       "source_url": "https://ourworldindata.org/grapher/share-of-population-in-extreme-poverty.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.24,
+       "contribution": -0.1114,
+       "weight": 3,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 25,
+       "snapshot_sha256": "2ec710800ef8b0ec25ddcbd96a880173ed05c5c8319ac8e2db85a020f7ade7bd"
+      },
+      {
+       "series_id": "owid.life_expectancy",
+       "series_path": "series/owid.life_expectancy.csv",
+       "series_sha256": "c46d1c378f1ebd0fd1d2b9a9ee28f1dcf8262fccdb64127618eb554bf6e75d94",
+       "latest_date": "2016-12-31",
+       "source_url": "https://ourworldindata.org/grapher/life-expectancy.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.3333,
+       "contribution": -0.0476,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "6336e80067d72cd910e5b03a4150bbb203fb8f22c6a9c0c43e91aba07038720b"
+      },
+      {
+       "series_id": "wb.gdp_per_capita",
+       "series_path": "series/wb.gdp_per_capita.csv",
+       "series_sha256": "f0946f366e64f99690d4592d92ff7c95db0e567e69e849cd2b52dca6404bcb77",
+       "latest_date": "2016-12-31",
+       "source_url": "https://api.worldbank.org/v2/country/WLD/indicator/NY.GDP.PCAP.KD?format=json&per_page=100",
+       "license": "CC BY 4.0",
+       "score": 0.3667,
+       "contribution": -0.0381,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "3c2820efa60c6da45bcd8beedd8c5ffaa06974314acf0ac5fb9174e93cc71d21"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "pubmed.ai_biomed",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "github.lean_repos_month",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "divergence": {
+     "weight": 15.0,
+     "coverage": 0.0,
+     "evidence": 0.5,
+     "w_used": 0,
+     "w_map": 11,
+     "indicators": [],
+     "excluded": [
+      {
+       "series_id": "epoch.open_weights_share",
+       "reason": "no_value"
+      },
+      {
+       "series_id": "epoch.org_diversity",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "epoch.country_diversity",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "github.releases_year",
+       "reason": "no_value"
+      },
+      {
+       "series_id": "github.commits_month",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "github.tool_repos_month",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "drift": {
+     "weight": 14.9,
+     "coverage": 0.0,
+     "evidence": 0.5,
+     "w_used": 0,
+     "w_map": 3,
+     "indicators": [],
+     "excluded": [
+      {
+       "series_id": "owid.genai_user_share",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "wiki.deepfake",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "wiki.synthetic_media",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "control": {
+     "weight": 13.0,
+     "coverage": 0.25,
+     "evidence": 0.4333,
+     "w_used": 1,
+     "w_map": 4,
+     "indicators": [
+      {
+       "series_id": "owid.electoral_democracy",
+       "series_path": "series/owid.electoral_democracy.csv",
+       "series_sha256": "deef242a5b3016a8476f66a897bb9b1812261bc266e3bab093148fce4abbfca4",
+       "latest_date": "2016-12-31",
+       "source_url": "https://ourworldindata.org/grapher/electoral-democracy-index.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.1,
+       "contribution": -0.0667,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "a0843a64486708e1638e5051be67dde8ddb0c82ae7be264c512173f503445afc"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "wiki.ai_regulation",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "fedreg.ai_documents",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "terminus": {
+     "weight": 18.2,
+     "coverage": 0.8333,
+     "evidence": 0.6074,
+     "w_used": 5,
+     "w_map": 6,
+     "indicators": [
+      {
+       "series_id": "owid.conflict_deaths",
+       "series_path": "series/owid.conflict_deaths.csv",
+       "series_sha256": "cbe0a3e8148e721f0dfda2f93200eaf59a32946592801a7609821e652b1d7185",
+       "latest_date": "2016-12-31",
+       "source_url": "https://ourworldindata.org/grapher/deaths-in-armed-conflicts-by-region.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.8889,
+       "contribution": 0.1296,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_level",
+       "ref_n": 27,
+       "snapshot_sha256": "49322bd5f71f62962ef75c762fc7eb14e8f5bebfc253c325ebb95e9fa5c7b0ae"
+      },
+      {
+       "series_id": "wb.unemployment",
+       "series_path": "series/wb.unemployment.csv",
+       "series_sha256": "88930072598feebf093b47b324fea9b94d7e55b4518b320a7645a22826eb0256",
+       "latest_date": "2016-12-31",
+       "source_url": "https://api.worldbank.org/v2/country/WLD/indicator/SL.UEM.TOTL.ZS?format=json&per_page=100",
+       "license": "CC BY 4.0",
+       "score": 0.375,
+       "contribution": -0.0417,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 24,
+       "snapshot_sha256": "043ba91ac5fb5d989495a0f9497f49b76398afb40e590b8912f9dc73b3273e53"
+      },
+      {
+       "series_id": "noaa.co2",
+       "series_path": "series/noaa.co2.csv",
+       "series_sha256": "2b9ed19bd11b9f802befb1aac7f11bb8d7e29702b13ba8399e698435a15e5cd5",
+       "latest_date": "2016-12-31",
+       "source_url": "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv",
+       "license": "public domain (US gov)",
+       "score": 0.6167,
+       "contribution": 0.0195,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "dcf0198658c87ebb5e3b2ce807fe3a52e1d5f000aa0479fb1bf334afb7adde4d"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "wiki.ai_xrisk",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "stagnation": {
+     "weight": 14.9,
+     "coverage": 0.0,
+     "evidence": 0.5,
+     "w_used": 0,
+     "w_map": 7,
+     "indicators": [],
+     "excluded": [
+      {
+       "series_id": "owid.ai_private_investment",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "owid.ai_company_adoption",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "epoch.frontier_compute",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "arxiv.cs_ai",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "transcendence": {
+     "weight": 14.9,
+     "coverage": 0.0,
+     "evidence": 0.5,
+     "w_used": 0,
+     "w_map": 6,
+     "indicators": [],
+     "excluded": [
+      {
+       "series_id": "owid.frontiermath_best",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "epoch.frontier_compute",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "wiki.agi",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "github.releases_year",
+       "reason": "no_value"
+      },
+      {
+       "series_id": "github.tool_repos_month",
+       "reason": "no_data"
+      }
+     ]
+    }
+   }
+  },
+  "2017": {
+   "as_of": "2017-12-31",
+   "realms": {
+    "utopia": {
+     "weight": 10.7,
+     "coverage": 0.7,
+     "evidence": 0.3561,
+     "w_used": 7,
+     "w_map": 10,
+     "indicators": [
+      {
+       "series_id": "owid.extreme_poverty",
+       "series_path": "series/owid.extreme_poverty.csv",
+       "series_sha256": "b3c88b4ddee496aa66da806dde3b04b56f7354c1f12c7b5b72f2775e84c43d50",
+       "latest_date": "2017-12-31",
+       "source_url": "https://ourworldindata.org/grapher/share-of-population-in-extreme-poverty.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.2308,
+       "contribution": -0.1154,
+       "weight": 3,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 26,
+       "snapshot_sha256": "2ec710800ef8b0ec25ddcbd96a880173ed05c5c8319ac8e2db85a020f7ade7bd"
+      },
+      {
+       "series_id": "owid.life_expectancy",
+       "series_path": "series/owid.life_expectancy.csv",
+       "series_sha256": "3f0d2e0b1b7070a8e71fa042211bf77fb3559f25e7c16d6b8166f036c97aea55",
+       "latest_date": "2017-12-31",
+       "source_url": "https://ourworldindata.org/grapher/life-expectancy.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.1667,
+       "contribution": -0.0952,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "6336e80067d72cd910e5b03a4150bbb203fb8f22c6a9c0c43e91aba07038720b"
+      },
+      {
+       "series_id": "wb.gdp_per_capita",
+       "series_path": "series/wb.gdp_per_capita.csv",
+       "series_sha256": "078866e21fe197f4fe212fe641216c9391ab2b20a4a713e0c01452d37546f64a",
+       "latest_date": "2017-12-31",
+       "source_url": "https://api.worldbank.org/v2/country/WLD/indicator/NY.GDP.PCAP.KD?format=json&per_page=100",
+       "license": "CC BY 4.0",
+       "score": 0.7333,
+       "contribution": 0.0667,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "3c2820efa60c6da45bcd8beedd8c5ffaa06974314acf0ac5fb9174e93cc71d21"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "pubmed.ai_biomed",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "github.lean_repos_month",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "divergence": {
+     "weight": 15.1,
+     "coverage": 0.0,
+     "evidence": 0.5,
+     "w_used": 0,
+     "w_map": 11,
+     "indicators": [],
+     "excluded": [
+      {
+       "series_id": "epoch.open_weights_share",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "epoch.org_diversity",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "epoch.country_diversity",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "github.releases_year",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "github.commits_month",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "github.tool_repos_month",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "drift": {
+     "weight": 15.0,
+     "coverage": 0.0,
+     "evidence": 0.5,
+     "w_used": 0,
+     "w_map": 3,
+     "indicators": [],
+     "excluded": [
+      {
+       "series_id": "owid.genai_user_share",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "wiki.deepfake",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "wiki.synthetic_media",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "control": {
+     "weight": 12.9,
+     "coverage": 0.25,
+     "evidence": 0.4278,
+     "w_used": 1,
+     "w_map": 4,
+     "indicators": [
+      {
+       "series_id": "owid.electoral_democracy",
+       "series_path": "series/owid.electoral_democracy.csv",
+       "series_sha256": "5972144774d38564f16ccf54c2384b80d761500afd5e773bc0b6784a63b39d46",
+       "latest_date": "2017-12-31",
+       "source_url": "https://ourworldindata.org/grapher/electoral-democracy-index.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.0667,
+       "contribution": -0.0722,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "a0843a64486708e1638e5051be67dde8ddb0c82ae7be264c512173f503445afc"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "wiki.ai_regulation",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "fedreg.ai_documents",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "terminus": {
+     "weight": 16.3,
+     "coverage": 0.8333,
+     "evidence": 0.5416,
+     "w_used": 5,
+     "w_map": 6,
+     "indicators": [
+      {
+       "series_id": "owid.conflict_deaths",
+       "series_path": "series/owid.conflict_deaths.csv",
+       "series_sha256": "62ded3679bd2ca0d7ba6a07d00d4da41aa88d4396be60be6b267f5a35bd58b9a",
+       "latest_date": "2017-12-31",
+       "source_url": "https://ourworldindata.org/grapher/deaths-in-armed-conflicts-by-region.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.8214,
+       "contribution": 0.1071,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_level",
+       "ref_n": 28,
+       "snapshot_sha256": "49322bd5f71f62962ef75c762fc7eb14e8f5bebfc253c325ebb95e9fa5c7b0ae"
+      },
+      {
+       "series_id": "wb.unemployment",
+       "series_path": "series/wb.unemployment.csv",
+       "series_sha256": "b78bb769c808a3a89bf9a577326349da37aa76964a11ee54223e1b9bed16cbe4",
+       "latest_date": "2017-12-31",
+       "source_url": "https://api.worldbank.org/v2/country/WLD/indicator/SL.UEM.TOTL.ZS?format=json&per_page=100",
+       "license": "CC BY 4.0",
+       "score": 0.32,
+       "contribution": -0.06,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 25,
+       "snapshot_sha256": "043ba91ac5fb5d989495a0f9497f49b76398afb40e590b8912f9dc73b3273e53"
+      },
+      {
+       "series_id": "noaa.co2",
+       "series_path": "series/noaa.co2.csv",
+       "series_sha256": "21516f44e08a4f21e67d0c6f884ed8c400fee7d84c0b7eb173e7ed1714891abc",
+       "latest_date": "2017-12-31",
+       "source_url": "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv",
+       "license": "public domain (US gov)",
+       "score": 0.4667,
+       "contribution": -0.0055,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "dcf0198658c87ebb5e3b2ce807fe3a52e1d5f000aa0479fb1bf334afb7adde4d"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "wiki.ai_xrisk",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "stagnation": {
+     "weight": 15.0,
+     "coverage": 0.0,
+     "evidence": 0.5,
+     "w_used": 0,
+     "w_map": 7,
+     "indicators": [],
+     "excluded": [
+      {
+       "series_id": "owid.ai_private_investment",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "owid.ai_company_adoption",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "epoch.frontier_compute",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "arxiv.cs_ai",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "transcendence": {
+     "weight": 15.0,
+     "coverage": 0.0,
+     "evidence": 0.5,
+     "w_used": 0,
+     "w_map": 6,
+     "indicators": [],
+     "excluded": [
+      {
+       "series_id": "owid.frontiermath_best",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "epoch.frontier_compute",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "wiki.agi",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "github.releases_year",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "github.tool_repos_month",
+       "reason": "no_data"
+      }
+     ]
+    }
+   }
+  },
+  "2018": {
+   "as_of": "2018-12-31",
+   "realms": {
+    "utopia": {
+     "weight": 15.2,
+     "coverage": 0.7,
+     "evidence": 0.4667,
+     "w_used": 7,
+     "w_map": 10,
+     "indicators": [
+      {
+       "series_id": "owid.extreme_poverty",
+       "series_path": "series/owid.extreme_poverty.csv",
+       "series_sha256": "ce00082b80bdf2edcfdc52996c511179df4a908dae0fec3b896f62488ce64c03",
+       "latest_date": "2018-12-31",
+       "source_url": "https://ourworldindata.org/grapher/share-of-population-in-extreme-poverty.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.2222,
+       "contribution": -0.1191,
+       "weight": 3,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 27,
+       "snapshot_sha256": "2ec710800ef8b0ec25ddcbd96a880173ed05c5c8319ac8e2db85a020f7ade7bd"
+      },
+      {
+       "series_id": "owid.life_expectancy",
+       "series_path": "series/owid.life_expectancy.csv",
+       "series_sha256": "92c375fb816ecb111b56ff4f49521fddef9ca59131f700b8b3a17361206cd800",
+       "latest_date": "2018-12-31",
+       "source_url": "https://ourworldindata.org/grapher/life-expectancy.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.6,
+       "contribution": 0.0286,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "6336e80067d72cd910e5b03a4150bbb203fb8f22c6a9c0c43e91aba07038720b"
+      },
+      {
+       "series_id": "wb.gdp_per_capita",
+       "series_path": "series/wb.gdp_per_capita.csv",
+       "series_sha256": "c826fe24bb47fd72089ef25da4a78bf87a62a3bc1e256bd65299f337d298ace6",
+       "latest_date": "2018-12-31",
+       "source_url": "https://api.worldbank.org/v2/country/WLD/indicator/NY.GDP.PCAP.KD?format=json&per_page=100",
+       "license": "CC BY 4.0",
+       "score": 0.7,
+       "contribution": 0.0571,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "3c2820efa60c6da45bcd8beedd8c5ffaa06974314acf0ac5fb9174e93cc71d21"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "pubmed.ai_biomed",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "github.lean_repos_month",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "divergence": {
+     "weight": 8.9,
+     "coverage": 0.3636,
+     "evidence": 0.2714,
+     "w_used": 4,
+     "w_map": 11,
+     "indicators": [
+      {
+       "series_id": "epoch.org_diversity",
+       "series_path": "series/epoch.org_diversity.csv",
+       "series_sha256": "eef36a2c24d257f49a416169645347e7f1d997603b08063e9c8618250cdd3933",
+       "latest_date": "2018-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.2571,
+       "contribution": -0.081,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 35,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "epoch.country_diversity",
+       "series_path": "series/epoch.country_diversity.csv",
+       "series_sha256": "95d5c30b9fd846d25222ade0f2e7daa9b3795a8994ea3042a5e9607ee4208cd6",
+       "latest_date": "2018-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.0571,
+       "contribution": -0.1476,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 35,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "epoch.open_weights_share",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "github.releases_year",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "github.commits_month",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "github.tool_repos_month",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "drift": {
+     "weight": 16.3,
+     "coverage": 0.0,
+     "evidence": 0.5,
+     "w_used": 0,
+     "w_map": 3,
+     "indicators": [],
+     "excluded": [
+      {
+       "series_id": "owid.genai_user_share",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "wiki.deepfake",
+       "reason": "no_value"
+      },
+      {
+       "series_id": "wiki.synthetic_media",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "control": {
+     "weight": 14.7,
+     "coverage": 0.25,
+     "evidence": 0.45,
+     "w_used": 1,
+     "w_map": 4,
+     "indicators": [
+      {
+       "series_id": "owid.electoral_democracy",
+       "series_path": "series/owid.electoral_democracy.csv",
+       "series_sha256": "5f33ff81e751525cb8dd4e27d2c5a5aa7777f8179d3be779cc9b1fdf7af1ec91",
+       "latest_date": "2018-12-31",
+       "source_url": "https://ourworldindata.org/grapher/electoral-democracy-index.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.2,
+       "contribution": -0.05,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "a0843a64486708e1638e5051be67dde8ddb0c82ae7be264c512173f503445afc"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "wiki.ai_regulation",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "fedreg.ai_documents",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "terminus": {
+     "weight": 14.8,
+     "coverage": 0.8333,
+     "evidence": 0.452,
+     "w_used": 5,
+     "w_map": 6,
+     "indicators": [
+      {
+       "series_id": "owid.conflict_deaths",
+       "series_path": "series/owid.conflict_deaths.csv",
+       "series_sha256": "6106864a77693624d3d062620a9b869e7a91caf9839a3c80d45c1b4f61a69809",
+       "latest_date": "2018-12-31",
+       "source_url": "https://ourworldindata.org/grapher/deaths-in-armed-conflicts-by-region.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.6552,
+       "contribution": 0.0517,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_level",
+       "ref_n": 29,
+       "snapshot_sha256": "49322bd5f71f62962ef75c762fc7eb14e8f5bebfc253c325ebb95e9fa5c7b0ae"
+      },
+      {
+       "series_id": "wb.unemployment",
+       "series_path": "series/wb.unemployment.csv",
+       "series_sha256": "1a8f23e37ca44d15bf633362e2239c0e245c9aa151d5d8dc6fc5135324d758f8",
+       "latest_date": "2018-12-31",
+       "source_url": "https://api.worldbank.org/v2/country/WLD/indicator/SL.UEM.TOTL.ZS?format=json&per_page=100",
+       "license": "CC BY 4.0",
+       "score": 0.1923,
+       "contribution": -0.1026,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 26,
+       "snapshot_sha256": "043ba91ac5fb5d989495a0f9497f49b76398afb40e590b8912f9dc73b3273e53"
+      },
+      {
+       "series_id": "noaa.co2",
+       "series_path": "series/noaa.co2.csv",
+       "series_sha256": "e97ef130e7f0f4378331d465cb7b515ad82b919f580fac44ee910445f058ee07",
+       "latest_date": "2018-12-31",
+       "source_url": "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv",
+       "license": "public domain (US gov)",
+       "score": 0.5167,
+       "contribution": 0.0028,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "dcf0198658c87ebb5e3b2ce807fe3a52e1d5f000aa0479fb1bf334afb7adde4d"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "wiki.ai_xrisk",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "stagnation": {
+     "weight": 12.3,
+     "coverage": 0.2857,
+     "evidence": 0.3762,
+     "w_used": 2,
+     "w_map": 7,
+     "indicators": [
+      {
+       "series_id": "epoch.frontier_compute",
+       "series_path": "series/epoch.frontier_compute.csv",
+       "series_sha256": "3a33ee6a50f52b4bf4fce74a053d7bfee22bce0a7d2f2710272848d6e51d7eb4",
+       "latest_date": "2018-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.1286,
+       "contribution": -0.1238,
+       "weight": 2,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 35,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "owid.ai_private_investment",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "owid.ai_company_adoption",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "arxiv.cs_ai",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "transcendence": {
+     "weight": 17.8,
+     "coverage": 0.5,
+     "evidence": 0.5466,
+     "w_used": 3,
+     "w_map": 6,
+     "indicators": [
+      {
+       "series_id": "epoch.frontier_compute",
+       "series_path": "series/epoch.frontier_compute.csv",
+       "series_sha256": "3a33ee6a50f52b4bf4fce74a053d7bfee22bce0a7d2f2710272848d6e51d7eb4",
+       "latest_date": "2018-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.8714,
+       "contribution": 0.1238,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 35,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "wiki.agi",
+       "series_path": "series/wiki.agi.csv",
+       "series_sha256": "2462aaa74577514f14a143ec09f2ee9fe8a8bd34c4c4037cea8b1ccb20220daf",
+       "latest_date": "2018-12-31",
+       "source_url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Artificial_general_intelligence/monthly/20150701/20260930",
+       "license": "CC0 1.0",
+       "score": 0.037,
+       "contribution": -0.0772,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 27,
+       "snapshot_sha256": "76414d1f40304ad8d8efb5d28be8089d7585d1eb4dcfcce4c4fae71698e0a3eb"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "owid.frontiermath_best",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "github.releases_year",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "github.tool_repos_month",
+       "reason": "no_data"
+      }
+     ]
+    }
+   }
+  },
+  "2019": {
+   "as_of": "2019-12-31",
+   "realms": {
+    "utopia": {
+     "weight": 6.4,
+     "coverage": 0.7,
+     "evidence": 0.202,
+     "w_used": 7,
+     "w_map": 10,
+     "indicators": [
+      {
+       "series_id": "owid.extreme_poverty",
+       "series_path": "series/owid.extreme_poverty.csv",
+       "series_sha256": "453b337ae81f7a382bb116e52cb0e645c6666c7df29b8f2d2a1cc8745482d38f",
+       "latest_date": "2019-12-31",
+       "source_url": "https://ourworldindata.org/grapher/share-of-population-in-extreme-poverty.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.0714,
+       "contribution": -0.1837,
+       "weight": 3,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 28,
+       "snapshot_sha256": "2ec710800ef8b0ec25ddcbd96a880173ed05c5c8319ac8e2db85a020f7ade7bd"
+      },
+      {
+       "series_id": "owid.life_expectancy",
+       "series_path": "series/owid.life_expectancy.csv",
+       "series_sha256": "a0cbea9349d18d64deb735e90fa8854f8fd3a26aae9960715835fdb2ed5ed557",
+       "latest_date": "2019-12-31",
+       "source_url": "https://ourworldindata.org/grapher/life-expectancy.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.2333,
+       "contribution": -0.0762,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "6336e80067d72cd910e5b03a4150bbb203fb8f22c6a9c0c43e91aba07038720b"
+      },
+      {
+       "series_id": "wb.gdp_per_capita",
+       "series_path": "series/wb.gdp_per_capita.csv",
+       "series_sha256": "2ebe8a368651473998ddc4b40c3f85f89535a44a320b193fe3e8e34ed5985da1",
+       "latest_date": "2019-12-31",
+       "source_url": "https://api.worldbank.org/v2/country/WLD/indicator/NY.GDP.PCAP.KD?format=json&per_page=100",
+       "license": "CC BY 4.0",
+       "score": 0.3667,
+       "contribution": -0.0381,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "3c2820efa60c6da45bcd8beedd8c5ffaa06974314acf0ac5fb9174e93cc71d21"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "pubmed.ai_biomed",
+       "reason": "no_value"
+      },
+      {
+       "series_id": "github.lean_repos_month",
+       "reason": "no_value"
+      }
+     ]
+    },
+    "divergence": {
+     "weight": 18.8,
+     "coverage": 0.6364,
+     "evidence": 0.5968,
+     "w_used": 7,
+     "w_map": 11,
+     "indicators": [
+      {
+       "series_id": "epoch.open_weights_share",
+       "series_path": "series/epoch.open_weights_share.csv",
+       "series_sha256": "dbcef6849d47bf7eda13120cb20a400f19ebbdd71f588759df9595f4a17fbe4b",
+       "latest_date": "2019-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.5556,
+       "contribution": 0.0238,
+       "weight": 3,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 27,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "epoch.org_diversity",
+       "series_path": "series/epoch.org_diversity.csv",
+       "series_sha256": "68b53accd55fefbf2a41d25ae1b7696b2a022fe3540e0061cf7a3c98e74d31a5",
+       "latest_date": "2019-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.7447,
+       "contribution": 0.0699,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 47,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "epoch.country_diversity",
+       "series_path": "series/epoch.country_diversity.csv",
+       "series_sha256": "692e90cac7c506f6530cd77fbc19f3e9331b41c3dfd9ae54bd129ef811a7a35a",
+       "latest_date": "2019-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.5106,
+       "contribution": 0.003,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 47,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "github.releases_year",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "github.commits_month",
+       "reason": "no_value"
+      },
+      {
+       "series_id": "github.tool_repos_month",
+       "reason": "no_value"
+      }
+     ]
+    },
+    "drift": {
+     "weight": 15.8,
+     "coverage": 0.0,
+     "evidence": 0.5,
+     "w_used": 0,
+     "w_map": 3,
+     "indicators": [],
+     "excluded": [
+      {
+       "series_id": "owid.genai_user_share",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "wiki.deepfake",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "wiki.synthetic_media",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "control": {
+     "weight": 13.8,
+     "coverage": 0.25,
+     "evidence": 0.4389,
+     "w_used": 1,
+     "w_map": 4,
+     "indicators": [
+      {
+       "series_id": "owid.electoral_democracy",
+       "series_path": "series/owid.electoral_democracy.csv",
+       "series_sha256": "0cdd5052f70f5c2bfd4fa4635f05170960d36d6756bd50b274df0cc80728d886",
+       "latest_date": "2019-12-31",
+       "source_url": "https://ourworldindata.org/grapher/electoral-democracy-index.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.1333,
+       "contribution": -0.0611,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "a0843a64486708e1638e5051be67dde8ddb0c82ae7be264c512173f503445afc"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "wiki.ai_regulation",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "fedreg.ai_documents",
+       "reason": "no_value"
+      }
+     ]
+    },
+    "terminus": {
+     "weight": 12.5,
+     "coverage": 0.8333,
+     "evidence": 0.3969,
+     "w_used": 5,
+     "w_map": 6,
+     "indicators": [
+      {
+       "series_id": "owid.conflict_deaths",
+       "series_path": "series/owid.conflict_deaths.csv",
+       "series_sha256": "6f4796709aec7fa0245c6c4fd70e10303a43f2d01b8868fb94ae0b2d300d41ab",
+       "latest_date": "2019-12-31",
+       "source_url": "https://ourworldindata.org/grapher/deaths-in-armed-conflicts-by-region.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.5667,
+       "contribution": 0.0222,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_level",
+       "ref_n": 30,
+       "snapshot_sha256": "49322bd5f71f62962ef75c762fc7eb14e8f5bebfc253c325ebb95e9fa5c7b0ae"
+      },
+      {
+       "series_id": "wb.unemployment",
+       "series_path": "series/wb.unemployment.csv",
+       "series_sha256": "f7da673a43f7935d89107fc73b8fc623e101e71f37bdb7c2bd86bd3ebdb52be0",
+       "latest_date": "2019-12-31",
+       "source_url": "https://api.worldbank.org/v2/country/WLD/indicator/SL.UEM.TOTL.ZS?format=json&per_page=100",
+       "license": "CC BY 4.0",
+       "score": 0.0741,
+       "contribution": -0.142,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 27,
+       "snapshot_sha256": "043ba91ac5fb5d989495a0f9497f49b76398afb40e590b8912f9dc73b3273e53"
+      },
+      {
+       "series_id": "noaa.co2",
+       "series_path": "series/noaa.co2.csv",
+       "series_sha256": "ba4ff3a24b844e3337edc3031054a3dd06991557c77e8f9b80b9aecc10eb6c6b",
+       "latest_date": "2019-12-31",
+       "source_url": "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv",
+       "license": "public domain (US gov)",
+       "score": 0.6,
+       "contribution": 0.0167,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "dcf0198658c87ebb5e3b2ce807fe3a52e1d5f000aa0479fb1bf334afb7adde4d"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "wiki.ai_xrisk",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "stagnation": {
+     "weight": 11.6,
+     "coverage": 0.2857,
+     "evidence": 0.3688,
+     "w_used": 2,
+     "w_map": 7,
+     "indicators": [
+      {
+       "series_id": "epoch.frontier_compute",
+       "series_path": "series/epoch.frontier_compute.csv",
+       "series_sha256": "07734940bfe47d423eba1ba9624239165924195f59d586129bbe54addded9def",
+       "latest_date": "2019-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.1064,
+       "contribution": -0.1312,
+       "weight": 2,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 47,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "owid.ai_private_investment",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "owid.ai_company_adoption",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "arxiv.cs_ai",
+       "reason": "no_value"
+      }
+     ]
+    },
+    "transcendence": {
+     "weight": 21.1,
+     "coverage": 0.5,
+     "evidence": 0.6675,
+     "w_used": 3,
+     "w_map": 6,
+     "indicators": [
+      {
+       "series_id": "epoch.frontier_compute",
+       "series_path": "series/epoch.frontier_compute.csv",
+       "series_sha256": "07734940bfe47d423eba1ba9624239165924195f59d586129bbe54addded9def",
+       "latest_date": "2019-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.8936,
+       "contribution": 0.1312,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 47,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "wiki.agi",
+       "series_path": "series/wiki.agi.csv",
+       "series_sha256": "e4483da8f69d404875130cec9d92f8bfd282daa42cd9483d60348e803730b0f1",
+       "latest_date": "2019-12-31",
+       "source_url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Artificial_general_intelligence/monthly/20150701/20260930",
+       "license": "CC0 1.0",
+       "score": 0.7179,
+       "contribution": 0.0363,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 39,
+       "snapshot_sha256": "76414d1f40304ad8d8efb5d28be8089d7585d1eb4dcfcce4c4fae71698e0a3eb"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "owid.frontiermath_best",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "github.releases_year",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "github.tool_repos_month",
+       "reason": "no_value"
+      }
+     ]
+    }
+   }
+  },
+  "2020": {
+   "as_of": "2020-12-31",
+   "realms": {
+    "utopia": {
+     "weight": 0.0,
+     "coverage": 0.7,
+     "evidence": 0.0,
+     "w_used": 7,
+     "w_map": 10,
+     "indicators": [
+      {
+       "series_id": "owid.extreme_poverty",
+       "series_path": "series/owid.extreme_poverty.csv",
+       "series_sha256": "ac5c7e3c257b233daa647f02a240d559b57f51f84e2b8baccd0e715c1da33c41",
+       "latest_date": "2020-12-31",
+       "source_url": "https://ourworldindata.org/grapher/share-of-population-in-extreme-poverty.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.0,
+       "contribution": -0.2143,
+       "weight": 3,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 29,
+       "snapshot_sha256": "2ec710800ef8b0ec25ddcbd96a880173ed05c5c8319ac8e2db85a020f7ade7bd"
+      },
+      {
+       "series_id": "owid.life_expectancy",
+       "series_path": "series/owid.life_expectancy.csv",
+       "series_sha256": "490407388b21b98829962c131266d0a6b448effae4d5abc54e27e08f06edd38d",
+       "latest_date": "2020-12-31",
+       "source_url": "https://ourworldindata.org/grapher/life-expectancy.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.0,
+       "contribution": -0.1429,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "6336e80067d72cd910e5b03a4150bbb203fb8f22c6a9c0c43e91aba07038720b"
+      },
+      {
+       "series_id": "wb.gdp_per_capita",
+       "series_path": "series/wb.gdp_per_capita.csv",
+       "series_sha256": "18c44859736adc5687a4476dfd454a2da5d5385414f99e8505d97e5d1186d714",
+       "latest_date": "2020-12-31",
+       "source_url": "https://api.worldbank.org/v2/country/WLD/indicator/NY.GDP.PCAP.KD?format=json&per_page=100",
+       "license": "CC BY 4.0",
+       "score": 0.0,
+       "contribution": -0.1429,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "3c2820efa60c6da45bcd8beedd8c5ffaa06974314acf0ac5fb9174e93cc71d21"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "pubmed.ai_biomed",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "github.lean_repos_month",
+       "reason": "short_history"
+      }
+     ]
+    },
+    "divergence": {
+     "weight": 17.7,
+     "coverage": 0.6364,
+     "evidence": 0.5556,
+     "w_used": 7,
+     "w_map": 11,
+     "indicators": [
+      {
+       "series_id": "epoch.open_weights_share",
+       "series_path": "series/epoch.open_weights_share.csv",
+       "series_sha256": "dda5834d733b67f8242b2c93ebc8608d6b2bd528b4d2628d42d9a733f3db0ac0",
+       "latest_date": "2020-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.641,
+       "contribution": 0.0604,
+       "weight": 3,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 39,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "epoch.org_diversity",
+       "series_path": "series/epoch.org_diversity.csv",
+       "series_sha256": "84ef70b6bc73cf9b584e5b20c8a0ea17f04e75e75b04ef2d562cd2a7c6793225",
+       "latest_date": "2020-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.1356,
+       "contribution": -0.1041,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 59,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "epoch.country_diversity",
+       "series_path": "series/epoch.country_diversity.csv",
+       "series_sha256": "7376aae45d4552eeb5d568fbaf4788d2a9cbedb52e106979c110d28275bed47c",
+       "latest_date": "2020-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.8475,
+       "contribution": 0.0993,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 59,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "github.releases_year",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "github.commits_month",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "github.tool_repos_month",
+       "reason": "short_history"
+      }
+     ]
+    },
+    "drift": {
+     "weight": 15.9,
+     "coverage": 0.0,
+     "evidence": 0.5,
+     "w_used": 0,
+     "w_map": 3,
+     "indicators": [],
+     "excluded": [
+      {
+       "series_id": "owid.genai_user_share",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "wiki.deepfake",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "wiki.synthetic_media",
+       "reason": "no_value"
+      }
+     ]
+    },
+    "control": {
+     "weight": 13.3,
+     "coverage": 0.25,
+     "evidence": 0.4167,
+     "w_used": 1,
+     "w_map": 4,
+     "indicators": [
+      {
+       "series_id": "owid.electoral_democracy",
+       "series_path": "series/owid.electoral_democracy.csv",
+       "series_sha256": "74b99054c3e0b97fd9bfa5abfc6c1392286271490cc027f07a276fbb06ff12b2",
+       "latest_date": "2020-12-31",
+       "source_url": "https://ourworldindata.org/grapher/electoral-democracy-index.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.0,
+       "contribution": -0.0833,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "a0843a64486708e1638e5051be67dde8ddb0c82ae7be264c512173f503445afc"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "wiki.ai_regulation",
+       "reason": "no_value"
+      },
+      {
+       "series_id": "fedreg.ai_documents",
+       "reason": "short_history"
+      }
+     ]
+    },
+    "terminus": {
+     "weight": 23.0,
+     "coverage": 0.8333,
+     "evidence": 0.7222,
+     "w_used": 5,
+     "w_map": 6,
+     "indicators": [
+      {
+       "series_id": "owid.conflict_deaths",
+       "series_path": "series/owid.conflict_deaths.csv",
+       "series_sha256": "61b92e60059bb450bbe26a28ef1adbc2468bb35fe3d4a54a3ceecc97f1d9cc42",
+       "latest_date": "2020-12-31",
+       "source_url": "https://ourworldindata.org/grapher/deaths-in-armed-conflicts-by-region.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.8,
+       "contribution": 0.1,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_level",
+       "ref_n": 30,
+       "snapshot_sha256": "49322bd5f71f62962ef75c762fc7eb14e8f5bebfc253c325ebb95e9fa5c7b0ae"
+      },
+      {
+       "series_id": "wb.unemployment",
+       "series_path": "series/wb.unemployment.csv",
+       "series_sha256": "39f7125b0d7805af6b1277744a858b94c169be2950c1387c908a1ec3801d745a",
+       "latest_date": "2020-12-31",
+       "source_url": "https://api.worldbank.org/v2/country/WLD/indicator/SL.UEM.TOTL.ZS?format=json&per_page=100",
+       "license": "CC BY 4.0",
+       "score": 1.0,
+       "contribution": 0.1667,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 28,
+       "snapshot_sha256": "043ba91ac5fb5d989495a0f9497f49b76398afb40e590b8912f9dc73b3273e53"
+      },
+      {
+       "series_id": "noaa.co2",
+       "series_path": "series/noaa.co2.csv",
+       "series_sha256": "7dda462433ddef3beabd6866fca7c2a6d5a04762789a29681084238c2b777300",
+       "latest_date": "2020-12-31",
+       "source_url": "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv",
+       "license": "public domain (US gov)",
+       "score": 0.2333,
+       "contribution": -0.0445,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "dcf0198658c87ebb5e3b2ce807fe3a52e1d5f000aa0479fb1bf334afb7adde4d"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "wiki.ai_xrisk",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "stagnation": {
+     "weight": 18.0,
+     "coverage": 0.2857,
+     "evidence": 0.565,
+     "w_used": 2,
+     "w_map": 7,
+     "indicators": [
+      {
+       "series_id": "epoch.frontier_compute",
+       "series_path": "series/epoch.frontier_compute.csv",
+       "series_sha256": "e4cdf8a349bb4600d94347356bdc2aabd947131bb36c54cb5feac77116ea26fe",
+       "latest_date": "2020-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.6949,
+       "contribution": 0.065,
+       "weight": 2,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 59,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "owid.ai_private_investment",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "owid.ai_company_adoption",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "arxiv.cs_ai",
+       "reason": "short_history"
+      }
+     ]
+    },
+    "transcendence": {
+     "weight": 12.1,
+     "coverage": 0.5,
+     "evidence": 0.3779,
+     "w_used": 3,
+     "w_map": 6,
+     "indicators": [
+      {
+       "series_id": "epoch.frontier_compute",
+       "series_path": "series/epoch.frontier_compute.csv",
+       "series_sha256": "e4cdf8a349bb4600d94347356bdc2aabd947131bb36c54cb5feac77116ea26fe",
+       "latest_date": "2020-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.3051,
+       "contribution": -0.065,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 59,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "wiki.agi",
+       "series_path": "series/wiki.agi.csv",
+       "series_sha256": "7d40aaae07c53d388bd367d56ff715cd0061cf3d346d74f0a9643ac832343dc8",
+       "latest_date": "2020-12-31",
+       "source_url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Artificial_general_intelligence/monthly/20150701/20260930",
+       "license": "CC0 1.0",
+       "score": 0.1569,
+       "contribution": -0.0572,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 51,
+       "snapshot_sha256": "76414d1f40304ad8d8efb5d28be8089d7585d1eb4dcfcce4c4fae71698e0a3eb"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "owid.frontiermath_best",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "github.releases_year",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "github.tool_repos_month",
+       "reason": "short_history"
+      }
+     ]
+    }
+   }
+  },
+  "2021": {
+   "as_of": "2021-12-31",
+   "realms": {
+    "utopia": {
+     "weight": 9.9,
+     "coverage": 0.7,
+     "evidence": 0.3143,
+     "w_used": 7,
+     "w_map": 10,
+     "indicators": [
+      {
+       "series_id": "owid.extreme_poverty",
+       "series_path": "series/owid.extreme_poverty.csv",
+       "series_sha256": "284e6d4947302265055c45a364739733cd31ab6deacd6fdec1c0f148d4537dda",
+       "latest_date": "2021-12-31",
+       "source_url": "https://ourworldindata.org/grapher/share-of-population-in-extreme-poverty.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.0667,
+       "contribution": -0.1857,
+       "weight": 3,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "2ec710800ef8b0ec25ddcbd96a880173ed05c5c8319ac8e2db85a020f7ade7bd"
+      },
+      {
+       "series_id": "owid.life_expectancy",
+       "series_path": "series/owid.life_expectancy.csv",
+       "series_sha256": "7f538ffa4f1337e9ae8111ccd4e13286c552a338fbeba3edb93d83d5d5b1913e",
+       "latest_date": "2021-12-31",
+       "source_url": "https://ourworldindata.org/grapher/life-expectancy.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.0,
+       "contribution": -0.1429,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "6336e80067d72cd910e5b03a4150bbb203fb8f22c6a9c0c43e91aba07038720b"
+      },
+      {
+       "series_id": "wb.gdp_per_capita",
+       "series_path": "series/wb.gdp_per_capita.csv",
+       "series_sha256": "5709de63fe73898eaa5887a8713ba1d8df4fddb2f1dc1636665d7fc4e71f0cd7",
+       "latest_date": "2021-12-31",
+       "source_url": "https://api.worldbank.org/v2/country/WLD/indicator/NY.GDP.PCAP.KD?format=json&per_page=100",
+       "license": "CC BY 4.0",
+       "score": 1.0,
+       "contribution": 0.1429,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "3c2820efa60c6da45bcd8beedd8c5ffaa06974314acf0ac5fb9174e93cc71d21"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "pubmed.ai_biomed",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "github.lean_repos_month",
+       "reason": "short_history"
+      }
+     ]
+    },
+    "divergence": {
+     "weight": 15.6,
+     "coverage": 0.6364,
+     "evidence": 0.4972,
+     "w_used": 7,
+     "w_map": 11,
+     "indicators": [
+      {
+       "series_id": "epoch.open_weights_share",
+       "series_path": "series/epoch.open_weights_share.csv",
+       "series_sha256": "ba4b3d7c6d83c5dfe63abd82f4e77edeadee5a426eb68be7c52a8b317be88fa7",
+       "latest_date": "2021-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.2157,
+       "contribution": -0.1218,
+       "weight": 3,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 51,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "epoch.org_diversity",
+       "series_path": "series/epoch.org_diversity.csv",
+       "series_sha256": "0358801b019fbac44dce271f5362811c2f202d23c24873ee0ab2a6466e427c08",
+       "latest_date": "2021-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.7833,
+       "contribution": 0.0809,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "epoch.country_diversity",
+       "series_path": "series/epoch.country_diversity.csv",
+       "series_sha256": "21f1430e0128420cf8a4a1488c63d340589e8620ab159bbce719a3a85d05ee52",
+       "latest_date": "2021-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.6333,
+       "contribution": 0.0381,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "github.releases_year",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "github.commits_month",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "github.tool_repos_month",
+       "reason": "short_history"
+      }
+     ]
+    },
+    "drift": {
+     "weight": 14.1,
+     "coverage": 0.3333,
+     "evidence": 0.4479,
+     "w_used": 1,
+     "w_map": 3,
+     "indicators": [
+      {
+       "series_id": "wiki.deepfake",
+       "series_path": "series/wiki.deepfake.csv",
+       "series_sha256": "76e15876da80473732e65683420a39a7bd10faf3ff4aa9e592f79a163e750287",
+       "latest_date": "2021-12-31",
+       "source_url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Deepfake/monthly/20150701/20260930",
+       "license": "CC0 1.0",
+       "score": 0.1875,
+       "contribution": -0.0521,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 32,
+       "snapshot_sha256": "422f25cfa266e469c533dcb857319e87dbb66032613af4b4a2f5e063f8434c5d"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "owid.genai_user_share",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "wiki.synthetic_media",
+       "reason": "short_history"
+      }
+     ]
+    },
+    "control": {
+     "weight": 13.1,
+     "coverage": 0.25,
+     "evidence": 0.4167,
+     "w_used": 1,
+     "w_map": 4,
+     "indicators": [
+      {
+       "series_id": "owid.electoral_democracy",
+       "series_path": "series/owid.electoral_democracy.csv",
+       "series_sha256": "6d7af02823a2faf678c72e19295ec29ffa5dfd080a6be29e75a72b86eeeeb02a",
+       "latest_date": "2021-12-31",
+       "source_url": "https://ourworldindata.org/grapher/electoral-democracy-index.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.0,
+       "contribution": -0.0833,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "a0843a64486708e1638e5051be67dde8ddb0c82ae7be264c512173f503445afc"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "wiki.ai_regulation",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "fedreg.ai_documents",
+       "reason": "short_history"
+      }
+     ]
+    },
+    "terminus": {
+     "weight": 15.6,
+     "coverage": 0.8333,
+     "evidence": 0.4972,
+     "w_used": 5,
+     "w_map": 6,
+     "indicators": [
+      {
+       "series_id": "owid.conflict_deaths",
+       "series_path": "series/owid.conflict_deaths.csv",
+       "series_sha256": "de797636f364c7231a753bc3bfa7cf586d7790a78169d89da81c013b6ac2f8f6",
+       "latest_date": "2021-12-31",
+       "source_url": "https://ourworldindata.org/grapher/deaths-in-armed-conflicts-by-region.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.9667,
+       "contribution": 0.1556,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_level",
+       "ref_n": 30,
+       "snapshot_sha256": "49322bd5f71f62962ef75c762fc7eb14e8f5bebfc253c325ebb95e9fa5c7b0ae"
+      },
+      {
+       "series_id": "wb.unemployment",
+       "series_path": "series/wb.unemployment.csv",
+       "series_sha256": "663714a2af23334194055f8762a933fa167a24e3e8d5920c6898a4097d7f881e",
+       "latest_date": "2021-12-31",
+       "source_url": "https://api.worldbank.org/v2/country/WLD/indicator/SL.UEM.TOTL.ZS?format=json&per_page=100",
+       "license": "CC BY 4.0",
+       "score": 0.0,
+       "contribution": -0.1667,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 29,
+       "snapshot_sha256": "043ba91ac5fb5d989495a0f9497f49b76398afb40e590b8912f9dc73b3273e53"
+      },
+      {
+       "series_id": "noaa.co2",
+       "series_path": "series/noaa.co2.csv",
+       "series_sha256": "8239bedec2f798fe7592d54879a754471999c0ac6794f30e2bf96948f8c1c3f7",
+       "latest_date": "2021-12-31",
+       "source_url": "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv",
+       "license": "public domain (US gov)",
+       "score": 0.55,
+       "contribution": 0.0083,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "dcf0198658c87ebb5e3b2ce807fe3a52e1d5f000aa0479fb1bf334afb7adde4d"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "wiki.ai_xrisk",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "stagnation": {
+     "weight": 14.1,
+     "coverage": 0.2857,
+     "evidence": 0.4472,
+     "w_used": 2,
+     "w_map": 7,
+     "indicators": [
+      {
+       "series_id": "epoch.frontier_compute",
+       "series_path": "series/epoch.frontier_compute.csv",
+       "series_sha256": "2513a707e6f9dce1f83d47eb33bcec4f50988ccbd58115a08c59d8ad58000f33",
+       "latest_date": "2021-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.3417,
+       "contribution": -0.0528,
+       "weight": 2,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "owid.ai_private_investment",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "owid.ai_company_adoption",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "arxiv.cs_ai",
+       "reason": "short_history"
+      }
+     ]
+    },
+    "transcendence": {
+     "weight": 17.6,
+     "coverage": 0.5,
+     "evidence": 0.5583,
+     "w_used": 3,
+     "w_map": 6,
+     "indicators": [
+      {
+       "series_id": "epoch.frontier_compute",
+       "series_path": "series/epoch.frontier_compute.csv",
+       "series_sha256": "2513a707e6f9dce1f83d47eb33bcec4f50988ccbd58115a08c59d8ad58000f33",
+       "latest_date": "2021-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.6583,
+       "contribution": 0.0528,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "wiki.agi",
+       "series_path": "series/wiki.agi.csv",
+       "series_sha256": "330093f707cc320cc94bf960c2efb696389efbb788698f8e268736fe99c668ee",
+       "latest_date": "2021-12-31",
+       "source_url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Artificial_general_intelligence/monthly/20150701/20260930",
+       "license": "CC0 1.0",
+       "score": 0.5333,
+       "contribution": 0.0055,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "76414d1f40304ad8d8efb5d28be8089d7585d1eb4dcfcce4c4fae71698e0a3eb"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "owid.frontiermath_best",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "github.releases_year",
+       "reason": "short_history"
+      },
+      {
+       "series_id": "github.tool_repos_month",
+       "reason": "short_history"
+      }
+     ]
+    }
+   }
+  },
+  "2022": {
+   "as_of": "2022-12-31",
+   "realms": {
+    "utopia": {
+     "weight": 11.3,
+     "coverage": 1.0,
+     "evidence": 0.4462,
+     "w_used": 10,
+     "w_map": 10,
+     "indicators": [
+      {
+       "series_id": "owid.extreme_poverty",
+       "series_path": "series/owid.extreme_poverty.csv",
+       "series_sha256": "55c63cae2500e8052f8d049ebca8fbaca4924909f1779b2a52c778bd3fb12cf7",
+       "latest_date": "2022-12-31",
+       "source_url": "https://ourworldindata.org/grapher/share-of-population-in-extreme-poverty.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.1667,
+       "contribution": -0.1,
+       "weight": 3,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "2ec710800ef8b0ec25ddcbd96a880173ed05c5c8319ac8e2db85a020f7ade7bd"
+      },
+      {
+       "series_id": "owid.life_expectancy",
+       "series_path": "series/owid.life_expectancy.csv",
+       "series_sha256": "3facae9f5c3aa82860ff1fdbde4106e950e76b603f608545d2e45bfe19525c92",
+       "latest_date": "2022-12-31",
+       "source_url": "https://ourworldindata.org/grapher/life-expectancy.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 1.0,
+       "contribution": 0.1,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "6336e80067d72cd910e5b03a4150bbb203fb8f22c6a9c0c43e91aba07038720b"
+      },
+      {
+       "series_id": "wb.gdp_per_capita",
+       "series_path": "series/wb.gdp_per_capita.csv",
+       "series_sha256": "7b8b6ff0294e5bc67f3780d630a0178afbd5a3c4e5bc61af632ffb15c81a636a",
+       "latest_date": "2022-12-31",
+       "source_url": "https://api.worldbank.org/v2/country/WLD/indicator/NY.GDP.PCAP.KD?format=json&per_page=100",
+       "license": "CC BY 4.0",
+       "score": 0.7667,
+       "contribution": 0.0533,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "3c2820efa60c6da45bcd8beedd8c5ffaa06974314acf0ac5fb9174e93cc71d21"
+      },
+      {
+       "series_id": "pubmed.ai_biomed",
+       "series_path": "series/pubmed.ai_biomed.csv",
+       "series_sha256": "4f4dce895fcc8f566161fbad8f59935757d22188bd4207fdb660555ad0b10834",
+       "latest_date": "2022-12-31",
+       "source_url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmode=json&rettype=count&term=%28artificial%20intelligence%5BTitle/Abstract%5D%29%20AND%20%28drug%20discovery%5BTitle/Abstract%5D%20OR%20protein%5BTitle/Abstract%5D%20OR%20molecular%5BTitle/Abstract%5D%20OR%20battery%5BTitle/Abstract%5D%20OR%20catalyst%5BTitle/Abstract%5D%29%20AND%20%28%222022/12/01%22%5BPDAT%5D%3A%222022/12/31%22%5BPDAT%5D%29",
+       "license": "public domain (NLM; US gov)",
+       "score": 0.0857,
+       "contribution": -0.0829,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 35,
+       "snapshot_sha256": "5af7d8494b6f1ad0d58e7cd453d06d6509e6f39a307890ef41500e70b64e1bcb"
+      },
+      {
+       "series_id": "github.lean_repos_month",
+       "series_path": "series/github.lean_repos_month.csv",
+       "series_sha256": "77290c15364ce5f23c499bb454c25e2167050d7b616a836ae4814c69378beec2",
+       "latest_date": "2022-12-31",
+       "source_url": "https://api.github.com/search/repositories?q=language:Lean+created:2019-01-01..2019-01-31&per_page=1",
+       "license": "GitHub ToS — counts are facts; metadata via public API",
+       "score": 0.2571,
+       "contribution": -0.0243,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 35,
+       "snapshot_sha256": "1d6cc7fc84ab8001a9a1f753b175be944a9bad2f629192443909af5292af9051"
+      }
+     ],
+     "excluded": []
+    },
+    "divergence": {
+     "weight": 12.6,
+     "coverage": 0.9091,
+     "evidence": 0.496,
+     "w_used": 10,
+     "w_map": 11,
+     "indicators": [
+      {
+       "series_id": "epoch.open_weights_share",
+       "series_path": "series/epoch.open_weights_share.csv",
+       "series_sha256": "fe6798af8a0315ddb235202a0b7fafe4115f26eb01efb477f64ccfaebf08a688",
+       "latest_date": "2022-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.35,
+       "contribution": -0.045,
+       "weight": 3,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "epoch.org_diversity",
+       "series_path": "series/epoch.org_diversity.csv",
+       "series_sha256": "46a1ed399e5ed43e6a9f960078be95f612580b031fda45c00b7e61404a13c524",
+       "latest_date": "2022-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.2667,
+       "contribution": -0.0467,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "epoch.country_diversity",
+       "series_path": "series/epoch.country_diversity.csv",
+       "series_sha256": "0f8ef069232ac19fb9622974c37a19aa11e8a55f1f572a4f769e839a6d101c9b",
+       "latest_date": "2022-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.2167,
+       "contribution": -0.0567,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "github.commits_month",
+       "series_path": "series/github.commits_month.csv",
+       "series_sha256": "b4ac6cfe59451e69a606333d2ca115b6dac69fc99150ba76266de41761e39c5e",
+       "latest_date": "2022-12-31",
+       "source_url": "https://api.github.com/search/commits?q=repo:anthropics/anthropic-sdk-python+committer-date:2026-09-01..2026-09-30&per_page=1",
+       "license": "GitHub ToS — counts are facts; metadata via public API",
+       "score": 0.9429,
+       "contribution": 0.0443,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 35,
+       "snapshot_sha256": "e10cadb59fa94ac4ce8c1e71357c8ffc2aef5edab04bfdb343730cd970409567"
+      },
+      {
+       "series_id": "github.tool_repos_month",
+       "series_path": "series/github.tool_repos_month.csv",
+       "series_sha256": "e7fe73cd44fb76e0ba54cc98aa7b52695392357ba5d4221d6ab6a0c0f19865bd",
+       "latest_date": "2022-12-31",
+       "source_url": "https://api.github.com/search/repositories?q=topic:mcp+created:2026-09-01..2026-09-30&per_page=1",
+       "license": "GitHub ToS — counts are facts; metadata via public API",
+       "score": 1.0,
+       "contribution": 0.1,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 35,
+       "snapshot_sha256": "f91f31f61d45966671e9f87374e158d9f644bff6ffb5136dbaea0f4b642b8c37"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "github.releases_year",
+       "reason": "short_history"
+      }
+     ]
+    },
+    "drift": {
+     "weight": 13.3,
+     "coverage": 0.3333,
+     "evidence": 0.5265,
+     "w_used": 1,
+     "w_map": 3,
+     "indicators": [
+      {
+       "series_id": "wiki.deepfake",
+       "series_path": "series/wiki.deepfake.csv",
+       "series_sha256": "0fae816a9c325343d9a2f27f3f500d9ce2f711ae12da5682b056fe8b9e3db5e0",
+       "latest_date": "2022-12-31",
+       "source_url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Deepfake/monthly/20150701/20260930",
+       "license": "CC0 1.0",
+       "score": 0.6591,
+       "contribution": 0.0265,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 44,
+       "snapshot_sha256": "422f25cfa266e469c533dcb857319e87dbb66032613af4b4a2f5e063f8434c5d"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "owid.genai_user_share",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "wiki.synthetic_media",
+       "reason": "short_history"
+      }
+     ]
+    },
+    "control": {
+     "weight": 14.1,
+     "coverage": 0.75,
+     "evidence": 0.5546,
+     "w_used": 3,
+     "w_map": 4,
+     "indicators": [
+      {
+       "series_id": "owid.electoral_democracy",
+       "series_path": "series/owid.electoral_democracy.csv",
+       "series_sha256": "109eb9054f2f758119aaf9856431a34cec50355608686366c619e052f88518ab",
+       "latest_date": "2022-12-31",
+       "source_url": "https://ourworldindata.org/grapher/electoral-democracy-index.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.0333,
+       "contribution": -0.0778,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "a0843a64486708e1638e5051be67dde8ddb0c82ae7be264c512173f503445afc"
+      },
+      {
+       "series_id": "fedreg.ai_documents",
+       "series_path": "series/fedreg.ai_documents.csv",
+       "series_sha256": "b06cb9c653cec027b9beb94fa883515850efc8e6d66618e49b9184cbe5ea8bf1",
+       "latest_date": "2022-12-31",
+       "source_url": "https://www.federalregister.gov/api/v1/documents.json?conditions[term]=%22artificial+intelligence%22&conditions[publication_date][gte]=2022-12-01&conditions[publication_date][lte]=2022-12-31&per_page=1&fields[]=publication_date",
+       "license": "public domain (US gov work)",
+       "score": 0.8971,
+       "contribution": 0.1324,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 34,
+       "snapshot_sha256": "2f1c04f1cb8fac6b9768de42c07dae38b1a921eb477e3d08afa0149231d8e8d4"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "wiki.ai_regulation",
+       "reason": "short_history"
+      }
+     ]
+    },
+    "terminus": {
+     "weight": 11.9,
+     "coverage": 0.8333,
+     "evidence": 0.4708,
+     "w_used": 5,
+     "w_map": 6,
+     "indicators": [
+      {
+       "series_id": "owid.conflict_deaths",
+       "series_path": "series/owid.conflict_deaths.csv",
+       "series_sha256": "51b2a0865f86fd9c11682ebafa35620957cf042f1bb9e70bfca22f4bb0e50a04",
+       "latest_date": "2022-12-31",
+       "source_url": "https://ourworldindata.org/grapher/deaths-in-armed-conflicts-by-region.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.9667,
+       "contribution": 0.1556,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_level",
+       "ref_n": 30,
+       "snapshot_sha256": "49322bd5f71f62962ef75c762fc7eb14e8f5bebfc253c325ebb95e9fa5c7b0ae"
+      },
+      {
+       "series_id": "wb.unemployment",
+       "series_path": "series/wb.unemployment.csv",
+       "series_sha256": "8ebbab4de4f57fa9b2ffb132329e040e8aef161a90299bd051847949d2d67d7f",
+       "latest_date": "2022-12-31",
+       "source_url": "https://api.worldbank.org/v2/country/WLD/indicator/SL.UEM.TOTL.ZS?format=json&per_page=100",
+       "license": "CC BY 4.0",
+       "score": 0.0,
+       "contribution": -0.1667,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "043ba91ac5fb5d989495a0f9497f49b76398afb40e590b8912f9dc73b3273e53"
+      },
+      {
+       "series_id": "noaa.co2",
+       "series_path": "series/noaa.co2.csv",
+       "series_sha256": "a5255128dc4ba655b73970524f41ec530fb50abd3974cf48b6fb1d89576e5b5c",
+       "latest_date": "2022-12-31",
+       "source_url": "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv",
+       "license": "public domain (US gov)",
+       "score": 0.3917,
+       "contribution": -0.0181,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "dcf0198658c87ebb5e3b2ce807fe3a52e1d5f000aa0479fb1bf334afb7adde4d"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "wiki.ai_xrisk",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "stagnation": {
+     "weight": 21.7,
+     "coverage": 1.0,
+     "evidence": 0.8544,
+     "w_used": 7,
+     "w_map": 7,
+     "indicators": [
+      {
+       "series_id": "owid.ai_private_investment",
+       "series_path": "series/owid.ai_private_investment.csv",
+       "series_sha256": "d30ca5b5083490ed5c1f7dc1e1c9478077f54c0dbd4c2f4edf872091a9150031",
+       "latest_date": "2022-12-31",
+       "source_url": "https://ourworldindata.org/grapher/private-investment-in-artificial-intelligence.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 1.0,
+       "contribution": 0.1429,
+       "weight": 2,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 8,
+       "snapshot_sha256": "560efc682ae711de37062313e5430483cf9265c9cef15494d950933b818250be"
+      },
+      {
+       "series_id": "owid.ai_company_adoption",
+       "series_path": "series/owid.ai_company_adoption.csv",
+       "series_sha256": "ffc908aac9653d04ba60201eb25fb68557c6cd52301f4fce8c2c6bcfc43b4737",
+       "latest_date": "2022-12-31",
+       "source_url": "https://ourworldindata.org/grapher/share-companies-using-artificial-intelligence.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.7687,
+       "contribution": 0.0384,
+       "weight": 1,
+       "direction": -1,
+       "transform": "logistic_delta",
+       "ref_n": 1,
+       "snapshot_sha256": "0876f171001e3c0809634e2ded7f6a2bd1cc1a7730b3bd5e8603803a825229c0"
+      },
+      {
+       "series_id": "epoch.frontier_compute",
+       "series_path": "series/epoch.frontier_compute.csv",
+       "series_sha256": "c795929044799cc19ea602c58edb4232cea12b3e22e6063c286cbfcb4b122032",
+       "latest_date": "2022-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.6917,
+       "contribution": 0.0548,
+       "weight": 2,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "arxiv.cs_ai",
+       "series_path": "series/arxiv.cs_ai.csv",
+       "series_sha256": "d80eb7998ba08b7dcf7bee43852450c95523333585c4450d0dffddf34a03c179",
+       "latest_date": "2022-12-31",
+       "source_url": "https://export.arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:[202212010000+TO+202212312359]&max_results=1",
+       "license": "CC0 1.0 (metadata)",
+       "score": 0.9143,
+       "contribution": 0.1184,
+       "weight": 2,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 35,
+       "snapshot_sha256": "ed6fa69ab286d7e9b41bcc30c3203e806d8f009f73209ad8886e233457fd9288"
+      }
+     ],
+     "excluded": []
+    },
+    "transcendence": {
+     "weight": 15.1,
+     "coverage": 0.6667,
+     "evidence": 0.5972,
+     "w_used": 4,
+     "w_map": 6,
+     "indicators": [
+      {
+       "series_id": "epoch.frontier_compute",
+       "series_path": "series/epoch.frontier_compute.csv",
+       "series_sha256": "c795929044799cc19ea602c58edb4232cea12b3e22e6063c286cbfcb4b122032",
+       "latest_date": "2022-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.3083,
+       "contribution": -0.0639,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "wiki.agi",
+       "series_path": "series/wiki.agi.csv",
+       "series_sha256": "c7230ccbd3460fd4d3e1453e33d9f2da5019b41b61cb80fb878201fcd049124d",
+       "latest_date": "2022-12-31",
+       "source_url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Artificial_general_intelligence/monthly/20150701/20260930",
+       "license": "CC0 1.0",
+       "score": 0.9667,
+       "contribution": 0.0778,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "76414d1f40304ad8d8efb5d28be8089d7585d1eb4dcfcce4c4fae71698e0a3eb"
+      },
+      {
+       "series_id": "github.tool_repos_month",
+       "series_path": "series/github.tool_repos_month.csv",
+       "series_sha256": "e7fe73cd44fb76e0ba54cc98aa7b52695392357ba5d4221d6ab6a0c0f19865bd",
+       "latest_date": "2022-12-31",
+       "source_url": "https://api.github.com/search/repositories?q=topic:mcp+created:2026-09-01..2026-09-30&per_page=1",
+       "license": "GitHub ToS — counts are facts; metadata via public API",
+       "score": 1.0,
+       "contribution": 0.0833,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 35,
+       "snapshot_sha256": "f91f31f61d45966671e9f87374e158d9f644bff6ffb5136dbaea0f4b642b8c37"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "owid.frontiermath_best",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "github.releases_year",
+       "reason": "short_history"
+      }
+     ]
+    }
+   }
+  },
+  "2023": {
+   "as_of": "2023-12-31",
+   "realms": {
+    "utopia": {
+     "weight": 13.0,
+     "coverage": 1.0,
+     "evidence": 0.5045,
+     "w_used": 10,
+     "w_map": 10,
+     "indicators": [
+      {
+       "series_id": "owid.extreme_poverty",
+       "series_path": "series/owid.extreme_poverty.csv",
+       "series_sha256": "a66ca58750605f97fe6739b5772459652ed45e0cf0d01af0e5f8492e8145d8a9",
+       "latest_date": "2023-12-31",
+       "source_url": "https://ourworldindata.org/grapher/share-of-population-in-extreme-poverty.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.1667,
+       "contribution": -0.1,
+       "weight": 3,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "2ec710800ef8b0ec25ddcbd96a880173ed05c5c8319ac8e2db85a020f7ade7bd"
+      },
+      {
+       "series_id": "owid.life_expectancy",
+       "series_path": "series/owid.life_expectancy.csv",
+       "series_sha256": "833a527954f7356210fa16908f26827a4a927142f64761ef546d3f5e07d2a430",
+       "latest_date": "2023-12-31",
+       "source_url": "https://ourworldindata.org/grapher/life-expectancy.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.9333,
+       "contribution": 0.0867,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "6336e80067d72cd910e5b03a4150bbb203fb8f22c6a9c0c43e91aba07038720b"
+      },
+      {
+       "series_id": "wb.gdp_per_capita",
+       "series_path": "series/wb.gdp_per_capita.csv",
+       "series_sha256": "202a06d6380ee31f9abbf7d1cf2b5ff4bd02fda5073158792a89e165e4363d99",
+       "latest_date": "2023-12-31",
+       "source_url": "https://api.worldbank.org/v2/country/WLD/indicator/NY.GDP.PCAP.KD?format=json&per_page=100",
+       "license": "CC BY 4.0",
+       "score": 0.4667,
+       "contribution": -0.0067,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "3c2820efa60c6da45bcd8beedd8c5ffaa06974314acf0ac5fb9174e93cc71d21"
+      },
+      {
+       "series_id": "pubmed.ai_biomed",
+       "series_path": "series/pubmed.ai_biomed.csv",
+       "series_sha256": "b3b5ea0c9e4eaa467c6023be07eb201b5048b7d7eeb354def28404bb4c4eb543",
+       "latest_date": "2023-12-31",
+       "source_url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmode=json&rettype=count&term=%28artificial%20intelligence%5BTitle/Abstract%5D%29%20AND%20%28drug%20discovery%5BTitle/Abstract%5D%20OR%20protein%5BTitle/Abstract%5D%20OR%20molecular%5BTitle/Abstract%5D%20OR%20battery%5BTitle/Abstract%5D%20OR%20catalyst%5BTitle/Abstract%5D%29%20AND%20%28%222023/12/01%22%5BPDAT%5D%3A%222023/12/31%22%5BPDAT%5D%29",
+       "license": "public domain (NLM; US gov)",
+       "score": 0.4681,
+       "contribution": -0.0064,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 47,
+       "snapshot_sha256": "55cbaa0bbfff3ff360b16300c219ef0f453bb6e3b0e223f61483a0a4e512a2d6"
+      },
+      {
+       "series_id": "github.lean_repos_month",
+       "series_path": "series/github.lean_repos_month.csv",
+       "series_sha256": "c847d20194e02b15e0c1a0d1b4b6d7b27d21f72d6a1a6312436f24e9dd30c72c",
+       "latest_date": "2023-12-31",
+       "source_url": "https://api.github.com/search/repositories?q=language:Lean+created:2019-01-01..2019-01-31&per_page=1",
+       "license": "GitHub ToS — counts are facts; metadata via public API",
+       "score": 0.8085,
+       "contribution": 0.0308,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 47,
+       "snapshot_sha256": "1d6cc7fc84ab8001a9a1f753b175be944a9bad2f629192443909af5292af9051"
+      }
+     ],
+     "excluded": []
+    },
+    "divergence": {
+     "weight": 17.1,
+     "coverage": 0.9091,
+     "evidence": 0.6667,
+     "w_used": 10,
+     "w_map": 11,
+     "indicators": [
+      {
+       "series_id": "epoch.open_weights_share",
+       "series_path": "series/epoch.open_weights_share.csv",
+       "series_sha256": "72f9c1f01da4c923a6db86e4818cc9ea3091972575512343be9af99add2cc3d3",
+       "latest_date": "2023-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.4667,
+       "contribution": -0.01,
+       "weight": 3,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "epoch.org_diversity",
+       "series_path": "series/epoch.org_diversity.csv",
+       "series_sha256": "e01195389edb88471904db2a2c23a666f0f351cba3e8ca34deaad535d1b58e3e",
+       "latest_date": "2023-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.8833,
+       "contribution": 0.0767,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "epoch.country_diversity",
+       "series_path": "series/epoch.country_diversity.csv",
+       "series_sha256": "3f642829f7ae9632003f96c0b5f94dcdf0543ee6df4322a3f1e670c9fa7d6d83",
+       "latest_date": "2023-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.6333,
+       "contribution": 0.0267,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "github.commits_month",
+       "series_path": "series/github.commits_month.csv",
+       "series_sha256": "6890a66080520b1963c3d7f7a9621a2713c14e681a19aa1b0d67ede65cfcff7e",
+       "latest_date": "2023-12-31",
+       "source_url": "https://api.github.com/search/commits?q=repo:anthropics/anthropic-sdk-python+committer-date:2026-09-01..2026-09-30&per_page=1",
+       "license": "GitHub ToS — counts are facts; metadata via public API",
+       "score": 0.617,
+       "contribution": 0.0117,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 47,
+       "snapshot_sha256": "e10cadb59fa94ac4ce8c1e71357c8ffc2aef5edab04bfdb343730cd970409567"
+      },
+      {
+       "series_id": "github.tool_repos_month",
+       "series_path": "series/github.tool_repos_month.csv",
+       "series_sha256": "d244d08e98178b731befea82ce9e0fea06fb57bfadb0108549bc7f24f0c3969c",
+       "latest_date": "2023-12-31",
+       "source_url": "https://api.github.com/search/repositories?q=topic:mcp+created:2026-09-01..2026-09-30&per_page=1",
+       "license": "GitHub ToS — counts are facts; metadata via public API",
+       "score": 0.8085,
+       "contribution": 0.0617,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 47,
+       "snapshot_sha256": "f91f31f61d45966671e9f87374e158d9f644bff6ffb5136dbaea0f4b642b8c37"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "github.releases_year",
+       "reason": "short_history"
+      }
+     ]
+    },
+    "drift": {
+     "weight": 16.2,
+     "coverage": 0.6667,
+     "evidence": 0.6283,
+     "w_used": 2,
+     "w_map": 3,
+     "indicators": [
+      {
+       "series_id": "wiki.deepfake",
+       "series_path": "series/wiki.deepfake.csv",
+       "series_sha256": "42a6628a0734c5e0f696ba6af28ae18bf4426367b73397b7562495d64055964c",
+       "latest_date": "2023-12-31",
+       "source_url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Deepfake/monthly/20150701/20260930",
+       "license": "CC0 1.0",
+       "score": 0.9821,
+       "contribution": 0.0803,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 56,
+       "snapshot_sha256": "422f25cfa266e469c533dcb857319e87dbb66032613af4b4a2f5e063f8434c5d"
+      },
+      {
+       "series_id": "wiki.synthetic_media",
+       "series_path": "series/wiki.synthetic_media.csv",
+       "series_sha256": "395e772e55b3c3e407e51fb521b01ddff3002d0019ef749cad81f1b0808ca8a2",
+       "latest_date": "2023-12-31",
+       "source_url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Synthetic_media/monthly/20150701/20260930",
+       "license": "CC0 1.0",
+       "score": 0.7879,
+       "contribution": 0.048,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 33,
+       "snapshot_sha256": "cba5db089865b000fc18a5d17b4329ba0b9a062a7dacc2f7e4c14bfda2852a70"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "owid.genai_user_share",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "control": {
+     "weight": 10.6,
+     "coverage": 1.0,
+     "evidence": 0.4107,
+     "w_used": 4,
+     "w_map": 4,
+     "indicators": [
+      {
+       "series_id": "wiki.ai_regulation",
+       "series_path": "series/wiki.ai_regulation.csv",
+       "series_sha256": "042db598ffa2ada422de9c2fcc07586c64eca803827e40d1f13453f347c1cb54",
+       "latest_date": "2023-12-31",
+       "source_url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Regulation_of_artificial_intelligence/monthly/20150701/20260930",
+       "license": "CC0 1.0",
+       "score": 0.6452,
+       "contribution": 0.0242,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 31,
+       "snapshot_sha256": "90fd097c29f3e8130bfe2f284255e72e51361d3d44058cb01d528b36ba38ad0f"
+      },
+      {
+       "series_id": "owid.electoral_democracy",
+       "series_path": "series/owid.electoral_democracy.csv",
+       "series_sha256": "0af4a84e7c38dccb94e390456c1dbc2872c70f03473794a5c4f1d4b587499a2c",
+       "latest_date": "2023-12-31",
+       "source_url": "https://ourworldindata.org/grapher/electoral-democracy-index.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.1667,
+       "contribution": -0.0556,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "a0843a64486708e1638e5051be67dde8ddb0c82ae7be264c512173f503445afc"
+      },
+      {
+       "series_id": "fedreg.ai_documents",
+       "series_path": "series/fedreg.ai_documents.csv",
+       "series_sha256": "e5649133ee629ee3d0a1b3998632c0e33d4bf94e1d54b57199a642cefcb5de4e",
+       "latest_date": "2023-12-31",
+       "source_url": "https://www.federalregister.gov/api/v1/documents.json?conditions[term]=%22artificial+intelligence%22&conditions[publication_date][gte]=2023-12-01&conditions[publication_date][lte]=2023-12-31&per_page=1&fields[]=publication_date",
+       "license": "public domain (US gov work)",
+       "score": 0.3261,
+       "contribution": -0.058,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 46,
+       "snapshot_sha256": "c2121121dcac15a3e973229f83334160e86846f36e0c4cb0eb778da22a406f7c"
+      }
+     ],
+     "excluded": []
+    },
+    "terminus": {
+     "weight": 13.6,
+     "coverage": 0.8333,
+     "evidence": 0.5306,
+     "w_used": 5,
+     "w_map": 6,
+     "indicators": [
+      {
+       "series_id": "owid.conflict_deaths",
+       "series_path": "series/owid.conflict_deaths.csv",
+       "series_sha256": "f6e932ef262a6f669be8f38b9d89cc1288f0e7133942e09a58f80a2b9be7b0a7",
+       "latest_date": "2023-12-31",
+       "source_url": "https://ourworldindata.org/grapher/deaths-in-armed-conflicts-by-region.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.9,
+       "contribution": 0.1333,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_level",
+       "ref_n": 30,
+       "snapshot_sha256": "49322bd5f71f62962ef75c762fc7eb14e8f5bebfc253c325ebb95e9fa5c7b0ae"
+      },
+      {
+       "series_id": "wb.unemployment",
+       "series_path": "series/wb.unemployment.csv",
+       "series_sha256": "c2f7f00f54a7eac1a4b3b24b47fc4b5915a831ede9438ab9b1a647b1aeeac9f9",
+       "latest_date": "2023-12-31",
+       "source_url": "https://api.worldbank.org/v2/country/WLD/indicator/SL.UEM.TOTL.ZS?format=json&per_page=100",
+       "license": "CC BY 4.0",
+       "score": 0.0667,
+       "contribution": -0.1444,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "043ba91ac5fb5d989495a0f9497f49b76398afb40e590b8912f9dc73b3273e53"
+      },
+      {
+       "series_id": "noaa.co2",
+       "series_path": "series/noaa.co2.csv",
+       "series_sha256": "6f8d694ba29912cb8dd040231f69512d50a5a1132f86feb9cbd94f6fc00403e4",
+       "latest_date": "2023-12-31",
+       "source_url": "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv",
+       "license": "public domain (US gov)",
+       "score": 0.75,
+       "contribution": 0.0417,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "dcf0198658c87ebb5e3b2ce807fe3a52e1d5f000aa0479fb1bf334afb7adde4d"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "wiki.ai_xrisk",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "stagnation": {
+     "weight": 10.1,
+     "coverage": 1.0,
+     "evidence": 0.3926,
+     "w_used": 7,
+     "w_map": 7,
+     "indicators": [
+      {
+       "series_id": "owid.ai_private_investment",
+       "series_path": "series/owid.ai_private_investment.csv",
+       "series_sha256": "5bc62bd43c55c2bd06ca8c5de45646facaa45365a26b9a368bbeabe9a6b43b48",
+       "latest_date": "2023-12-31",
+       "source_url": "https://ourworldindata.org/grapher/private-investment-in-artificial-intelligence.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.8889,
+       "contribution": 0.1111,
+       "weight": 2,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 9,
+       "snapshot_sha256": "560efc682ae711de37062313e5430483cf9265c9cef15494d950933b818250be"
+      },
+      {
+       "series_id": "owid.ai_company_adoption",
+       "series_path": "series/owid.ai_company_adoption.csv",
+       "series_sha256": "76ab19b37cad55b2076f1f9c17dd1b8e253af9b00c2edfbc9e533c096ca2476c",
+       "latest_date": "2023-12-31",
+       "source_url": "https://ourworldindata.org/grapher/share-companies-using-artificial-intelligence.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.2688,
+       "contribution": -0.033,
+       "weight": 1,
+       "direction": -1,
+       "transform": "logistic_delta",
+       "ref_n": 1,
+       "snapshot_sha256": "0876f171001e3c0809634e2ded7f6a2bd1cc1a7730b3bd5e8603803a825229c0"
+      },
+      {
+       "series_id": "epoch.frontier_compute",
+       "series_path": "series/epoch.frontier_compute.csv",
+       "series_sha256": "2a41620b74820c81f73219df2e114e2c4ea485da30154989da49ff60790d9cc2",
+       "latest_date": "2023-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.1167,
+       "contribution": -0.1095,
+       "weight": 2,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "arxiv.cs_ai",
+       "series_path": "series/arxiv.cs_ai.csv",
+       "series_sha256": "1f2bdeabc3e379715786d23caf3f85c8629e10823028bb4d45b894525970bfc2",
+       "latest_date": "2023-12-31",
+       "source_url": "https://export.arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:[202312010000+TO+202312312359]&max_results=1",
+       "license": "CC0 1.0 (metadata)",
+       "score": 0.234,
+       "contribution": -0.076,
+       "weight": 2,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 47,
+       "snapshot_sha256": "74a6874ddd75a5cdfb1da5822d4a017e49c08fa03f7e04d0db4c9d06abf2403e"
+      }
+     ],
+     "excluded": []
+    },
+    "transcendence": {
+     "weight": 19.4,
+     "coverage": 0.6667,
+     "evidence": 0.7542,
+     "w_used": 4,
+     "w_map": 6,
+     "indicators": [
+      {
+       "series_id": "epoch.frontier_compute",
+       "series_path": "series/epoch.frontier_compute.csv",
+       "series_sha256": "2a41620b74820c81f73219df2e114e2c4ea485da30154989da49ff60790d9cc2",
+       "latest_date": "2023-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.8833,
+       "contribution": 0.1278,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "wiki.agi",
+       "series_path": "series/wiki.agi.csv",
+       "series_sha256": "3b9df7272bc1da96781f115f71d2a4ca5dd7b730c54f00120e8938442cca3723",
+       "latest_date": "2023-12-31",
+       "source_url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Artificial_general_intelligence/monthly/20150701/20260930",
+       "license": "CC0 1.0",
+       "score": 0.95,
+       "contribution": 0.075,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "76414d1f40304ad8d8efb5d28be8089d7585d1eb4dcfcce4c4fae71698e0a3eb"
+      },
+      {
+       "series_id": "github.tool_repos_month",
+       "series_path": "series/github.tool_repos_month.csv",
+       "series_sha256": "d244d08e98178b731befea82ce9e0fea06fb57bfadb0108549bc7f24f0c3969c",
+       "latest_date": "2023-12-31",
+       "source_url": "https://api.github.com/search/repositories?q=topic:mcp+created:2026-09-01..2026-09-30&per_page=1",
+       "license": "GitHub ToS — counts are facts; metadata via public API",
+       "score": 0.8085,
+       "contribution": 0.0514,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 47,
+       "snapshot_sha256": "f91f31f61d45966671e9f87374e158d9f644bff6ffb5136dbaea0f4b642b8c37"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "owid.frontiermath_best",
+       "reason": "no_data"
+      },
+      {
+       "series_id": "github.releases_year",
+       "reason": "short_history"
+      }
+     ]
+    }
+   }
+  },
+  "2024": {
+   "as_of": "2024-12-31",
+   "realms": {
+    "utopia": {
+     "weight": 14.8,
+     "coverage": 1.0,
+     "evidence": 0.4912,
+     "w_used": 10,
+     "w_map": 10,
+     "indicators": [
+      {
+       "series_id": "owid.extreme_poverty",
+       "series_path": "series/owid.extreme_poverty.csv",
+       "series_sha256": "6bc953ff081c1a8ce2c58fc7bb5bd39e03208738ed8424c30f88269b7b710442",
+       "latest_date": "2024-12-31",
+       "source_url": "https://ourworldindata.org/grapher/share-of-population-in-extreme-poverty.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.1,
+       "contribution": -0.12,
+       "weight": 3,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "2ec710800ef8b0ec25ddcbd96a880173ed05c5c8319ac8e2db85a020f7ade7bd"
+      },
+      {
+       "series_id": "owid.life_expectancy",
+       "series_path": "series/owid.life_expectancy.csv",
+       "series_sha256": "833a527954f7356210fa16908f26827a4a927142f64761ef546d3f5e07d2a430",
+       "latest_date": "2023-12-31",
+       "source_url": "https://ourworldindata.org/grapher/life-expectancy.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.9333,
+       "contribution": 0.0867,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "6336e80067d72cd910e5b03a4150bbb203fb8f22c6a9c0c43e91aba07038720b"
+      },
+      {
+       "series_id": "wb.gdp_per_capita",
+       "series_path": "series/wb.gdp_per_capita.csv",
+       "series_sha256": "10811edcbc06d5faebb5e36df0de7971ad540152c88f391e83ff26b06d377d80",
+       "latest_date": "2024-12-31",
+       "source_url": "https://api.worldbank.org/v2/country/WLD/indicator/NY.GDP.PCAP.KD?format=json&per_page=100",
+       "license": "CC BY 4.0",
+       "score": 0.5,
+       "contribution": 0.0,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "3c2820efa60c6da45bcd8beedd8c5ffaa06974314acf0ac5fb9174e93cc71d21"
+      },
+      {
+       "series_id": "pubmed.ai_biomed",
+       "series_path": "series/pubmed.ai_biomed.csv",
+       "series_sha256": "ecd336a96a6bb3eb6d9109b0cc976cdeeb58d1d4c3d5721498b49fd5f47926f0",
+       "latest_date": "2024-12-31",
+       "source_url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmode=json&rettype=count&term=%28artificial%20intelligence%5BTitle/Abstract%5D%29%20AND%20%28drug%20discovery%5BTitle/Abstract%5D%20OR%20protein%5BTitle/Abstract%5D%20OR%20molecular%5BTitle/Abstract%5D%20OR%20battery%5BTitle/Abstract%5D%20OR%20catalyst%5BTitle/Abstract%5D%29%20AND%20%28%222024/12/01%22%5BPDAT%5D%3A%222024/12/31%22%5BPDAT%5D%29",
+       "license": "public domain (NLM; US gov)",
+       "score": 0.7458,
+       "contribution": 0.0492,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 59,
+       "snapshot_sha256": "93f45fe9e97838bedd7cea0c21494717b93f8bd20bbcd3a0e106d091cba43022"
+      },
+      {
+       "series_id": "github.lean_repos_month",
+       "series_path": "series/github.lean_repos_month.csv",
+       "series_sha256": "3767d2b9f82e93f642dfbd4b62df2a390a7eeb33bf55e9943feab37b15b19ffc",
+       "latest_date": "2024-12-31",
+       "source_url": "https://api.github.com/search/repositories?q=language:Lean+created:2019-01-01..2019-01-31&per_page=1",
+       "license": "GitHub ToS — counts are facts; metadata via public API",
+       "score": 0.2542,
+       "contribution": -0.0246,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 59,
+       "snapshot_sha256": "1d6cc7fc84ab8001a9a1f753b175be944a9bad2f629192443909af5292af9051"
+      }
+     ],
+     "excluded": []
+    },
+    "divergence": {
+     "weight": 12.0,
+     "coverage": 0.9091,
+     "evidence": 0.3966,
+     "w_used": 10,
+     "w_map": 11,
+     "indicators": [
+      {
+       "series_id": "epoch.open_weights_share",
+       "series_path": "series/epoch.open_weights_share.csv",
+       "series_sha256": "b0a0c357daaa0d9e6389bd236a75e5121fb10f5ce8cfb5f156c2500ffaf44701",
+       "latest_date": "2024-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.1667,
+       "contribution": -0.1,
+       "weight": 3,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "epoch.org_diversity",
+       "series_path": "series/epoch.org_diversity.csv",
+       "series_sha256": "909b4d1481f4295a571c97029750c56df56506f6f09da2831b77ec0064c17c67",
+       "latest_date": "2024-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.1167,
+       "contribution": -0.0767,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "epoch.country_diversity",
+       "series_path": "series/epoch.country_diversity.csv",
+       "series_sha256": "937afe124b220de52e855626679d25c73fd7e785e30376d7fe61ca34fcca1a72",
+       "latest_date": "2024-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.65,
+       "contribution": 0.03,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "github.commits_month",
+       "series_path": "series/github.commits_month.csv",
+       "series_sha256": "3fa432469912ea67a56037e81e03887f47e5367e825d8cba50a67d544cc4d001",
+       "latest_date": "2024-12-31",
+       "source_url": "https://api.github.com/search/commits?q=repo:anthropics/anthropic-sdk-python+committer-date:2026-09-01..2026-09-30&per_page=1",
+       "license": "GitHub ToS — counts are facts; metadata via public API",
+       "score": 0.7458,
+       "contribution": 0.0246,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 59,
+       "snapshot_sha256": "e10cadb59fa94ac4ce8c1e71357c8ffc2aef5edab04bfdb343730cd970409567"
+      },
+      {
+       "series_id": "github.tool_repos_month",
+       "series_path": "series/github.tool_repos_month.csv",
+       "series_sha256": "163043b96489f0bef3ec96c4a92d9e30c22502197fda717e48979dfcad092800",
+       "latest_date": "2024-12-31",
+       "source_url": "https://api.github.com/search/repositories?q=topic:mcp+created:2026-09-01..2026-09-30&per_page=1",
+       "license": "GitHub ToS — counts are facts; metadata via public API",
+       "score": 0.5932,
+       "contribution": 0.0186,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 59,
+       "snapshot_sha256": "f91f31f61d45966671e9f87374e158d9f644bff6ffb5136dbaea0f4b642b8c37"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "github.releases_year",
+       "reason": "short_history"
+      }
+     ]
+    },
+    "drift": {
+     "weight": 10.4,
+     "coverage": 0.6667,
+     "evidence": 0.3445,
+     "w_used": 2,
+     "w_map": 3,
+     "indicators": [
+      {
+       "series_id": "wiki.deepfake",
+       "series_path": "series/wiki.deepfake.csv",
+       "series_sha256": "27acbf1d08e0837a34e80bd5b38cd4d1452d1031b1625e2c3e8c0a8086daf124",
+       "latest_date": "2024-12-31",
+       "source_url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Deepfake/monthly/20150701/20260930",
+       "license": "CC0 1.0",
+       "score": 0.0,
+       "contribution": -0.0833,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "422f25cfa266e469c533dcb857319e87dbb66032613af4b4a2f5e063f8434c5d"
+      },
+      {
+       "series_id": "wiki.synthetic_media",
+       "series_path": "series/wiki.synthetic_media.csv",
+       "series_sha256": "98483ef5406ae7ace85df38773e808e0d60180793966d6d8bb306f95a9359c5b",
+       "latest_date": "2024-12-31",
+       "source_url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Synthetic_media/monthly/20150701/20260930",
+       "license": "CC0 1.0",
+       "score": 0.0667,
+       "contribution": -0.0722,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 45,
+       "snapshot_sha256": "cba5db089865b000fc18a5d17b4329ba0b9a062a7dacc2f7e4c14bfda2852a70"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "owid.genai_user_share",
+       "reason": "no_data"
+      }
+     ]
+    },
+    "control": {
+     "weight": 15.1,
+     "coverage": 1.0,
+     "evidence": 0.4998,
+     "w_used": 4,
+     "w_map": 4,
+     "indicators": [
+      {
+       "series_id": "wiki.ai_regulation",
+       "series_path": "series/wiki.ai_regulation.csv",
+       "series_sha256": "311a55c8055b9fddcf17621e1e5a2aa3e26fe8530cb7fb0d6edf09c10f0926e8",
+       "latest_date": "2024-12-31",
+       "source_url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Regulation_of_artificial_intelligence/monthly/20150701/20260930",
+       "license": "CC0 1.0",
+       "score": 0.0,
+       "contribution": -0.0833,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 43,
+       "snapshot_sha256": "90fd097c29f3e8130bfe2f284255e72e51361d3d44058cb01d528b36ba38ad0f"
+      },
+      {
+       "series_id": "owid.electoral_democracy",
+       "series_path": "series/owid.electoral_democracy.csv",
+       "series_sha256": "a5936d742a9644f19009b0f329a31ebc13f7625b9e8216b1fed4f14deea8edaf",
+       "latest_date": "2024-12-31",
+       "source_url": "https://ourworldindata.org/grapher/electoral-democracy-index.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.0333,
+       "contribution": -0.0778,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "a0843a64486708e1638e5051be67dde8ddb0c82ae7be264c512173f503445afc"
+      },
+      {
+       "series_id": "fedreg.ai_documents",
+       "series_path": "series/fedreg.ai_documents.csv",
+       "series_sha256": "2a86a49364c7d96e07c769eb635f71198721d2d88654893950733e3cbb0fe168",
+       "latest_date": "2024-12-31",
+       "source_url": "https://www.federalregister.gov/api/v1/documents.json?conditions[term]=%22artificial+intelligence%22&conditions[publication_date][gte]=2024-12-01&conditions[publication_date][lte]=2024-12-31&per_page=1&fields[]=publication_date",
+       "license": "public domain (US gov work)",
+       "score": 0.9828,
+       "contribution": 0.1609,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 58,
+       "snapshot_sha256": "c249fa286ed577d027e144c509c9bf19afe196f88e3b9012d0828f2f1eb417b9"
+      }
+     ],
+     "excluded": []
+    },
+    "terminus": {
+     "weight": 21.3,
+     "coverage": 0.8333,
+     "evidence": 0.7056,
+     "w_used": 5,
+     "w_map": 6,
+     "indicators": [
+      {
+       "series_id": "owid.conflict_deaths",
+       "series_path": "series/owid.conflict_deaths.csv",
+       "series_sha256": "6bfc687508c6e6067cb9d0f0d8a5202d57c86a8fdaf0ee77cc19d4552ae016a3",
+       "latest_date": "2024-12-31",
+       "source_url": "https://ourworldindata.org/grapher/deaths-in-armed-conflicts-by-region.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.9,
+       "contribution": 0.1333,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_level",
+       "ref_n": 30,
+       "snapshot_sha256": "49322bd5f71f62962ef75c762fc7eb14e8f5bebfc253c325ebb95e9fa5c7b0ae"
+      },
+      {
+       "series_id": "wb.unemployment",
+       "series_path": "series/wb.unemployment.csv",
+       "series_sha256": "398f37e755bc8d7ae7cb02df2b38c7920a736e15ff80909025c2d6426464898f",
+       "latest_date": "2024-12-31",
+       "source_url": "https://api.worldbank.org/v2/country/WLD/indicator/SL.UEM.TOTL.ZS?format=json&per_page=100",
+       "license": "CC BY 4.0",
+       "score": 0.5,
+       "contribution": 0.0,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "043ba91ac5fb5d989495a0f9497f49b76398afb40e590b8912f9dc73b3273e53"
+      },
+      {
+       "series_id": "noaa.co2",
+       "series_path": "series/noaa.co2.csv",
+       "series_sha256": "7106fb9890b3913e26d7d6efaa7243df172e19b224977447feb53c95c50a00eb",
+       "latest_date": "2024-12-31",
+       "source_url": "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv",
+       "license": "public domain (US gov)",
+       "score": 0.9333,
+       "contribution": 0.0722,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "dcf0198658c87ebb5e3b2ce807fe3a52e1d5f000aa0479fb1bf334afb7adde4d"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "wiki.ai_xrisk",
+       "reason": "short_history"
+      }
+     ]
+    },
+    "stagnation": {
+     "weight": 15.4,
+     "coverage": 1.0,
+     "evidence": 0.5082,
+     "w_used": 7,
+     "w_map": 7,
+     "indicators": [
+      {
+       "series_id": "owid.ai_private_investment",
+       "series_path": "series/owid.ai_private_investment.csv",
+       "series_sha256": "a918fc02ba1d65ac979c1c44ec6ff796e85b69ec6cccb562229aa43c7aa6095b",
+       "latest_date": "2024-12-31",
+       "source_url": "https://ourworldindata.org/grapher/private-investment-in-artificial-intelligence.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.4,
+       "contribution": -0.0286,
+       "weight": 2,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 10,
+       "snapshot_sha256": "560efc682ae711de37062313e5430483cf9265c9cef15494d950933b818250be"
+      },
+      {
+       "series_id": "owid.ai_company_adoption",
+       "series_path": "series/owid.ai_company_adoption.csv",
+       "series_sha256": "7e10e2fe2c49d1ddf963c1edee1833ea4510134f389db60329b90b8796843b37",
+       "latest_date": "2024-12-31",
+       "source_url": "https://ourworldindata.org/grapher/share-companies-using-artificial-intelligence.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.01,
+       "contribution": -0.07,
+       "weight": 1,
+       "direction": -1,
+       "transform": "logistic_delta",
+       "ref_n": 1,
+       "snapshot_sha256": "0876f171001e3c0809634e2ded7f6a2bd1cc1a7730b3bd5e8603803a825229c0"
+      },
+      {
+       "series_id": "epoch.frontier_compute",
+       "series_path": "series/epoch.frontier_compute.csv",
+       "series_sha256": "ea4f31ae65292b7e6c0ad8031902775df56f040cfe167ddb966125c532ed4f16",
+       "latest_date": "2024-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.95,
+       "contribution": 0.1286,
+       "weight": 2,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "arxiv.cs_ai",
+       "series_path": "series/arxiv.cs_ai.csv",
+       "series_sha256": "28cd0d2ad1387be3bb7808b33fbd35e526b022432fe4097d72c2f0c542fa31c1",
+       "latest_date": "2024-12-31",
+       "source_url": "https://export.arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:[202412010000+TO+202412312359]&max_results=1",
+       "license": "CC0 1.0 (metadata)",
+       "score": 0.4237,
+       "contribution": -0.0218,
+       "weight": 2,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 59,
+       "snapshot_sha256": "175d4ae097b997c4f94e535da36de79de296fa429e8204d403b1f2eda71f3958"
+      }
+     ],
+     "excluded": []
+    },
+    "transcendence": {
+     "weight": 11.0,
+     "coverage": 0.8333,
+     "evidence": 0.364,
+     "w_used": 5,
+     "w_map": 6,
+     "indicators": [
+      {
+       "series_id": "owid.frontiermath_best",
+       "series_path": "series/owid.frontiermath_best.csv",
+       "series_sha256": "1e8c0f9e1a3d36c5b0475b9b355ba6eb37003e12e333d3bd40eda820c64d7187",
+       "latest_date": "2024-12-31",
+       "source_url": "https://ourworldindata.org/grapher/ai-frontiermath-over-time.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.991,
+       "contribution": 0.0818,
+       "weight": 1,
+       "direction": 1,
+       "transform": "logistic_delta",
+       "ref_n": 1,
+       "snapshot_sha256": "184d1ebfcd3e891941cc3d951c43750859fd7b30cb32f872815517994fb5c95e"
+      },
+      {
+       "series_id": "epoch.frontier_compute",
+       "series_path": "series/epoch.frontier_compute.csv",
+       "series_sha256": "ea4f31ae65292b7e6c0ad8031902775df56f040cfe167ddb966125c532ed4f16",
+       "latest_date": "2024-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.05,
+       "contribution": -0.15,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "wiki.agi",
+       "series_path": "series/wiki.agi.csv",
+       "series_sha256": "882d1194539713c471f20c644f10dc2387c3e89375e2999d7351264cca196b7c",
+       "latest_date": "2024-12-31",
+       "source_url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Artificial_general_intelligence/monthly/20150701/20260930",
+       "license": "CC0 1.0",
+       "score": 0.0,
+       "contribution": -0.0833,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "76414d1f40304ad8d8efb5d28be8089d7585d1eb4dcfcce4c4fae71698e0a3eb"
+      },
+      {
+       "series_id": "github.tool_repos_month",
+       "series_path": "series/github.tool_repos_month.csv",
+       "series_sha256": "163043b96489f0bef3ec96c4a92d9e30c22502197fda717e48979dfcad092800",
+       "latest_date": "2024-12-31",
+       "source_url": "https://api.github.com/search/repositories?q=topic:mcp+created:2026-09-01..2026-09-30&per_page=1",
+       "license": "GitHub ToS — counts are facts; metadata via public API",
+       "score": 0.5932,
+       "contribution": 0.0155,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 59,
+       "snapshot_sha256": "f91f31f61d45966671e9f87374e158d9f644bff6ffb5136dbaea0f4b642b8c37"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "github.releases_year",
+       "reason": "short_history"
+      }
+     ]
+    }
+   }
+  },
+  "2025": {
+   "as_of": "2025-12-31",
+   "realms": {
+    "utopia": {
+     "weight": 17.6,
+     "coverage": 1.0,
+     "evidence": 0.605,
+     "w_used": 10,
+     "w_map": 10,
+     "indicators": [
+      {
+       "series_id": "owid.extreme_poverty",
+       "series_path": "series/owid.extreme_poverty.csv",
+       "series_sha256": "c98e7c477e4719e778ccf25ade2d1d7ae74aa437aa2a68ed1414f4bb9ebeaa86",
+       "latest_date": "2025-12-31",
+       "source_url": "https://ourworldindata.org/grapher/share-of-population-in-extreme-poverty.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.1,
+       "contribution": -0.12,
+       "weight": 3,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "2ec710800ef8b0ec25ddcbd96a880173ed05c5c8319ac8e2db85a020f7ade7bd"
+      },
+      {
+       "series_id": "owid.life_expectancy",
+       "series_path": "series/owid.life_expectancy.csv",
+       "series_sha256": "833a527954f7356210fa16908f26827a4a927142f64761ef546d3f5e07d2a430",
+       "latest_date": "2023-12-31",
+       "source_url": "https://ourworldindata.org/grapher/life-expectancy.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.9333,
+       "contribution": 0.0867,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "6336e80067d72cd910e5b03a4150bbb203fb8f22c6a9c0c43e91aba07038720b"
+      },
+      {
+       "series_id": "wb.gdp_per_capita",
+       "series_path": "series/wb.gdp_per_capita.csv",
+       "series_sha256": "6622b102e4897670a345080571143edb8397c3e1d62800db44e849647aae3caa",
+       "latest_date": "2025-12-31",
+       "source_url": "https://api.worldbank.org/v2/country/WLD/indicator/NY.GDP.PCAP.KD?format=json&per_page=100",
+       "license": "CC BY 4.0",
+       "score": 0.5333,
+       "contribution": 0.0067,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "3c2820efa60c6da45bcd8beedd8c5ffaa06974314acf0ac5fb9174e93cc71d21"
+      },
+      {
+       "series_id": "pubmed.ai_biomed",
+       "series_path": "series/pubmed.ai_biomed.csv",
+       "series_sha256": "ad265d61bca47bce44a1fcf8d8384139b04680bbf3ed3c05195adb7fd2091ec5",
+       "latest_date": "2025-12-31",
+       "source_url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmode=json&rettype=count&term=%28artificial%20intelligence%5BTitle/Abstract%5D%29%20AND%20%28drug%20discovery%5BTitle/Abstract%5D%20OR%20protein%5BTitle/Abstract%5D%20OR%20molecular%5BTitle/Abstract%5D%20OR%20battery%5BTitle/Abstract%5D%20OR%20catalyst%5BTitle/Abstract%5D%29%20AND%20%28%222025/12/01%22%5BPDAT%5D%3A%222025/12/31%22%5BPDAT%5D%29",
+       "license": "public domain (NLM; US gov)",
+       "score": 0.9167,
+       "contribution": 0.0833,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "6500942a25ac35d6bf53f1816ca3b60c3e6d2d5f920f64aa6bc090701717f6da"
+      },
+      {
+       "series_id": "github.lean_repos_month",
+       "series_path": "series/github.lean_repos_month.csv",
+       "series_sha256": "ce1508daad62df8a3ea513f99296c61f0f42eab3567dbd77624c7aee212c7d83",
+       "latest_date": "2025-12-31",
+       "source_url": "https://api.github.com/search/repositories?q=language:Lean+created:2019-01-01..2019-01-31&per_page=1",
+       "license": "GitHub ToS — counts are facts; metadata via public API",
+       "score": 0.9833,
+       "contribution": 0.0483,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "1d6cc7fc84ab8001a9a1f753b175be944a9bad2f629192443909af5292af9051"
+      }
+     ],
+     "excluded": []
+    },
+    "divergence": {
+     "weight": 12.4,
+     "coverage": 1.0,
+     "evidence": 0.4257,
+     "w_used": 11,
+     "w_map": 11,
+     "indicators": [
+      {
+       "series_id": "epoch.open_weights_share",
+       "series_path": "series/epoch.open_weights_share.csv",
+       "series_sha256": "0367156c4f2e6ae801b944bb136899514b871a0f08b166c594758777858f21de",
+       "latest_date": "2025-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.6333,
+       "contribution": 0.0364,
+       "weight": 3,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "epoch.org_diversity",
+       "series_path": "series/epoch.org_diversity.csv",
+       "series_sha256": "0bf035240a56e63664c7348f11fb59a158ee5239efcbf6ccf48521dbbff923bb",
+       "latest_date": "2025-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.0333,
+       "contribution": -0.0849,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "epoch.country_diversity",
+       "series_path": "series/epoch.country_diversity.csv",
+       "series_sha256": "caab2f4119c471f8a395b8cce2aeeec5eb2a2293a78b90175594bbe066142587",
+       "latest_date": "2025-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.2167,
+       "contribution": -0.0515,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "github.releases_year",
+       "series_path": "series/github.releases_year.csv",
+       "series_sha256": "3cefe7363922b5a04dd466d44e35e5268613910839fd032fea3145cb88afe34c",
+       "latest_date": "2025-12-31",
+       "source_url": "https://api.github.com/repos/openai/openai-python/releases?per_page=100&page=5",
+       "license": "GitHub ToS — counts are facts; metadata via public API",
+       "score": 0.0,
+       "contribution": -0.0455,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 8,
+       "snapshot_sha256": "c46f168bbb06e7668e062027e67d438e1627c21a1e6c07217f75abff3118402a"
+      },
+      {
+       "series_id": "github.commits_month",
+       "series_path": "series/github.commits_month.csv",
+       "series_sha256": "6a71b2bd5bbfef281964e2ab0b87310eded8138d233cc81bd4cf61feb9bb59c0",
+       "latest_date": "2025-12-31",
+       "source_url": "https://api.github.com/search/commits?q=repo:anthropics/anthropic-sdk-python+committer-date:2026-09-01..2026-09-30&per_page=1",
+       "license": "GitHub ToS — counts are facts; metadata via public API",
+       "score": 0.6833,
+       "contribution": 0.0167,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "e10cadb59fa94ac4ce8c1e71357c8ffc2aef5edab04bfdb343730cd970409567"
+      },
+      {
+       "series_id": "github.tool_repos_month",
+       "series_path": "series/github.tool_repos_month.csv",
+       "series_sha256": "b1faec2cd3f9b50dabf43ed39e928e52fcd9fc3e1dc2754988aa21e1f319f787",
+       "latest_date": "2025-12-31",
+       "source_url": "https://api.github.com/search/repositories?q=topic:mcp+created:2026-09-01..2026-09-30&per_page=1",
+       "license": "GitHub ToS — counts are facts; metadata via public API",
+       "score": 0.8,
+       "contribution": 0.0545,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "f91f31f61d45966671e9f87374e158d9f644bff6ffb5136dbaea0f4b642b8c37"
+      }
+     ],
+     "excluded": []
+    },
+    "drift": {
+     "weight": 13.0,
+     "coverage": 0.6667,
+     "evidence": 0.4493,
+     "w_used": 2,
+     "w_map": 3,
+     "indicators": [
+      {
+       "series_id": "wiki.deepfake",
+       "series_path": "series/wiki.deepfake.csv",
+       "series_sha256": "1b0dae421b3c1f6f8b02684e60aca0bdbe0400759d632cfa603fbed1bbdfb585",
+       "latest_date": "2025-12-31",
+       "source_url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Deepfake/monthly/20150701/20260930",
+       "license": "CC0 1.0",
+       "score": 0.45,
+       "contribution": -0.0083,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "422f25cfa266e469c533dcb857319e87dbb66032613af4b4a2f5e063f8434c5d"
+      },
+      {
+       "series_id": "wiki.synthetic_media",
+       "series_path": "series/wiki.synthetic_media.csv",
+       "series_sha256": "de92c9400a48e6ec449fc21a539b0559cfba7d3092612e21425a64a5004b9deb",
+       "latest_date": "2025-12-31",
+       "source_url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Synthetic_media/monthly/20150701/20260930",
+       "license": "CC0 1.0",
+       "score": 0.2456,
+       "contribution": -0.0424,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 57,
+       "snapshot_sha256": "cba5db089865b000fc18a5d17b4329ba0b9a062a7dacc2f7e4c14bfda2852a70"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "owid.genai_user_share",
+       "reason": "short_history"
+      }
+     ]
+    },
+    "control": {
+     "weight": 10.9,
+     "coverage": 1.0,
+     "evidence": 0.3773,
+     "w_used": 4,
+     "w_map": 4,
+     "indicators": [
+      {
+       "series_id": "wiki.ai_regulation",
+       "series_path": "series/wiki.ai_regulation.csv",
+       "series_sha256": "e14db36b8098627bc588fadbae37611160ec651ce9f3da93cdbec001caf7f008",
+       "latest_date": "2025-12-31",
+       "source_url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Regulation_of_artificial_intelligence/monthly/20150701/20260930",
+       "license": "CC0 1.0",
+       "score": 0.7636,
+       "contribution": 0.0439,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 55,
+       "snapshot_sha256": "90fd097c29f3e8130bfe2f284255e72e51361d3d44058cb01d528b36ba38ad0f"
+      },
+      {
+       "series_id": "owid.electoral_democracy",
+       "series_path": "series/owid.electoral_democracy.csv",
+       "series_sha256": "6dbc252d29dbbee8e9543c3df1e369da67f5c320faf451ef7dd45f38d1f47127",
+       "latest_date": "2025-12-31",
+       "source_url": "https://ourworldindata.org/grapher/electoral-democracy-index.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.2667,
+       "contribution": -0.0389,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "a0843a64486708e1638e5051be67dde8ddb0c82ae7be264c512173f503445afc"
+      },
+      {
+       "series_id": "fedreg.ai_documents",
+       "series_path": "series/fedreg.ai_documents.csv",
+       "series_sha256": "35faa48478d7926d04a43a9c0a8937071997b7a5ba9e1367070713b31c156b3b",
+       "latest_date": "2025-12-31",
+       "source_url": "https://www.federalregister.gov/api/v1/documents.json?conditions[term]=%22artificial+intelligence%22&conditions[publication_date][gte]=2025-12-01&conditions[publication_date][lte]=2025-12-31&per_page=1&fields[]=publication_date",
+       "license": "public domain (US gov work)",
+       "score": 0.1167,
+       "contribution": -0.1278,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "b5091f9cee2cd0f6058bce2234f9a287bc30fbbf330b0dcb2b265036d52ac804"
+      }
+     ],
+     "excluded": []
+    },
+    "terminus": {
+     "weight": 18.3,
+     "coverage": 0.8333,
+     "evidence": 0.6306,
+     "w_used": 5,
+     "w_map": 6,
+     "indicators": [
+      {
+       "series_id": "owid.conflict_deaths",
+       "series_path": "series/owid.conflict_deaths.csv",
+       "series_sha256": "20c5961b997dc81c6efec7eb6345d32f21498a1e82465032159e075b3f9d36fe",
+       "latest_date": "2025-12-31",
+       "source_url": "https://ourworldindata.org/grapher/deaths-in-armed-conflicts-by-region.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.9667,
+       "contribution": 0.1556,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_level",
+       "ref_n": 30,
+       "snapshot_sha256": "49322bd5f71f62962ef75c762fc7eb14e8f5bebfc253c325ebb95e9fa5c7b0ae"
+      },
+      {
+       "series_id": "wb.unemployment",
+       "series_path": "series/wb.unemployment.csv",
+       "series_sha256": "b10b6c77b49b34af401532b079da4d55a3ad6242a3d6a3b2240dd4c55f971cde",
+       "latest_date": "2025-12-31",
+       "source_url": "https://api.worldbank.org/v2/country/WLD/indicator/SL.UEM.TOTL.ZS?format=json&per_page=100",
+       "license": "CC BY 4.0",
+       "score": 0.5667,
+       "contribution": 0.0222,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "043ba91ac5fb5d989495a0f9497f49b76398afb40e590b8912f9dc73b3273e53"
+      },
+      {
+       "series_id": "noaa.co2",
+       "series_path": "series/noaa.co2.csv",
+       "series_sha256": "d887fa249e18866e4b3fcee25a34495017091d1f5f17db8f2b5a8897698b51fc",
+       "latest_date": "2025-12-31",
+       "source_url": "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv",
+       "license": "public domain (US gov)",
+       "score": 0.2167,
+       "contribution": -0.0472,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "dcf0198658c87ebb5e3b2ce807fe3a52e1d5f000aa0479fb1bf334afb7adde4d"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "wiki.ai_xrisk",
+       "reason": "short_history"
+      }
+     ]
+    },
+    "stagnation": {
+     "weight": 8.9,
+     "coverage": 1.0,
+     "evidence": 0.3075,
+     "w_used": 7,
+     "w_map": 7,
+     "indicators": [
+      {
+       "series_id": "owid.ai_private_investment",
+       "series_path": "series/owid.ai_private_investment.csv",
+       "series_sha256": "df825c0c3db8cb748cd0c17e14602569fa0c1de994f7925bad901b56169850d6",
+       "latest_date": "2025-12-31",
+       "source_url": "https://ourworldindata.org/grapher/private-investment-in-artificial-intelligence.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.0,
+       "contribution": -0.1429,
+       "weight": 2,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 11,
+       "snapshot_sha256": "560efc682ae711de37062313e5430483cf9265c9cef15494d950933b818250be"
+      },
+      {
+       "series_id": "owid.ai_company_adoption",
+       "series_path": "series/owid.ai_company_adoption.csv",
+       "series_sha256": "dab40a648ac499f734c0b2488cc092086b4be7e1ff1e45358c866f8a3e75f8c2",
+       "latest_date": "2025-12-31",
+       "source_url": "https://ourworldindata.org/grapher/share-companies-using-artificial-intelligence.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.1191,
+       "contribution": -0.0544,
+       "weight": 1,
+       "direction": -1,
+       "transform": "logistic_delta",
+       "ref_n": 1,
+       "snapshot_sha256": "0876f171001e3c0809634e2ded7f6a2bd1cc1a7730b3bd5e8603803a825229c0"
+      },
+      {
+       "series_id": "epoch.frontier_compute",
+       "series_path": "series/epoch.frontier_compute.csv",
+       "series_sha256": "6ff3379931f79a6dc918e84d05f629449e43da41fb5627cb7f7d0537871e0aca",
+       "latest_date": "2025-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.1,
+       "contribution": -0.1143,
+       "weight": 2,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "arxiv.cs_ai",
+       "series_path": "series/arxiv.cs_ai.csv",
+       "series_sha256": "12ecf8a7c3b9f506db59391cb07ff5c9e716519dc8678f85660160e65cff0634",
+       "latest_date": "2025-12-31",
+       "source_url": "https://export.arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:[202512010000+TO+202512312359]&max_results=1",
+       "license": "CC0 1.0 (metadata)",
+       "score": 0.9167,
+       "contribution": 0.1191,
+       "weight": 2,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "04845eb7c2921c2bb7b5bd5ef5159a1906d33953f034b4496f17701422f551e2"
+      }
+     ],
+     "excluded": []
+    },
+    "transcendence": {
+     "weight": 18.9,
+     "coverage": 1.0,
+     "evidence": 0.6527,
+     "w_used": 6,
+     "w_map": 6,
+     "indicators": [
+      {
+       "series_id": "owid.frontiermath_best",
+       "series_path": "series/owid.frontiermath_best.csv",
+       "series_sha256": "7f7c42018ec8709d5422a12388e210069084868f0ef99fb56d99c38fde7a0d5e",
+       "latest_date": "2025-12-31",
+       "source_url": "https://ourworldindata.org/grapher/ai-frontiermath-over-time.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.9661,
+       "contribution": 0.0777,
+       "weight": 1,
+       "direction": 1,
+       "transform": "logistic_delta",
+       "ref_n": 1,
+       "snapshot_sha256": "184d1ebfcd3e891941cc3d951c43750859fd7b30cb32f872815517994fb5c95e"
+      },
+      {
+       "series_id": "epoch.frontier_compute",
+       "series_path": "series/epoch.frontier_compute.csv",
+       "series_sha256": "6ff3379931f79a6dc918e84d05f629449e43da41fb5627cb7f7d0537871e0aca",
+       "latest_date": "2025-12-31",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.9,
+       "contribution": 0.1333,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "wiki.agi",
+       "series_path": "series/wiki.agi.csv",
+       "series_sha256": "5330c3059f8bcd697f62bf3fe182a5b0f2e2c18c932e47e38088856ea938667c",
+       "latest_date": "2025-12-31",
+       "source_url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Artificial_general_intelligence/monthly/20150701/20260930",
+       "license": "CC0 1.0",
+       "score": 0.35,
+       "contribution": -0.025,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "76414d1f40304ad8d8efb5d28be8089d7585d1eb4dcfcce4c4fae71698e0a3eb"
+      },
+      {
+       "series_id": "github.releases_year",
+       "series_path": "series/github.releases_year.csv",
+       "series_sha256": "3cefe7363922b5a04dd466d44e35e5268613910839fd032fea3145cb88afe34c",
+       "latest_date": "2025-12-31",
+       "source_url": "https://api.github.com/repos/openai/openai-python/releases?per_page=100&page=5",
+       "license": "GitHub ToS — counts are facts; metadata via public API",
+       "score": 0.0,
+       "contribution": -0.0833,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 8,
+       "snapshot_sha256": "c46f168bbb06e7668e062027e67d438e1627c21a1e6c07217f75abff3118402a"
+      },
+      {
+       "series_id": "github.tool_repos_month",
+       "series_path": "series/github.tool_repos_month.csv",
+       "series_sha256": "b1faec2cd3f9b50dabf43ed39e928e52fcd9fc3e1dc2754988aa21e1f319f787",
+       "latest_date": "2025-12-31",
+       "source_url": "https://api.github.com/search/repositories?q=topic:mcp+created:2026-09-01..2026-09-30&per_page=1",
+       "license": "GitHub ToS — counts are facts; metadata via public API",
+       "score": 0.8,
+       "contribution": 0.05,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "f91f31f61d45966671e9f87374e158d9f644bff6ffb5136dbaea0f4b642b8c37"
+      }
+     ],
+     "excluded": []
+    }
+   }
+  },
+  "2026": {
+   "as_of": "2026-10-08",
+   "realms": {
+    "utopia": {
+     "weight": 15.0,
+     "coverage": 1.0,
+     "evidence": 0.5567,
+     "w_used": 10,
+     "w_map": 10,
+     "indicators": [
+      {
+       "series_id": "owid.extreme_poverty",
+       "series_path": "series/owid.extreme_poverty.csv",
+       "series_sha256": "c98e7c477e4719e778ccf25ade2d1d7ae74aa437aa2a68ed1414f4bb9ebeaa86",
+       "latest_date": "2025-12-31",
+       "source_url": "https://ourworldindata.org/grapher/share-of-population-in-extreme-poverty.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.1,
+       "contribution": -0.12,
+       "weight": 3,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "2ec710800ef8b0ec25ddcbd96a880173ed05c5c8319ac8e2db85a020f7ade7bd"
+      },
+      {
+       "series_id": "owid.life_expectancy",
+       "series_path": "series/owid.life_expectancy.csv",
+       "series_sha256": "833a527954f7356210fa16908f26827a4a927142f64761ef546d3f5e07d2a430",
+       "latest_date": "2023-12-31",
+       "source_url": "https://ourworldindata.org/grapher/life-expectancy.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.9333,
+       "contribution": 0.0867,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "6336e80067d72cd910e5b03a4150bbb203fb8f22c6a9c0c43e91aba07038720b"
+      },
+      {
+       "series_id": "wb.gdp_per_capita",
+       "series_path": "series/wb.gdp_per_capita.csv",
+       "series_sha256": "6622b102e4897670a345080571143edb8397c3e1d62800db44e849647aae3caa",
+       "latest_date": "2025-12-31",
+       "source_url": "https://api.worldbank.org/v2/country/WLD/indicator/NY.GDP.PCAP.KD?format=json&per_page=100",
+       "license": "CC BY 4.0",
+       "score": 0.5333,
+       "contribution": 0.0067,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "3c2820efa60c6da45bcd8beedd8c5ffaa06974314acf0ac5fb9174e93cc71d21"
+      },
+      {
+       "series_id": "pubmed.ai_biomed",
+       "series_path": "series/pubmed.ai_biomed.csv",
+       "series_sha256": "d1b0da7d7038b16bce38d19e7ec0720ac9350d5a19d13e29f8ecb28439836f58",
+       "latest_date": "2026-09-30",
+       "source_url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmode=json&rettype=count&term=%28artificial%20intelligence%5BTitle/Abstract%5D%29%20AND%20%28drug%20discovery%5BTitle/Abstract%5D%20OR%20protein%5BTitle/Abstract%5D%20OR%20molecular%5BTitle/Abstract%5D%20OR%20battery%5BTitle/Abstract%5D%20OR%20catalyst%5BTitle/Abstract%5D%29%20AND%20%28%222026/09/01%22%5BPDAT%5D%3A%222026/09/30%22%5BPDAT%5D%29",
+       "license": "public domain (NLM; US gov)",
+       "score": 0.6667,
+       "contribution": 0.0333,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "992ab283d6c4d6591dc1490f2604a4aec2e4179158d2aa838ea579d94b91e5a3"
+      },
+      {
+       "series_id": "github.lean_repos_month",
+       "series_path": "series/github.lean_repos_month.csv",
+       "series_sha256": "e9be629aa8e923c188df37b7a1cf560fd0b9fe2515e56a6fbc9477eb26655666",
+       "latest_date": "2026-09-30",
+       "source_url": "https://api.github.com/search/repositories?q=language:Lean+created:2019-01-01..2019-01-31&per_page=1",
+       "license": "GitHub ToS — counts are facts; metadata via public API",
+       "score": 1.0,
+       "contribution": 0.05,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "1d6cc7fc84ab8001a9a1f753b175be944a9bad2f629192443909af5292af9051"
+      }
+     ],
+     "excluded": []
+    },
+    "divergence": {
+     "weight": 13.3,
+     "coverage": 1.0,
+     "evidence": 0.4955,
+     "w_used": 11,
+     "w_map": 11,
+     "indicators": [
+      {
+       "series_id": "epoch.open_weights_share",
+       "series_path": "series/epoch.open_weights_share.csv",
+       "series_sha256": "c9d3cec3a05fab60c5aca3eb3cbc63bd95aef48e898bf893ca109c09b6d529ce",
+       "latest_date": "2026-09-30",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.35,
+       "contribution": -0.0409,
+       "weight": 3,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "epoch.org_diversity",
+       "series_path": "series/epoch.org_diversity.csv",
+       "series_sha256": "13a044959ed400b357b8374366f21f6d98549c7d4215a9eb3c664c6b0f5f7e07",
+       "latest_date": "2026-09-30",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.4167,
+       "contribution": -0.0151,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "epoch.country_diversity",
+       "series_path": "series/epoch.country_diversity.csv",
+       "series_sha256": "0e4cd30202f2d8c621c49089d262b1d86d81901c98c75d79cf0b376cc6d62ca7",
+       "latest_date": "2026-09-30",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.3667,
+       "contribution": -0.0242,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "github.releases_year",
+       "series_path": "series/github.releases_year.csv",
+       "series_sha256": "3cefe7363922b5a04dd466d44e35e5268613910839fd032fea3145cb88afe34c",
+       "latest_date": "2025-12-31",
+       "source_url": "https://api.github.com/repos/openai/openai-python/releases?per_page=100&page=5",
+       "license": "GitHub ToS — counts are facts; metadata via public API",
+       "score": 0.0,
+       "contribution": -0.0455,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 8,
+       "snapshot_sha256": "c46f168bbb06e7668e062027e67d438e1627c21a1e6c07217f75abff3118402a"
+      },
+      {
+       "series_id": "github.commits_month",
+       "series_path": "series/github.commits_month.csv",
+       "series_sha256": "9694548d89b5e2e4cf71dd6957852a112b14f1f5f04cd2b6509cb4ec18740217",
+       "latest_date": "2026-09-30",
+       "source_url": "https://api.github.com/search/commits?q=repo:anthropics/anthropic-sdk-python+committer-date:2026-09-01..2026-09-30&per_page=1",
+       "license": "GitHub ToS — counts are facts; metadata via public API",
+       "score": 0.9,
+       "contribution": 0.0364,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "e10cadb59fa94ac4ce8c1e71357c8ffc2aef5edab04bfdb343730cd970409567"
+      },
+      {
+       "series_id": "github.tool_repos_month",
+       "series_path": "series/github.tool_repos_month.csv",
+       "series_sha256": "b7de8304fbea08a852ae280a0ec04e293a5f26f237df768e9c146d7aaf74a98d",
+       "latest_date": "2026-09-30",
+       "source_url": "https://api.github.com/search/repositories?q=topic:mcp+created:2026-09-01..2026-09-30&per_page=1",
+       "license": "GitHub ToS — counts are facts; metadata via public API",
+       "score": 0.9667,
+       "contribution": 0.0849,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "f91f31f61d45966671e9f87374e158d9f644bff6ffb5136dbaea0f4b642b8c37"
+      }
+     ],
+     "excluded": []
+    },
+    "drift": {
+     "weight": 15.4,
+     "coverage": 1.0,
+     "evidence": 0.5732,
+     "w_used": 3,
+     "w_map": 3,
+     "indicators": [
+      {
+       "series_id": "owid.genai_user_share",
+       "series_path": "series/owid.genai_user_share.csv",
+       "series_sha256": "8b632050407486f3b9722c790b3a6875cc2e112f6c5557eb1b525f633847b5da",
+       "latest_date": "2026-03-31",
+       "source_url": "https://ourworldindata.org/grapher/estimated-share-people-generative-ai.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.6726,
+       "contribution": 0.0288,
+       "weight": 1,
+       "direction": 1,
+       "transform": "logistic_delta",
+       "ref_n": 1,
+       "snapshot_sha256": "89871cf51c90711343daec35e3ad37a60919ea329d3ad546245718219628207a"
+      },
+      {
+       "series_id": "wiki.deepfake",
+       "series_path": "series/wiki.deepfake.csv",
+       "series_sha256": "d0ed32acf21145698b639878c38cb23def2579c91d37e1924e2dc4cd79a20c9d",
+       "latest_date": "2026-09-30",
+       "source_url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Deepfake/monthly/20150701/20260930",
+       "license": "CC0 1.0",
+       "score": 0.55,
+       "contribution": 0.0083,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "422f25cfa266e469c533dcb857319e87dbb66032613af4b4a2f5e063f8434c5d"
+      },
+      {
+       "series_id": "wiki.synthetic_media",
+       "series_path": "series/wiki.synthetic_media.csv",
+       "series_sha256": "98d0da80916022f0d2ee0c5eef61c71234d047e9cd5c8b8e9fd5608abf61efe4",
+       "latest_date": "2026-09-30",
+       "source_url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Synthetic_media/monthly/20150701/20260930",
+       "license": "CC0 1.0",
+       "score": 0.7167,
+       "contribution": 0.0361,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "cba5db089865b000fc18a5d17b4329ba0b9a062a7dacc2f7e4c14bfda2852a70"
+      }
+     ],
+     "excluded": []
+    },
+    "control": {
+     "weight": 16.0,
+     "coverage": 1.0,
+     "evidence": 0.5972,
+     "w_used": 6,
+     "w_map": 6,
+     "indicators": [
+      {
+       "series_id": "wiki.ai_regulation",
+       "series_path": "series/wiki.ai_regulation.csv",
+       "series_sha256": "430920c64dd05c789947aac5194d2c4cb52365f247b71882ddff82d031392d2e",
+       "latest_date": "2026-09-30",
+       "source_url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Regulation_of_artificial_intelligence/monthly/20150701/20260930",
+       "license": "CC0 1.0",
+       "score": 0.35,
+       "contribution": -0.025,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "90fd097c29f3e8130bfe2f284255e72e51361d3d44058cb01d528b36ba38ad0f"
+      },
+      {
+       "series_id": "owid.electoral_democracy",
+       "series_path": "series/owid.electoral_democracy.csv",
+       "series_sha256": "6dbc252d29dbbee8e9543c3df1e369da67f5c320faf451ef7dd45f38d1f47127",
+       "latest_date": "2025-12-31",
+       "source_url": "https://ourworldindata.org/grapher/electoral-democracy-index.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.2667,
+       "contribution": -0.0389,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "a0843a64486708e1638e5051be67dde8ddb0c82ae7be264c512173f503445afc"
+      },
+      {
+       "series_id": "fedreg.ai_documents",
+       "series_path": "series/fedreg.ai_documents.csv",
+       "series_sha256": "f3a04905aa48b394998a575f9cd25fb9d8b43af5203f4ab730fbfcff6a7c57c2",
+       "latest_date": "2026-09-30",
+       "source_url": "https://www.federalregister.gov/api/v1/documents.json?conditions[term]=%22artificial+intelligence%22&conditions[publication_date][gte]=2026-09-01&conditions[publication_date][lte]=2026-09-30&per_page=1&fields[]=publication_date",
+       "license": "public domain (US gov work)",
+       "score": 0.5833,
+       "contribution": 0.0278,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "9cbc9cc63eea1dfbb053d6e1e2f6c307b96b639114de2a469818348ca280ece0"
+      },
+      {
+       "series_id": "ari.index",
+       "series_path": "series/ari.index.csv",
+       "series_sha256": "caada88f9ebb8a61476c44c23673fa14e9b618c1c1a3358d00ae3be801f21985",
+       "latest_date": "2026-10-04",
+       "source_url": "https://dweeb-xzys-mac-studio.tail5435b1.ts.net/api/artifact/report-ari.html",
+       "license": "dweeb.xyz Agent Restriction Index — verbatim capture, © pipeline output, methodology at report §method",
+       "score": 0.9,
+       "contribution": 0.1333,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_level",
+       "ref_n": 25,
+       "snapshot_sha256": "04559c0b8a26ea51498c226faf6a8f75031d4f69eb49aee1e6e8105a40c76229"
+      }
+     ],
+     "excluded": []
+    },
+    "terminus": {
+     "weight": 17.2,
+     "coverage": 0.8333,
+     "evidence": 0.6417,
+     "w_used": 5,
+     "w_map": 6,
+     "indicators": [
+      {
+       "series_id": "owid.conflict_deaths",
+       "series_path": "series/owid.conflict_deaths.csv",
+       "series_sha256": "20c5961b997dc81c6efec7eb6345d32f21498a1e82465032159e075b3f9d36fe",
+       "latest_date": "2025-12-31",
+       "source_url": "https://ourworldindata.org/grapher/deaths-in-armed-conflicts-by-region.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.9667,
+       "contribution": 0.1556,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_level",
+       "ref_n": 30,
+       "snapshot_sha256": "49322bd5f71f62962ef75c762fc7eb14e8f5bebfc253c325ebb95e9fa5c7b0ae"
+      },
+      {
+       "series_id": "wb.unemployment",
+       "series_path": "series/wb.unemployment.csv",
+       "series_sha256": "b10b6c77b49b34af401532b079da4d55a3ad6242a3d6a3b2240dd4c55f971cde",
+       "latest_date": "2025-12-31",
+       "source_url": "https://api.worldbank.org/v2/country/WLD/indicator/SL.UEM.TOTL.ZS?format=json&per_page=100",
+       "license": "CC BY 4.0",
+       "score": 0.5667,
+       "contribution": 0.0222,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 30,
+       "snapshot_sha256": "043ba91ac5fb5d989495a0f9497f49b76398afb40e590b8912f9dc73b3273e53"
+      },
+      {
+       "series_id": "noaa.co2",
+       "series_path": "series/noaa.co2.csv",
+       "series_sha256": "5f5abc55fc417584c4b4950177d25f5e230d31912340ce323297a70666c055cc",
+       "latest_date": "2026-08-31",
+       "source_url": "https://gml.noaa.gov/webdata/ccgg/trends/co2/co2_mm_mlo.csv",
+       "license": "public domain (US gov)",
+       "score": 0.2833,
+       "contribution": -0.0361,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "dcf0198658c87ebb5e3b2ce807fe3a52e1d5f000aa0479fb1bf334afb7adde4d"
+      }
+     ],
+     "excluded": [
+      {
+       "series_id": "wiki.ai_xrisk",
+       "reason": "short_history"
+      }
+     ]
+    },
+    "stagnation": {
+     "weight": 9.7,
+     "coverage": 1.0,
+     "evidence": 0.3599,
+     "w_used": 7,
+     "w_map": 7,
+     "indicators": [
+      {
+       "series_id": "owid.ai_private_investment",
+       "series_path": "series/owid.ai_private_investment.csv",
+       "series_sha256": "df825c0c3db8cb748cd0c17e14602569fa0c1de994f7925bad901b56169850d6",
+       "latest_date": "2025-12-31",
+       "source_url": "https://ourworldindata.org/grapher/private-investment-in-artificial-intelligence.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.0,
+       "contribution": -0.1429,
+       "weight": 2,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 11,
+       "snapshot_sha256": "560efc682ae711de37062313e5430483cf9265c9cef15494d950933b818250be"
+      },
+      {
+       "series_id": "owid.ai_company_adoption",
+       "series_path": "series/owid.ai_company_adoption.csv",
+       "series_sha256": "dab40a648ac499f734c0b2488cc092086b4be7e1ff1e45358c866f8a3e75f8c2",
+       "latest_date": "2025-12-31",
+       "source_url": "https://ourworldindata.org/grapher/share-companies-using-artificial-intelligence.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.1191,
+       "contribution": -0.0544,
+       "weight": 1,
+       "direction": -1,
+       "transform": "logistic_delta",
+       "ref_n": 1,
+       "snapshot_sha256": "0876f171001e3c0809634e2ded7f6a2bd1cc1a7730b3bd5e8603803a825229c0"
+      },
+      {
+       "series_id": "epoch.frontier_compute",
+       "series_path": "series/epoch.frontier_compute.csv",
+       "series_sha256": "8bead23941452f6ee837b853432db0742159ad5f584055a837608813e73b3b26",
+       "latest_date": "2026-09-30",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.75,
+       "contribution": 0.0714,
+       "weight": 2,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "arxiv.cs_ai",
+       "series_path": "series/arxiv.cs_ai.csv",
+       "series_sha256": "98fc20a2f584ab7a308a8d546d69d205d616147ecd6d49e42872b3ebbf944c53",
+       "latest_date": "2026-09-30",
+       "source_url": "https://export.arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:[202609010000+TO+202609302359]&max_results=1",
+       "license": "CC0 1.0 (metadata)",
+       "score": 0.45,
+       "contribution": -0.0143,
+       "weight": 2,
+       "direction": -1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "18935b420eb8328b8b5786f9c33319dd5440682879a4365446fbc515610ebcf1"
+      }
+     ],
+     "excluded": []
+    },
+    "transcendence": {
+     "weight": 13.4,
+     "coverage": 1.0,
+     "evidence": 0.5002,
+     "w_used": 6,
+     "w_map": 6,
+     "indicators": [
+      {
+       "series_id": "owid.frontiermath_best",
+       "series_path": "series/owid.frontiermath_best.csv",
+       "series_sha256": "631299838e1ca11a03a9e5803e10f8410401d5b99b797df4c31b6887f63ed856",
+       "latest_date": "2026-09-30",
+       "source_url": "https://ourworldindata.org/grapher/ai-frontiermath-over-time.csv?v=1&csvType=full&useColumnShortNames=true",
+       "license": "CC BY 4.0",
+       "score": 0.901,
+       "contribution": 0.0668,
+       "weight": 1,
+       "direction": 1,
+       "transform": "logistic_delta",
+       "ref_n": 1,
+       "snapshot_sha256": "184d1ebfcd3e891941cc3d951c43750859fd7b30cb32f872815517994fb5c95e"
+      },
+      {
+       "series_id": "epoch.frontier_compute",
+       "series_path": "series/epoch.frontier_compute.csv",
+       "series_sha256": "8bead23941452f6ee837b853432db0742159ad5f584055a837608813e73b3b26",
+       "latest_date": "2026-09-30",
+       "source_url": "https://epoch.ai/data/notable_ai_models.csv",
+       "license": "CC BY 4.0",
+       "score": 0.25,
+       "contribution": -0.0833,
+       "weight": 2,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "3ac5c86f57c4ae1008123a20fd9a7cdb311a46d98378fd8fd3b2461344a4f71d"
+      },
+      {
+       "series_id": "wiki.agi",
+       "series_path": "series/wiki.agi.csv",
+       "series_sha256": "e00f197388b2e865b59108e419e91374115ed99c1e4a7544357d4ada39916946",
+       "latest_date": "2026-09-30",
+       "source_url": "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/en.wikipedia/all-access/user/Artificial_general_intelligence/monthly/20150701/20260930",
+       "license": "CC0 1.0",
+       "score": 0.6333,
+       "contribution": 0.0222,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "76414d1f40304ad8d8efb5d28be8089d7585d1eb4dcfcce4c4fae71698e0a3eb"
+      },
+      {
+       "series_id": "github.releases_year",
+       "series_path": "series/github.releases_year.csv",
+       "series_sha256": "3cefe7363922b5a04dd466d44e35e5268613910839fd032fea3145cb88afe34c",
+       "latest_date": "2025-12-31",
+       "source_url": "https://api.github.com/repos/openai/openai-python/releases?per_page=100&page=5",
+       "license": "GitHub ToS — counts are facts; metadata via public API",
+       "score": 0.0,
+       "contribution": -0.0833,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 8,
+       "snapshot_sha256": "c46f168bbb06e7668e062027e67d438e1627c21a1e6c07217f75abff3118402a"
+      },
+      {
+       "series_id": "github.tool_repos_month",
+       "series_path": "series/github.tool_repos_month.csv",
+       "series_sha256": "b7de8304fbea08a852ae280a0ec04e293a5f26f237df768e9c146d7aaf74a98d",
+       "latest_date": "2026-09-30",
+       "source_url": "https://api.github.com/search/repositories?q=topic:mcp+created:2026-09-01..2026-09-30&per_page=1",
+       "license": "GitHub ToS — counts are facts; metadata via public API",
+       "score": 0.9667,
+       "contribution": 0.0778,
+       "weight": 1,
+       "direction": 1,
+       "transform": "rank_delta",
+       "ref_n": 60,
+       "snapshot_sha256": "f91f31f61d45966671e9f87374e158d9f644bff6ffb5136dbaea0f4b642b8c37"
+      }
+     ],
+     "excluded": []
+    }
+   }
+  }
+ }
+}

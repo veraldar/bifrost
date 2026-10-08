@@ -1,0 +1,38 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/ogCuw1J8wVXhEywmFt50CmSZq4E</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202205010000 TO 202205312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:42:40Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202205010000+TO+202205312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>1432</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2206.14145v1</id>
+    <title>Question Personalization in an Intelligent Tutoring System</title>
+    <updated>2022-05-25T15:23:51Z</updated>
+    <link href="https://arxiv.org/abs/2206.14145v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2206.14145v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>This paper investigates personalization in the field of intelligent tutoring systems (ITS). We hypothesize that personalization in the way questions are asked improves student learning outcomes. Previous work on dialogue-based ITS personalization has yet to address question phrasing. We show that generating versions of the questions suitable for students at different levels of subject proficiency improves student learning gains, using variants written by a domain expert and an experimental A/B test. This insight demonstrates that the linguistic realization of questions in an ITS affects the learning outcomes for students.</summary>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2022-05-25T15:23:51Z</published>
+    <arxiv:comment>To be published in AIED Late Breaking Results 2022</arxiv:comment>
+    <arxiv:primary_category term="cs.CL"/>
+    <author>
+      <name>Sabina Elkins</name>
+    </author>
+    <author>
+      <name>Robert Belfer</name>
+    </author>
+    <author>
+      <name>Ekaterina Kochmar</name>
+    </author>
+    <author>
+      <name>Iulian Serban</name>
+    </author>
+    <author>
+      <name>Jackie C. K. Cheung</name>
+    </author>
+  </entry>
+</feed>

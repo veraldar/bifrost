@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/H3CbvB7ULidwY+50D3etH1geu8s</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202207010000 TO 202207312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:42:48Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202207010000+TO+202207312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>1182</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2207.00473v3</id>
+    <title>Assessing the Effects of Hyperparameters on Knowledge Graph Embedding Quality</title>
+    <updated>2022-07-05T16:45:48Z</updated>
+    <link href="https://arxiv.org/abs/2207.00473v3" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2207.00473v3" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Embedding knowledge graphs into low-dimensional spaces is a popular method for applying approaches, such as link prediction or node classification, to these databases. This embedding process is very costly in terms of both computational time and space. Part of the reason for this is the optimisation of hyperparameters, which involves repeatedly sampling, by random, guided, or brute-force selection, from a large hyperparameter space and testing the resulting embeddings for their quality. However, not all hyperparameters in this search space will be equally important. In fact, with prior knowledge of the relative importance of the hyperparameters, some could be eliminated from the search altogether without significantly impacting the overall quality of the outputted embeddings. To this end, we ran a Sobol sensitivity analysis to evaluate the effects of tuning different hyperparameters on the variance of embedding quality. This was achieved by performing thousands of embedding trials, each time measuring the quality of embeddings produced by different hyperparameter configurations. We regressed the embedding quality on those hyperparameter configurations, using this model to generate Sobol sensitivity indices for each of the hyperparameters. By evaluating the correlation between Sobol indices, we find substantial variability in the hyperparameter sensitivities between knowledge graphs, with differing dataset characteristics being the probable cause of these inconsistencies. As an additional contribution of this work we identify several relations in the UMLS knowledge graph that may cause data leakage via inverse relations, and derive and present UMLS-43, a leakage-robust variant of that graph.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.SI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2022-07-01T14:53:16Z</published>
+    <arxiv:primary_category term="cs.AI"/>
+    <author>
+      <name>Oliver Lloyd</name>
+    </author>
+    <author>
+      <name>Yi Liu</name>
+    </author>
+    <author>
+      <name>Tom Gaunt</name>
+    </author>
+  </entry>
+</feed>

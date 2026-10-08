@@ -48,7 +48,9 @@ def bias_ids(sid, s, transform):
         b += ["B13"]
     if sid.startswith("ari."):
         b += ["B14"]
-    if sid.startswith("github."):
+    if sid in ("github.tool_repos_month", "github.lean_repos_month"):  # 0.5.0: search counts over all of GitHub
+        b += ["B16"]
+    elif sid.startswith("github."):
         b += ["B15"]
     if transform.startswith("rank_"):
         b += ["B11"]
@@ -126,7 +128,10 @@ def compute(as_of, run_id, updated, cut=None):
         params = parse_params(r["params"])
         direction = 1 if r["direction"] == "+1" else -1
         rows, series_sha = cut_rows(sid, cut)
-        _, meta = snapshot(s["source_id"], s["slug"], ext_of(s), as_of)
+        try:
+            _, meta = snapshot(s["source_id"], s["slug"], ext_of(s), as_of)
+        except FileNotFoundError:  # 0.5.0: a mapped series not fetched yet has no rows either → excluded no_data, not a crash
+            meta = None
         last_date = rows[-1][1] if rows else None
         age = (cut_d - dt.date.fromisoformat(last_date)).days if last_date else None
         ex = None

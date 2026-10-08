@@ -1,0 +1,23 @@
+{
+ "attribution": "Ember (2026); Energy Institute – Statistical Review of World Energy (2026); Pinto et al. (2023) – with major processing by Our World in Data",
+ "bytes": 199542,
+ "content_type": "text/csv",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://ourworldindata.org/grapher/electricity-mix.csv?frequency=annual&metric=generation&source=solar&v=1&csvType=full&useColumnShortNames=true",
+ "http_status": 200,
+ "license": "CC BY 4.0",
+ "license_url": "https://creativecommons.org/licenses/by/4.0/",
+ "path": "raw/owid/solar-energy-consumption/20261004T170331Z.csv",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-04T17:03:31Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "9e5ee0fdc8bbff587477cb18e53adbead0933a8b407fd38170ef97e58f04e6c6",
+ "slug": "solar-energy-consumption",
+ "source_id": "owid",
+ "stored_bytes": true,
+ "upstream_next_update": "2027-06-30",
+ "upstream_updated": "2026-06-30",
+ "url": "https://ourworldindata.org/grapher/solar-energy-consumption.csv?v=1&csvType=full&useColumnShortNames=true"
+}

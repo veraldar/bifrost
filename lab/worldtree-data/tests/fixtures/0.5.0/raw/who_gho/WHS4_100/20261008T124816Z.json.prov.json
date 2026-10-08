@@ -1,0 +1,23 @@
+{
+ "attribution": "WHO Global Health Observatory (via ghoapi.azureedge.net), © WHO — public domain",
+ "bytes": 2949913,
+ "content_type": "application/json",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://ghoapi.azureedge.net/api/WHS4_100",
+ "http_status": 200,
+ "license": "public domain (WHO)",
+ "license_url": "https://www.who.int/about/policies/publishing/copyright",
+ "path": "raw/who_gho/WHS4_100/20261008T124816Z.json",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-08T12:48:16Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "aa090143a06264554737a8bb67d4e823fe2ced4986e65da81b4c97b1bc266791",
+ "slug": "WHS4_100",
+ "source_id": "who_gho",
+ "stored_bytes": true,
+ "upstream_next_update": null,
+ "upstream_updated": null,
+ "url": "https://ghoapi.azureedge.net/api/WHS4_100"
+}

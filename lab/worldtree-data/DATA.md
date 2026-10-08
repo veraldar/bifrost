@@ -16,7 +16,7 @@ nightly (14:30 Europe/Berlin). This directory mirrors the pipeline repo layout
 | `out/realms.provenance.json` | per-number trail of today's weights: every indicator's score, contribution, series + raw sha256, source URL, license |
 | `out/realms-history.json` | per-year weights 2015 → now (schema `worldtree.history/1`): coverage, `provisional` flags, gates |
 | `out/realms-history.provenance.json` | the per-year indicator trail; each year's blob sha256 is in `realms-history.json` |
-| `out/github-trends.json` | AI-ecosystem evolution speed (schema `worldtree.github/1`): releases/year, commits/month, star snapshots, per-repo detail |
+| `out/github-trends.json` | AI-ecosystem evolution speed (schema `worldtree.github/1`): releases/year, commits/month, star snapshots, per-repo detail; since method 0.5.0 an additive `tools` block (new AI-tool repos per month by topic and per year, new Lean repos per month, mathlib4 commits per month, tool-layer stars, notes) |
 | `out/github-trends.provenance.json` | every GitHub raw file those numbers read (path, sha256, url, retrieved_at) |
 
 Today's weights themselves: https://veraldar.org/realms.json (page contract; carries
@@ -32,7 +32,7 @@ Today's weights themselves: https://veraldar.org/realms.json (page contract; car
 | arXiv · PubMed · Federal Register · NOAA GML | `arxiv.cs_ai`, `pubmed.ai_biomed`, `fedreg.ai_documents`, `noaa.co2` | monthly | CC0 1.0 (metadata) / public domain |
 | Mac Studio ARI pipeline | `ari.index` — Agent Restriction Index, weekly 0-100 (control realm) | weekly | dweeb.xyz Agent Restriction Index — verbatim capture, © pipeline output, methodology at report §method |
 
-| GitHub (api.github.com, keyless) | `github.releases_year` (divergence + transcendence), `github.commits_month` (divergence), `github.stars_snapshot` (not mapped) | annual / monthly / nightly | GitHub ToS — counts are facts; metadata via public API |
+| GitHub (api.github.com, keyless) | `github.releases_year` (divergence + transcendence), `github.commits_month` (divergence), `github.stars_snapshot` (not mapped); tools (0.5.0): `github.tool_repos_month` (divergence + transcendence), `github.lean_repos_month` (utopia), `github.mathlib_commits_month` + `github.tool_stars_snapshot` (not mapped) | annual / monthly / nightly | GitHub ToS — counts are facts; metadata via public API |
 
 **GitHub — AI evolution speed** (method 0.4.1). Twelve repos, one reason each (`wt/github.py` `REPOS`):
 tensorflow, pytorch, jax, transformers, vllm, ollama, llama.cpp, openai-python,
@@ -46,10 +46,43 @@ kept for commits + stars); extra columns `n_repos`, `n_prerelease`, `median_gap_
 Σ stargazers each night + one column per repo — growth is observed from 2026-10 on;
 star history before that is not reconstructed, so stars are not world-mapped.
 Keyless limits (no token, by design): 60 core req/h + 10 search req/min per IP — the
-nightly fetch spends ≤ 45 core + ≤ 150 search requests; anything left is fetched the next
-night, never left as a hole. Bias B15: the repo set is 2026's winners picked in 2026
+nightly fetch (one a night) spends ≤ 45 core + ≤ 150 search requests and ≤ 8 minutes
+of search; anything left is fetched the next night, never left as a hole. Bias B15: the repo set is 2026's winners picked in 2026
 (survivorship) and repos born after 2019 add to totals from their first release —
 ecosystem growth includes repo births by design. Releases ≠ capability.
+
+**GitHub — the tools are evolving too** (method 0.5.0). The model curves above measure
+the AI stack; these measure the tool ecosystem co-evolving with it — the variable that
+unlocks what a model can do. All keyless, inside the same nightly budget.
+`tool_repos_month` = new public repositories (forks excluded) created each month carrying
+an AI-tool topic, one search `total_count` per topic-month since 2019-01: `topic:llm`,
+`topic:ai-agents`, `topic:mcp`, `topic:ai-tools`; value = the sum, extra columns
+`topic_llm, topic_ai_agents, topic_mcp, topic_ai_tools`. Search has no OR across
+topics, so a repo carrying two of them counts twice (probe 2025-06: 175 repos carry both
+mcp and llm, against 1,082 mcp and 1,931 llm). `lean_repos_month` = new repositories
+whose primary language is Lean (formal mathematics, the medium AI provers work in).
+`mathlib_commits_month` = leanprover-community/mathlib4 commits per month (its 2023
+peak is the mathlib3 → 4 port, so it is drawn as velocity, not mapped).
+`tool_stars_snapshot` = nightly stars of 15 tool-layer repos (MCP servers, SDKs and
+registry; LangGraph, LlamaIndex, CrewAI, AutoGen, OpenAI Agents SDK, smolagents,
+browser-use; the tool-use benchmarks BFCL/gorilla, τ²-bench, SWE-bench; mathlib4) —
+growth observed from 2026-10 on, not mapped. Mapping: tool repos → divergence (weight
+2: anyone building, not the few) + transcendence (weight 1: the unlock); Lean repos →
+utopia (weight 1: tools for attacking hard problems spreading); each is a 12-month log
+growth ranked against its own last 60 months. Bias B16 (self-tagged topics): owners
+add topics whenever they like — counts are what GitHub returns at retrieval; each month
+is fetched once and the last complete month re-checked nightly, so older months have
+had longer to be tagged (understates growth) and deleted repos vanish from every month;
+`topic:mcp` repos created before 2024-11 (MCP's release) are older AI projects that
+added MCP later (dify, open-webui, LibreChat… — 372 created 2021–2023). Dropped after probing, never fabricated: the official MCP registry
+(registry.modelcontextprotocol.io) is keyless but has no count endpoint — sizing it
+takes a full cursor crawl each time (10-08 probe: ≥ 23,000 servers over 230 pages of 100 in
+23 min, then an HTTP 500 mid-crawl), so `topic:mcp` + the MCP
+repos' stars carry the MCP ecosystem; mathlib3 (2017–2023, archived) is a different
+repository — splicing it onto mathlib4 would draw the port as growth — so mathlib
+velocity starts with mathlib4 (2021-05); tool-use benchmark release cadence (BFCL/gorilla
+8 releases 2023–25, τ²-bench 5, SWE-bench 0) is too sparse to be a series — their stars
+ride `tool_stars_snapshot`.
 
 `series/ari.index.csv` carries extra columns after the standard four: `s` (weighted
 event points of the week), `n` (events), `p` (partial-week flag), `pts_<component>`

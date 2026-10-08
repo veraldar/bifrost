@@ -1,0 +1,23 @@
+{
+ "attribution": "National Consortium for the Study of Terrorism and Responses to Terrorism (START) (2022) – with major processing by Our World in Data",
+ "bytes": 300754,
+ "content_type": "text/csv",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://ourworldindata.org/grapher/terrorism-deaths.csv?v=1&csvType=full&useColumnShortNames=true",
+ "http_status": 200,
+ "license": "CC BY 4.0",
+ "license_url": "https://creativecommons.org/licenses/by/4.0/",
+ "path": "raw/owid/terrorism-deaths/20261004T170333Z.csv",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-04T17:03:33Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "7a805488e4dc947462fa7c90109f6235840537fd58da054ff75f06a5284f2370",
+ "slug": "terrorism-deaths",
+ "source_id": "owid",
+ "stored_bytes": true,
+ "upstream_next_update": "2026-11-04",
+ "upstream_updated": "2023-07-20",
+ "url": "https://ourworldindata.org/grapher/terrorism-deaths.csv?v=1&csvType=full&useColumnShortNames=true"
+}

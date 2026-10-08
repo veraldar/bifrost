@@ -1,0 +1,38 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/LXMeXLnqOSzITHLL684bcS+ChEQ</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202003010000 TO 202003312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:37:23Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202003010000+TO+202003312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>403</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2003.01825v3</id>
+    <title>Scaling MAP-Elites to Deep Neuroevolution</title>
+    <updated>2020-06-05T15:59:15Z</updated>
+    <link href="https://arxiv.org/abs/2003.01825v3" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2003.01825v3" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Quality-Diversity (QD) algorithms, and MAP-Elites (ME) in particular, have proven very useful for a broad range of applications including enabling real robots to recover quickly from joint damage, solving strongly deceptive maze tasks or evolving robot morphologies to discover new gaits. However, present implementations of MAP-Elites and other QD algorithms seem to be limited to low-dimensional controllers with far fewer parameters than modern deep neural network models. In this paper, we propose to leverage the efficiency of Evolution Strategies (ES) to scale MAP-Elites to high-dimensional controllers parameterized by large neural networks. We design and evaluate a new hybrid algorithm called MAP-Elites with Evolution Strategies (ME-ES) for post-damage recovery in a difficult high-dimensional control task where traditional ME fails. Additionally, we show that ME-ES performs efficient exploration, on par with state-of-the-art exploration algorithms in high-dimensional control tasks with strongly deceptive rewards.</summary>
+    <category term="cs.NE" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2020-03-03T23:02:37Z</published>
+    <arxiv:comment>Accepted to GECCO 2020</arxiv:comment>
+    <arxiv:primary_category term="cs.NE"/>
+    <author>
+      <name>Cédric Colas</name>
+    </author>
+    <author>
+      <name>Joost Huizinga</name>
+    </author>
+    <author>
+      <name>Vashisht Madhavan</name>
+    </author>
+    <author>
+      <name>Jeff Clune</name>
+    </author>
+    <arxiv:doi>10.1145/3377930.3390217</arxiv:doi>
+    <link rel="related" href="https://doi.org/10.1145/3377930.3390217" title="doi"/>
+  </entry>
+</feed>

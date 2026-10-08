@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # M5 RUN A finish line (briefs/M5-runA-data.md): method 0.3.0 history + refresh/geography blocks + open /data/ live;
 # pins at method 0.3.1 (briefs/ARI-incorporate.md): +ARI source/series/feed, test_ari, /data/series/ari.index.csv live.
+# at method 0.5.0 (M10 tools): feeds 28 (+AI-tool repos, +Lean repos); sources still 10 (the tools ride the GitHub source).
 set -e
 cd "$(dirname "$0")/.."
 step() { echo "== $*"; }
@@ -75,7 +76,7 @@ for y in ys:
     assert y['as_of'] == (f"{y['year']}-12-31" if y['year'] < asof.year else h['as_of'])
 assert ys[-1]['weights'] == r['weights'], 'as-of year must equal the published weights'
 assert r['sources']['Mac Studio ARI pipeline'] == 1 and len(r['sources']) == 10, r['sources']  # 0.4.1: +GitHub
-assert len(r['feeds']) == 26 and [f for f in r['feeds'] if f['name'] == 'Agent Restriction Index (ARI)'], len(r['feeds'])
+assert len(r['feeds']) == 28 and [f for f in r['feeds'] if f['name'] == 'Agent Restriction Index (ARI)'], len(r['feeds'])
 assert any(ys[0]['provisional'].values()) and not any(ys[-1]['provisional'].values())
 print('schema OK ·', len(ys), 'years ·', 'provisional 2015:', ','.join(k for k in K if ys[0]['provisional'][k]))
 PY

@@ -1,0 +1,23 @@
+{
+ "attribution": "Energy Institute – Statistical Review of World Energy (2026) and other sources – with major processing by Our World in Data",
+ "bytes": 328044,
+ "content_type": "text/csv",
+ "fetcher": "wt.fetch 0.1.0",
+ "final_url": "https://ourworldindata.org/grapher/energy-mix.csv?metric=per_capita&source=total&v=1&csvType=full&useColumnShortNames=true",
+ "http_status": 200,
+ "license": "CC BY 4.0",
+ "license_url": "https://creativecommons.org/licenses/by/4.0/",
+ "path": "raw/owid/per-capita-energy-use/20261004T170328Z.csv",
+ "request_headers": {
+  "User-Agent": "worldtree-data/0.1 (+https://veraldar.org; dweeb.xyz@gmail.com)"
+ },
+ "retrieved_at": "2026-10-04T17:03:28Z",
+ "schema": "worldtree.prov/1",
+ "sha256": "bce974e7096f4206140943a9253d54390d49600e8f8c86ea2e20ab9bdc88a8fb",
+ "slug": "per-capita-energy-use",
+ "source_id": "owid",
+ "stored_bytes": true,
+ "upstream_next_update": "2027-06-30",
+ "upstream_updated": "2026-06-30",
+ "url": "https://ourworldindata.org/grapher/per-capita-energy-use.csv?v=1&csvType=full&useColumnShortNames=true"
+}

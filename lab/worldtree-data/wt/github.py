@@ -57,7 +57,7 @@ TOOL_TOPICS = {
     "llm": "repos built on or around large language models — the broadest 'building with models' tag",
     "ai-agents": "agents: models given tools, memory and a loop",
     "mcp": "Model Context Protocol servers/clients — the open plug between any model and any tool (since 2024-11; "
-           "before that the tag means other things, Minecraft Coder Pack, microcontrollers — a small baseline)",
+           "repos created before that and tagged mcp are older AI projects that added MCP later — retro-tagging, B16)",
     "ai-tools": "tools made for AI use or with AI, self-described",
 }
 LEAN = "language:Lean"  # formal mathematics + proof engineering: the medium AI provers work in (AlphaProof-era signal)
@@ -489,8 +489,9 @@ def tools_block(as_of, metas_of, read, month_end):
             "(probe 2025-06: 175 repos carry both mcp and llm, against 1,082 mcp and 1,931 llm).",
             "Bias B16 (self-tagged topics): owners add topics when they like, so the counts are what GitHub returns at "
             "retrieval — each month is fetched once and the last complete month re-checked nightly; older months have "
-            "had longer to be tagged (this understates growth), deleted repos drop out of every month. topic:mcp means "
-            "Model Context Protocol from 2024-11; before that it is other things (a small baseline, 14 repos in 2023-06).",
+            "had longer to be tagged (this understates growth), deleted repos drop out of every month. MCP was released "
+            "2024-11: repos created before that and tagged mcp are older AI projects that added MCP later (dify, "
+            "open-webui, LibreChat… — 372 created 2021–2023), retro-tagging in plain sight.",
             "Lean repos a month: repositories whose primary language GitHub detects as Lean, created that month — "
             "formal mathematics and proof engineering, the medium AI provers work in.",
             "mathlib commits a month: leanprover-community/mathlib4 default-branch commits by committer date (search "

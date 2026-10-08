@@ -1,0 +1,28 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/xv+zD+vNOK4vD+irf5EPdl+TnxU</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202008010000 TO 202008312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:37:42Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202008010000+TO+202008312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>495</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2008.02735v1</id>
+    <title>Towards Ranking-based Semantics for Abstract Argumentation using Conditional Logic Semantics</title>
+    <updated>2020-08-05T08:34:16Z</updated>
+    <link href="https://arxiv.org/abs/2008.02735v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2008.02735v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>We propose a novel ranking-based semantics for Dung-style argumentation frameworks with the help of conditional logics. Using an intuitive translation for an argumentation framework to generate conditionals, we can apply nonmonotonic inference systems to generate a ranking on possible worlds. With this ranking we construct a ranking for our arguments. With a small extension to this ranking-based semantics we already satisfy some desirable properties for a ranking over arguments.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2020-08-05T08:34:16Z</published>
+    <arxiv:comment>arXiv admin note: substantial text overlap with arXiv:2006.12020</arxiv:comment>
+    <arxiv:primary_category term="cs.AI"/>
+    <author>
+      <name>Kenneth Skiba</name>
+    </author>
+    <author>
+      <name>Matthias Thimm</name>
+    </author>
+  </entry>
+</feed>

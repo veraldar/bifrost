@@ -1,0 +1,34 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/NlW7MDLTL9jT7fT+8QVehbLXmLo</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202411010000 TO 202411302359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:56:14Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202411010000+TO+202411302359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>2654</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2411.06713v1</id>
+    <title>Ambient AI Scribing Support: Comparing the Performance of Specialized AI Agentic Architecture to Leading Foundational Models</title>
+    <updated>2024-11-11T04:45:48Z</updated>
+    <link href="https://arxiv.org/abs/2411.06713v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2411.06713v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>This study compares Sporo Health's AI Scribe, a proprietary model fine-tuned for medical scribing, with various LLMs (GPT-4o, GPT-3.5, Gemma-9B, and Llama-3.2-3B) in clinical documentation. We analyzed de-identified patient transcripts from partner clinics, using clinician-provided SOAP notes as the ground truth. Each model generated SOAP summaries using zero-shot prompting, with performance assessed via recall, precision, and F1 scores. Sporo outperformed all models, achieving the highest recall (73.3%), precision (78.6%), and F1 score (75.3%) with the lowest performance variance. Statistically significant differences (p &lt; 0.05) were found between Sporo and the other models, with post-hoc tests showing significant improvements over GPT-3.5, Gemma-9B, and Llama 3.2-3B. While Sporo outperformed GPT-4o by up to 10%, the difference was not statistically significant (p = 0.25). Clinical user satisfaction, measured with a modified PDQI-9 inventory, favored Sporo. Evaluations indicated Sporo's outputs were more accurate and relevant. This highlights the potential of Sporo's multi-agentic architecture to improve clinical workflows.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2024-11-11T04:45:48Z</published>
+    <arxiv:comment>arXiv admin note: substantial text overlap with arXiv:2410.15528</arxiv:comment>
+    <arxiv:primary_category term="cs.AI"/>
+    <author>
+      <name>Chanseo Lee</name>
+    </author>
+    <author>
+      <name>Sonu Kumar</name>
+    </author>
+    <author>
+      <name>Kimon A. Vogt</name>
+    </author>
+    <author>
+      <name>Sam Meraj</name>
+    </author>
+  </entry>
+</feed>

@@ -1,0 +1,43 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/LqTwk0/LKKqCAV9B80majRMp/NI</id>
+  <title>arXiv Query: search_query=cat:cs.AI AND submittedDate:"202503010000 TO 202503312359"&amp;id_list=&amp;start=0&amp;max_results=1</title>
+  <updated>2026-10-04T08:56:39Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.AI+AND+submittedDate:%22202503010000+TO+202503312359%22&amp;start=0&amp;max_results=1&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>1</opensearch:itemsPerPage>
+  <opensearch:totalResults>3408</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2503.21307v1</id>
+    <title>InternVL-X: Advancing and Accelerating InternVL Series with Efficient Visual Token Compression</title>
+    <updated>2025-03-27T09:31:35Z</updated>
+    <link href="https://arxiv.org/abs/2503.21307v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2503.21307v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Most multimodal large language models (MLLMs) treat visual tokens as "a sequence of text", integrating them with text tokens into a large language model (LLM). However, a great quantity of visual tokens significantly increases the demand for computational resources and time. In this paper, we propose InternVL-X, which outperforms the InternVL model in both performance and efficiency by incorporating three visual token compression methods. First, we propose a novel vision-language projector, PVTC. This component integrates adjacent visual embeddings to form a local query and utilizes the transformed CLS token as a global query, then performs point-to-region cross-attention through these local and global queries to more effectively convert visual features. Second, we present a layer-wise visual token compression module, LVTC, which compresses tokens in the LLM shallow layers and then expands them through upsampling and residual connections in the deeper layers. This significantly enhances the model computational efficiency. Futhermore, we propose an efficient high resolution slicing method, RVTC, which dynamically adjusts the number of visual tokens based on image area or length filtering. RVTC greatly enhances training efficiency with only a slight reduction in performance. By utilizing 20% or fewer visual tokens, InternVL-X achieves state-of-the-art performance on 7 public MLLM benchmarks, and improves the average metric by 2.34% across 12 tasks.</summary>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2025-03-27T09:31:35Z</published>
+    <arxiv:primary_category term="cs.CV"/>
+    <author>
+      <name>Dongchen Lu</name>
+    </author>
+    <author>
+      <name>Yuyao Sun</name>
+    </author>
+    <author>
+      <name>Zilu Zhang</name>
+    </author>
+    <author>
+      <name>Leping Huang</name>
+    </author>
+    <author>
+      <name>Jianliang Zeng</name>
+    </author>
+    <author>
+      <name>Mao Shu</name>
+    </author>
+    <author>
+      <name>Huo Cao</name>
+    </author>
+  </entry>
+</feed>

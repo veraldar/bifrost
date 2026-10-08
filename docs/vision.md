@@ -144,3 +144,15 @@ one tree. The self is the spread pattern, not any single machine's part.
 - **bifrost** = the bridge to outside (the access points, the VPS nodes)
 - per machine: a root + branches + (optionally) a well — parts of the ONE
   tree, never whole trees per machine
+
+## THE NAMING CONVENTION (10-03, user): the layers per Norse mythology
+Identity is a ROOT (the deep anchoring layer, not a soft service). The
+mapping: Yggdrasil = the ALL; the roots = the cores/brains + identity +
+the wells (Urd: the state, Mimir: the memory, Hvergelmir: the source);
+Bifrost = the trunk (the bridge/access/transport); the branches = the user
+devices reaching Midgard; Ratatoskr = the messenger between the parts; the
+eagle + Veðrfölnir = the watchers; Níðhöggr = the security/rot-gnawer; the
+Nornir = the schedulers. The concrete services: yggdrasil-root (the agent
+core per machine), mimir (the session/memory store), urd (the ledger),
+hvergelmir (the raw feeds), bifrost (the trunk/access), ratatoskr (the
+relay), the branches (the user devices).

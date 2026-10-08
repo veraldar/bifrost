@@ -128,3 +128,19 @@ domain), (2) the reality gate per N generations — the evolution proposes,
 reality decides (the JLCPCB print, the trade). The first population: the
 PCB designs (the A/B/C variants evolving against manufacturability + the
 user function).
+
+## THE CORRECTION (10-03, user): Yggdrasil is ALL the machines together
+Yggdrasil is NOT a tree on a machine — Yggdrasil is the WORLD-TREE: the self
+SPREAD across machines. What's on each machine: a root or a branch of the
+one tree. The self is the spread pattern, not any single machine's part.
+
+## The naming (the tree's anatomy)
+- **the roots** = the cores/brains per machine (yggdrasil-root)
+- **the wells** = the data stores: mimir (the session/memory store), urd
+  (the ledger — what happened), hvergelmir (the raw source feeds)
+- **the branches** = the domain interfaces/agents per machine (voice,
+  vision, hardware, media, games)
+- **ratatoskr** = the messenger/relay between the parts
+- **bifrost** = the bridge to outside (the access points, the VPS nodes)
+- per machine: a root + branches + (optionally) a well — parts of the ONE
+  tree, never whole trees per machine

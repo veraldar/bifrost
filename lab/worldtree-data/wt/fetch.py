@@ -175,12 +175,23 @@ def gh_budget():
             "search": int(os.environ.get("WT_GH_SEARCH_BUDGET", GH.SEARCH_BUDGET))}
 
 
-def fetch(sources=None, getter=None, sleep=time.sleep):
+# wall-clock cap on the search bucket per fetch: nightly.sh fetches twice (`wt fetch`, then `wt run`'s own), and on 10-08 two
+# full 150-search budgets (≥ 6.5 s apart) during a backfill overran worldtree-fetch.service's 1800 s — the run was killed
+# before publishing. Past the cap the rest of the search queue is deferred like any over-budget request.
+GH_SEARCH_WALL = 480
+
+
+def gh_wall():
+    return float(os.environ.get("WT_GH_SEARCH_WALL", GH_SEARCH_WALL))
+
+
+def fetch(sources=None, getter=None, sleep=time.sleep, clock=time.monotonic):
     getter = getter or get
     srcmeta = load_sources()
     failed = 0
     left = gh_budget()
     deferred = {"core": 0, "search": 0}
+    t0, wall = {}, gh_wall()
     order = lambda kv: (kv[0][0], GH_ORDER.get(kv[0][1], 0) if kv[0][0] == "github" else 0, kv[0][1])
     for (src, slug), u in sorted(units().items(), key=order):
         if sources and src not in sources:
@@ -194,9 +205,11 @@ def fetch(sources=None, getter=None, sleep=time.sleep):
             for ext, url in todo:
                 if u.get("github"):
                     b = GH.bucket(url)
-                    if left[b] <= 0:  # budget guard: the rest is retried next night (never holed: window re-lists it)
-                        deferred[b] += 1
+                    if left[b] <= 0 or (b == "search" and b in t0 and clock() - t0[b] > wall):
+                        deferred[b] += 1  # budget/time guard: the rest is retried next night (never holed: re-listed)
                         continue
+                    if b not in t0:
+                        t0[b] = clock()
                     left[b] -= 1
                     if n:
                         sleep(GH_SLEEP[b])

@@ -142,6 +142,30 @@ class TestBudgetOrder(unittest.TestCase):
             slugs = sorted((s for s in GH.META), key=lambda s: (F.GH_ORDER[s], s))
             self.assertEqual(slugs, ["stars", "tool_stars", "releases", "commits", "tool_repos", "lean_repos", "mathlib"])
 
+    def test_search_wall_clock_cap(self):
+        """10-08: two full search budgets in one nightly overran the unit's 1800 s — the search bucket stops at the cap."""
+        import wt.fetch as F
+        with tempfile.TemporaryDirectory() as tmp:
+            for d in ("catalog", "method"):
+                os.symlink(Path(__file__).resolve().parent.parent / d, Path(tmp) / d)
+            keys = ("WT_ROOT", "WT_GH_CORE_BUDGET", "WT_GH_SEARCH_BUDGET", "WT_GH_SEARCH_WALL")
+            old = {k: os.environ.get(k) for k in keys}
+            os.environ.update(WT_ROOT=tmp, WT_GH_CORE_BUDGET="0", WT_GH_SEARCH_BUDGET="150", WT_GH_SEARCH_WALL="250")
+            calls, t = [], iter(range(0, 10 ** 6, 100))  # every clock read is 100 s later
+
+            def getter(url, log):
+                calls.append(url)
+                return {"t": dt.datetime(2026, 10, 8, tzinfo=dt.timezone.utc), "status": 200,
+                        "body": b'{"total_count": 1, "incomplete_results": false}', "final_url": url,
+                        "ctype": "application/json"}
+            try:
+                F.fetch(["github"], getter=getter, sleep=lambda s: None, clock=lambda: next(t))
+            finally:
+                for k, v in old.items():
+                    os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+            self.assertEqual(len(calls), 3)  # t0 = 0, then 100 and 200 pass, 300 > 250 defers the rest
+            self.assertEqual(F.GH_SEARCH_WALL, 480)
+
 
 if __name__ == "__main__":
     unittest.main()

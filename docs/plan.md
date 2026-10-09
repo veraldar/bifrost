@@ -100,3 +100,11 @@ Per-root wells + one small grove-shared layer (preferences, people, ongoing
 topics). Deep archives stay local (sovereign, offline-resilient). The grove
 layer = the trunk's presence directory + the small shared facts. "One voice"
 = the small hot memory shared, the deep wells fetched on demand.
+
+## v1.0 SEQUENCING RULES (Part 17, 10-06)
+1. "Your LLM, your key" surfaces at v0.7 (the brain lands with the user's
+   model + key — never deferred to v1.0).
+2. Inside v1.0: the grove directory ships BEFORE the memory layer — a
+   memory problem must never block routing.
+3. The inflection test for v1.0: "put it on the tv" — and a different
+   machine acts. If that sentence works, v1.0 is felt.

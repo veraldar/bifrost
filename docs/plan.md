@@ -94,3 +94,9 @@ tables.
 - [ ] Multi-user / public mode, SIP, video
 - [ ] Dreaming — nightly memory consolidation + self-organizing agents, spec only
   (`docs/spec-dream.md`), starts at roadmap D1 after v1.0
+
+## MEMORY FEDERATION DECIDED (10-06, user): Option A
+Per-root wells + one small grove-shared layer (preferences, people, ongoing
+topics). Deep archives stay local (sovereign, offline-resilient). The grove
+layer = the trunk's presence directory + the small shared facts. "One voice"
+= the small hot memory shared, the deep wells fetched on demand.

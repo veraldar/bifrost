@@ -12,6 +12,7 @@ const NAME = `e2e-wedge-${Date.now().toString(36)}`;
 const OC = 'http://127.0.0.1:4096';
 let sessionId = '';
 let corpseId = '';
+let bodylossId = '';
 
 test('stacked prompt behind a live run must not wedge-abort', async ({ page, request }) => {
   await page.goto('/');
@@ -109,8 +110,61 @@ test('dead run masked by an un-completed step must event-quiet wedge', async ({
   await expect(page.getByText(/sleep 25/)).toBeVisible();
 });
 
+test('poll body lost to a degraded link must not abort a live run', async ({
+  page,
+  request,
+}) => {
+  // 2026-10-10 japan: the phone's link degraded until polls only got their
+  // HEADERS through (9.5s of the 10s fetch budget) — every body read then
+  // died mid-parse, so the transcript refs froze at their pre-send values
+  // while lastGoodPoll was stamped at header arrival. The wedge guard read
+  // the frozen evidence as fresh and auto-aborted a run that had COMPLETED
+  // four minutes earlier. A poll counts as good only once its body parsed:
+  // garbled responses must leave the evidence stale (no abort), and the
+  // recovery poll must clear busy with the reply in view.
+  await page.goto('/');
+  await page.getByRole('button', { name: 'new session' }).click();
+  await page.getByPlaceholder('session name…').fill(`${NAME}-bodyloss`);
+  await page.getByRole('button', { name: 'create & open' }).click();
+  await expect(page).toHaveURL(new RegExp(`/session/${NAME}-bodyloss`));
+  bodylossId = new URL(page.url()).searchParams.get('id') || '';
+  expect(bodylossId).toBeTruthy();
+  // land one GOOD poll (entry evidence: live=0, no run) — the baseline the
+  // degraded link traps the page in
+  await page.goto(`/session/${NAME}-bodyloss?id=${bodylossId}&stall=15`);
+  await expect(page.getByText(/working… \d+s/)).toHaveCount(0);
+
+  // degrade the link: GET polls "succeed" with a truncated body — what a
+  // dying connection delivers once its headers made it through. The send
+  // (POST) still passes: a real proxy run starts underneath.
+  await page.route('**/messages*', (route) =>
+    route.request().method() === 'GET'
+      ? route.fulfill({ status: 200, contentType: 'application/json', body: '{"roles":[' })
+      : route.fallback()
+  );
+
+  await page.getByPlaceholder('message…').fill(
+    'Run exactly this bash command: sleep 30. Then reply with exactly: D-done'
+  );
+  await page.getByRole('button', { name: 'send', exact: true }).click();
+  await expect(page.getByText(/working… \d+s/)).toBeVisible({ timeout: 30_000 });
+
+  // hold past the ?stall=15 window on frozen evidence — garbled polls must
+  // not refresh the wedge guard's clock, and the run (sleep 30) must hold
+  await page.waitForTimeout(20_000);
+  await expect(page.getByText('no reply — the run seemed stuck')).toHaveCount(0);
+  await expect(page.getByText(/working… \d+s/)).toBeVisible();
+
+  // link recovers: the poll lands, the run finishes, busy clears, no error
+  await page.unroute('**/messages*');
+  await expect(page.getByText('D-done')).toBeVisible({ timeout: 90_000 });
+  await expect(page.getByText(/working… \d+s/)).toHaveCount(0);
+  await expect(page.getByText('no reply — the run seemed stuck')).toHaveCount(0);
+});
+
 test('cleanup: delete the wedge test session', async ({ request }) => {
-  test.skip(!sessionId && !corpseId, 'nothing to clean');
+  test.skip(!sessionId && !corpseId && !bodylossId, 'nothing to clean');
   if (sessionId) expect((await request.delete(`/api/session/${sessionId}`)).ok()).toBeTruthy();
   if (corpseId) expect((await request.delete(`/api/session/${corpseId}`)).ok()).toBeTruthy();
+  if (bodylossId) expect((await request.delete(`/api/session/${bodylossId}`)).ok()).toBeTruthy();
 });

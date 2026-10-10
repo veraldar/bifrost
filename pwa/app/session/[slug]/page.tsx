@@ -269,6 +269,10 @@ export default function SessionView({
   const echoesRef = useRef<Msg[]>([]);
   const seenRef = useRef(0);
   const pollInFlightRef = useRef(false);
+  // latch for the poll's BODY-phase failure diag: the first failure after a
+  // success speaks, repeats every 2.5s stay silent (a dead link must not
+  // fill the diag ring with noise)
+  const pollBodyFailRef = useRef(false);
   // "working…" clears only when the run is really over: opencode emits one
   // assistant message per STEP, so the first reply chunk is not the end.
   // The proxy reports the last raw message + its completed timestamp; the
@@ -525,8 +529,31 @@ export default function SessionView({
           signal: AbortSignal.timeout(10_000),
         });
         if (r.ok) {
+          // the body read gets its OWN budget: the fetch signal spends its
+          // 10s on connect + headers on a degraded link (diag 10-10 japan:
+          // headers landed at 9.5s), so an inherited clock aborts the parse
+          // and the poll can never land
+          let fresh: Msg[];
+          try {
+            fresh = await withTimeout(r.json() as Promise<Msg[]>, 10_000, 'poll body');
+          } catch (e) {
+            // body-phase failure (truncated stream, blown budget): the refs
+            // stay frozen — say so once per failure streak or diagnosing a
+            // wedged-looking run from the log alone is guesswork
+            if (!pollBodyFailRef.current) {
+              pollBodyFailRef.current = true;
+              diagEvent('net', `poll ${slug} body-error ${e}`);
+            }
+            throw e;
+          }
+          pollBodyFailRef.current = false;
+          // evidence stamp = the refs actually refreshed, NOT header
+          // arrival: a poll whose body never parses leaves every ref at its
+          // pre-send value, and stamping the wedge guard's clock on headers
+          // fed it "fresh" evidence from frozen state — it auto-aborted a
+          // run that had completed 4 minutes earlier (diag 10-10 japan:
+          // reply done 06:52:10, aborted 06:56:35)
           lastGoodPollRef.current = Date.now();
-          const fresh: Msg[] = await r.json();
           const totalCount = Number(r.headers.get('X-Total-Count') || fresh.length);
           setTotal(totalCount);
           totalRef.current = totalCount;

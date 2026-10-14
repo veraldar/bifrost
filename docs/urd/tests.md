@@ -24,4 +24,4 @@ Schema: `| date | version | test | result | evidence |`
 
 | date | version | test | result | evidence |
 |---|---|---|---|---|
-| _pending_ | v0.7 | **the first conversation with the root** — sandbox :8443, yggdrasil :4100: voice round-trip, session create, artifacts save, 24h stability | _awaiting user_ | _to record: audio + transcript + verdict_ |
+| 10-06 | v0.7 | **the first conversation with the root** — sandbox :8443, the rust PWA + yggdrasil :4100 | **FAIL** (user verdict): onboarding slow to load + slow tree click; greeting voice slow to start (prerecord?); **STT dead** — spoke, no voice-to-text; post-onboarding flow unclear. 3 dispatches: onboarding-flow, voice-stt-sandbox, sim-gap | user voice report, this ledger |

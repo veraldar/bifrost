@@ -1,16 +1,23 @@
-/** Tree-first first run: the fullscreen tree → a hands-free onboarding
- *  conversation with the brain → THE MAIN session → the tree as the corner
- *  door. Shared by the home page, the session view and the /api proxy, so
- *  no browser APIs at module level. */
+/** Tree-first first run — THE DOOR (v2, 10-19): the fullscreen tree → hold →
+ *  a scripted door in the app's own pre-recorded voice (no brain before MAIN)
+ *  → THE MAIN session → one real voice turn → "you are in" → the tree as the
+ *  corner door. Shared by the home page, the session view, the layout's boot
+ *  script and the /api proxy, so no browser APIs at module level. */
+import script from './onboard-script.json';
 
-/** localStorage flag: set once onboarding produced MAIN; absent = first run. */
-export const TF_DONE_KEY = 'tree-first-done';
+/** localStorage: set when this device walked the door (value = door version).
+ *  Absent = the door. Read before first paint by app/layout.tsx. */
+export const DOOR_KEY = 'bifrost-door';
+export const DOOR_VERSION = 'v2';
+/** localStorage: the first voice turn in MAIN came through (STT proven on this
+ *  device) — until then MAIN opens with the first-turn card. */
+export const FIRST_TURN_KEY = 'bifrost-first-turn';
 /** sessionStorage one-shot: home plays the tree's shrink-to-corner once. */
 export const TF_SHRINK_KEY = 'tree-first-shrink';
-/** localStorage: oz-mode as it was before onboarding armed hands-free. */
-export const TF_PREV_MODE_KEY = 'tree-first-prev-mode';
-/** localStorage: the answers, as the brain confirmed them. */
+/** localStorage: the answers, as the door took them. */
 export const TF_PREFS_KEY = 'bifrost-onboard';
+/** v1 (LLM onboarding) done-flag — read only to retire it. */
+export const TF_DONE_KEY = 'tree-first-done';
 
 /** The reserved session: slug `main`, caps-tagged title (slugify('[MAIN]') = 'main'). */
 export const MAIN_SLUG = 'main';
@@ -21,87 +28,77 @@ export function isMainSlug(slug: string): boolean {
   return slug === MAIN_SLUG;
 }
 
+/** v1 left `onboarding-*` sessions in the store (swept after an hour). */
 export function isOnboardingSlug(slug: string): boolean {
   return slug === ONBOARD_PREFIX || slug.startsWith(`${ONBOARD_PREFIX}-`);
 }
 
-export type OnboardPrefs = {
-  voice: 'woman' | 'man' | null;
-  style: 'short' | 'detailed';
-  brain: 'local' | 'openrouter' | 'plan';
+export type Lang = 'en' | 'fr';
+export type Style = 'short' | 'detail';
+export type BrainClass = 'plan' | 'router' | 'local';
+export type DoorPrefs = { lang: Lang; style: Style };
+
+/** What the box says about itself (GET /api/onboard): the brain is shown, not
+ *  asked — nothing on the phone can change it (it lives in the box's env). */
+export type BoxInfo = {
+  brain: { model: string; class: BrainClass; where: string };
+  /** the address a phone opens (tailnet) — the pair QR encodes it */
+  publicUrl: string;
 };
 
-/** First line of the priming message — how the transcript recognises (and
- *  hides) it. yggdrasil sessions carry no system prompt, so the onboarding
- *  instructions ride as the session's first message. */
+// ── the script (lib/onboard-script.json, rendered by scripts/onboard-voice.mjs)
+type Line = { id: string; on: string[]; en: string; fr: string };
+const LINES: Record<string, Line> = Object.fromEntries(
+  (script.lines as Line[]).map((l) => [l.id, l])
+);
+export function line(id: string, lang: Lang): string {
+  return LINES[id]?.[lang] ?? '';
+}
+/** the pre-recorded file for a line (public/onboarding/<lang>/<id>.mp3) */
+export function lineSrc(id: string, lang: Lang): string {
+  return `/onboarding/${lang}/${id}.mp3`;
+}
+
+/** Answers carried from veraldar.org's door: `#door=v1.<lang>.<style>` in the
+ *  link/QR the site hands over. A fragment never reaches any server log. */
+export function parseDoorHash(hash: string): Partial<DoorPrefs> | null {
+  const m = /(?:^#|&)door=v1\.(en|fr)(?:\.(short|detail|terse|warm))?/.exec(hash);
+  if (!m) return null;
+  const style = m[2] === 'detail' || m[2] === 'warm' ? 'detail' : m[2] ? 'short' : undefined;
+  return { lang: m[1] as Lang, ...(style ? { style } : {}) };
+}
+export function doorHash(p: DoorPrefs): string {
+  return `#door=v1.${p.lang}.${p.style}`;
+}
+
+/** First line of a priming message — how the transcript recognises (and the
+ *  session list hides) it. v1 primed onboarding sessions with it; v2 opens
+ *  MAIN's standing preferences with the same head. */
 export const ONBOARD_HEAD = '[bifrost onboarding';
-
-export const ONBOARDING_PROMPT = `${ONBOARD_HEAD} — setup instructions for you, the assistant. The person does not see this message.]
-
-You are the voice of bifrost, meeting your person for the first time. This is a spoken setup conversation: everything you write is read aloud by text-to-speech, and the person answers by voice, hands-free.
-
-How to talk:
-- Plain spoken sentences only. No markdown, lists, headings, emoji or code. Two or three short sentences per turn.
-- One question per turn, then wait for the answer. Never use tools.
-- Reply in the language the person speaks.
-
-Your first message: greet them in one warm sentence, tell them that when they finish speaking they say "over" so you know it is your turn, then ask question 1.
-
-Ask these three, in order:
-1. Voice: should I sound like a woman or a man?
-2. Replies: short and fast, or more explanation?
-3. The brain, the model that thinks for them. Offer three options, each with one plain sentence about where their words go:
-   - local and free: it runs on this machine, so nothing they say leaves it.
-   - OpenRouter, pay per use: many models to pick from, and each provider handles their data under its own rules.
-   - a coding plan: the cheapest for heavy use, but the vendor sees what they send.
-   Prefer local and free when its quality is good enough for what they want; say honestly when a paid brain would do noticeably better.
-
-After each answer, confirm it back in a few words ("A woman's voice, got it.") and ask the next question. If an answer is unclear, ask again briefly. If they give several answers at once, take them all and skip ahead. If they ask something else, answer in one sentence and come back to the setup.
-
-When all three are confirmed: say the three choices back in one sentence, then close with: "Want me shorter, faster, or more detailed? Just ask." Then put this marker alone on the very last line (it is never read aloud):
-[[bifrost:onboarded voice=<woman|man> style=<short|detailed> brain=<local|openrouter|plan>]]
-Write the marker only in that final message, and only once all three answers are confirmed.`;
+export const PREFS_HEAD = '[bifrost · standing preferences';
 
 export function isOnboardPrompt(text: string): boolean {
-  return text.trimStart().startsWith(ONBOARD_HEAD);
+  const t = text.trimStart();
+  return t.startsWith(ONBOARD_HEAD) || t.startsWith(PREFS_HEAD);
 }
 
-const MARKER_RE = /\[\[\s*bifrost:onboarded\b([^\]]*)\]\]/i;
-
-/** The brain's closing marker → the confirmed answers; null while onboarding runs. */
-export function parseOnboarded(text: string): OnboardPrefs | null {
-  const m = MARKER_RE.exec(text);
-  if (!m) return null;
-  const kv = m[1].toLowerCase();
-  const pick = (key: string) => new RegExp(`${key}\\s*=\\s*<?([a-z-]+)`).exec(kv)?.[1] || '';
-  const voice = pick('voice');
-  const style = pick('style');
-  const brain = pick('brain');
-  return {
-    voice: voice === 'woman' || voice === 'man' ? voice : null,
-    style: style === 'detailed' ? 'detailed' : 'short',
-    brain: brain === 'openrouter' ? 'openrouter' : brain === 'plan' ? 'plan' : 'local',
-  };
-}
-
-/** Markers are for the PWA, never for eyes or ears. */
+/** Markers are for the PWA, never for eyes or ears (v1 sessions carry them). */
 export function stripMarkers(text: string): string {
   return text.replace(/\[\[\s*bifrost:[^\]]*\]\]/gi, '').trimEnd();
 }
 
-const BRAIN_WORDS: Record<OnboardPrefs['brain'], string> = {
-  local: 'local and free (stays on this machine)',
-  openrouter: 'OpenRouter, pay per use (each provider handles data its own way)',
-  plan: 'a coding plan (cheapest, the vendor sees what I send)',
-};
-
-/** MAIN's first message: the standing preferences, so the brain keeps them. */
-export function mainPreamble(p: OnboardPrefs): string {
+/** MAIN gets the door's answers as a standing instruction — yggdrasil sessions
+ *  carry no system prompt, so they ride as a message. The brain's one-line
+ *  acknowledgement is the visible proof the answers did something. */
+export function mainPreamble(p: DoorPrefs): string {
+  const lang = p.lang === 'fr' ? 'French' : 'English';
+  const style =
+    p.style === 'detail'
+      ? 'more detail: full sentences, explain when it helps'
+      : 'short: signal only, a sentence or two';
   return [
-    '[bifrost · standing preferences from onboarding]',
-    `voice: ${p.voice ?? 'no preference'} · replies: ${
-      p.style === 'detailed' ? 'more explanation' : 'short and fast'
-    } · brain: ${BRAIN_WORDS[p.brain]}.`,
-    'Keep to these unless I ask otherwise. Acknowledge in one short sentence.',
+    `${PREFS_HEAD} from the door]`,
+    `language: ${lang} · replies: ${style}.`,
+    `Keep to these unless I ask otherwise. Acknowledge in one short sentence, in ${lang}.`,
   ].join('\n');
 }

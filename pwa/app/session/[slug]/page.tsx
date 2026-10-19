@@ -35,19 +35,58 @@ import { PENDING_TTL_MS } from '@/lib/pending-ttl';
 import { markRead } from '@/lib/read';
 import { lastHeard, markHeard } from '@/lib/heard';
 import {
-  MAIN_SLUG,
-  TF_DONE_KEY,
+  DOOR_KEY,
+  FIRST_TURN_KEY,
+  type Lang,
   TF_PREFS_KEY,
-  TF_PREV_MODE_KEY,
-  TF_SHRINK_KEY,
-  type OnboardPrefs,
+  isMainSlug,
   isOnboardPrompt,
   isOnboardingSlug,
-  parseOnboarded,
+  line,
   stripMarkers,
 } from '@/lib/tree-first';
+import { say, unlockLines } from '@/lib/onboard-voice';
 
 type Mode = 'text' | 'free';
+/** the door's last step, in MAIN: mic (ask once) → practice (hold, talk,
+ *  let go) → sent → heard (the transcript landed: STT alive) → in */
+type FirstTurn = 'off' | 'mic' | 'practice' | 'sent' | 'heard' | 'in' | 'denied';
+const FT = {
+  en: {
+    planted: 'planted. this is main.',
+    mic: 'the mic: your browser asks once.',
+    allow: 'allow the mic',
+    hold: 'hold the mic ↓ say anything · let go to send',
+    released: 'released — nothing sent · hold the mic while you talk',
+    sent: 'sent · listening for your words…',
+    heard: 'heard',
+    answering: 'the tree answers…',
+    now: [
+      ['hold the mic', 'talk'],
+      ['tap the mic', 'hands-free · say “over” to send'],
+      ['type below', 'any time'],
+      ['the tree, corner of your sessions', 'back to main'],
+    ],
+    ok: 'ok',
+  },
+  fr: {
+    planted: 'planté. voici main.',
+    mic: 'le micro : votre navigateur demande une fois.',
+    allow: 'autoriser le micro',
+    hold: 'maintenez le micro ↓ dites quelque chose · relâchez pour envoyer',
+    released: 'relâché — rien envoyé · maintenez le micro pendant que vous parlez',
+    sent: 'envoyé · à l’écoute de vos mots…',
+    heard: 'entendu',
+    answering: 'l’arbre répond…',
+    now: [
+      ['maintenez le micro', 'parler'],
+      ['touchez le micro', 'mains libres · dites « over » pour envoyer'],
+      ['tapez en bas', 'à tout moment'],
+      ['l’arbre, au coin de vos sessions', 'retour à main'],
+    ],
+    ok: 'ok',
+  },
+} as const;
 type Attach =
   | { kind: 'image'; name: string; dataUrl: string }
   | { kind: 'file'; name: string; content: string };
@@ -177,10 +216,12 @@ export default function SessionView({
   const [seekFrac, setSeekFrac] = useState<number | null>(null);
   const seekRef = useRef<HTMLDivElement>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
-  // tree-first onboarding: the answers, once the brain's closing marker
-  // landed; endedRef = the hand-off to MAIN already ran
-  const [onboarded, setOnboarded] = useState<OnboardPrefs | null>(null);
-  const onboardEndedRef = useRef(false);
+  // the door's last step (lib/tree-first.ts): MAIN opens with the first-turn
+  // card until one voice turn came through on this device
+  const [first, setFirst] = useState<FirstTurn>('off');
+  const [firstHint, setFirstHint] = useState('');
+  const [firstLang, setFirstLang] = useState<Lang>('en');
+  const firstRef = useRef({ sentAt: 0, before: 0, heardAt: 0, heardTime: 0, heard: '', saidIn: false });
   const [input, setInput] = useState('');
   // swipe-history browser: index of the message on screen, null = closed
   const [histIdx, setHistIdx] = useState<number | null>(null);
@@ -443,8 +484,6 @@ export default function SessionView({
       // the first poll below may restore busy if a run is live here
       setBusy(false);
       setError('');
-      setOnboarded(null);
-      onboardEndedRef.current = false;
       runStateRef.current = '';
       runStreakRef.current = 0;
       runBaseTotalRef.current = 0;
@@ -521,9 +560,8 @@ export default function SessionView({
         if (r.ok) {
           lastGoodPollRef.current = Date.now();
           const raw: Msg[] = await r.json();
-          // tree-first: the onboarding prompt is setup for the brain, never
-          // shown; the brain's closing marker is for the PWA, never for eyes
-          // (speech.ts keeps it from ears) — reading it ends the onboarding
+          // v1 onboarding sessions (still in the store): the prompt was setup
+          // for the brain, never shown; its closing marker never for eyes
           const onb = isOnboardingSlug(slug);
           const fresh = raw
             .filter((m) => !(onb && m.role === 'user' && isOnboardPrompt(m.text)))
@@ -532,12 +570,6 @@ export default function SessionView({
                 ? { ...m, text: stripMarkers(m.text) }
                 : m
             );
-          if (onb) {
-            const end = raw.find(
-              (m) => m.role === 'assistant' && m.done !== false && parseOnboarded(m.text)
-            );
-            if (end) setOnboarded((cur) => cur ?? parseOnboarded(end.text));
-          }
           const totalCount =
             Number(r.headers.get('X-Total-Count') || raw.length) - (raw.length - fresh.length);
           setTotal(totalCount);
@@ -1206,6 +1238,7 @@ export default function SessionView({
       return;
     }
     if (modeRef.current !== 'free') await mic(false); // hands-free keeps listening
+    firstSent();
     stickRef.current = true;
     setBusy(true); // cleared when the run state settles (see poller)
     armRunWatch();
@@ -1508,56 +1541,139 @@ export default function SessionView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, voiceState, busy, freeCycle, lastAssistant, slug]);
 
-  // tree-first: the brain wrote its closing marker → setup is over. The
-  // closing line is said first (hands-free speaks it, then gives the mic
-  // back); a line that can't be spoken (TTS down) still ends the setup, later
-  const lastAssistantAt = lastAssistant?.time || 0;
+  // ── first turn: the door ends on one real voice turn in MAIN ──────────
+  // (the door walked, nothing heard from this device yet) → the card. STT is
+  // proven by the transcript landing in MAIN as your message; the reply is
+  // spoken; then "you are in" + what to do next.
   useEffect(() => {
-    if (!onboarded || onboardEndedRef.current || busy || speech.phase !== 'idle') return;
-    if (mode === 'free' && freeCycle !== 'listening') return;
-    const said = lastHeard(slug) >= lastAssistantAt;
-    const wait = mode !== 'free' ? 4_000 : said ? 1_500 : 15_000;
-    const t = setTimeout(() => void endOnboarding(onboarded), wait);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onboarded, busy, speech.phase, mode, freeCycle, lastAssistantAt, slug]);
-
-  /** Setup done: MAIN is created (or found) server-side with the answers,
-   *  this device stops being a first run, and MAIN opens in place of the
-   *  onboarding (back from MAIN goes home, where the tree shrinks once). */
-  async function endOnboarding(prefs: OnboardPrefs) {
-    if (onboardEndedRef.current) return;
-    onboardEndedRef.current = true;
-    diagEvent('voice', `tree-first: ${slug} onboarded → MAIN`);
+    let on = false;
     try {
-      const r = await fetch('/api/onboard', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ step: 'done', from: slug, prefs }),
-        signal: AbortSignal.timeout(15_000),
-      });
-      const d = (await r.json().catch(() => ({}))) as { id?: string; error?: string };
-      if (!r.ok || !d.id) throw new Error(d.error || `onboard ${r.status}`);
-      // the consent read "hands-free, this session": the mic leaves with the
-      // setup, and the mode it replaced comes back for MAIN (own room too)
-      if (modeRef.current === 'free') await exitFree();
-      roomRef.current?.disconnect();
-      try {
-        localStorage.setItem(TF_PREFS_KEY, JSON.stringify(prefs));
-        localStorage.setItem('oz-mode', localStorage.getItem(TF_PREV_MODE_KEY) || 'text');
-        localStorage.removeItem(TF_PREV_MODE_KEY);
-        localStorage.setItem(TF_DONE_KEY, String(Date.now()));
-        sessionStorage.setItem(TF_SHRINK_KEY, '1');
-      } catch {
-        /* private mode — home falls back to the list */
-      }
-      router.replace(`/session/${MAIN_SLUG}?id=${d.id}`);
+      // MAIN after the door — or any session a ?first=1 link names (the
+      // door's own link carries it) — while no voice turn came through here
+      const asked = new URLSearchParams(window.location.search).get('first') === '1';
+      on =
+        !!slug &&
+        !localStorage.getItem(FIRST_TURN_KEY) &&
+        ((isMainSlug(slug) && !!localStorage.getItem(DOOR_KEY)) || asked);
+      const p = JSON.parse(localStorage.getItem(TF_PREFS_KEY) || '{}') as { lang?: string };
+      setFirstLang(p.lang === 'fr' ? 'fr' : 'en');
+    } catch {
+      on = false;
+    }
+    setFirst(on ? 'practice' : 'off');
+    setFirstHint('');
+    if (!on) return;
+    diagEvent('voice', 'first-turn: card up');
+    // the room warms while they read the card (v0.7 repro: a fast walker held
+    // the mic <1s after MAIN opened — the agent was still joining and the
+    // turn was captured into an empty room, "nothing transcribed")
+    void ensureVoice().catch(() => {});
+    // the mic is asked by its own step — never mid-hold, where the prompt
+    // steals the finger and the turn is lost
+    navigator.permissions
+      ?.query({ name: 'microphone' as PermissionName })
+      .then((p) => {
+        if (p.state === 'prompt') setFirst((f) => (f === 'practice' ? 'mic' : f));
+        if (p.state === 'denied') setFirst((f) => (f === 'practice' ? 'denied' : f));
+      })
+      .catch(() => {});
+  }, [slug]);
+
+  async function allowMic() {
+    unlockLines(); // this tap is the gesture the later lines need
+    try {
+      const st = await navigator.mediaDevices.getUserMedia({ audio: true });
+      st.getTracks().forEach((t) => t.stop());
+      diagEvent('voice', 'first-turn: mic granted');
+      setFirst('practice');
+      void ensureVoice().catch(() => {}); // the room warms while they read
     } catch (e) {
-      setError(
-        `setup is done, but MAIN did not open — ${e instanceof Error ? e.message : e}. reload to retry`
-      );
+      diagEvent('voice', `first-turn: mic denied — ${e instanceof Error ? e.name : e}`);
+      setFirst('denied');
+      void say('mic_denied', firstLang);
     }
   }
+
+  /** pttUp, the turn is going out: from here a transcript must land */
+  function firstSent() {
+    if (first !== 'practice' && first !== 'sent') return;
+    const before = [...msgs].reverse().find((m) => m.role === 'user' && !isOnboardPrompt(m.text));
+    firstRef.current = { ...firstRef.current, sentAt: Date.now(), before: before?.time || 0 };
+    setFirstHint('');
+    setFirst('sent');
+  }
+
+  // sent → heard: a user message newer than the last one before the release
+  // (server times only — the phone's clock never decides)
+  useEffect(() => {
+    if (first !== 'sent') return;
+    const f = firstRef.current;
+    const u = [...msgs]
+      .reverse()
+      .find((m) => m.role === 'user' && m.time > f.before && !isOnboardPrompt(m.text));
+    if (u) {
+      f.heard = u.text;
+      f.heardTime = u.time;
+      f.heardAt = Date.now();
+      diagEvent('voice', `first-turn: transcript ${Date.now() - f.sentAt}ms after release — STT alive`);
+      try {
+        localStorage.setItem(FIRST_TURN_KEY, String(Date.now()));
+      } catch {
+        /* private mode: the card comes back next time, harmless */
+      }
+      setFirst('heard');
+      if (getSpeech().phase === 'idle') void say('heard', firstLang);
+      return;
+    }
+    const t = setTimeout(
+      () => {
+        diagEvent('voice-fail', 'first-turn: nothing transcribed 15s after release');
+        setFirstHint(line('not_heard', firstLang));
+        setFirst('practice');
+        void say('not_heard', firstLang);
+      },
+      Math.max(0, f.sentAt + 15_000 - Date.now())
+    );
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [first, msgs]);
+
+  // heard → in: the brain's reply to it, spoken (you talked, it talks back).
+  // The reply is found by ORDER — the first completed assistant message after
+  // the heard one: yggdrasil stamps a prompt and its reply in the same or the
+  // next millisecond, so a time comparison can miss it (10-19 referee run)
+  useEffect(() => {
+    if (first !== 'heard') return;
+    const f = firstRef.current;
+    const ui = msgs.findIndex((m) => m.role === 'user' && m.time === f.heardTime && m.text === f.heard);
+    const a =
+      ui < 0
+        ? undefined
+        : [...msgs.slice(ui + 1)].reverse().find((m) => m.role === 'assistant' && m.text.trim());
+    if (a && a.done !== false && !busy) {
+      diagEvent('voice', `first-turn: reply ${Date.now() - f.sentAt}ms after release`);
+      markHeard(slug, a.time);
+      startSpeech(a.text, slug);
+      setFirst('in');
+      return;
+    }
+    // a slow or failed brain: STT is proven anyway, the error channel says
+    // why. Anchored to the heard moment — every poll re-runs this effect
+    const t = setTimeout(() => setFirst('in'), Math.max(0, f.heardAt + 45_000 - Date.now()));
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [first, msgs, busy]);
+
+  // in: said once the reply has been spoken (or could not be)
+  useEffect(() => {
+    if (first !== 'in' || firstRef.current.saidIn || speech.phase !== 'idle') return;
+    const t = setTimeout(() => {
+      firstRef.current.saidIn = true;
+      void say('in', firstLang);
+    }, 600);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [first, speech.phase]);
 
   useEffect(() => {
     if (!holding) return;
@@ -1787,9 +1903,19 @@ export default function SessionView({
       }, 250);
     },
     onPointerUp: () => {
+      unlockLines(); // a release is a gesture: the first-turn lines may play later
       // tap = the arm timer never fired → no PTT state exists at all
-      if (holdArmRef.current) micTap();
-      else void pttUp();
+      if (holdArmRef.current) {
+        if (first === 'practice' || first === 'sent' || first === 'mic') {
+          // first turn: a tap is not a turn, and hands-free ("over") is
+          // taught after — say what happened instead of switching modes
+          clearHoldArm();
+          setFirstHint(FT[firstLang].released);
+          diagEvent('ptt', 'first-turn: tap — released, nothing sent');
+          return;
+        }
+        micTap();
+      } else void pttUp();
     },
     onPointerMove: (e: React.PointerEvent<HTMLButtonElement>) => {
       if (!holding) return;
@@ -1851,7 +1977,9 @@ export default function SessionView({
             : ['heard', 'hands-free · say “over” or tap the bars to send']
         : busy
           ? ['working', 'working on it · type to queue the next']
-          : ['idle', 'hold the mic to talk · tap it for hands-free'];
+          : first === 'off' || first === 'in'
+            ? ['idle', 'hold the mic to talk · tap it for hands-free']
+            : ['idle', 'hold the mic to talk'];
   const GLYPH: Record<VoiceTone, string> = {
     idle: '○',
     heard: '◉',
@@ -2150,6 +2278,66 @@ export default function SessionView({
             </div>
           </div>
         </div>
+      )}
+
+      {/* the door's last step: one real voice turn, then "you are in" */}
+      {first !== 'off' && (
+        <section className="oz-ft" data-testid="first-turn" data-state={first} aria-live="polite">
+          {(first === 'mic' || first === 'practice') && (
+            <>
+              <p className="t">{FT[firstLang].planted}</p>
+              {first === 'mic' ? (
+                <>
+                  <p>{FT[firstLang].mic}</p>
+                  <button
+                    type="button"
+                    className="go"
+                    data-testid="first-allow-mic"
+                    onClick={() => void allowMic()}
+                  >
+                    {FT[firstLang].allow}
+                  </button>
+                </>
+              ) : (
+                <p className={firstHint ? 'hint' : ''}>{firstHint || FT[firstLang].hold}</p>
+              )}
+            </>
+          )}
+          {first === 'sent' && <p>{FT[firstLang].sent}</p>}
+          {first === 'heard' && (
+            <>
+              <p className="t">{FT[firstLang].heard}</p>
+              <blockquote data-testid="first-heard">“{firstRef.current.heard}”</blockquote>
+              <p className="sub">{FT[firstLang].answering}</p>
+            </>
+          )}
+          {first === 'in' && (
+            <>
+              <p className="t" data-testid="first-in">
+                {line('in', firstLang)}
+              </p>
+              <dl>
+                {FT[firstLang].now.map(([k, v]) => (
+                  <div key={k}>
+                    <dt>{k}</dt>
+                    <dd>{v}</dd>
+                  </div>
+                ))}
+              </dl>
+              <button type="button" className="go" data-testid="first-ok" onClick={() => setFirst('off')}>
+                {FT[firstLang].ok}
+              </button>
+            </>
+          )}
+          {first === 'denied' && (
+            <>
+              <p className="t">{line('mic_denied', firstLang)}</p>
+              <button type="button" className="go" onClick={() => setFirst('off')}>
+                {FT[firstLang].ok}
+              </button>
+            </>
+          )}
+        </section>
       )}
 
       {mode === 'free' ? (

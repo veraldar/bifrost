@@ -4,6 +4,7 @@ import { ThemeProvider } from 'next-themes';
 import { DiagBoot } from '@/components/diag-boot';
 import { FreshReload } from '@/components/fresh-reload';
 import { ThemeColor } from '@/components/theme-color';
+import { DOOR_KEY } from '@/lib/tree-first';
 import '@/styles/globals.css';
 
 const commitMono = localFont({
@@ -32,10 +33,13 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-// before first paint, every page: the old sandbox build left a sticky
+// before first paint, every page: (1) the old sandbox build left a sticky
 // `labmic` key on every device that tapped the tree — the phone sent a lab wav
 // instead of its mic (10-14). Cleared here, read by nothing (lib/labmic.ts).
-const BOOT = `try{localStorage.removeItem('labmic')}catch(e){}`;
+// (2) html[data-door] says whether this device walked the door yet, so the
+// server-rendered tree paints at once on a first run and never flashes on a
+// returning one (styles/brand.css § door).
+const BOOT = `try{localStorage.removeItem('labmic');document.documentElement.dataset.door=localStorage.getItem('${DOOR_KEY}')?'done':'first'}catch(e){document.documentElement.dataset.door='done'}`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

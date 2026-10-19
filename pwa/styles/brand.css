@@ -126,6 +126,73 @@
   .oz-invite span { padding: 1px 6px; background: var(--oz-bg); }
   .oz-invite .sub { font-size: 10.5px; color: var(--oz-dim); }
   .oz-invite .err { color: var(--oz-danger); }
+
+  /* § door (v2) — server-rendered, so a first run paints the tree before any
+     script; the layout's boot script marks returning devices before paint.
+     Held: amber, the signals climb (veraldar.org's .tree.heard, same drawing) */
+  html[data-door='done'] .oz-first:not(.open) { display: none; }
+  .oz-first .oz-tree {
+    touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  }
+  .oz-first .oz-tree.heard svg { filter: drop-shadow(0 0 14px color-mix(in srgb, var(--oz-active) 40%, transparent)); }
+  .oz-first .oz-tree.heard .base { fill: var(--oz-active); opacity: .9; }
+  .oz-first .oz-tree.heard .sig {
+    stroke: var(--oz-bg); opacity: 1; animation: oz-pass 2.2s infinite; animation-delay: calc(var(--i) * .28s);
+  }
+  .oz-invite .held { display: none; color: var(--oz-active); }
+  .oz-tree.heard ~ .oz-invite .hold { display: none; }
+  .oz-tree.heard ~ .oz-invite .held { display: inline; }
+  .oz-first.open .oz-tree { height: 44%; }
+  .oz-first.open .base { opacity: .2; }
+  .oz-doorp {
+    position: absolute; left: 0; right: 0; bottom: 0; max-height: 60%; overflow-y: auto;
+    margin: 0 auto; width: min(100%, 520px); padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--oz-border); background: var(--oz-bg); font-size: 13px;
+    animation: oz-rise .22s ease-out both;
+  }
+  @keyframes oz-rise { from { transform: translateY(16px); opacity: 0; } }
+  .oz-doorp .prog { display: flex; gap: 6px; margin-bottom: 14px; }
+  .oz-doorp .prog i { width: 14px; height: 3px; background: var(--oz-border); }
+  .oz-doorp .prog i.on { background: var(--oz-active); }
+  .oz-doorp .say { min-height: 3.4em; margin-bottom: 14px; line-height: 1.7; color: var(--oz-text); }
+  .oz-doorp .say::before { content: '▸ '; color: var(--oz-active); }
+  .oz-doorp .opts { display: grid; gap: 8px; }
+  .oz-doorp .opt {
+    border: 1px solid var(--oz-border); background: var(--oz-surface); color: var(--oz-text);
+    padding: 12px 14px; text-align: left; line-height: 1.5; min-height: 44px;
+  }
+  .oz-doorp .opt:active, .oz-doorp .opt[aria-pressed='true'] { border-color: var(--oz-active); color: var(--oz-active); }
+  .oz-doorp .opt small { display: block; font-size: 10.5px; color: var(--oz-dim); }
+  .oz-doorp .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin-bottom: 14px; font-size: 12px; }
+  .oz-doorp .kv dt { color: var(--oz-dim); }
+  .oz-doorp .kv b { font-weight: 400; color: var(--oz-success); }
+  .oz-doorp .next {
+    width: 100%; min-height: 44px; border: 1px solid var(--oz-text); background: var(--oz-text); color: var(--oz-bg);
+    letter-spacing: .14em; font-size: 12px;
+  }
+  .oz-doorp .next[disabled] { opacity: .45; }
+  .oz-doorp .pair { display: grid; justify-items: center; gap: 4px; margin: 0 0 14px; }
+  .oz-doorp .pair img { width: 168px; height: 168px; image-rendering: pixelated; background: #fff; border: 1px solid var(--oz-border); }
+  .oz-doorp .pair figcaption, .oz-doorp .sub { font-size: 10.5px; color: var(--oz-dim); }
+  .oz-doorp .err { color: var(--oz-danger); display: grid; gap: 6px; }
+  /* first turn — the door's last step, inside MAIN, right above the mic */
+  .oz-ft {
+    margin: 0 0 8px; padding: 12px 14px; border: 1px solid var(--oz-border); border-left: 2px solid var(--oz-active);
+    background: var(--oz-surface); font-size: 12.5px; line-height: 1.6; display: grid; gap: 6px;
+  }
+  .oz-ft .t { color: var(--oz-text); font-size: 13.5px; }
+  .oz-ft[data-state='in'] { border-left-color: var(--oz-success); }
+  .oz-ft[data-state='in'] .t { color: var(--oz-success); }
+  .oz-ft .hint { color: var(--oz-active); }
+  .oz-ft .sub, .oz-ft dt { color: var(--oz-dim); }
+  .oz-ft blockquote { color: var(--oz-active); }
+  .oz-ft dl { display: grid; gap: 2px; font-size: 11.5px; }
+  .oz-ft dl div { display: flex; gap: 8px; }
+  .oz-ft dt { min-width: 44%; }
+  .oz-ft .go {
+    justify-self: start; min-height: 40px; padding: 0 16px; border: 1px solid var(--oz-text);
+    background: var(--oz-text); color: var(--oz-bg); letter-spacing: .12em; font-size: 11.5px;
+  }
   .oz-door {
     position: fixed; z-index: 40; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom));
     width: 60px; height: 60px; display: block;

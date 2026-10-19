@@ -5,14 +5,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LineIcon } from '@/components/line-icon';
 import { BAND_VIEWBOX, YggTree } from '@/components/ygg';
-import { FirstTree, TreeDoor } from '@/components/tree-door';
+import { Door, TreeDoor } from '@/components/tree-door';
 import { Marked } from '@/components/marked';
 import { askedSessions, clearAsked, notifyReply } from '@/lib/notify';
 import type { ArtifactEntry } from '@/lib/artifacts';
 import { countUnseen, seenInit } from '@/lib/artifact-read';
 import { lastRead, markRead } from '@/lib/read';
 import { slugify } from '@/lib/slug';
-import { TF_DONE_KEY, TF_PREV_MODE_KEY, isMainSlug, isOnboardPrompt } from '@/lib/tree-first';
+import { DOOR_KEY, isMainSlug, isOnboardPrompt } from '@/lib/tree-first';
 
 // open-question circles go stale after this long
 const OPEN_QUESTION_TTL_MS = 48 * 60 * 60 * 1000;
@@ -155,13 +155,14 @@ function fmtListTime(t?: number): string {
 
 export default function SessionsPage() {
   const router = useRouter();
-  // tree-first, per device (never the server store): no done-flag here →
-  // the tree alone. Unknown until the first client render — the server HTML
-  // can't read localStorage, and a guess would flash the wrong world
+  // the door, per device (never the server store): not walked yet → the
+  // tree alone. Unknown until the first client render — so the server HTML
+  // IS the door (it paints before any script), and the layout's boot script
+  // hides it before paint on a device that walked it (brand.css § door)
   const [tf, setTf] = useState<'first' | 'done' | null>(null);
   useEffect(() => {
     try {
-      setTf(localStorage.getItem(TF_DONE_KEY) ? 'done' : 'first');
+      setTf(localStorage.getItem(DOOR_KEY) ? 'done' : 'first');
     } catch {
       setTf('done'); // private mode can't keep the flag — never trap it on the tree
     }
@@ -433,32 +434,7 @@ export default function SessionsPage() {
   // the band walks only while something is true: any run (sub-runs too)
   const working = sessions.filter((s) => s.pending).length;
 
-  // first tap: onboarding rides the existing hands-free path — oz-mode is
-  // what the session view restores on arrival, and this tap is the gesture.
-  // The mode it replaces is parked once; setup's end hands it back
-  async function startOnboarding(): Promise<string> {
-    try {
-      if (localStorage.getItem(TF_PREV_MODE_KEY) === null) {
-        localStorage.setItem(TF_PREV_MODE_KEY, localStorage.getItem('oz-mode') || 'text');
-      }
-      localStorage.setItem('oz-mode', 'free');
-      localStorage.setItem('labmic', '1'); // LAB: synthetic mic for this device
-    } catch {
-      /* private mode — the session opens in keyboard mode */
-    }
-    const r = await fetch('/api/onboard', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ step: 'start' }),
-      signal: AbortSignal.timeout(15_000),
-    });
-    const d = (await r.json().catch(() => ({}))) as { id?: string; slug?: string; error?: string };
-    if (!r.ok || !d.slug) throw new Error(d.error || `onboard ${r.status}`);
-    return `/session/${d.slug}?id=${d.id}&labmic=1`;
-  }
-
-  if (tf === null) return null;
-  if (tf === 'first') return <FirstTree onStart={startOnboarding} />;
+  if (tf !== 'done') return <Door />;
 
   return (
     <>

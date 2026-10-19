@@ -1,0 +1,552 @@
+{
+  "version": 1,
+  "generated": "2026-10-19T08:42:55.766Z",
+  "voices": {
+    "en": {
+      "server": "local speaches (onnx)",
+      "model": "speaches-ai/Kokoro-82M-v1.0-ONNX",
+      "voice": "af_heart"
+    },
+    "fr": {
+      "server": "mac mlx (the app path)",
+      "model": "thaddeusk/Qwen3-TTS-12Hz-1.7B-Elise-v2",
+      "voice": "elise"
+    }
+  },
+  "referee": "mlx-community/Qwen3-ASR-1.7B-8bit — score = share of script words heard back",
+  "lines": {
+    "greet": {
+      "on": [
+        "app"
+      ],
+      "en": {
+        "text": "this is bifrost. your box, your voice. two choices, then you talk.",
+        "sha": "367cc5cfdc8e77a4",
+        "file": "en/greet.mp3",
+        "ms": 3842,
+        "bytes": 23708,
+        "seed": null,
+        "heard": "This is Bifrost. Your box, your voice. Two choices. Then you talk.",
+        "score": 1
+      },
+      "fr": {
+        "text": "voici bifrost. votre box, votre voix. deux choix, puis vous parlez.",
+        "sha": "ec8a7730512ecaec",
+        "file": "fr/greet.mp3",
+        "ms": 6535,
+        "bytes": 39836,
+        "seed": 7,
+        "heard": "Voici Bifrost. Votre box, votre voix. Deux choix, puis vous parlez.",
+        "score": 1
+      }
+    },
+    "greet_back": {
+      "on": [
+        "app"
+      ],
+      "en": {
+        "text": "this is bifrost. your answers came with you. one step, then you talk.",
+        "sha": "9cd7c1ec20a9e337",
+        "file": "en/greet_back.mp3",
+        "ms": 3903,
+        "bytes": 23996,
+        "seed": null,
+        "heard": "This is Bifrost. Your answers came with you. One step, then you talk.",
+        "score": 1
+      },
+      "fr": {
+        "text": "voici bifrost. vos réponses ont suivi. une étape, puis vous parlez.",
+        "sha": "4ded77583317d690",
+        "file": "fr/greet_back.mp3",
+        "ms": 4855,
+        "bytes": 29756,
+        "seed": 7,
+        "heard": "Voici Beefrost. Vos réponses ont suivi une étape, puis vous parlez.",
+        "score": 0.91
+      }
+    },
+    "site_greet": {
+      "on": [
+        "site"
+      ],
+      "en": {
+        "text": "this is bifrost. your box, your voice. three choices, then your install line.",
+        "sha": "6c1569208bc64283",
+        "file": "en/site_greet.mp3",
+        "ms": 4612,
+        "bytes": 28316,
+        "seed": null,
+        "heard": "This is Bifrost. Your box, your voice, three choices, then your install line.",
+        "score": 1
+      },
+      "fr": {
+        "text": "voici bifrost. votre box, votre voix. trois choix, puis votre ligne d'installation.",
+        "sha": "1691651c19a6a43f",
+        "file": "fr/site_greet.mp3",
+        "ms": 6214,
+        "bytes": 37820,
+        "seed": 11,
+        "heard": "Voici Beefrost. Votre box, votre voix, trois choix, puis votre ligne d'installation.",
+        "score": 0.92
+      }
+    },
+    "lang": {
+      "on": [
+        "app",
+        "site"
+      ],
+      "en": {
+        "text": "english or french?",
+        "sha": "3a1685ab973f9c65",
+        "file": "en/lang.mp3",
+        "ms": 1231,
+        "bytes": 8012,
+        "seed": null,
+        "heard": "English or French.",
+        "score": 1
+      },
+      "fr": {
+        "text": "anglais ou français ?",
+        "sha": "2cba837361e6971e",
+        "file": "fr/lang.mp3",
+        "ms": 1411,
+        "bytes": 9020,
+        "seed": 7,
+        "heard": "Anglais ou français.",
+        "score": 1
+      }
+    },
+    "lang_set": {
+      "on": [
+        "app",
+        "site"
+      ],
+      "en": {
+        "text": "english.",
+        "sha": "0f92d7cb2a9c1a60",
+        "file": "en/lang_set.mp3",
+        "ms": 704,
+        "bytes": 4844,
+        "seed": null,
+        "heard": "English.",
+        "score": 1
+      },
+      "fr": {
+        "text": "français.",
+        "sha": "6ebf1aae602a63ce",
+        "file": "fr/lang_set.mp3",
+        "ms": 790,
+        "bytes": 5276,
+        "seed": 7,
+        "heard": "Français.",
+        "score": 1
+      }
+    },
+    "style": {
+      "on": [
+        "app",
+        "site"
+      ],
+      "en": {
+        "text": "short answers, or more detail?",
+        "sha": "0723a87a0ec211b1",
+        "file": "en/style.mp3",
+        "ms": 1928,
+        "bytes": 12188,
+        "seed": null,
+        "heard": "Short answers or more detail.",
+        "score": 1
+      },
+      "fr": {
+        "text": "réponses courtes, ou plus de détail ?",
+        "sha": "546c9200cbd93a01",
+        "file": "fr/style.mp3",
+        "ms": 2453,
+        "bytes": 15356,
+        "seed": 7,
+        "heard": "Réponse courte ou plus de détails.",
+        "score": 1
+      }
+    },
+    "style_short": {
+      "on": [
+        "app",
+        "site"
+      ],
+      "en": {
+        "text": "short. signal only.",
+        "sha": "8ee3603b8c4f3a65",
+        "file": "en/style_short.mp3",
+        "ms": 1514,
+        "bytes": 9740,
+        "seed": null,
+        "heard": "Short signal only.",
+        "score": 1
+      },
+      "fr": {
+        "text": "court. juste le signal.",
+        "sha": "c0f37d4224ef8fc5",
+        "file": "fr/style_short.mp3",
+        "ms": 2666,
+        "bytes": 16652,
+        "seed": 7,
+        "heard": "Court, juste le signal.",
+        "score": 1
+      }
+    },
+    "style_detail": {
+      "on": [
+        "app",
+        "site"
+      ],
+      "en": {
+        "text": "more detail. full sentences.",
+        "sha": "098a3d5a3044f3f1",
+        "file": "en/style_detail.mp3",
+        "ms": 2027,
+        "bytes": 12764,
+        "seed": null,
+        "heard": "More detail. Full sentences.",
+        "score": 1
+      },
+      "fr": {
+        "text": "plus de détail. des phrases complètes.",
+        "sha": "48d95daa0c6f0898",
+        "file": "fr/style_detail.mp3",
+        "ms": 3060,
+        "bytes": 18956,
+        "seed": 7,
+        "heard": "Plus de détails, des phrases complètes.",
+        "score": 1
+      }
+    },
+    "site_brain": {
+      "on": [
+        "site"
+      ],
+      "en": {
+        "text": "who does the thinking? three brains. the data facts differ.",
+        "sha": "4a6308fad13dbaa8",
+        "file": "en/site_brain.mp3",
+        "ms": 3319,
+        "bytes": 20540,
+        "seed": null,
+        "heard": "Who does the thinking? Three brains. The data facts differ.",
+        "score": 1
+      },
+      "fr": {
+        "text": "qui réfléchit ? trois cerveaux. les faits diffèrent.",
+        "sha": "dd17cd9d877dae8e",
+        "file": "fr/site_brain.mp3",
+        "ms": 4329,
+        "bytes": 26588,
+        "seed": 7,
+        "heard": "Qui réfléchit? Trois cerveaux. Les faits diffèrent.",
+        "score": 1
+      }
+    },
+    "brain_plan": {
+      "on": [
+        "app",
+        "site"
+      ],
+      "en": {
+        "text": "the brain is a coding plan. the vendor sees what you send.",
+        "sha": "2bcc1eb091bba99a",
+        "file": "en/brain_plan.mp3",
+        "ms": 3307,
+        "bytes": 20396,
+        "seed": null,
+        "heard": "The brain is a coding plan. The vendor sees what you send.",
+        "score": 1
+      },
+      "fr": {
+        "text": "le cerveau est un forfait de code. le fournisseur voit ce que vous envoyez.",
+        "sha": "8a6f2a0330fdf731",
+        "file": "fr/brain_plan.mp3",
+        "ms": 4895,
+        "bytes": 29900,
+        "seed": 7,
+        "heard": "Le cerveau est un forfait de code. Le fournisseur voit ce que vous envoyez.",
+        "score": 1
+      }
+    },
+    "brain_router": {
+      "on": [
+        "app",
+        "site"
+      ],
+      "en": {
+        "text": "the brain is a cloud model through openrouter. your words travel to its provider.",
+        "sha": "cfa87ac074ed1517",
+        "file": "en/brain_router.mp3",
+        "ms": 4651,
+        "bytes": 28460,
+        "seed": null,
+        "heard": "The brain is a cloud model through OpenRouter. Your words travel to its provider.",
+        "score": 1
+      },
+      "fr": {
+        "text": "le cerveau est un modèle cloud via openrouter. vos mots vont chez son fournisseur.",
+        "sha": "3d02c8d5f5512a4d",
+        "file": "fr/brain_router.mp3",
+        "ms": 5934,
+        "bytes": 36236,
+        "seed": 7,
+        "heard": "Le cerveau est un modèle cloud via OpenRouter. Vos mots vont chez son fournisseur.",
+        "score": 1
+      }
+    },
+    "brain_local": {
+      "on": [
+        "app",
+        "site"
+      ],
+      "en": {
+        "text": "the brain runs on your box. nothing leaves your network.",
+        "sha": "f9603d9ba42c4e38",
+        "file": "en/brain_local.mp3",
+        "ms": 3157,
+        "bytes": 19532,
+        "seed": null,
+        "heard": "The brain runs on your box. Nothing leaves your network.",
+        "score": 1
+      },
+      "fr": {
+        "text": "le cerveau tourne sur votre box. rien ne quitte votre réseau.",
+        "sha": "4b70b91f431b751b",
+        "file": "fr/brain_local.mp3",
+        "ms": 4093,
+        "bytes": 25148,
+        "seed": 7,
+        "heard": "Le cerveau tourne sur votre box. Rien ne quitte votre réseau.",
+        "score": 1
+      }
+    },
+    "pair": {
+      "on": [
+        "app"
+      ],
+      "en": {
+        "text": "on your phone? scan the code. or stay here.",
+        "sha": "bd8894b57fdab449",
+        "file": "en/pair.mp3",
+        "ms": 2498,
+        "bytes": 15644,
+        "seed": null,
+        "heard": "On your phone, scan the code, or stay here.",
+        "score": 1
+      },
+      "fr": {
+        "text": "sur votre téléphone ? scannez le code. ou restez ici.",
+        "sha": "6beb4f989d753b20",
+        "file": "fr/pair.mp3",
+        "ms": 4054,
+        "bytes": 24860,
+        "seed": 7,
+        "heard": "Sur votre téléphone, scannez le code, ou restez ici.",
+        "score": 1
+      }
+    },
+    "planted": {
+      "on": [
+        "app"
+      ],
+      "en": {
+        "text": "planted. this is main. hold the mic, say anything, let go to send.",
+        "sha": "638b708c590fcbd2",
+        "file": "en/planted.mp3",
+        "ms": 3842,
+        "bytes": 23708,
+        "seed": null,
+        "heard": "Planted. This is Maine. Hold the mic. Say anything. Let go to send.",
+        "score": 0.92
+      },
+      "fr": {
+        "text": "planté. voici main. maintenez le micro, dites quelque chose, relâchez pour envoyer.",
+        "sha": "8317394ec3456325",
+        "file": "fr/planted.mp3",
+        "ms": 5976,
+        "bytes": 36380,
+        "seed": 7,
+        "heard": "Planté. Voici main. Maintenez le micro. Dites quelque chose. Relâchez pour envoyer.",
+        "score": 1
+      }
+    },
+    "heard": {
+      "on": [
+        "app"
+      ],
+      "en": {
+        "text": "heard.",
+        "sha": "59b396c275e45edb",
+        "file": "en/heard.mp3",
+        "ms": 640,
+        "bytes": 4412,
+        "seed": null,
+        "heard": "Heard.",
+        "score": 1
+      },
+      "fr": {
+        "text": "entendu.",
+        "sha": "b2c1731bfca6b2cc",
+        "file": "fr/heard.mp3",
+        "ms": 691,
+        "bytes": 4700,
+        "seed": 7,
+        "heard": "Entendu.",
+        "score": 1
+      }
+    },
+    "not_heard": {
+      "on": [
+        "app"
+      ],
+      "en": {
+        "text": "nothing came through. check the mic, then hold again.",
+        "sha": "f871c64cf95603ec",
+        "file": "en/not_heard.mp3",
+        "ms": 2944,
+        "bytes": 18236,
+        "seed": null,
+        "heard": "Nothing came through. Check the mic, then hold again.",
+        "score": 1
+      },
+      "fr": {
+        "text": "rien n'est passé. vérifiez le micro, puis maintenez à nouveau.",
+        "sha": "95a1f5919f344608",
+        "file": "fr/not_heard.mp3",
+        "ms": 4294,
+        "bytes": 26300,
+        "seed": 7,
+        "heard": "Rien n'est passé. Vérifiez le micro, puis maintenez à nouveau.",
+        "score": 1
+      }
+    },
+    "mic_denied": {
+      "on": [
+        "app"
+      ],
+      "en": {
+        "text": "no mic access. bifrost works by text too. the keyboard is below.",
+        "sha": "86b8a715e2ac8a68",
+        "file": "en/mic_denied.mp3",
+        "ms": 4672,
+        "bytes": 28604,
+        "seed": null,
+        "heard": "No mic access. Bifrost works by text too. The keyboard is below.",
+        "score": 1
+      },
+      "fr": {
+        "text": "pas d'accès au micro. bifrost marche aussi au clavier, juste en dessous.",
+        "sha": "497ff1f7fa8ceabe",
+        "file": "fr/mic_denied.mp3",
+        "ms": 4965,
+        "bytes": 30332,
+        "seed": 7,
+        "heard": "Pas d'accès au micro. Bifrost marche aussi au clavier, juste en dessous.",
+        "score": 1
+      }
+    },
+    "in": {
+      "on": [
+        "app"
+      ],
+      "en": {
+        "text": "you are in. talk to your tree.",
+        "sha": "13cc7a3a3f676a6b",
+        "file": "en/in.mp3",
+        "ms": 1715,
+        "bytes": 10892,
+        "seed": null,
+        "heard": "You are in. Talk to your tree.",
+        "score": 1
+      },
+      "fr": {
+        "text": "vous y êtes. parlez à votre arbre.",
+        "sha": "2e3f9d7b9bfa6f82",
+        "file": "fr/in.mp3",
+        "ms": 2696,
+        "bytes": 16796,
+        "seed": 7,
+        "heard": "Vous y êtes. Parlez à votre arbre.",
+        "score": 1
+      }
+    },
+    "box_down": {
+      "on": [
+        "app"
+      ],
+      "en": {
+        "text": "your box did not answer. hold the tree to try again.",
+        "sha": "cc090e4a8f8e60fa",
+        "file": "en/box_down.mp3",
+        "ms": 3074,
+        "bytes": 19100,
+        "seed": null,
+        "heard": "Your box did not answer. Hold the tree to try again.",
+        "score": 1
+      },
+      "fr": {
+        "text": "votre box n'a pas répondu. maintenez l'arbre pour réessayer.",
+        "sha": "c903baaee3475fa8",
+        "file": "fr/box_down.mp3",
+        "ms": 4295,
+        "bytes": 26300,
+        "seed": 7,
+        "heard": "Votre box n'a pas répondu. Maintenez l'arbre pour réessayer.",
+        "score": 1
+      }
+    },
+    "site_install": {
+      "on": [
+        "site"
+      ],
+      "en": {
+        "text": "your line. run it on the box. then open bifrost on your phone. the same tree answers there.",
+        "sha": "5aea47698d64f668",
+        "file": "en/site_install.mp3",
+        "ms": 5762,
+        "bytes": 35228,
+        "seed": null,
+        "heard": "Your line. Run it on the box. Then open Bifrost on your phone. The same tree answers there.",
+        "score": 1
+      },
+      "fr": {
+        "text": "votre ligne. lancez-la sur la box. puis ouvrez bifrost sur votre téléphone. le même arbre y répond.",
+        "sha": "31283eabe6e70b07",
+        "file": "fr/site_install.mp3",
+        "ms": 7335,
+        "bytes": 44588,
+        "seed": 7,
+        "heard": "Votre ligne, lancez-la sur la box, puis ouvrez Bifrost sur votre téléphone. Le même arbre y répond.",
+        "score": 1
+      }
+    },
+    "site_open": {
+      "on": [
+        "site"
+      ],
+      "en": {
+        "text": "box running? open it. your answers come along.",
+        "sha": "b8c7947874602020",
+        "file": "en/site_open.mp3",
+        "ms": 2773,
+        "bytes": 17228,
+        "seed": null,
+        "heard": "Box running. Open it. Your answers come along.",
+        "score": 1
+      },
+      "fr": {
+        "text": "box lancée ? ouvrez-la. vos réponses suivent.",
+        "sha": "51cb5e6c8ea4f00b",
+        "file": "fr/site_open.mp3",
+        "ms": 4701,
+        "bytes": 28748,
+        "seed": 7,
+        "heard": "Box lancée. Ouvrez-la. Vos réponses suivent.",
+        "score": 1
+      }
+    }
+  }
+}

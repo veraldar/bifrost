@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "about": "THE onboarding script — one source for the app door (components/tree-door.tsx), the voice pack (scripts/onboard-voice.mjs renders public/onboarding/) and veraldar.org's door (synced copy). Brand: terse, lowercase, facts, no please/thanks, no exclamation marks (docs/brand/brand.md §2, tree-door.md). Change a line here, re-run the generator — the manifest hash catches a stale pack.",
+  "lines": [
+    { "id": "greet", "on": ["app"], "en": "this is bifrost. your box, your voice. two choices, then you talk.", "fr": "voici bifrost. votre box, votre voix. deux choix, puis vous parlez." },
+    { "id": "greet_back", "on": ["app"], "en": "this is bifrost. your answers came with you. one step, then you talk.", "fr": "voici bifrost. vos réponses ont suivi. une étape, puis vous parlez." },
+    { "id": "site_greet", "on": ["site"], "en": "this is bifrost. your box, your voice. three choices, then your install line.", "fr": "voici bifrost. votre box, votre voix. trois choix, puis votre ligne d'installation." },
+    { "id": "lang", "on": ["app", "site"], "en": "english or french?", "fr": "anglais ou français ?" },
+    { "id": "lang_set", "on": ["app", "site"], "en": "english.", "fr": "français." },
+    { "id": "style", "on": ["app", "site"], "en": "short answers, or more detail?", "fr": "réponses courtes, ou plus de détail ?" },
+    { "id": "style_short", "on": ["app", "site"], "en": "short. signal only.", "fr": "court. juste le signal." },
+    { "id": "style_detail", "on": ["app", "site"], "en": "more detail. full sentences.", "fr": "plus de détail. des phrases complètes." },
+    { "id": "site_brain", "on": ["site"], "en": "who does the thinking? three brains. the data facts differ.", "fr": "qui réfléchit ? trois cerveaux. les faits diffèrent." },
+    { "id": "brain_plan", "on": ["app", "site"], "en": "the brain is a coding plan. the vendor sees what you send.", "fr": "le cerveau est un forfait de code. le fournisseur voit ce que vous envoyez." },
+    { "id": "brain_router", "on": ["app", "site"], "en": "the brain is a cloud model through openrouter. your words travel to its provider.", "fr": "le cerveau est un modèle cloud via openrouter. vos mots vont chez son fournisseur." },
+    { "id": "brain_local", "on": ["app", "site"], "en": "the brain runs on your box. nothing leaves your network.", "fr": "le cerveau tourne sur votre box. rien ne quitte votre réseau." },
+    { "id": "pair", "on": ["app"], "en": "on your phone? scan the code. or stay here.", "fr": "sur votre téléphone ? scannez le code. ou restez ici." },
+    { "id": "planted", "on": ["app"], "en": "planted. this is main. hold the mic, say anything, let go to send.", "fr": "planté. voici main. maintenez le micro, dites quelque chose, relâchez pour envoyer." },
+    { "id": "heard", "on": ["app"], "en": "heard.", "fr": "entendu." },
+    { "id": "not_heard", "on": ["app"], "en": "nothing came through. check the mic, then hold again.", "fr": "rien n'est passé. vérifiez le micro, puis maintenez à nouveau." },
+    { "id": "mic_denied", "on": ["app"], "en": "no mic access. bifrost works by text too. the keyboard is below.", "fr": "pas d'accès au micro. bifrost marche aussi au clavier, juste en dessous." },
+    { "id": "in", "on": ["app"], "en": "you are in. talk to your tree.", "fr": "vous y êtes. parlez à votre arbre." },
+    { "id": "box_down", "on": ["app"], "en": "your box did not answer. hold the tree to try again.", "fr": "votre box n'a pas répondu. maintenez l'arbre pour réessayer." },
+    { "id": "site_install", "on": ["site"], "en": "your line. run it on the box. then open bifrost on your phone. the same tree answers there.", "fr": "votre ligne. lancez-la sur la box. puis ouvrez bifrost sur votre téléphone. le même arbre y répond." },
+    { "id": "site_open", "on": ["site"], "en": "box running? open it. your answers come along.", "fr": "box lancée ? ouvrez-la. vos réponses suivent." }
+  ]
+}

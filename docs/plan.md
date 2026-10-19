@@ -108,3 +108,11 @@ layer = the trunk's presence directory + the small shared facts. "One voice"
    memory problem must never block routing.
 3. The inflection test for v1.0: "put it on the tv" — and a different
    machine acts. If that sentence works, v1.0 is felt.
+
+## THE CONSENT EVOLUTION (10-06, user-discovered in production)
+Two independent stacks (live vX / sandbox vY), each with its own brain.
+When one fails the other stands. The new version proves itself in the
+sandbox while the old serves; the USER consents when to move; the flip is
+one restart. Proven 10-06: live brain down -> user's [MAIN] session ran on
+the root (:4100) via :8443 -> worked. Deploy law: never all-at-once; the
+sandbox is the rehearsal, the consent is the gate.

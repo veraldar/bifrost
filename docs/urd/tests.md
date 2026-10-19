@@ -20,6 +20,8 @@ Schema: `| date | version | test | result | evidence |`
 
 ---
 
+| 10-06 | v0.7 | live brain down -> user's [MAIN] session served by the ROOT on :8443 | **PASS (by accident)** — the consent evolution proven: the stacks are independent, the fallback works | the user's report, the root's session list |
+
 ## Open tests
 
 | date | version | test | result | evidence |

@@ -10,7 +10,8 @@ export default defineConfig({
   ...base,
   testIgnore: undefined,
   testMatch: /(tree-first|first-turn-voice)\.spec\.ts/,
-  use: { ...base.use, baseURL: process.env.PW_BASE_URL || 'http://127.0.0.1:8090' },
+  // a FRESH device (no storageState): the door is the subject here
+  use: { ...base.use, storageState: undefined, baseURL: process.env.PW_BASE_URL || 'http://127.0.0.1:8090' },
   projects: [
     {
       name: 'chromium',

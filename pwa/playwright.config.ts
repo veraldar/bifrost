@@ -15,6 +15,22 @@ export default defineConfig({
     // PW_BASE_URL aims the suite at a non-live server (the sandbox :8090) —
     // the default is the live :8080, so a worktree run gates live, not itself
     baseURL: process.env.PW_BASE_URL || 'http://127.0.0.1:8080',
+    // a RETURNING device: the door walked + its first voice turn done — the
+    // general suite tests the app behind the door (the sandbox serves the
+    // door to every fresh device; e2e/tree-first.spec.ts owns the door itself
+    // and runs fresh). Harmless on live: no door there, the keys are unread.
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: new URL(process.env.PW_BASE_URL || 'http://127.0.0.1:8080').origin,
+          localStorage: [
+            { name: 'bifrost-door', value: 'v2' },
+            { name: 'bifrost-first-turn', value: '1' },
+          ],
+        },
+      ],
+    },
     viewport: { width: 360, height: 780 }, // phone shape
     launchOptions: {
       args: [

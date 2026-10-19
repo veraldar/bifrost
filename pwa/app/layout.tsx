@@ -32,9 +32,17 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
+// before first paint, every page: the old sandbox build left a sticky
+// `labmic` key on every device that tapped the tree — the phone sent a lab wav
+// instead of its mic (10-14). Cleared here, read by nothing (lib/labmic.ts).
+const BOOT = `try{localStorage.removeItem('labmic')}catch(e){}`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={commitMono.variable} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: BOOT }} />
+      </head>
       <body className="oz">
         <ThemeProvider
           attribute="data-theme"

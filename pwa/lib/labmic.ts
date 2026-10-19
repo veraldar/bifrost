@@ -1,11 +1,23 @@
 /**
- * LAB BUILD ONLY (gated on ?labmic=1): inject USER-AGI's looping wav as the
- * microphone, so the full hands-free loop simulates on a headless emulator
- * with no real audio hardware. Production phones use real microphones and
- * never set the flag. Installed at module load — before livekit connects —
- * and survives navigations because every page re-runs it when flagged.
+ * LAB BUILD ONLY: inject USER-AGI's looping wav as the microphone, so the full
+ * voice loop simulates on a headless emulator with no real audio hardware.
+ *
+ * Two keys, both required, neither one sticky:
+ *   build  NEXT_PUBLIC_LABMIC=1 at `npm run build` — never set for a build a
+ *          person talks to (10-14: the sandbox build armed this for EVERY
+ *          device that held the tree; the user's phone sent the lab wav
+ *          instead of their voice, and STT never heard them)
+ *   page   ?labmic=1 in the URL of this page load
+ * A `labmic` key left in localStorage by the old build is cleared at first
+ * paint on every page (app/layout.tsx boot script) — this module never reads it.
  */
-if (typeof window !== 'undefined' && localStorage.getItem('labmic') === '1') {
+const LAB_BUILD = process.env.NEXT_PUBLIC_LABMIC === '1';
+
+if (
+  LAB_BUILD &&
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('labmic') === '1'
+) {
   const orig = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
   navigator.mediaDevices.getUserMedia = async (c) => {
     if (!c || !c.audio) return orig(c);

@@ -232,6 +232,25 @@ scope (arXiv 2609.29144). Therefore:
 4. Rules form a POOL, not an append log: rules that no longer certify get
    culled by the periodic mutator/judge pass (RuleEvolve pattern, arXiv
    2610.00650) — the playbook evolves by the same loop it teaches.
+5. **ARTIFACT PARITY** (v0.7 root FAIL, 10-06 — docs/reviews/sim-gap-v07.md):
+   a simulation certifies the artifact it runs on — THE SHIPPING BINARY ON
+   THE SHIPPING DEVICE CLASS — and nothing else. Every GREEN carries artifact
+   identity (binary/build hash, config/env, topology, device class); cycle
+   snapshots record hashes, not prose versions. REPRO-FIRST: "simulate-tested"
+   attaches to a release only when the sim/e2e gate re-runs against the
+   shipping artifact (same hash, same device class, same topology); a device
+   class the lab cannot reach (a real phone) is a named SKIP in the release
+   notes, never a silently carried GREEN. Mocks never ship: test scaffolding
+   (fake mics, lab tokens, mock upstreams) is gated so no shipping build or
+   user-facing link can activate it — scaffolding in a shipping link FAILS.
+   GREENs on a future artifact (next transport, next slot) attach to that
+   future artifact and certify nothing about today's. Evidence: cycles 6/7
+   CYCLE VALID on app 0.6.0 (AVD, lab-mic, in-sim STT, ephemeral ports) while
+   the shipped :8443 slot was the sandbox tree-door build + LiveKit agent +
+   Mac MLX STT — the lab's fake-mic flag itself shipped to the user's phone.
+   Scope: every lab with an app/endpoint lane + release gates (promote.sh,
+   gate.py). Counterfactual: hermetic determinism still wins for regression
+   hunting — parity binds CERTIFICATION claims, not exploratory runs.
 
 ## THE RESEARCH FEED (10-03, user): papers auto-discovered, concepts feed the labs
 The labs don't invent methodology alone — the state-of-the-art is monitored

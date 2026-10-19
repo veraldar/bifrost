@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generated": "2026-10-19T08:42:55.766Z",
+  "generated": "2026-10-19T09:25:37.410Z",
   "voices": {
     "en": {
       "server": "local speaches (onnx)",
@@ -503,23 +503,23 @@
         "site"
       ],
       "en": {
-        "text": "your line. run it on the box. then open bifrost on your phone. the same tree answers there.",
-        "sha": "5aea47698d64f668",
+        "text": "your box already runs? open it. its door picks up here. no box yet: your line.",
+        "sha": "526cbe60f979cad6",
         "file": "en/site_install.mp3",
-        "ms": 5762,
-        "bytes": 35228,
+        "ms": 5130,
+        "bytes": 31340,
         "seed": null,
-        "heard": "Your line. Run it on the box. Then open Bifrost on your phone. The same tree answers there.",
+        "heard": "Your box already runs. Open it. Its door picks up here. No box yet. Your line.",
         "score": 1
       },
       "fr": {
-        "text": "votre ligne. lancez-la sur la box. puis ouvrez bifrost sur votre téléphone. le même arbre y répond.",
-        "sha": "31283eabe6e70b07",
+        "text": "votre box tourne déjà ? ouvrez-la. sa porte reprend ici. sinon : votre ligne.",
+        "sha": "4d9573007e690d41",
         "file": "fr/site_install.mp3",
-        "ms": 7335,
-        "bytes": 44588,
+        "ms": 6295,
+        "bytes": 38396,
         "seed": 7,
-        "heard": "Votre ligne, lancez-la sur la box, puis ouvrez Bifrost sur votre téléphone. Le même arbre y répond.",
+        "heard": "Votre box tourne déjà. Ouvrez-la. Sa porte reprend ici. Sinon, votre ligne.",
         "score": 1
       }
     },

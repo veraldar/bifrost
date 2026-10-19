@@ -21,7 +21,7 @@
     { "id": "mic_denied", "on": ["app"], "en": "no mic access. bifrost works by text too. the keyboard is below.", "fr": "pas d'accès au micro. bifrost marche aussi au clavier, juste en dessous." },
     { "id": "in", "on": ["app"], "en": "you are in. talk to your tree.", "fr": "vous y êtes. parlez à votre arbre." },
     { "id": "box_down", "on": ["app"], "en": "your box did not answer. hold the tree to try again.", "fr": "votre box n'a pas répondu. maintenez l'arbre pour réessayer." },
-    { "id": "site_install", "on": ["site"], "en": "your line. run it on the box. then open bifrost on your phone. the same tree answers there.", "fr": "votre ligne. lancez-la sur la box. puis ouvrez bifrost sur votre téléphone. le même arbre y répond." },
+    { "id": "site_install", "on": ["site"], "en": "your box already runs? open it. its door picks up here. no box yet: your line.", "fr": "votre box tourne déjà ? ouvrez-la. sa porte reprend ici. sinon : votre ligne." },
     { "id": "site_open", "on": ["site"], "en": "box running? open it. your answers come along.", "fr": "box lancée ? ouvrez-la. vos réponses suivent." }
   ]
 }

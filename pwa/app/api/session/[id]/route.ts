@@ -80,6 +80,23 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   }
 }
 
+/** One settings write upstream. A refusal (4xx — unknown agent/model, gone
+ *  session) is an answer, not a crash: its status + the brain's own reason
+ *  come back as the response, so the page says why instead of a bare
+ *  'opencode 400 on …' 500. null = written. */
+async function ocWrite(path: string, method: string, body: unknown) {
+  const r = await fetch(`${OC}${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  console.log(`[oc] ${method} ${path} → ${r.status}`);
+  if (r.ok) return null;
+  const d = await r.json().catch(() => ({}));
+  const why = d.error || d.data?.message || d.message || `brain ${r.status} on ${path}`;
+  return NextResponse.json({ error: String(why) }, { status: r.status < 500 ? r.status : 502 });
+}
+
 /** Settings writes. title → session PATCH; model+think → v2 model switch
  *  onto the derived think model (the only variant carrier that survives
  *  v1.18 runs — see splitThink); agent → v2 agent switch. */
@@ -96,7 +113,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       if ((await isMain(id, sid)) || slugify(t) === MAIN_SLUG) {
         return NextResponse.json({ error: 'MAIN is reserved — it keeps its name' }, { status: 409 });
       }
-      await ocFetch(`/session/${sid}`, { method: 'PATCH', body: JSON.stringify({ title: t }) });
+      const no = await ocWrite(`/session/${sid}`, 'PATCH', { title: t });
+      if (no) return no;
     }
 
     if (body.model !== undefined) {
@@ -114,18 +132,16 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
           { error: `unknown model ${m.providerID}/${target}` },
           { status: 400 }
         );
-      await ocFetch(`/api/session/${sid}/model`, {
-        method: 'POST',
-        body: JSON.stringify({ model: { id: target, providerID: m.providerID } }),
+      const no = await ocWrite(`/api/session/${sid}/model`, 'POST', {
+        model: { id: target, providerID: m.providerID },
       });
+      if (no) return no;
     }
 
     if (body.agent !== undefined) {
       if (!body.agent) return NextResponse.json({ error: 'empty agent' }, { status: 400 });
-      await ocFetch(`/api/session/${sid}/agent`, {
-        method: 'POST',
-        body: JSON.stringify({ agent: String(body.agent) }),
-      });
+      const no = await ocWrite(`/api/session/${sid}/agent`, 'POST', { agent: String(body.agent) });
+      if (no) return no;
     }
 
     bustCache(); // home list reflects a rename on its next poll

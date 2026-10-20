@@ -29,6 +29,19 @@ type ProviderRow = {
   name: string;
   models: { id: string; name: string; variants: string[] }[];
 };
+type Block = 'name' | 'model' | 'think' | 'agent';
+
+const MAIN_REFUSAL = "MAIN can't be renamed — it keeps its name, the tree door finds it by it";
+
+/** A refused write, said in the block the user touched (house .note, danger
+ *  ink) — a refusal is an answer, not a crash for the ErrorBox's 'fix this'. */
+function Refusal({ msg }: { msg: string }) {
+  return (
+    <p role="alert" className="note text-[var(--oz-danger)]!">
+      {msg}
+    </p>
+  );
+}
 
 export default function SessionSettingsView() {
   const router = useRouter();
@@ -42,6 +55,7 @@ export default function SessionSettingsView() {
   const [pickOpen, setPickOpen] = useState(false);
   const [filter, setFilter] = useState('');
   const [error, setError] = useState('');
+  const [refused, setRefused] = useState<{ block: Block; msg: string } | null>(null);
   const [live, setLive] = useState(false);
   // two-tap confirm: first tap arms, second deletes — no modal on mobile
   const [armed, setArmed] = useState(false);
@@ -129,7 +143,8 @@ export default function SessionSettingsView() {
   }, [providers, filter]);
 
   const patch = useCallback(
-    async (body: Record<string, unknown>) => {
+    async (body: Record<string, unknown>, block: Block) => {
+      setRefused(null);
       try {
         const r = await fetch(`/api/session/${slug}`, {
           method: 'PATCH',
@@ -140,6 +155,13 @@ export default function SessionSettingsView() {
         // request) — parse defensively instead of dying on 'Unexpected end
         // of JSON input' (user hit this picking a model)
         const d = await r.json().catch(() => ({}));
+        // 4xx = the proxy or the brain said no (MAIN's name, unknown model/
+        // agent): shown where the user tapped, with the reason — never silent
+        if (r.status >= 400 && r.status < 500) {
+          setRefused({ block, msg: d.error || `refused (${r.status})` });
+          void load();
+          return null;
+        }
         if (!r.ok) throw new Error(d.error || `save failed (${r.status})`);
         if (!d.id) throw new Error(`save failed (${r.status}, empty response)`);
         setInfo(d);
@@ -159,7 +181,10 @@ export default function SessionSettingsView() {
       setNameInput(title);
       return;
     }
-    const d = await patch({ title: t });
+    const d = await patch({ title: t }, 'name');
+    // refused/failed: the field goes back to the name the session really
+    // has — a typed name that never applied must not sit there as if it did
+    if (!d) setNameInput(title);
     if (d?.title) {
       setNameInput(d.title);
       // the URL IS the slug — follow the rename so sends/rooms keep matching
@@ -227,7 +252,10 @@ export default function SessionSettingsView() {
         <div>
           <input
             value={nameInput}
-            onChange={(e) => setNameInput(e.target.value)}
+            onChange={(e) => {
+              setNameInput(e.target.value);
+              if (refused?.block === 'name') setRefused(null);
+            }}
             onBlur={commitName}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -235,16 +263,25 @@ export default function SessionSettingsView() {
                 e.currentTarget.blur();
               }
             }}
+            // MAIN's field stays locked (the proxy 409s a rename anyway), but
+            // a tap on it gets the refusal said out loud — a locked field
+            // that just ignores the tap read as 'rename silently does
+            // nothing' (user, 10-19)
+            onClick={() => isMainSlug(slug) && setRefused({ block: 'name', msg: MAIN_REFUSAL })}
             aria-label="session name"
             className="oz-field"
             readOnly={isMainSlug(slug)}
           />
         </div>
-        <p className="note">
-          {isMainSlug(slug)
-            ? 'MAIN keeps its name — the tree door finds it by it'
-            : 'url + voice room follow the name'}
-        </p>
+        {refused?.block === 'name' ? (
+          <Refusal msg={refused.msg} />
+        ) : (
+          <p className="note">
+            {isMainSlug(slug)
+              ? 'MAIN keeps its name — the tree door finds it by it'
+              : 'url + voice room follow the name'}
+          </p>
+        )}
       </section>
 
       <section className="oz-blk">
@@ -285,13 +322,16 @@ export default function SessionSettingsView() {
                         // keep the chosen think level only if the new model
                         // has it too; otherwise fall to the model default
                         const keep = model?.variant && m.variants.includes(model.variant);
-                        void patch({
-                          model: {
-                            providerID: m.providerID,
-                            modelID: m.id,
-                            variant: keep ? model!.variant : undefined,
+                        void patch(
+                          {
+                            model: {
+                              providerID: m.providerID,
+                              modelID: m.id,
+                              variant: keep ? model!.variant : undefined,
+                            },
                           },
-                        });
+                          'model'
+                        );
                         setPickOpen(false);
                       }}
                     >
@@ -308,6 +348,7 @@ export default function SessionSettingsView() {
             </ul>
           </div>
         )}
+        {refused?.block === 'model' && <Refusal msg={refused.msg} />}
       </section>
 
       {/* THINK — the selected model's real levels; the session's current one
@@ -322,13 +363,16 @@ export default function SessionSettingsView() {
                   key={v}
                   aria-pressed={shownVariant === v}
                   onClick={() =>
-                    void patch({
-                      model: {
-                        providerID: model.providerID,
-                        modelID: model.modelID,
-                        variant: shownVariant === v ? undefined : v,
+                    void patch(
+                      {
+                        model: {
+                          providerID: model.providerID,
+                          modelID: model.modelID,
+                          variant: shownVariant === v ? undefined : v,
+                        },
                       },
-                    })
+                      'think'
+                    )
                   }
                 >
                   {v}
@@ -344,17 +388,19 @@ export default function SessionSettingsView() {
               : 'pick a model to see its thinking levels'}
           </p>
         )}
+        {refused?.block === 'think' && <Refusal msg={refused.msg} />}
       </section>
 
       <section className="oz-blk">
         <h2>agent</h2>
         <div className="oz-chips">
           {(agents.length ? agents : ['build', 'plan']).map((a) => (
-            <button key={a} aria-pressed={agent === a} onClick={() => void patch({ agent: a })}>
+            <button key={a} aria-pressed={agent === a} onClick={() => void patch({ agent: a }, 'agent')}>
               {a}
             </button>
           ))}
         </div>
+        {refused?.block === 'agent' && <Refusal msg={refused.msg} />}
       </section>
 
       <p className="px-0.5 pb-2.5 text-[10.5px] leading-relaxed text-[var(--oz-dim)]">

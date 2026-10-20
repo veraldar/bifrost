@@ -22,8 +22,11 @@ Schema: `| date | version | test | result | evidence |`
 
 | 10-06 | v0.7 | live brain down -> user's [MAIN] session served by the ROOT on :8443 | **PASS (by accident)** — the consent evolution proven: the stacks are independent, the fallback works | the user's report, the root's session list |
 
+| 10-06 | v0.7 | sandbox voice gate (the user, directly with the root on :8443) | **PASS** — STT 3-for-3, "Bifrost" clean; found: hotword attack-drop + echo bleed (queued); ONBOARD-BUILD running | the root's [MAIN] session, 92 msgs |
+
 ## Open tests
 
 | date | version | test | result | evidence |
 |---|---|---|---|---|
 | 10-06 | v0.7 | **the first conversation with the root** — sandbox :8443, the rust PWA + yggdrasil :4100 | **FAIL** (user verdict): onboarding slow to load + slow tree click; greeting voice slow to start (prerecord?); **STT dead** — spoke, no voice-to-text; post-onboarding flow unclear. 3 dispatches: onboarding-flow, voice-stt-sandbox, sim-gap | user voice report, this ledger |
+| 10-19 | v0.7 | **the STT leg of the v0.7 FAIL — phone-class repro, RED→GREEN** (reproduce-first law): the repro (mobile UA on :8443, cold start, tree-door → MAIN → hold mic → real-speech wav as the browser mic) **RED** under the bug (STT_MODEL=faster-whisper-small → Mac 500 ModelDimensions: 150 s of talk, zero transcripts) → **GREEN** on the fix (Qwen3-ASR): transcript lands in MAIN ("…Bridge voice test."), no lab-wav leak; endpoint A/B: 500 vs exact transcription. Client leg (10-14 labmic hijack) verified DEAD on the served build: flag off at build (even ?labmic=1 passes the device mic through). | PASS — **user mic retest still open** | repro spec `bifrost-sandbox/pwa/e2e/stt-phone.spec.ts` + `playwright.stt.config.ts`, receipt `artifacts/stt-repro-receipt.md`, shot `artifacts/stt-repro-green.png`, root-cause report `artifacts/stt-dead-v07-report.md` (stt2) |

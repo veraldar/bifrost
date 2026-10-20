@@ -123,3 +123,40 @@ test('no model set: MODEL shows the brain default, labeled default — never "ta
   await pick.click();
   await expect(blk(page, 'model').locator('ul button', { hasText: `${key} · default` })).toBeVisible();
 });
+
+test('load failures are said per block and heal on retry — no blank, no invented agents', async ({
+  page,
+}) => {
+  const down = { status: 502, json: { error: 'brain down (e2e)' } };
+  await page.route('**/api/models', (r) => r.fulfill(down));
+  await page.route('**/api/agents', (r) => r.fulfill(down));
+  await page.route(`**/api/session/${NAME}`, (r) =>
+    r.request().method() === 'GET' ? r.fulfill(down) : r.fallback()
+  );
+  await page.goto(`/session/${NAME}/settings`);
+  const pick = blk(page, 'model').locator('button.oz-pick');
+  await expect(pick).toContainText("couldn't load this session — retrying");
+  await pick.click();
+  await expect(blk(page, 'model')).toContainText(
+    "couldn't load models — brain down (e2e) · retrying"
+  );
+  await expect(blk(page, 'agent')).toContainText(
+    "couldn't load agents — brain down (e2e) · retrying"
+  );
+  // the old fallback chips (build/plan) are gone: no stand-in agent names
+  await expect(blk(page, 'agent').getByRole('button')).toHaveCount(0);
+
+  await page.unrouteAll();
+  // the 2s retry lands the real data in every block
+  await expect(pick).not.toContainText("couldn't load", { timeout: 10_000 });
+  await expect(blk(page, 'model').locator('ul button').first()).toBeVisible({ timeout: 10_000 });
+  await expect(blk(page, 'agent').getByRole('button').first()).toBeVisible({ timeout: 10_000 });
+});
+
+test('model picker: a filter miss says so, it is not an empty brain', async ({ page }) => {
+  await page.goto(`/session/${NAME}/settings`);
+  await blk(page, 'model').locator('button.oz-pick').click();
+  await expect(blk(page, 'model').locator('ul button').first()).toBeVisible();
+  await page.getByLabel('filter models').fill('zz-no-such-model');
+  await expect(blk(page, 'model')).toContainText('no model matches “zz-no-such-model”');
+});

@@ -86,7 +86,9 @@ test('model picker: filter + apply persists; models without think levels say so'
   const cr = await request.post('/api/session', { data: { name: `${BASE_NAME}-picker` } });
   pickerSessionId = (await cr.json()).id;
   await page.goto(`/session/${BASE_NAME}-picker/settings`);
-  await page.getByRole('button', { name: 'tap to choose ›' }).click();
+  // a model-less session's tile names the brain default (settings-truth),
+  // not 'tap to choose' — open the picker by the tile itself
+  await page.locator('button.oz-pick').click();
   await page.getByLabel('filter models').fill('5.2');
   const pick = page.locator('ul button', { hasText: /^zai-coding-plan\/glm-5\.2$/ }).first();
   await expect(pick).toBeVisible();

@@ -38,6 +38,20 @@ type ProviderRow = {
   models: { id: string; name: string; variants: string[] }[];
 };
 type Block = 'name' | 'model' | 'think' | 'agent';
+type Res = 'session' | 'models' | 'agents';
+
+/** One settings resource: its body, or why it didn't come (HTTP status +
+ *  the proxy's error, or the network failure) — never a silent miss. */
+async function grab(url: string): Promise<{ data: any } | { err: string }> {
+  try {
+    const r = await fetch(url, { cache: 'no-store' });
+    const d = await r.json().catch(() => null);
+    if (!r.ok) return { err: d?.error || `HTTP ${r.status}` };
+    return { data: d };
+  } catch (e) {
+    return { err: e instanceof Error ? e.message : String(e) };
+  }
+}
 
 const MAIN_REFUSAL = "MAIN can't be renamed — it keeps its name, the tree door finds it by it";
 
@@ -57,9 +71,10 @@ export default function SessionSettingsView() {
   const slug = params?.slug || '';
   const [info, setInfo] = useState<SessionInfo | null>(null);
   const [nameInput, setNameInput] = useState(slug);
-  const [providers, setProviders] = useState<ProviderRow[]>([]);
-  const [agents, setAgents] = useState<string[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  // null = not landed yet (loading, or failed — loadErr says which)
+  const [providers, setProviders] = useState<ProviderRow[] | null>(null);
+  const [agents, setAgents] = useState<string[] | null>(null);
+  const [loadErr, setLoadErr] = useState<Partial<Record<Res, string>>>({});
   const [pickOpen, setPickOpen] = useState(false);
   const [filter, setFilter] = useState('');
   const [error, setError] = useState('');
@@ -76,7 +91,7 @@ export default function SessionSettingsView() {
     setInfo(null);
     setNameInput(slug);
     setPickOpen(false);
-    setLoaded(false);
+    setLoadErr({});
   }, [slug]);
 
   const load = useCallback(async () => {
@@ -85,34 +100,40 @@ export default function SessionSettingsView() {
     // tailnet, opencode busy with concurrent runs — 2026-09-29 net-fail
     // storm) must not blank the MODEL tile into 'tap to choose' when the
     // session record itself is fine
-    const [sr, mr, ar] = await Promise.allSettled([
-      fetch(`/api/session/${slug}`, { cache: 'no-store' }),
-      fetch('/api/models'),
-      fetch('/api/agents'),
+    // A failure is kept per resource and SHOWN in its block (10-19: a
+    // failed load read as 'no model' / 'no models' / invented agents)
+    const [sr, mr, ar] = await Promise.all([
+      grab(`/api/session/${slug}`),
+      grab('/api/models'),
+      grab('/api/agents'),
     ]);
-    if (sr.status === 'fulfilled' && sr.value.ok) {
-      const s = await sr.value.json();
-      setInfo(s);
+    if ('data' in sr) {
+      setInfo(sr.data);
       // fill the name field only while it's still pristine — the fetch
       // must never clobber a value the user already started typing
-      setNameInput((prev) => (prev === slug ? s.title || slug : prev));
+      setNameInput((prev) => (prev === slug ? sr.data.title || slug : prev));
     }
-    if (mr.status === 'fulfilled' && mr.value.ok) setProviders(await mr.value.json());
-    if (ar.status === 'fulfilled' && ar.value.ok)
-      setAgents((await ar.value.json()).map((a: { name: string }) => a.name));
-    setLoaded(true);
+    if ('data' in mr) setProviders(mr.data);
+    if ('data' in ar) setAgents(ar.data.map((a: { name: string }) => a.name));
+    setLoadErr({
+      ...('err' in sr && { session: sr.err }),
+      ...('err' in mr && { models: mr.err }),
+      ...('err' in ar && { agents: ar.err }),
+    });
   }, [slug]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  // a failed first load self-heals: keep retrying until data landed
+  // a failed load self-heals: keep retrying while any block still lacks its
+  // data (it used to mark itself 'loaded' even on failure — never retried)
+  const missing = !info || !providers || !agents;
   useEffect(() => {
-    if (loaded) return;
-    const t = setInterval(() => void load(), 2000);
+    if (!missing) return;
+    const t = setInterval(() => !document.hidden && void load(), 2000);
     return () => clearInterval(t);
-  }, [loaded, load]);
+  }, [missing, load]);
 
   // busy dot — same live-run flag the chat header uses
   useEffect(() => {
@@ -143,11 +164,21 @@ export default function SessionSettingsView() {
   const agent = info?.agent ?? '';
   const modelKey = (m: ModelRef) => `${m.providerID}/${m.modelID}`;
 
+  const agentNote = !agents
+    ? loadErr.agents
+      ? `couldn't load agents — ${loadErr.agents} · retrying`
+      : 'loading agents…'
+    : !agents.length
+      ? 'the brain offers no agents'
+      : info && !agent
+        ? "none pinned — the brain's default agent runs"
+        : '';
+
   const shownVariant = run?.variant && run.variant !== 'default' ? run.variant : '';
 
   const modelList = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    return providers
+    return (providers || [])
       .flatMap((p) => p.models.map((m) => ({ ...m, providerID: p.id })))
       .filter(
         (m) => !q || `${m.providerID}/${m.id} ${m.name}`.toLowerCase().includes(q)
@@ -312,8 +343,8 @@ export default function SessionSettingsView() {
                 ? `${modelKey(run)}${onDefault ? ' · default' : ''}`
                 : onDefault
                   ? 'brain default · not reported'
-                  : loaded
-                    ? 'tap to choose'
+                  : loadErr.session
+                    ? "couldn't load this session — retrying"
                     : 'loading…'}
             </span>
             <span>{pickOpen ? '▲' : '›'}</span>
@@ -371,7 +402,15 @@ export default function SessionSettingsView() {
                 );
               })}
               {!modelList.length && (
-                <li className="px-0.5 py-2 text-[11px] text-[var(--oz-dim)]">no models</li>
+                <li className="px-0.5 py-2 text-[11px] text-[var(--oz-dim)]">
+                  {!providers
+                    ? loadErr.models
+                      ? `couldn't load models — ${loadErr.models} · retrying`
+                      : 'loading models…'
+                    : filter.trim()
+                      ? `no model matches “${filter.trim()}”`
+                      : 'the brain offers no models'}
+                </li>
               )}
             </ul>
           </div>
@@ -421,13 +460,23 @@ export default function SessionSettingsView() {
 
       <section className="oz-blk">
         <h2>agent</h2>
-        <div className="oz-chips">
-          {(agents.length ? agents : ['build', 'plan']).map((a) => (
-            <button key={a} aria-pressed={agent === a} onClick={() => void patch({ agent: a }, 'agent')}>
-              {a}
-            </button>
-          ))}
-        </div>
+        {/* the brain's own list — no stand-in names while it's missing */}
+        {agents?.length ? (
+          <div className="oz-chips">
+            {agents.map((a) => (
+              <button
+                key={a}
+                aria-pressed={agent === a}
+                onClick={() => void patch({ agent: a }, 'agent')}
+              >
+                {a}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        {agentNote && (
+          <p className={`note ${agents?.length ? '' : 'pt-3!'}`}>{agentNote}</p>
+        )}
         {refused?.block === 'agent' && <Refusal msg={refused.msg} />}
       </section>
 

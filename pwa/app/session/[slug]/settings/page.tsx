@@ -23,7 +23,15 @@ type ModelRef = {
   variant: string | null;
   variants: string[];
 };
-type SessionInfo = { id: string; title: string; agent: string | null; model: ModelRef | null };
+type SessionInfo = {
+  id: string;
+  title: string;
+  agent: string | null;
+  model: ModelRef | null;
+  /** what a model-less session runs on — the brain's default (null: the
+   *  brain didn't say) */
+  defaultModel?: ModelRef | null;
+};
 type ProviderRow = {
   id: string;
   name: string;
@@ -128,10 +136,14 @@ export default function SessionSettingsView() {
   }, [slug]);
 
   const model = info?.model ?? null;
+  // the model turns actually run on: the session's own pick, else the
+  // brain's default — shown AS the default ('shown, not asked', like the door)
+  const run = model ?? info?.defaultModel ?? null;
+  const onDefault = !!info && !model;
   const agent = info?.agent ?? '';
   const modelKey = (m: ModelRef) => `${m.providerID}/${m.modelID}`;
 
-  const shownVariant = model?.variant && model.variant !== 'default' ? model.variant : '';
+  const shownVariant = run?.variant && run.variant !== 'default' ? run.variant : '';
 
   const modelList = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -296,11 +308,24 @@ export default function SessionSettingsView() {
             className="oz-pick"
           >
             <span className="truncate">
-              {model ? modelKey(model) : loaded ? 'tap to choose' : 'loading…'}
+              {run
+                ? `${modelKey(run)}${onDefault ? ' · default' : ''}`
+                : onDefault
+                  ? 'brain default · not reported'
+                  : loaded
+                    ? 'tap to choose'
+                    : 'loading…'}
             </span>
             <span>{pickOpen ? '▲' : '›'}</span>
           </button>
         </div>
+        {onDefault && !pickOpen && (
+          <p className="note">
+            {run
+              ? "the brain's default, set on the box — pick one to pin this session"
+              : "the brain didn't report its default model — pick one to pin this session"}
+          </p>
+        )}
         {pickOpen && (
           <div className="pt-0">
             <input
@@ -321,13 +346,13 @@ export default function SessionSettingsView() {
                       onClick={() => {
                         // keep the chosen think level only if the new model
                         // has it too; otherwise fall to the model default
-                        const keep = model?.variant && m.variants.includes(model.variant);
+                        const keep = run?.variant && m.variants.includes(run.variant);
                         void patch(
                           {
                             model: {
                               providerID: m.providerID,
                               modelID: m.id,
-                              variant: keep ? model!.variant : undefined,
+                              variant: keep ? run!.variant : undefined,
                             },
                           },
                           'model'
@@ -337,6 +362,9 @@ export default function SessionSettingsView() {
                     >
                       <span className="truncate">
                         {m.providerID}/{m.id}
+                        {info?.defaultModel &&
+                          modelKey(info.defaultModel) === `${m.providerID}/${m.id}` &&
+                          ' · default'}
                       </span>
                     </button>
                   </li>
@@ -355,10 +383,10 @@ export default function SessionSettingsView() {
           is highlighted, tapping it again falls back to the model default */}
       <section className="oz-blk">
         <h2>think</h2>
-        {model && model.variants.length ? (
+        {run && run.variants.length ? (
           <>
             <div className="oz-chips">
-              {model.variants.map((v) => (
+              {run.variants.map((v) => (
                 <button
                   key={v}
                   aria-pressed={shownVariant === v}
@@ -366,8 +394,8 @@ export default function SessionSettingsView() {
                     void patch(
                       {
                         model: {
-                          providerID: model.providerID,
-                          modelID: model.modelID,
+                          providerID: run.providerID,
+                          modelID: run.modelID,
                           variant: shownVariant === v ? undefined : v,
                         },
                       },
@@ -383,7 +411,7 @@ export default function SessionSettingsView() {
           </>
         ) : (
           <p className="note pt-3!">
-            {model
+            {run
               ? 'no think levels configured for this model'
               : 'pick a model to see its thinking levels'}
           </p>

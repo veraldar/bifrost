@@ -3,6 +3,7 @@ import { OC, ocFetch, resolveId } from '@/lib/oc';
 import { slugify } from '@/lib/slug';
 import { MAIN_SLUG } from '@/lib/tree-first';
 import { bustCache } from '@/lib/oc-cache';
+import { brainDefault } from '@/lib/brain-default';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,35 +47,42 @@ async function thinkLevels(providerID: string, modelID: string): Promise<string[
   }
 }
 
-function normalize(s: any, variants: string[]) {
-  const raw = s.model ? s.model.id || s.model.modelID : null;
-  const { base, level } = raw ? splitThink(raw) : { base: null, level: null };
+/** A raw provider/model id (maybe a derived think model) → the settings
+ *  shape: base model + level + the levels configured for it. */
+async function modelRef(providerID: string, raw: string) {
+  const { base, level } = splitThink(raw);
   return {
-    id: s.id,
-    title: s.title || s.id,
-    agent: s.agent || null,
-    model: raw
-      ? {
-          providerID: s.model.providerID,
-          modelID: base,
-          variant: level || null, // null = model default
-          variants,
-        }
-      : null,
+    providerID,
+    modelID: base,
+    variant: level || null, // null = model default
+    variants: await thinkLevels(providerID, base),
   };
 }
 
 /** Session summary — title + run config (agent / model / think level) that
- *  subsequent turns use, with the levels available for the model resolved. */
+ *  subsequent turns use, with the levels available for the model resolved.
+ *  No explicit model (never set — e.g. MAIN before any voice seed) → the
+ *  session runs on the brain's default: reported as `defaultModel`, apart
+ *  from `model`, so the page shows it AS the default; null = the brain
+ *  didn't say (shown as unknown, never guessed). */
+async function summary(s: any) {
+  const raw = s.model ? s.model.id || s.model.modelID : null;
+  const model = raw ? await modelRef(s.model.providerID, raw) : null;
+  const d = model ? null : await brainDefault();
+  return {
+    id: s.id,
+    title: s.title || s.id,
+    agent: s.agent || null,
+    model,
+    defaultModel: d ? await modelRef(d.providerID, d.modelID) : null,
+  };
+}
+
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
   try {
     const sid = await resolveId(id);
-    const s = await ocFetch(`/session/${sid}`);
-    const raw = s.model ? s.model.id || s.model.modelID : null;
-    const { base } = raw ? splitThink(raw) : { base: null };
-    const variants = base ? await thinkLevels(s.model!.providerID, base) : [];
-    return NextResponse.json(normalize(s, variants));
+    return NextResponse.json(await summary(await ocFetch(`/session/${sid}`)));
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
@@ -145,11 +153,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     }
 
     bustCache(); // home list reflects a rename on its next poll
-    const s = await ocFetch(`/session/${sid}`);
-    const raw = s.model ? s.model.id || s.model.modelID : null;
-    const { base } = raw ? splitThink(raw) : { base: null };
-    const variants = base ? await thinkLevels(s.model.providerID, base) : [];
-    return NextResponse.json(normalize(s, variants));
+    return NextResponse.json(await summary(await ocFetch(`/session/${sid}`)));
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }

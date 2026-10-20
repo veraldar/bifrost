@@ -95,3 +95,31 @@ test('agent write: 4xx lands inline under AGENT, 5xx in the error box', async ({
   await expect(page.getByRole('button', { name: 'fix this' })).toBeVisible();
   await expect(agentBlk.getByRole('alert')).toHaveCount(0);
 });
+
+test('no model set: MODEL shows the brain default, labeled default — never "tap to choose"', async ({
+  page,
+  request,
+}) => {
+  const s = await (await request.get(`/api/session/${sessionId}`)).json();
+  test.skip(!!s.model, 'this brain gave the new session an explicit model');
+  expect(s).toHaveProperty('defaultModel');
+  const pick = blk(page, 'model').locator('button.oz-pick');
+  await page.goto(`/session/${NAME}/settings`);
+  if (!s.defaultModel) {
+    await expect(pick).toContainText('brain default · not reported');
+    return;
+  }
+  // the default is a real model of this brain, not an invented label
+  const providers = await (await request.get('/api/models')).json();
+  const key = `${s.defaultModel.providerID}/${s.defaultModel.modelID}`;
+  expect(
+    providers.some((p: { id: string; models: { id: string }[] }) =>
+      p.models.some((m) => `${p.id}/${m.id}` === key)
+    )
+  ).toBeTruthy();
+  await expect(pick).toHaveText(new RegExp(`${key.replace(/[.]/g, '\\.')} · default`));
+  await expect(blk(page, 'model')).toContainText('set on the box');
+  // the picker marks the same row as the default
+  await pick.click();
+  await expect(blk(page, 'model').locator('ul button', { hasText: `${key} · default` })).toBeVisible();
+});

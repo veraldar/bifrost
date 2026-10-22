@@ -5,7 +5,7 @@ export default defineConfig({
   // watchdog-zombie needs a server with OC_STALL_MS=20s (own config +
   // webServer) — against this (production-stall) server it would just time out
   // tree-first runs against the sandbox (:8090) — own config, own server
-  testIgnore: /(watchdog-zombie|tree-first|first-turn-voice|site-door)\.spec\.ts/,
+  testIgnore: /(watchdog-zombie|tree-first|first-turn-voice|site-door|voice-wait)\.spec\.ts/,
   timeout: 120_000,
   expect: { timeout: 20_000 },
   workers: 1, // sessions are shared server state — never parallel

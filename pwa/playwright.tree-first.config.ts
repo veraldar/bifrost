@@ -9,7 +9,7 @@ import base from './playwright.config';
 export default defineConfig({
   ...base,
   testIgnore: undefined,
-  testMatch: /(tree-first|first-turn-voice)\.spec\.ts/,
+  testMatch: /(tree-first|first-turn-voice|voice-wait)\.spec\.ts/,
   // a FRESH device (no storageState): the door is the subject here
   use: { ...base.use, storageState: undefined, baseURL: process.env.PW_BASE_URL || 'http://127.0.0.1:8090' },
   projects: [

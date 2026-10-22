@@ -13,6 +13,12 @@
  *              phone's back button walks the steps, then back to the page
  *              that sent you; each name is glossed where it first appears,
  *              "why these names?" opens the $ tree + the tree film (lazy).
+ *              No dead air (FILM-V1, 10-22): from the instant a step asks for
+ *              its line until the line's first audio, the door says the voice
+ *              is on its way — the panel's edge is the signal rail (a signal
+ *              glides it: working), a pulse climbs the trunk, and past 0.7 s
+ *              the words say so. Speaking: the rail breathes green. No sound
+ *              at all: said in words, never a silent wait.
  *    TreeDoor  afterwards — the same drawing shrunk to its corner, a link
  *              to MAIN; the shrink from full screen plays once */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -20,7 +26,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { YggTree } from '@/components/ygg';
 import { diagEvent } from '@/lib/diag';
-import { type SayResult, say, stopLine, warmLines } from '@/lib/onboard-voice';
+import {
+  type SayResult,
+  type VoiceState,
+  lineBlob,
+  say,
+  stopLine,
+  useVoiceState,
+  warmLines,
+} from '@/lib/onboard-voice';
 import {
   type BoxInfo,
   DOOR_KEY,
@@ -46,6 +60,7 @@ type Step = 'idle' | DoorStep | 'down';
  *  (pwa/artifacts-builtin) — loaded only when asked for, never on the way in */
 export const FILM_SRC = '/api/artifact/door-tree.html';
 const NAMES = ['name_tree', 'name_root', 'name_trunk', 'name_branch'];
+const FILM_LINES = [...NAMES, 'name_try', 'name_done'];
 
 const UI = {
   en: {
@@ -77,6 +92,9 @@ const UI = {
       ['└─ branch', 'bifrost, this app: the bridge to you'],
     ],
     treeNote: 'old norse names. each one says what the part does.',
+    voiceLoading: 'the voice is on its way…',
+    voiceQuiet: 'no sound here — the words are on screen',
+    filmLoading: 'the film is on its way…',
   },
   fr: {
     hold: "maintenez l'arbre pour commencer",
@@ -107,11 +125,17 @@ const UI = {
       ['└─ branche', 'bifrost, cette appli : le pont vers vous'],
     ],
     treeNote: 'des noms nordiques anciens. chacun dit ce que fait la pièce.',
+    voiceLoading: 'la voix arrive…',
+    voiceQuiet: 'pas de son ici — les mots sont à l’écran',
+    filmLoading: 'le film arrive…',
   },
 } as const;
 
 const STEPS: DoorStep[] = ['lang', 'style', 'brain'];
 const hasFilm = (hash: string) => /(?:^#|&)film\b/.test(hash);
+const brainLineOf = (b: BoxInfo) => (b.brain.class === 'local' ? 'brain_local' : 'brain_cloud');
+/** the voice's state → the app's rail vocabulary (styles/brand.css § rail) */
+const RAIL: Record<VoiceState, string> = { idle: 'idle', loading: 'working', speaking: 'speaking', quiet: 'idle' };
 
 export function Door() {
   const router = useRouter();
@@ -129,6 +153,12 @@ export function Door() {
   const [leaving, setLeaving] = useState(false);
   const [names, setNames] = useState(false); // "why these names?" open
   const [film, setFilm] = useState(false);
+  const [filmUp, setFilmUp] = useState(false); // the film's own page has painted
+  const [boxWait, setBoxWait] = useState(false); // the brain's line waits on the computer
+  const voice = useVoiceState();
+  // waiting on the computer before the line can even be asked for is
+  // loading too: the next words are on their way, the screen says so
+  const shown: VoiceState = voice === 'idle' && boxWait ? 'loading' : voice;
   const filmRef = useRef<HTMLIFrameElement>(null);
   const mainRef = useRef<Promise<{ id: string }> | null>(null);
   const pressAt = useRef(0);
@@ -218,6 +248,7 @@ export function Door() {
       const b = (await r.json()) as BoxInfo;
       setBox(b);
       setBoxErr(false);
+      warmLines([brainLineOf(b)], langRef.current); // in memory before the brain step
       return b;
     } catch (e) {
       diagEvent('door', `box info failed: ${e instanceof Error ? e.message : e}`);
@@ -296,7 +327,8 @@ export function Door() {
     } catch {
       /* cosmetic */
     }
-    warmLines(['lang_set', 'style', 'style_short', 'style_detail', 'planted'], l);
+    const b = live.current.box;
+    warmLines(['lang_set', 'style', 'style_short', 'style_detail', 'planted', ...(b ? [brainLineOf(b)] : [])], l);
     go('style', { lang: l });
     void speak(['lang_set', 'style'], l);
   }
@@ -311,13 +343,24 @@ export function Door() {
 
   /** `first` = what is said before the brain line (the style confirmation) */
   async function openBrain(first: string[], s: Style) {
-    const b = live.current.box ?? (await loadBox());
+    let b = live.current.box;
+    if (!b) {
+      // the confirmation needs no computer: it speaks while the computer
+      // answers; until the brain's line can be asked for, it is on its way
+      setBoxWait(true);
+      const said = speak(first);
+      const my = chain.current;
+      [b] = await Promise.all([loadBox(), said]);
+      setBoxWait(false);
+      if (chain.current !== my) return;
+      first = [];
+    }
     if (!b) {
       setStep('down');
       void speak([...first, 'box_down']);
       return;
     }
-    const brainLine = b.brain.class === 'local' ? 'brain_local' : 'brain_cloud';
+    const brainLine = brainLineOf(b);
     warmLines([brainLine, 'pair', 'planted'], langRef.current);
     const desk = live.current.desktop;
     if (desk) void makeQr(b, s);
@@ -343,7 +386,7 @@ export function Door() {
     const open = !names;
     setNames(open);
     diagEvent('door', `names ${open ? 'open' : 'closed'}`);
-    if (open) warmLines(NAMES, langRef.current);
+    if (open) warmLines(FILM_LINES, langRef.current); // the film's too: it plays from this memory
     else {
       stopLine();
       chain.current++;
@@ -355,6 +398,7 @@ export function Door() {
     stopLine();
     chain.current++;
     diagEvent('door', 'film open');
+    setFilmUp(false);
     setFilm(true);
     try {
       history.pushState({ door: 'film' }, '', `${window.location.hash || '#'}&film`);
@@ -371,10 +415,22 @@ export function Door() {
   useEffect(() => {
     if (!film) return;
     const onMsg = (e: MessageEvent) => {
-      if (
-        e.source === filmRef.current?.contentWindow &&
-        (e.data as { tree?: string })?.tree === 'done'
-      ) {
+      const win = filmRef.current?.contentWindow;
+      if (!win || e.source !== win) return;
+      const d = e.data as { tree?: string; voice?: string; lang?: string; ids?: unknown };
+      // the film asks for its lines: handed over from this page's memory
+      // (only the pack's own line ids — never an address)
+      if (d?.voice === 'need' && Array.isArray(d.ids)) {
+        const l: Lang = d.lang === 'fr' ? 'fr' : 'en';
+        const ids = d.ids.filter((x): x is string => typeof x === 'string' && /^[a-z_]{1,32}$/.test(x)).slice(0, 64);
+        win.postMessage({ voice: 'ack', lang: l }, '*'); // at once: the film waits for these, fetches nothing
+        for (const id of ids)
+          void lineBlob(id, l).then((blob) => win.postMessage({ voice: 'line', id, lang: l, blob }, '*'));
+        return;
+      }
+      const tree = d?.tree;
+      if (tree === 'up') setFilmUp(true); // its first frame: it shows its own loading from here
+      if (tree === 'done') {
         diagEvent('door', 'film done');
         closeFilm();
       }
@@ -423,7 +479,12 @@ export function Door() {
   const open = step !== 'idle';
 
   return (
-    <main className={`oz-first ${open ? 'open' : ''}`} data-testid="door" data-step={step}>
+    <main
+      className={`oz-first ${open ? 'open' : ''}`}
+      data-testid="door"
+      data-step={step}
+      data-voice={open ? shown : 'idle'}
+    >
       <button
         ref={treeRef}
         type="button"
@@ -457,10 +518,21 @@ export function Door() {
 
       {open && (
         <section className="oz-doorp" aria-live="polite">
-          <div className="prog" aria-hidden="true">
+          {/* the panel's edge is the voice's signal rail */}
+          <div
+            className="oz-rail vrail"
+            data-testid="door-voice"
+            data-voice={shown}
+            data-s={RAIL[shown]}
+            aria-hidden="true"
+          />
+          <div className="prog">
             {STEPS.map((s, i) => (
-              <i key={s} className={i <= n || step === 'down' ? 'on' : ''} />
+              <i key={s} aria-hidden="true" className={i <= n || step === 'down' ? 'on' : ''} />
             ))}
+            <span className="vnote" data-voice={shown} data-testid="door-voice-note" role="status">
+              {shown === 'loading' ? ui.voiceLoading : shown === 'quiet' ? ui.voiceQuiet : ''}
+            </span>
           </div>
           <p className="say" data-testid="door-say">
             {say1 || line(carried ? 'greet_back' : 'greet', lang)}
@@ -602,13 +674,25 @@ export function Door() {
       )}
 
       {film && (
-        <div className="oz-film" data-testid="door-film-frame" role="dialog" aria-label={ui.watch}>
+        <div
+          className="oz-film"
+          data-testid="door-film-frame"
+          data-up={filmUp ? '' : undefined}
+          role="dialog"
+          aria-label={ui.watch}
+        >
+          {/* under the frame until the film's own first paint covers it */}
+          <p className="wait" data-testid="door-film-wait" role="status">
+            <span className="oz-rail" data-s="working" aria-hidden="true" />
+            {ui.filmLoading}
+          </p>
           <iframe
             title={ui.watch}
             src={`${FILM_SRC}?lang=${lang}`}
             sandbox="allow-scripts"
             allow="autoplay"
             ref={filmRef}
+            onLoad={() => setFilmUp(true)}
           />
           <button type="button" className="skip" data-testid="door-film-skip" onClick={closeFilm}>
             {ui.skip}

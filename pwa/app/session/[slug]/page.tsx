@@ -45,7 +45,7 @@ import {
   line,
   stripMarkers,
 } from '@/lib/tree-first';
-import { say, unlockLines } from '@/lib/onboard-voice';
+import { say, unlockLines, useVoiceState, warmLines } from '@/lib/onboard-voice';
 
 type Mode = 'text' | 'free';
 /** the door's last step, in MAIN: mic (ask once) → practice (hold, talk,
@@ -221,6 +221,7 @@ export default function SessionView({
   const [first, setFirst] = useState<FirstTurn>('off');
   const [firstHint, setFirstHint] = useState('');
   const [firstLang, setFirstLang] = useState<Lang>('en');
+  const lineVoice = useVoiceState(); // the first-turn card's own lines
   const firstRef = useRef({ sentAt: 0, before: 0, heardAt: 0, heardTime: 0, heard: '', saidIn: false });
   const [input, setInput] = useState('');
   // swipe-history browser: index of the message on screen, null = closed
@@ -1547,6 +1548,7 @@ export default function SessionView({
   // spoken; then "you are in" + what to do next.
   useEffect(() => {
     let on = false;
+    let lang: Lang = 'en';
     try {
       // MAIN after the door — or any session a ?first=1 link names (the
       // door's own link carries it) — while no voice turn came through here
@@ -1556,7 +1558,8 @@ export default function SessionView({
         !localStorage.getItem(FIRST_TURN_KEY) &&
         ((isMainSlug(slug) && !!localStorage.getItem(DOOR_KEY)) || asked);
       const p = JSON.parse(localStorage.getItem(TF_PREFS_KEY) || '{}') as { lang?: string };
-      setFirstLang(p.lang === 'fr' ? 'fr' : 'en');
+      lang = p.lang === 'fr' ? 'fr' : 'en';
+      setFirstLang(lang);
     } catch {
       on = false;
     }
@@ -1564,6 +1567,8 @@ export default function SessionView({
     setFirstHint('');
     if (!on) return;
     diagEvent('voice', 'first-turn: card up');
+    // the card's lines are in memory before they are needed (no dead air)
+    warmLines(['heard', 'not_heard', 'in', 'mic_denied'], lang);
     // the room warms while they read the card (v0.7 repro: a fast walker held
     // the mic <1s after MAIN opened — the agent was still joining and the
     // turn was captured into an empty room, "nothing transcribed")
@@ -2282,7 +2287,19 @@ export default function SessionView({
 
       {/* the door's last step: one real voice turn, then "you are in" */}
       {first !== 'off' && (
-        <section className="oz-ft" data-testid="first-turn" data-state={first} aria-live="polite">
+        <section
+          className="oz-ft"
+          data-testid="first-turn"
+          data-state={first}
+          data-voice={lineVoice}
+          aria-live="polite"
+        >
+          {/* the card's edge carries its own lines' voice: loading glides, speaking breathes */}
+          <div
+            className="oz-rail ftv"
+            data-s={lineVoice === 'loading' ? 'working' : lineVoice === 'speaking' ? 'speaking' : 'idle'}
+            aria-hidden="true"
+          />
           {(first === 'mic' || first === 'practice') && (
             <>
               <p className="t">{FT[firstLang].planted}</p>

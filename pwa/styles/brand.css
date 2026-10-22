@@ -151,7 +151,7 @@
     animation: oz-rise .22s ease-out both;
   }
   @keyframes oz-rise { from { transform: translateY(16px); opacity: 0; } }
-  .oz-doorp .prog { display: flex; gap: 6px; margin-bottom: 14px; }
+  .oz-doorp .prog { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; min-height: 16px; }
   .oz-doorp .prog i { width: 14px; height: 3px; background: var(--oz-border); }
   .oz-doorp .prog i.on { background: var(--oz-active); }
   .oz-doorp .say { min-height: 3.4em; margin-bottom: 14px; line-height: 1.7; color: var(--oz-text); }
@@ -198,9 +198,30 @@
     flex: 1; min-height: 40px; border: 1px solid var(--oz-border); color: var(--oz-text); background: var(--oz-surface);
   }
   .oz-doorp .names .row button:active { border-color: var(--oz-active); color: var(--oz-active); }
-  /* the tree film — an artifact page in a sandboxed frame, over the door */
+  /* no dead air (FILM-V1): the voice says what it is doing. The panel's top
+     edge is the rail — loading = a signal glides it (the app's working) and a
+     pulse climbs the trunk; speaking = it breathes green. Past 0.7 s of
+     loading the words say so; a cached line (~60 ms) never shows any of it:
+     the glide enters from off-rail and the trunk pulse waits 120 ms */
+  .oz-doorp .vrail { position: sticky; top: -18px; z-index: 1; margin: -18px -18px 16px; }
+  .oz-doorp .vrail[data-s='working']::after { animation-duration: 1.5s; }
+  .oz-doorp .vnote { margin-left: auto; font-size: 10.5px; color: var(--oz-dim); opacity: 0; }
+  .oz-doorp .vnote[data-voice='loading'] { animation: oz-fadein .3s ease-out .7s both; }
+  .oz-doorp .vnote[data-voice='quiet'] { opacity: 1; }
+  .oz-first[data-voice='loading'] .oz-tree .sig.t {
+    stroke: var(--oz-success); opacity: 1; animation: oz-pass 1.6s .12s infinite both;
+  }
+  /* the tree film — an artifact page in a sandboxed frame, over the door;
+     until its own first paint, the frame waits under the same rail */
   .oz-film { position: fixed; inset: 0; z-index: 70; background: var(--oz-bg); }
-  .oz-film iframe { display: block; width: 100%; height: 100%; border: 0; }
+  .oz-film iframe { display: block; width: 100%; height: 100%; border: 0; opacity: 0; }
+  .oz-film[data-up] iframe { opacity: 1; }
+  .oz-film .wait {
+    position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 12px;
+    font-size: 11px; color: var(--oz-dim); animation: oz-fadein .3s ease-out .15s both;
+  }
+  .oz-film .wait .oz-rail { width: 140px; }
+  .oz-film[data-up] .wait { display: none; }
   .oz-film .skip {
     position: absolute; top: calc(10px + env(safe-area-inset-top)); right: 10px; min-height: 36px; padding: 0 12px;
     font-size: 11px; letter-spacing: .12em; color: var(--oz-dim); border: 1px solid var(--oz-border); background: var(--oz-bg);
@@ -210,6 +231,7 @@
     margin: 0 0 8px; padding: 12px 14px; border: 1px solid var(--oz-border); border-left: 2px solid var(--oz-active);
     background: var(--oz-surface); font-size: 12.5px; line-height: 1.6; display: grid; gap: 6px;
   }
+  .oz-ft .ftv { margin: -12px -14px 0; }
   .oz-ft .t { color: var(--oz-text); font-size: 13.5px; }
   .oz-ft[data-state='in'] { border-left-color: var(--oz-success); }
   .oz-ft[data-state='in'] .t { color: var(--oz-success); }
@@ -447,4 +469,6 @@
   .oz-ygg .sig { stroke-dasharray: none; opacity: 0 !important; }
   .oz-band.live .sig.lo { opacity: .7 !important; }
   .oz-rail[data-s='working']::after { left: 31%; opacity: 1; }
+  .oz-doorp .vnote[data-voice='loading'] { opacity: 1; }
+  .oz-first[data-voice='loading'] .oz-tree .sig.t { opacity: .7 !important; }
 }

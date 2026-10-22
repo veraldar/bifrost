@@ -17,18 +17,39 @@
   the trunk to the root and the answer comes back — the mic's own rule (a tap
   is not a message). ?lang=fr for French. Silent if audio is off: every line
   is on screen. Done → parent.postMessage({tree:'done'}).
+  No dead air (FILM-V1, 10-22): every line is asked for up front — from the
+  parent's memory when it answers ({voice:'need'} → {voice:'line', blob}: a
+  sandboxed frame can't fetch the pack itself), else fetched here, else
+  played from its address. Each beat's drawing starts WITH its voice; until
+  then the rail under the drawing glides (loading) and past 0.7 s the words
+  say so; speaking, it breathes. Its first paint says {tree:'up'}.
 -->
 <style>
 :root{--bg:#080810;--text:#fff;--dim:#888;--line:rgba(255,255,255,.14);--ok:#4ade80;--amber:#fbbf24;--sky:#38bdf8;--mono:ui-monospace,'Cascadia Mono',Menlo,Consolas,monospace}
 *{box-sizing:border-box;margin:0}
 html,body{height:100%;background:var(--bg);color:var(--text);font:13px/1.6 var(--mono);-webkit-text-size-adjust:100%;overflow:hidden;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-#f{position:fixed;inset:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:8px;padding:calc(16px + env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom));max-width:560px;margin:0 auto}
+#f{position:fixed;inset:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto auto;gap:8px;padding:calc(16px + env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom));max-width:560px;margin:0 auto}
 header{font-size:10px;letter-spacing:.28em;color:var(--dim);padding-right:96px;line-height:36px}
 svg{width:100%;height:100%;display:block;touch-action:none;cursor:default}
 svg.b-try{cursor:pointer}
 .cap{display:grid;gap:8px;min-height:7.4em;align-content:end}
-#say{font-size:14px;line-height:1.65;min-height:3.3em}
+#say{font-size:14px;line-height:1.65;min-height:3.3em;transition:opacity .3s}
 #say:not(:empty)::before{content:"▸ ";color:var(--amber)}
+/* the voice, honest: loading = a signal glides the rail and the line waits dim;
+   speaking = the rail breathes green; quiet = no sound, said in words */
+#rail{position:relative;height:2px;overflow:hidden;background:linear-gradient(var(--line),var(--line)) center/100% 1px no-repeat}
+#rail::after{content:"";position:absolute;top:0;bottom:0;left:0;width:38%;background:linear-gradient(90deg,transparent,var(--ok),transparent);opacity:0}
+[data-voice=loading] #rail::after{opacity:1;animation:glide 1.5s ease-in-out infinite}
+[data-voice=speaking] #rail{background:color-mix(in srgb,var(--ok) 65%,transparent);box-shadow:0 0 10px color-mix(in srgb,var(--ok) 30%,transparent);animation:breathe 2.6s ease-in-out infinite}
+[data-voice=loading] #say{opacity:.55}
+/* the seed: where the tree grows from, breathing while its voice is on the way */
+#seed{fill:var(--ok);opacity:0;transition:opacity .3s}
+[data-voice=loading] #seed{opacity:1;animation:breathe 1.2s ease-in-out .12s infinite both}
+[data-voice=loading] #say::before{animation:breathe 1.2s ease-in-out infinite}
+#sub.wait{animation:fadein .3s ease-out .7s both}
+@keyframes glide{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
+@keyframes breathe{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes fadein{from{opacity:0}}
 #sub{font-size:11px;color:var(--dim);min-height:1.6em}
 #sub.hot{color:var(--amber)}
 .row{display:flex;gap:8px}
@@ -65,7 +86,7 @@ button.go{background:var(--text);color:var(--bg);border-color:var(--text);letter
 .answered .phone .ans{opacity:1}
 #sig{opacity:0}
 @keyframes invite{50%{fill:var(--amber)}}
-@media (prefers-reduced-motion:reduce){*{transition-duration:0s!important;transition-delay:0s!important;animation:none!important}}
+@media (prefers-reduced-motion:reduce){*{transition-duration:0s!important;transition-delay:0s!important;animation:none!important}[data-voice=loading] #rail::after{left:31%}}
 </style>
 </head>
 <body>
@@ -111,7 +132,9 @@ button.go{background:var(--text);color:var(--bg);border-color:var(--text);letter
     <!-- the trip: phone → branch → trunk → the root's heart, and back -->
     <path id="trip" d="M86 330 H110 L150 290 H210 V478" fill="none" stroke="none"/>
     <circle id="sig" r="6" cx="86" cy="330"/>
+    <circle id="seed" r="5" cx="210" cy="388"/>
   </svg>
+  <i id="rail" aria-hidden="true"></i>
   <div class="cap" aria-live="polite">
     <p id="say"></p>
     <p id="sub"></p>
@@ -139,6 +162,7 @@ const T = {
     trySub: 'press and hold anywhere on the tree', heard: 'heard · let go to send',
     tap: 'a tap is not a message. hold, then let go.', down: 'your words go down the trunk, to the root…',
     think: 'the root thinks…', up: 'the answer comes back up.',
+    wait: 'the voice is on its way…', quiet: 'no sound here — the words are on screen',
   },
   fr: {
     head: 'VOTRE ARBRE · 15 S', play: '▸ lire · son activé', again: 'encore ↺', done: 'retour à la porte',
@@ -154,6 +178,7 @@ const T = {
     trySub: "appuyez et maintenez n'importe où sur l'arbre", heard: 'entendu · relâchez pour envoyer',
     tap: "un appui court n'est pas un message. maintenez, puis relâchez.", down: "vos mots descendent le tronc, jusqu'à la racine…",
     think: 'la racine réfléchit…', up: 'la réponse remonte.',
+    wait: 'la voix arrive…', quiet: 'pas de son ici — les mots sont à l’écran',
   },
 }[L];
 const $ = id => document.getElementById(id);
@@ -168,20 +193,67 @@ if (!inFrame) $('done').hidden = true;
 const PACK = '/onboarding/';
 const au = new Audio(); au.preload = 'auto'; au.setAttribute('playsinline', '');
 let run = 0, unlocked = false, cut = null;
-function sub(s, hot){ sub1.textContent = s || ''; sub1.classList.toggle('hot', !!hot); }
-/** one line, spoken + on screen → 'ok' | 'quiet' (no audio: timed by length) | 'blocked' | 'cut' */
-function say(id){
+function sub(s, hot){ sub1.textContent = s || ''; sub1.classList.toggle('hot', !!hot); sub1.classList.remove('wait'); }
+const voice = v => { document.body.dataset.voice = v; };
+/* every line, asked for up front. The parent answers from its own memory (a
+   sandboxed frame has no origin: it can't fetch the pack); standalone, this
+   page fetches it; failing both, the line plays from its address */
+const file = id => PACK + L + '/' + id + '.mp3';
+const urls = new Map(), waiting = new Map();
+let answered = false; // the parent said it hands the lines over ({voice:'ack'})
+function load(id){
+  if (!urls.has(id)) urls.set(id, new Promise(res => {
+    let done = false;
+    const fin = u => { if (!done) { done = true; waiting.delete(id); res(u); } };
+    const self = () => fetch(file(id)).then(r => { if (!r.ok) throw r.status; return r.blob(); })
+      .then(b => fin(URL.createObjectURL(b)), () => fin(file(id)));
+    if (!inFrame) return self();
+    waiting.set(id, b => b ? fin(URL.createObjectURL(b)) : self());
+    setTimeout(() => { if (!done && !answered) self(); }, 400); // a parent that never answers
+  }));
+  return urls.get(id);
+}
+function preload(ids){
+  const fresh = ids.filter(id => !urls.has(id));
+  if (inFrame && fresh.length) window.parent.postMessage({ voice: 'need', lang: L, ids: fresh }, '*');
+  fresh.forEach(load);
+}
+window.addEventListener('message', e => {
+  const d = e.data;
+  if (e.source !== window.parent || !d || d.lang !== L) return;
+  if (d.voice === 'ack') { answered = true; return; }
+  if (d.voice !== 'line') return;
+  const w = waiting.get(d.id);
+  if (w) w(d.blob instanceof Blob && d.blob.size ? d.blob : null);
+});
+/** one line, spoken + on screen → 'ok' | 'quiet' (no audio: timed by length) | 'blocked' | 'cut'.
+ *  start() runs with its first audio — or when it goes on in words */
+function say(id, start){
   say1.textContent = T.lines[id];
+  voice('loading');
+  if (phase === 'film' || phase === 'trip') { sub(T.wait); sub1.classList.add('wait'); }
   return new Promise(res => {
-    let tm = 0, done = false;
-    const fin = v => { if (done) return; done = true; clearTimeout(tm); au.onended = au.onerror = null; cut = null; res(v); };
-    const quiet = () => { if (!tm) tm = setTimeout(() => fin('quiet'), Math.max(1800, T.lines[id].length * 62)); };
+    let tm = 0, slow = 0, done = false, began = false;
+    const begin = () => { if (began) return; began = true; clearTimeout(slow); if (sub1.classList.contains('wait')) sub(''); if (start) start(); };
+    const fin = v => {
+      if (done) return; done = true; clearTimeout(tm); clearTimeout(slow);
+      au.onended = au.onerror = au.onplaying = null; cut = null;
+      if (v !== 'cut') voice(v === 'ok' ? 'idle' : 'quiet');
+      res(v);
+    };
+    const quiet = () => { begin(); voice('quiet'); if (phase === 'film') sub(T.quiet); if (!tm) tm = setTimeout(() => fin('quiet'), Math.max(1800, T.lines[id].length * 62)); };
+    // a voice that never comes: the film goes on in words
+    slow = setTimeout(quiet, 8000);
     cut = () => { au.pause(); fin('cut'); };
+    au.onplaying = () => { if (done) return; voice('speaking'); begin(); };
     au.onended = () => fin('ok');
     au.onerror = quiet;
-    au.src = PACK + L + '/' + id + '.mp3';
-    au.play().then(() => { unlocked = true; }).catch(e => {
-      if (!unlocked && e && e.name === 'NotAllowedError') fin('blocked'); else quiet();
+    load(id).then(url => {
+      if (done) return;
+      au.src = url;
+      au.play().then(() => { unlocked = true; }).catch(e => {
+        if (!unlocked && e && e.name === 'NotAllowedError') fin('blocked'); else quiet();
+      });
     });
   });
 }
@@ -215,6 +287,7 @@ async function trunkWalk(my){
 let beat = '', phase = 'film', busy = false, holdAt = 0;
 function reset(){
   if (cut) cut();
+  voice('idle');
   svg.setAttribute('class', '');
   sig.style.opacity = 0; beat = ''; phase = 'film'; busy = false;
   say1.textContent = ''; sub('');
@@ -227,11 +300,15 @@ async function film(){
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
   for (const [b, id] of [['tree', 'name_tree'], ['root', 'name_root'], ['trunk', 'name_trunk'], ['branch', 'name_branch'], ['try', 'name_try']]) {
     if (my !== run) return;
-    beat = b; svg.classList.add('b-' + b);
-    if (b === 'trunk') trunkWalk(my);
-    const r = await say(id);
+    beat = b;
+    // the beat's drawing starts with its voice
+    const r = await say(id, () => {
+      if (my !== run) return;
+      svg.classList.add('b-' + b);
+      if (b === 'trunk') trunkWalk(my);
+    });
     if (my !== run || r === 'cut') return;
-    if (r === 'blocked') { reset(); run++; $('start').hidden = false; say1.textContent = ''; return; }
+    if (r === 'blocked') { reset(); run++; $('start').hidden = false; say1.textContent = ''; voice('idle'); return; }
   }
   phase = 'try'; sub(T.trySub);
 }
@@ -273,6 +350,9 @@ document.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter'
 $('play').addEventListener('click', () => { unlocked = true; void film(); });
 $('again').addEventListener('click', () => void film());
 $('done').addEventListener('click', () => { if (cut) cut(); run++; window.parent.postMessage({ tree: 'done' }, '*'); });
+// first paint: the parent's wait gives way to this page's own
+if (inFrame) window.parent.postMessage({ tree: 'up' }, '*');
+preload(['name_tree', 'name_root', 'name_trunk', 'name_branch', 'name_try', 'name_done']);
 // the tap that opened the film usually lets it speak at once; if the browser
 // says no (iOS, a chat frame), one tap on play does
 void film();

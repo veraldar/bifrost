@@ -278,3 +278,11 @@ time, fault injection, event churn — never the user's testing burden.
 The user's test is the consent confirmation (the feel-check), never the
 evidence. Every gate item must name its simulation proof before it can
 gate anything.
+
+## Rule 10-10 — THE DIVISION (user, 10-07, verbatim)
+"AGI uses and evolves the simulation, and I use a finished product."
+AGI lives inside the simulation: builds, validates, evolves the sim itself
+(the churn suites, the e2e, the repros), iterates until the matrix is
+green. The user touches FINISHED PRODUCT only — never drafts, never
+"try this build", never partial matrices. 33/37 green is not finished.
+An invitation to the user is written only when nothing remains open.

@@ -116,3 +116,19 @@ sandbox while the old serves; the USER consents when to move; the flip is
 one restart. Proven 10-06: live brain down -> user's [MAIN] session ran on
 the root (:4100) via :8443 -> worked. Deploy law: never all-at-once; the
 sandbox is the rehearsal, the consent is the gate.
+
+## v0.7 GATE — what must pass before v0.8 (10-07)
+OWNER: the sim lab implements + validates (Rule 10-08: the shipping binary,
+the phone device class). The user tests LAST — the 2-min confirmation only.
+1. onboarding v3: load fast, tap fast, prerecorded greeting <300ms, clean
+   flow into the deck (e2e running now: e2e-base/voiceui/wedge)
+2. voice round-trip: hotword fix verified ("Bifrost" clean at utterance start)
+3. echo bleed fixed: the mic no longer transcribes the TTS playback
+4. 24h stability: the root serving continuously (the timer + the receipts)
+5. session lifecycle on the root: create, list, switch, artifacts save
+6. version string: 0.7.0-x displayed on the sandbox
+7. room→session mapping: voice tests do not pollute [MAIN]
+8. the dispatcher: queued REST turns actually run + reply (proven queued,
+   end-to-end pending)
+THE ORDER: e2e green → sim-lab phone-class suite → receipts to the
+coordinator → user confirmation test → the URD row → v0.8 starts.

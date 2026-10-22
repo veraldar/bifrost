@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
+import script from '../lib/onboard-script.json';
 
 /** THE FIRST VOICE TURN, for real, on the sandbox stack: Chrome's own capture
  *  path plays a spoken wav as the microphone (--use-file-for-fake-audio-capture
@@ -69,7 +70,7 @@ test('first turn: hold → speak → transcript (STT alive) → spoken reply →
     // the reply lands and is spoken, then "you are in"
     await expect(card).toHaveAttribute('data-state', 'in', { timeout: 90_000 });
     console.log(`first turn: reply ${Date.now() - releasedAt}ms after release`);
-    await expect(page.getByTestId('first-in')).toHaveText('you are in. talk to your tree.');
+    await expect(page.getByTestId('first-in')).toHaveText(script.lines.find((l) => l.id === 'in')!.en);
     await expect(page.getByText(/\b(4|four)\b/i).first()).toBeVisible();
     expect(await page.evaluate(() => localStorage.getItem('bifrost-first-turn'))).toBeTruthy();
     const lines = await page.evaluate(() =>

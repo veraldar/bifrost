@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "generated": "2026-10-22T06:35:13.177Z",
+  "generated": "2026-10-22T13:23:06.357Z",
   "voices": {
     "en": {
       "server": "local speaches (onnx)",
@@ -528,23 +528,23 @@
         "site"
       ],
       "en": {
-        "text": "yggdrasil is the tree: your computer, and everything on it.",
-        "sha": "3327e616f01889af",
+        "text": "the tree is your computer, working for you. its name is yggdrasil.",
+        "sha": "1c5637b49e8286fa",
         "file": "en/name_tree.mp3",
-        "ms": 3458,
-        "bytes": 21404,
+        "ms": 3776,
+        "bytes": 23276,
         "seed": null,
-        "heard": "Igdrassil is the tree, your computer, and everything on it.",
-        "score": 0.9
+        "heard": "The tree is your computer working for you. Its name is Igdressel.",
+        "score": 0.92
       },
       "fr": {
-        "text": "yggdrasil, c'est l'arbre : votre ordinateur, et tout ce qu'il fait tourner.",
-        "sha": "988ac89d584ac844",
+        "text": "l'arbre, c'est votre ordinateur, qui travaille pour vous. son nom : yggdrasil.",
+        "sha": "e05d17cc49b35efe",
         "file": "fr/name_tree.mp3",
-        "ms": 4691,
-        "bytes": 28748,
+        "ms": 6253,
+        "bytes": 38108,
         "seed": 7,
-        "heard": "Idrasil, c'est l'arbre, votre ordinateur et tout ce qu'il fait tourner.",
+        "heard": "L'arbre, c'est votre ordinateur qui travaille pour vous. Son nom, Idrasil.",
         "score": 0.91
       }
     },
@@ -683,23 +683,23 @@
         "film"
       ],
       "en": {
-        "text": "one phone. many trees. here is what they can do together.",
-        "sha": "5aec15d7c80f368b",
+        "text": "one phone, your own computer. here is what they do today.",
+        "sha": "24db7dfe7bc1cafb",
         "file": "en/fv_open.mp3",
-        "ms": 3157,
-        "bytes": 19532,
+        "ms": 3200,
+        "bytes": 19820,
         "seed": null,
-        "heard": "One phone, many trees. Here is what they can do together.",
+        "heard": "One phone, your own computer. Here is what they do today.",
         "score": 1
       },
       "fr": {
-        "text": "un téléphone. plusieurs arbres. voici ce qu'ils peuvent faire ensemble.",
-        "sha": "4dd0388c251e4124",
+        "text": "un téléphone, votre propre ordinateur. voici ce qu'ils font aujourd'hui.",
+        "sha": "1a6646184676dfa9",
         "file": "fr/fv_open.mp3",
-        "ms": 4817,
-        "bytes": 29468,
+        "ms": 5626,
+        "bytes": 34364,
         "seed": 7,
-        "heard": "Un téléphone, plusieurs arbres. Voici ce qu'ils peuvent faire ensemble.",
+        "heard": "Un téléphone, votre propre ordinateur. Voici ce qu'ils font aujourd'hui.",
         "score": 1
       }
     },
@@ -983,24 +983,24 @@
         "film"
       ],
       "en": {
-        "text": "one app in your hand reaches them all. that is bifrost.",
-        "sha": "132d7c9aa79f1500",
+        "text": "bifrost is the app in your hand. it reaches each tree on that line.",
+        "sha": "bf8c8153153ff910",
         "file": "en/fv_bridge.mp3",
-        "ms": 3177,
-        "bytes": 19676,
+        "ms": 3757,
+        "bytes": 23132,
         "seed": null,
-        "heard": "One app in your hand reaches them all. That is Bifrost.",
+        "heard": "Bifrost is the app in your hand. It reaches each tree on that line.",
         "score": 1
       },
       "fr": {
-        "text": "une appli dans votre main les rejoint tous. c'est bifrost.",
-        "sha": "b7ff5193d17b0787",
+        "text": "bifrost, c'est l'appli dans votre main. elle rejoint chaque arbre sur cette ligne.",
+        "sha": "e3536fd39d998603",
         "file": "fr/fv_bridge.mp3",
-        "ms": 4610,
-        "bytes": 28316,
+        "ms": 4859,
+        "bytes": 29756,
         "seed": 7,
-        "heard": "Une appli dans votre main les rejoint tous. C'est Bifrost.",
-        "score": 1
+        "heard": "Bifrost, c'est l'appeler dans votre main. Elle rejoint chaque arbre sur cette ligne.",
+        "score": 0.92
       }
     },
     "fv_pull": {

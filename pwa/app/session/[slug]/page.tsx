@@ -53,7 +53,7 @@ type Mode = 'text' | 'free';
 type FirstTurn = 'off' | 'mic' | 'practice' | 'sent' | 'heard' | 'in' | 'denied';
 const FT = {
   en: {
-    planted: 'planted. this is main.',
+    planted: 'ready. this is main — your main conversation.',
     mic: 'the mic: your browser asks once.',
     allow: 'allow the mic',
     hold: 'hold the mic ↓ say anything · let go to send',
@@ -65,12 +65,12 @@ const FT = {
       ['hold the mic', 'talk'],
       ['tap the mic', 'hands-free · say “over” to send'],
       ['type below', 'any time'],
-      ['the tree, corner of your sessions', 'back to main'],
+      ['the tree, in the corner of your list', 'back to main'],
     ],
     ok: 'ok',
   },
   fr: {
-    planted: 'planté. voici main.',
+    planted: 'c’est prêt. voici main — votre conversation principale.',
     mic: 'le micro : votre navigateur demande une fois.',
     allow: 'autoriser le micro',
     hold: 'maintenez le micro ↓ dites quelque chose · relâchez pour envoyer',
@@ -82,7 +82,7 @@ const FT = {
       ['maintenez le micro', 'parler'],
       ['touchez le micro', 'mains libres · dites « over » pour envoyer'],
       ['tapez en bas', 'à tout moment'],
-      ['l’arbre, au coin de vos sessions', 'retour à main'],
+      ['l’arbre, dans le coin de votre liste', 'retour à main'],
     ],
     ok: 'ok',
   },

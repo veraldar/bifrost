@@ -1,8 +1,9 @@
 /**
  * The door (v2, scripted — no brain before MAIN):
- *   GET  /api/onboard                     → BoxInfo: the brain this box runs
- *        (model + class — shown at the door, never asked: nothing on the phone
- *        can change it) and the address a phone opens (the pair QR)
+ *   GET  /api/onboard                     → BoxInfo: the brain this computer runs
+ *        (model + cloud/local + who runs it — shown at the door, never asked:
+ *        nothing on the phone can change it) and the address a phone opens
+ *        (the pair QR)
  *   POST /api/onboard {step:'main', prefs?} → {id, title, slug:'main', created}
  *        THE MAIN session (created once, reused after). With prefs, MAIN gets
  *        them as its standing instruction — only when they differ from the
@@ -11,6 +12,10 @@
  *        pick, so the brain's one-line ack is done before the first voice turn.
  */
 import { NextResponse } from 'next/server';
+import { readFileSync } from 'fs';
+import { homedir } from 'os';
+import path from 'path';
+import presets from '@/lib/brain-presets.json';
 import { ocFetch } from '@/lib/oc';
 import { bustCache } from '@/lib/oc-cache';
 import { forward } from '@/lib/oc-forward';
@@ -52,7 +57,9 @@ async function sweepStaleOnboardings(): Promise<void> {
 type Sess = { id: string; title?: string };
 
 // one MAIN, ever: concurrent calls (two tabs, a double tap) share one create
-const g = globalThis as typeof globalThis & { __tfMain?: Promise<Sess & { created: boolean }> | null };
+const g = globalThis as typeof globalThis & {
+  __tfMain?: Promise<Sess & { created: boolean }> | null;
+};
 
 function ensureMain(): Promise<Sess & { created: boolean }> {
   return (g.__tfMain ??= (async () => {
@@ -93,14 +100,45 @@ async function heldPreamble(id: string): Promise<string> {
   return '';
 }
 
-/** coding plan unless the box says otherwise: the honest default never
- *  claims "nothing leaves your network" for a brain it can't see */
-function brainClass(model: string): BrainClass {
-  const set = process.env.BIFROST_BRAIN_CLASS;
-  if (set === 'plan' || set === 'router' || set === 'local') return set;
-  if (/openrouter/i.test(model)) return 'router';
-  if (/^(ollama|lmstudio|llama\.cpp|local)\b/i.test(model)) return 'local';
-  return 'plan';
+/** the address yggdrasil thinks through (YGG_UPSTREAM_BASE_URL): told
+ *  (BIFROST_BRAIN_URL), else read from yggdrasil's own env file — only that
+ *  line is kept; the key in the same file never leaves this function */
+function upstreamUrl(): string {
+  if (process.env.BIFROST_BRAIN_URL) return process.env.BIFROST_BRAIN_URL;
+  const file = process.env.YGG_ENV_FILE || path.join(homedir(), '.config/yggdrasil/yggdrasil.env');
+  try {
+    const m = /^YGG_UPSTREAM_BASE_URL=(.*)$/m.exec(readFileSync(file, 'utf8'));
+    return (m?.[1] || '').trim().replace(/^["']|["']$/g, '');
+  } catch {
+    return '';
+  }
+}
+
+/** your own machines: loopback, the LAN, the tailnet (100.64/10, *.ts.net) */
+const LOCAL_HOST =
+  /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|\[?::1\]?$|.*\.(local|ts\.net)$)/;
+
+/** cloud unless the computer says otherwise: the honest default never claims
+ *  "nothing leaves your home" for a brain it can't see */
+function brainOf(model: string): { class: BrainClass; provider: string } {
+  let host = '';
+  try {
+    host = new URL(upstreamUrl()).hostname;
+  } catch {
+    /* not known here */
+  }
+  const set = process.env.BIFROST_BRAIN_CLASS; // v2 values plan/router = a cloud
+  const local =
+    set === 'local' ||
+    (!set && host !== '' && LOCAL_HOST.test(host)) ||
+    (!set && /^(ollama|lmstudio|llama\.cpp|local)\b/i.test(model));
+  const known = presets.presets.find((p) => (p.hosts as string[]).includes(host));
+  const provider =
+    process.env.BIFROST_BRAIN_PROVIDER ||
+    (local
+      ? 'your computer'
+      : known?.name || host || (/openrouter/i.test(model) ? 'openrouter' : ''));
+  return { class: local ? 'local' : 'cloud', provider };
 }
 
 export async function GET() {
@@ -118,8 +156,8 @@ export async function GET() {
   const info: BoxInfo = {
     brain: {
       model: model || 'unknown',
-      class: brainClass(model),
-      where: process.env.BIFROST_BRAIN_WHERE || 'set on the box',
+      ...brainOf(model),
+      where: process.env.BIFROST_BRAIN_WHERE || 'set on your computer',
     },
     publicUrl: process.env.BIFROST_PUBLIC_URL || '',
   };
@@ -137,7 +175,11 @@ export async function POST(req: Request) {
     void sweepStaleOnboardings();
     const p = body.prefs;
     let seeded = false;
-    if (p && (p.lang === 'en' || p.lang === 'fr') && (p.style === 'short' || p.style === 'detail')) {
+    if (
+      p &&
+      (p.lang === 'en' || p.lang === 'fr') &&
+      (p.style === 'short' || p.style === 'detail')
+    ) {
       const text = mainPreamble({ lang: p.lang, style: p.style });
       if ((await heldPreamble(main.id)) !== text) {
         forward(main.id, MAIN_SLUG, { text });

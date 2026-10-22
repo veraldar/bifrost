@@ -5,10 +5,14 @@
  *    Door      first open — the whole tree, server-rendered (it paints before
  *              any script runs). Press = amber at once; release = the door
  *              opens and speaks (pre-recorded, lib/onboard-voice.ts):
- *              language · style · the brain this box runs (shown, not asked)
- *              · on a desktop, the QR for the phone → MAIN, planted.
+ *              language · style · the brain this computer runs (shown, not
+ *              asked) · on a desktop, the QR for the phone → MAIN, planted.
  *              Same steps, words and voice as veraldar.org's door; answers
  *              the site sent along (#door=v1.<lang>.<style>) skip their steps.
+ *              v3 (10-22): every step is a history entry (#…&at=<step>) — the
+ *              phone's back button walks the steps, then back to the page
+ *              that sent you; each name is glossed where it first appears,
+ *              "why these names?" opens the $ tree + the tree film (lazy).
  *    TreeDoor  afterwards — the same drawing shrunk to its corner, a link
  *              to MAIN; the shrink from full screen plays once */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -22,6 +26,7 @@ import {
   DOOR_KEY,
   DOOR_VERSION,
   type DoorPrefs,
+  type DoorStep,
   FIRST_TURN_KEY,
   type Lang,
   MAIN_SLUG,
@@ -32,40 +37,81 @@ import {
   doorHash,
   line,
   parseDoorHash,
+  parseDoorStep,
 } from '@/lib/tree-first';
 
-type Step = 'idle' | 'lang' | 'style' | 'brain' | 'down';
+type Step = 'idle' | DoorStep | 'down';
+
+/** the tree film: a self-contained page served like any artifact, built in
+ *  (pwa/artifacts-builtin) — loaded only when asked for, never on the way in */
+export const FILM_SRC = '/api/artifact/door-tree.html';
+const NAMES = ['name_tree', 'name_root', 'name_trunk', 'name_branch'];
 
 const UI = {
   en: {
     hold: 'hold the tree to begin',
+    holdSub: 'the tree stands for your own computer · sound on',
     heard: 'heard',
     short: 'short',
-    shortSub: 'signal only',
+    shortSub: 'just the point',
     detail: 'more detail',
     detailSub: 'full sentences',
+    glossBifrost: 'bifrost — the bridge between you and your computer',
+    glossRoot: 'the root — your tree’s brain: it thinks and remembers',
     brain: 'brain',
+    at: 'at',
+    replies: 'replies',
     cont: 'continue',
     here: 'continue here',
     retry: 'hold the tree to try again',
     opening: 'opening main…',
+    why: 'why these names?',
+    hear: 'hear it',
+    watch: 'watch it · 15 s',
+    skip: 'skip ✕',
+    tree: [
+      ['$ tree yggdrasil', ''],
+      ['yggdrasil', 'the tree: your computer, all of it'],
+      ['├─ root', 'the brain: thinks, remembers'],
+      ['├─ trunk', 'the private line: carries your words'],
+      ['└─ branch', 'bifrost, this app: the bridge to you'],
+    ],
+    treeNote: 'old norse names. each one says what the part does.',
   },
   fr: {
     hold: "maintenez l'arbre pour commencer",
+    holdSub: "l'arbre, c'est votre propre ordinateur · son activé",
     heard: 'entendu',
     short: 'court',
-    shortSub: 'juste le signal',
+    shortSub: "juste l'essentiel",
     detail: 'plus de détail',
     detailSub: 'des phrases complètes',
+    glossBifrost: 'bifrost — le pont entre vous et votre ordinateur',
+    glossRoot: 'la racine — le cerveau de votre arbre : elle réfléchit et se souvient',
     brain: 'cerveau',
+    at: 'chez',
+    replies: 'réponses',
     cont: 'continuer',
     here: 'continuer ici',
     retry: "maintenez l'arbre pour réessayer",
     opening: 'ouverture de main…',
+    why: 'pourquoi ces noms ?',
+    hear: 'écouter',
+    watch: 'voir · 15 s',
+    skip: 'passer ✕',
+    tree: [
+      ['$ tree yggdrasil', ''],
+      ['yggdrasil', "l'arbre : votre ordinateur, en entier"],
+      ['├─ racine', 'le cerveau : réfléchit, se souvient'],
+      ['├─ tronc', 'la ligne privée : porte vos mots'],
+      ['└─ branche', 'bifrost, cette appli : le pont vers vous'],
+    ],
+    treeNote: 'des noms nordiques anciens. chacun dit ce que fait la pièce.',
   },
 } as const;
 
-const STEPS: Step[] = ['lang', 'style', 'brain'];
+const STEPS: DoorStep[] = ['lang', 'style', 'brain'];
+const hasFilm = (hash: string) => /(?:^#|&)film\b/.test(hash);
 
 export function Door() {
   const router = useRouter();
@@ -81,21 +127,34 @@ export function Door() {
   const [qr, setQr] = useState('');
   const [qrHost, setQrHost] = useState('');
   const [leaving, setLeaving] = useState(false);
+  const [names, setNames] = useState(false); // "why these names?" open
+  const [film, setFilm] = useState(false);
+  const filmRef = useRef<HTMLIFrameElement>(null);
   const mainRef = useRef<Promise<{ id: string }> | null>(null);
   const pressAt = useRef(0);
   const t0 = useRef(0);
   const langRef = useRef<Lang>('en');
   langRef.current = lang;
+  // the popstate handler is bound once: it reads the live values from here
+  const live = useRef({ step, style, box, desktop });
+  live.current = { step, style, box, desktop };
 
   // first paint → everything the first seconds need: the greeting (in
-  // memory before the finger lands), what the box runs, MAIN's code
+  // memory before the finger lands), what the computer runs, MAIN's code
   useEffect(() => {
-    const carry = parseDoorHash(window.location.hash);
+    const h = window.location.hash;
+    const carry = parseDoorHash(h);
     const l: Lang = carry?.lang || (/^fr/i.test(navigator.language) ? 'fr' : 'en');
     setLang(l);
     if (carry?.lang) {
       setCarried(true);
       if (carry.style) setStyle(carry.style);
+    }
+    // a reload mid-door: this entry IS the tree again (the answers stay)
+    if (parseDoorStep(h) || hasFilm(h)) {
+      const keep = doorHash(carry || {});
+      const url = window.location.pathname + window.location.search;
+      history.replaceState({ door: 'idle' }, '', keep === '#' ? url : url + keep);
     }
     warmLines([carry?.lang ? 'greet_back' : 'greet', 'lang'], l);
     setDesktop(window.matchMedia('(pointer: fine)').matches && navigator.maxTouchPoints === 0);
@@ -103,6 +162,54 @@ export function Door() {
     void loadBox();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── history: back/forward lands on a door step, or on the page before it
+  useEffect(() => {
+    function onPop() {
+      const h = window.location.hash;
+      const at = parseDoorStep(h);
+      const carry = parseDoorHash(h);
+      setFilm(hasFilm(h));
+      const cur = live.current.step;
+      if ((at ?? 'idle') === cur || (cur === 'down' && at === 'brain')) return; // the film closed
+      stopLine();
+      chain.current++;
+      setNames(false);
+      if (carry?.lang) {
+        setLang(carry.lang);
+        langRef.current = carry.lang;
+      }
+      const s = carry?.style ?? live.current.style;
+      if (carry?.style) setStyle(carry.style);
+      diagEvent('door', `history → ${at ?? 'tree'}`);
+      if (!at) {
+        setStep('idle');
+      } else if (at === 'brain' && s) {
+        setStep('brain');
+        if (!mainRef.current) seedMain({ lang: langRef.current, style: s });
+        void openBrain([], s);
+      } else {
+        const back = at === 'brain' ? 'style' : at;
+        setStep(back);
+        void speak([back]);
+      }
+    }
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** a new step = a new history entry, its answers in the fragment */
+  function go(next: DoorStep, p: Partial<DoorPrefs>) {
+    setStep(next);
+    setNames(false);
+    try {
+      // a fresh state object: Next copies its own router state into it
+      history.pushState({ door: next }, '', doorHash(p, next));
+    } catch {
+      /* the door works without history */
+    }
+  }
 
   async function loadBox(): Promise<BoxInfo | null> {
     try {
@@ -162,19 +269,19 @@ export function Door() {
     diagEvent('door', `open (held ${Math.round(t0.current - pressAt.current)}ms)`);
     // inside the gesture: the first line may play (and unlocks the rest)
     if (step === 'down' && style) {
-      // the box did not answer at the brain step — the answers stand
+      // the computer did not answer at the brain step — the answers stand
       setStep('brain');
       seedMain({ lang, style });
       void openBrain([], style);
     } else if (carried && style) {
-      setStep('brain');
+      go('brain', { lang, style });
       seedMain({ lang, style });
       void openBrain(['greet_back'], style);
     } else if (carried) {
-      setStep('style');
+      go('style', { lang });
       void speak(['greet_back', 'style']);
     } else {
-      setStep('lang');
+      go('lang', {});
       void speak(['greet', 'lang']);
     }
     warmLines(['lang_set', 'style', 'style_short', 'style_detail'], lang);
@@ -190,7 +297,7 @@ export function Door() {
       /* cosmetic */
     }
     warmLines(['lang_set', 'style', 'style_short', 'style_detail', 'planted'], l);
-    setStep('style');
+    go('style', { lang: l });
     void speak(['lang_set', 'style'], l);
   }
 
@@ -198,26 +305,27 @@ export function Door() {
     setStyle(s);
     diagEvent('door', `style=${s}`);
     seedMain({ lang, style: s });
-    setStep('brain');
+    go('brain', { lang, style: s });
     void openBrain([s === 'detail' ? 'style_detail' : 'style_short'], s);
   }
 
   /** `first` = what is said before the brain line (the style confirmation) */
   async function openBrain(first: string[], s: Style) {
-    const b = box ?? (await loadBox());
+    const b = live.current.box ?? (await loadBox());
     if (!b) {
       setStep('down');
       void speak([...first, 'box_down']);
       return;
     }
-    const brainLine = `brain_${b.brain.class}`;
+    const brainLine = b.brain.class === 'local' ? 'brain_local' : 'brain_cloud';
     warmLines([brainLine, 'pair', 'planted'], langRef.current);
-    if (desktop) void makeQr(b, s);
-    void speak([...first, brainLine, ...(desktop ? ['pair'] : [])]);
+    const desk = live.current.desktop;
+    if (desk) void makeQr(b, s);
+    void speak([...first, brainLine, ...(desk ? ['pair'] : [])]);
   }
 
-  /** desktop: the phone scans its way in — the box's tailnet address, with
-   *  the answers in the fragment, so the phone's door skips straight on */
+  /** desktop: the phone scans its way in — the computer's tailnet address,
+   *  with the answers in the fragment, so the phone's door skips straight on */
   async function makeQr(b: BoxInfo, s: Style) {
     try {
       const base = (b.publicUrl || window.location.origin).replace(/\/$/, '');
@@ -229,6 +337,51 @@ export function Door() {
       setQr('');
     }
   }
+
+  /** "why these names?": the $ tree on screen, its spoken version on demand */
+  function toggleNames() {
+    const open = !names;
+    setNames(open);
+    diagEvent('door', `names ${open ? 'open' : 'closed'}`);
+    if (open) warmLines(NAMES, langRef.current);
+    else {
+      stopLine();
+      chain.current++;
+    }
+  }
+
+  /** the film: one more history entry (back closes it); the door goes quiet */
+  function openFilm() {
+    stopLine();
+    chain.current++;
+    diagEvent('door', 'film open');
+    setFilm(true);
+    try {
+      history.pushState({ door: 'film' }, '', `${window.location.hash || '#'}&film`);
+    } catch {
+      /* no history: the skip button still closes it */
+    }
+  }
+  function closeFilm() {
+    if (hasFilm(window.location.hash))
+      history.back(); // popstate closes it
+    else setFilm(false);
+  }
+  // the film says when it is done (its last button) — the door takes over again
+  useEffect(() => {
+    if (!film) return;
+    const onMsg = (e: MessageEvent) => {
+      if (
+        e.source === filmRef.current?.contentWindow &&
+        (e.data as { tree?: string })?.tree === 'done'
+      ) {
+        diagEvent('door', 'film done');
+        closeFilm();
+      }
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, [film]);
 
   /** the last tap: planted is said in this gesture while MAIN opens under it */
   async function enter() {
@@ -265,7 +418,7 @@ export function Door() {
     }
   }
 
-  const n = STEPS.indexOf(step);
+  const n = step === 'idle' || step === 'down' ? -1 : STEPS.indexOf(step);
   const ui = UI[lang];
   const open = step !== 'idle';
 
@@ -298,6 +451,7 @@ export function Door() {
         <p className="oz-invite" aria-hidden="true">
           <span className="hold">{ui.hold}</span>
           <span className="held">{ui.heard}</span>
+          <span className="sub">{ui.holdSub}</span>
         </p>
       )}
 
@@ -311,6 +465,11 @@ export function Door() {
           <p className="say" data-testid="door-say">
             {say1 || line(carried ? 'greet_back' : 'greet', lang)}
           </p>
+          {(step === 'lang' || step === 'style') && (
+            <p className="gloss" data-testid="door-gloss">
+              {ui.glossBifrost}
+            </p>
+          )}
 
           {step === 'lang' && (
             <div className="opts">
@@ -349,18 +508,29 @@ export function Door() {
 
           {step === 'brain' && (
             <>
+              <p className="gloss" data-testid="door-gloss">
+                {ui.glossRoot}
+              </p>
               <dl className="kv" data-testid="door-brain">
                 <dt>{ui.brain}</dt>
                 <dd>
                   {box ? (
                     <>
-                      <b>{box.brain.model}</b> · {box.brain.where}
+                      <b>{box.brain.model}</b>
+                      {box.brain.provider && (
+                        <>
+                          {' '}
+                          · {box.brain.class === 'local' ? '' : `${ui.at} `}
+                          {box.brain.provider}
+                        </>
+                      )}
+                      <small>{box.brain.where}</small>
                     </>
                   ) : (
                     '…'
                   )}
                 </dd>
-                <dt>{lang === 'fr' ? 'réponses' : 'replies'}</dt>
+                <dt>{ui.replies}</dt>
                 <dd>{style === 'detail' ? ui.detail : ui.short}</dd>
               </dl>
               {desktop && qr && (
@@ -388,8 +558,62 @@ export function Door() {
               <span className="sub">{ui.retry}</span>
             </p>
           )}
-          {boxErr && step !== 'down' && step !== 'brain' && <p className="sub">{line('box_down', lang)}</p>}
+          {boxErr && step !== 'down' && step !== 'brain' && (
+            <p className="sub">{line('box_down', lang)}</p>
+          )}
+
+          {step !== 'down' && (
+            <div className="names" data-testid="door-names" data-open={names ? '' : undefined}>
+              <button type="button" className="why" aria-expanded={names} onClick={toggleNames}>
+                {ui.why}
+              </button>
+              {names && (
+                <>
+                  <div
+                    className="tree"
+                    role="img"
+                    aria-label={NAMES.map((id) => line(id, lang)).join(' ')}
+                  >
+                    {ui.tree.map(([k, v]) => (
+                      <div key={k} className={v ? '' : 'cmd'}>
+                        <span>{k}</span>
+                        {v && <i>{v}</i>}
+                      </div>
+                    ))}
+                  </div>
+                  <p className="sub">{ui.treeNote}</p>
+                  <div className="row">
+                    <button
+                      type="button"
+                      data-testid="door-names-hear"
+                      onClick={() => void speak(NAMES)}
+                    >
+                      ▸ {ui.hear}
+                    </button>
+                    <button type="button" data-testid="door-film" onClick={openFilm}>
+                      ▸ {ui.watch}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </section>
+      )}
+
+      {film && (
+        <div className="oz-film" data-testid="door-film-frame" role="dialog" aria-label={ui.watch}>
+          <iframe
+            title={ui.watch}
+            src={`${FILM_SRC}?lang=${lang}`}
+            sandbox="allow-scripts"
+            allow="autoplay"
+            ref={filmRef}
+          />
+          <button type="button" className="skip" data-testid="door-film-skip" onClick={closeFilm}>
+            {ui.skip}
+          </button>
+        </div>
       )}
     </main>
   );

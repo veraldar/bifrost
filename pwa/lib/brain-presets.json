@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "about": "Who can think for the tree — one source for veraldar.org's door (the brain step + the yggdrasil.env it writes; synced copy) and the app door (naming the provider from YGG_UPSTREAM_BASE_URL, app/api/onboard). yggdrasil takes ANY upstream that speaks one of two wire styles (YGG_UPSTREAM_STYLE: openai = {base}/chat/completions, anthropic = {base}/v1/messages); these are presets, not a whitelist — 'other' takes any address. Models are starting points, editable in the door; check them against the provider's own model list. Proven on this tree 10-22: zai (glm-5.3-flash, anthropic style). The key is never asked in a web page: `keys` links to where the user makes one, the env carries a placeholder.",
+  "presets": [
+    { "id": "zai", "name": "z.ai", "plan": true, "style": "anthropic", "base": "https://api.z.ai/api/anthropic", "model": "glm-5.3-flash", "keys": "https://z.ai/manage-apikey/apikey-list", "hosts": ["api.z.ai", "z.ai"] },
+    { "id": "openrouter", "name": "openrouter", "plan": false, "style": "openai", "base": "https://openrouter.ai/api/v1", "model": "openrouter/auto", "keys": "https://openrouter.ai/settings/keys", "hosts": ["openrouter.ai"] },
+    { "id": "anthropic", "name": "anthropic", "plan": false, "style": "anthropic", "base": "https://api.anthropic.com", "model": "claude-sonnet-5-5", "keys": "https://console.anthropic.com/settings/keys", "hosts": ["api.anthropic.com"] },
+    { "id": "openai", "name": "openai", "plan": false, "style": "openai", "base": "https://api.openai.com/v1", "model": "gpt-6.1-sol", "keys": "https://platform.openai.com/api-keys", "hosts": ["api.openai.com"] },
+    { "id": "other", "name": "other", "plan": false, "style": "openai", "base": "", "model": "", "keys": "", "hosts": [] },
+    { "id": "local", "name": "your computer", "local": true, "plan": false, "style": "openai", "base": "http://127.0.0.1:11434/v1", "model": "llama3.1", "keys": "", "hosts": [] }
+  ]
+}

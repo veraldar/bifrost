@@ -1,7 +1,7 @@
-/** Tree-first first run — THE DOOR (v2, 10-19): the fullscreen tree → hold →
- *  a scripted door in the app's own pre-recorded voice (no brain before MAIN)
- *  → THE MAIN session → one real voice turn → "you are in" → the tree as the
- *  corner door. Shared by the home page, the session view, the layout's boot
+/** Tree-first first run — THE DOOR (v2, 10-19; v3 copy + history 10-22): the
+ *  fullscreen tree → hold → a scripted door in the app's own pre-recorded voice
+ *  (no brain before MAIN) → THE MAIN session → one real voice turn → "you are
+ *  in" → the tree as the corner door. Shared by the home page, the session view, the layout's boot
  *  script and the /api proxy, so no browser APIs at module level. */
 import script from './onboard-script.json';
 
@@ -35,13 +35,22 @@ export function isOnboardingSlug(slug: string): boolean {
 
 export type Lang = 'en' | 'fr';
 export type Style = 'short' | 'detail';
-export type BrainClass = 'plan' | 'router' | 'local';
+/** where the thinking happens — the one fact the door says out loud. Which
+ *  cloud is a detail on screen (`provider`), never a separate voice line:
+ *  the door works for any provider yggdrasil can reach (YGG_UPSTREAM_*). */
+export type BrainClass = 'cloud' | 'local';
 export type DoorPrefs = { lang: Lang; style: Style };
 
 /** What the box says about itself (GET /api/onboard): the brain is shown, not
  *  asked — nothing on the phone can change it (it lives in the box's env). */
 export type BoxInfo = {
-  brain: { model: string; class: BrainClass; where: string };
+  brain: {
+    model: string;
+    class: BrainClass;
+    /** who runs it, in words ('z.ai', 'anthropic', 'your computer'), '' = not known here */
+    provider: string;
+    where: string;
+  };
   /** the address a phone opens (tailnet) — the pair QR encodes it */
   publicUrl: string;
 };
@@ -67,8 +76,20 @@ export function parseDoorHash(hash: string): Partial<DoorPrefs> | null {
   const style = m[2] === 'detail' || m[2] === 'warm' ? 'detail' : m[2] ? 'short' : undefined;
   return { lang: m[1] as Lang, ...(style ? { style } : {}) };
 }
-export function doorHash(p: DoorPrefs): string {
-  return `#door=v1.${p.lang}.${p.style}`;
+export function doorHash(p: Partial<DoorPrefs>, at?: DoorStep): string {
+  const ans = p.lang ? `door=v1.${p.lang}${p.style ? `.${p.style}` : ''}` : '';
+  const step = at ? `at=${at}` : '';
+  return `#${[ans, step].filter(Boolean).join('&')}`;
+}
+
+/** The door's steps live in the fragment too (`&at=<step>`), one history
+ *  entry each: the phone's back button walks back through the steps, then to
+ *  the page that sent you (veraldar.org) — never to a dead end. The answers
+ *  ride in the same fragment, so a back-forward cycle keeps them. */
+export type DoorStep = 'lang' | 'style' | 'brain';
+export function parseDoorStep(hash: string): DoorStep | null {
+  const m = /(?:^#|&)at=(lang|style|brain)\b/.exec(hash);
+  return m ? (m[1] as DoorStep) : null;
 }
 
 /** First line of a priming message — how the transcript recognises (and the

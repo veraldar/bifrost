@@ -1,0 +1,851 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>the far vision — many trees, one phone</title>
+<!--
+  THE FAR VISION — veraldar.org's film (#&film), FILM-V1 10-22. Grown from
+  the artifact the user loves (artifacts/js-movie-far-vision.html): the same
+  line drawings, the multi-tree story — the workshop at dusk, the desk builds,
+  every computer its own tree with its own root, one private line, the work
+  moves to the tv, nothing goes public, the world — told in the door's names
+  (tree = a computer, root = its brain, the private line, bifrost = the app in
+  your hand) and its colors (green = alive/speaking, sky = the private line,
+  amber ONLY when you are heard), in the door's own pre-recorded voice
+  (/onboarding/<lang>/fv_*.mp3 — lines in pwa/lib/onboard-script.json, copies
+  below; e2e checks they match). A film: it plays by itself, chapters jump,
+  pause holds; the parent's ✕ skips. It ends on your tree: hold it, let go —
+  the site's door opens ({film:'door'}).
+  Honest: a short film, the replies written ahead; what is still being built
+  is marked growing. No dead air: lines are asked for a chapter ahead — from
+  the parent's memory ({voice:'need'} → ack → {voice:'line', blob}; a
+  sandboxed frame can't fetch the pack), else fetched here, else played from
+  their address. Each line's drawing starts WITH its voice; until then the
+  rail glides and past 0.7 s the words say so. ?lang=fr · ?ch=<1-7>.
+  Built in (pwa/artifacts-builtin) → /api/artifact/far-vision.html; copied to
+  veraldar.org/onboarding/far-vision.html by scripts/onboard-voice-site.sh.
+-->
+<style>
+:root{
+  --bg:#080810; --hi:#e9e7e3; --fg:#8a8a90; --line:rgba(255,255,255,.13);
+  --ok:#4ade80; --sky:#38bdf8; --amber:#fbbf24; --sun:#b98b4e;
+  --mono:ui-monospace,'Cascadia Mono',Menlo,Consolas,monospace;
+  --cup:var(--fg);
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;background:var(--bg);color:var(--hi);font:13px/1.5 var(--mono);-webkit-text-size-adjust:100%;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:1px solid var(--line);cursor:pointer}
+#f{position:fixed;inset:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto auto;max-width:620px;margin:0 auto;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+@media (min-width:700px){#f{border-left:1px solid var(--line);border-right:1px solid var(--line)}}
+
+/* top bar — the mark, the chapter, the voice's eq */
+#top{display:flex;align-items:center;gap:12px;height:40px;padding:0 96px 0 16px;font-size:11px;color:var(--fg);border-bottom:1px solid var(--line)}
+#top .mark{color:var(--hi)}
+#top .cur{animation:blink 1.1s steps(1,end) infinite}
+#title{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#eq{display:flex;align-items:flex-end;gap:2px;height:11px}
+#eq i{display:block;width:2px;height:11px;background:var(--fg);opacity:.5;transform:scaleY(.3);transform-origin:bottom}
+[data-voice=speaking] #eq i{background:var(--ok);opacity:1;animation:eq .7s ease-in-out infinite}
+.heard #eq i{background:var(--amber)!important;opacity:1;animation:eq .5s ease-in-out infinite}
+#eq i:nth-child(2){animation-delay:.12s!important}#eq i:nth-child(3){animation-delay:.24s!important}#eq i:nth-child(4){animation-delay:.36s!important}
+[data-voice=speaking]{--cup:var(--ok)}
+.heard{--cup:var(--amber)!important}
+
+/* the stage: one scene at a time */
+#stage{position:relative;overflow:hidden}
+.scene{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:10px 12px;opacity:0;visibility:hidden;transition:opacity .7s ease,visibility 0s .7s}
+.scene.now{opacity:1;visibility:visible;transition:opacity .7s ease}
+.scene svg{width:100%;height:100%;max-height:100%;display:block}
+.scene text{font-family:var(--mono);font-size:10px;fill:var(--fg)}
+.s9{font-size:9px!important}.s12{font-size:12px!important}.s14{font-size:14px!important}
+.th{fill:var(--hi)!important}.tok{fill:var(--ok)!important}.tsky{fill:var(--sky)!important}.tam{fill:var(--amber)!important}
+.ln-d{stroke:var(--fg);fill:none;stroke-width:1.5}
+.ln-f{stroke:var(--fg);fill:none;stroke-width:1.2;opacity:.35}
+.ln-h{stroke:var(--hi);fill:none;stroke-width:1.5}
+.ln-ok{stroke:var(--ok);fill:none;stroke-width:1.6}
+.ln-sky{stroke:var(--sky);fill:none;stroke-width:1.6}
+.ln-sun{stroke:var(--sun);fill:none;stroke-width:1.6}
+.fo{fill:var(--ok);stroke:none}.ff{fill:var(--fg);stroke:none}
+.hair{stroke:var(--line);stroke-width:1;fill:none}
+.panel{fill:#0b0b12;stroke:rgba(255,255,255,.14);stroke-width:1}
+.crisp{shape-rendering:crispEdges}
+use.cr{color:var(--fg);transition:color 1s ease}
+use.rt{color:var(--fg);opacity:.6;transition:color 1s ease,opacity 1s ease}
+use.cr.on,.lit use.cr{color:var(--hi)}
+use.rt.on,.lit use.rt{color:var(--ok);opacity:1}
+use.person{color:var(--hi);opacity:.9}
+.phone-r{stroke:var(--fg);fill:none;stroke-width:1.6;transition:stroke .2s}
+.phone-r.on{stroke:var(--hi)}
+.heard .phone-r{stroke:var(--amber)}
+.waves{opacity:0;stroke:var(--amber);fill:none;stroke-width:1.6}
+.heard .waves{animation:pulse .9s ease-in-out infinite}
+
+/* cue-driven reveals: JS adds .on to [data-on] (and c-<cue> to the scene) */
+.rv{opacity:0;transition:opacity .8s ease}
+.rv.on{opacity:1}
+.rv.d1{transition-delay:.7s}.rv.d2{transition-delay:1.4s}
+.draw{stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset 1.5s ease}
+.draw.on{stroke-dashoffset:0}
+.rv.on.pulse,.pulse:not(.rv){animation:pulse 1.2s ease-in-out infinite}
+.blink{animation:blink 1.1s steps(1,end) infinite}
+.sun{transition:transform 7s ease}
+.c-dusk .sun{transform:translateY(14px)}
+.dusk-sky{transition:opacity 5s ease}
+.c-dusk .dusk-sky{opacity:.12}
+.steam path{animation:steam 3.2s ease-in-out infinite}
+.steam path:nth-child(2){animation-delay:1s}.steam path:nth-child(3){animation-delay:2s}
+.prog{transform-box:fill-box;transform-origin:left center;transform:scaleX(0);transition:transform 1.6s ease}
+.prog.on{transform:scaleX(1)}
+.glow{opacity:0;transition:opacity 1s}.glow.on{opacity:.08}
+.pk{opacity:0}
+.c-pull .pk{animation:travel 1.8s ease-in-out .2s forwards}
+.typed{fill:var(--amber)!important}
+/* the world: the grove gives way to the mark, then black and the manifesto */
+.grove{transition:opacity 1.4s ease}
+.c-world .grove{opacity:.25}
+.mark-g,.lic{transition:opacity 1.2s ease}
+.blackout{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:22px;padding:0 24px;text-align:center;background:var(--bg);opacity:0;pointer-events:none;transition:opacity 1s ease}
+.c-black .blackout{opacity:1}
+.manifesto{font-size:15px;color:var(--hi);min-height:1.5em}
+.manifesto .cur{color:var(--amber)}
+.endcard{font-size:11px;color:var(--fg);opacity:0;transition:opacity 1.4s ease}
+.endcard b{color:var(--hi);font-weight:400}
+.c-endcard .endcard{opacity:1}
+/* the door: your tree — hold = amber (heard), let go = the door opens */
+#doortree{cursor:pointer;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;outline:none}
+#doortree use.cr{color:var(--hi)}
+.heard #doortree use.cr,.heard #doortree use.rt{color:var(--amber);opacity:1}
+.heard #doortree{filter:drop-shadow(0 0 10px rgba(251,191,36,.45))}
+body:not(.heard) .s-door.try #doortree .cr{animation:pulse 1.6s ease-in-out infinite}
+
+/* the start card */
+.card{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:6px;padding:0 22px;text-align:center}
+.card h1{margin-top:14px;font-size:22px;font-weight:400;letter-spacing:.02em}
+.card .sub{color:var(--fg)}
+.card .note{max-width:34ch;margin-top:14px;font-size:11px;color:var(--fg)}
+.card .go{margin-top:18px;min-height:44px;padding:0 20px;background:var(--hi);color:var(--bg);border-color:var(--hi);letter-spacing:.12em;font-size:12px}
+.card .go[hidden]{display:none}
+
+/* the voice, honest: loading = a signal glides the rail; speaking = it breathes green */
+#rail{position:relative;height:2px;overflow:hidden;background:linear-gradient(var(--line),var(--line)) center/100% 1px no-repeat}
+#rail::after{content:"";position:absolute;top:0;bottom:0;left:0;width:38%;background:linear-gradient(90deg,transparent,var(--ok),transparent);opacity:0}
+[data-voice=loading] #rail::after{opacity:1;animation:glide 1.5s ease-in-out infinite}
+[data-voice=speaking] #rail{background:color-mix(in srgb,var(--ok) 65%,transparent);box-shadow:0 0 10px color-mix(in srgb,var(--ok) 30%,transparent);animation:breathe 2.6s ease-in-out infinite}
+.heard #rail{background:color-mix(in srgb,var(--amber) 70%,transparent);box-shadow:0 0 12px color-mix(in srgb,var(--amber) 50%,transparent);animation:breathe 1.8s ease-in-out infinite}
+
+/* captions + chapters */
+#hud{display:grid;gap:8px;padding:12px 16px 14px}
+#cap{min-height:4.6em;display:grid;align-content:end;gap:4px;font-size:14px;line-height:1.55}
+#cap p{transition:opacity .3s}
+#cap .prev{font-size:12px;opacity:.38}
+#cap .now::before{content:"▸ ";color:var(--ok)}
+#cap .you{color:var(--amber)}
+#cap .you::before{content:"◉ ";color:var(--amber)}
+#cap b{font-weight:400;color:var(--fg)}
+[data-voice=loading] #cap .now{opacity:.55}
+[data-voice=loading] #cap .now::before{animation:breathe 1.2s ease-in-out infinite}
+#sub{min-height:1.5em;font-size:11px;color:var(--fg)}
+#sub.hot{color:var(--amber)}
+#sub.wait{animation:fadein .3s ease-out .7s both}
+#nav{display:flex;align-items:center;gap:6px}
+#ch{flex:1;display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+#ch button{position:relative;height:28px;border:0;padding:0}
+#ch button::before{content:"";position:absolute;left:0;right:0;top:12px;height:3px;background:var(--line)}
+#ch button.done::before{background:var(--fg)}
+#ch button.now::before{background:var(--hi)}
+#ch button::after{content:"";position:absolute;left:0;top:12px;height:3px;width:var(--p,0%);background:var(--ok);transition:width .4s}
+#ch button:focus-visible{outline:1px solid var(--hi);outline-offset:2px}
+#ctl{display:flex;gap:6px}
+#ctl button{min-height:36px;min-width:44px;padding:0 10px;font-size:12px;color:var(--fg)}
+#ctl button[hidden]{display:none}
+#ctl .go{background:var(--hi);color:var(--bg);border-color:var(--hi)}
+
+@keyframes blink{50%{opacity:0}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes eq{0%,100%{transform:scaleY(.3)}50%{transform:scaleY(1)}}
+@keyframes steam{0%{transform:translateY(4px);opacity:0}40%{opacity:.7}100%{transform:translateY(-9px);opacity:0}}
+@keyframes travel{0%{transform:translateX(0);opacity:0}12%,88%{opacity:1}100%{transform:translateX(286px);opacity:0}}
+@keyframes glide{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
+@keyframes breathe{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes fadein{from{opacity:0}}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;transition-delay:0s!important}
+  [data-voice=loading] #rail::after{left:31%;animation:none!important}
+}
+</style>
+</head>
+<body data-voice="idle">
+
+<!-- the shared line work: the circuit-tree (crown + its root, apart: the root is the brain) and the person in headphones -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="crown" viewBox="0 0 120 140">
+      <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
+        <path d="M56 120V62M60 122V18M64 120V62"/>
+        <path d="M56 92H36V72H22M56 80H42V52H30M60 40H48V28M60 30H72V18M64 80H78V52H90M64 92H84V72H98"/>
+      </g>
+      <g fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="19" cy="72" r="3"/><circle cx="27" cy="52" r="3"/><circle cx="60" cy="15" r="3"/><circle cx="48" cy="25" r="3"/>
+        <circle cx="72" cy="15" r="3"/><circle cx="93" cy="52" r="3"/><circle cx="101" cy="72" r="3"/>
+      </g>
+    </symbol>
+    <symbol id="root" viewBox="0 0 120 140">
+      <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square">
+        <path d="M56 120V128H32V134M60 122V136M64 120V128H88V134M56 124H46V136M64 124H74V136"/>
+      </g>
+      <g fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="32" cy="136" r="2"/><circle cx="46" cy="138" r="2"/><circle cx="60" cy="138" r="2"/><circle cx="74" cy="138" r="2"/><circle cx="88" cy="136" r="2"/>
+      </g>
+    </symbol>
+    <symbol id="pf" viewBox="0 0 120 130">
+      <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 130C20 107 38 98 60 98S100 107 104 130"/>
+        <path d="M53 83V98M67 83V98"/>
+        <ellipse cx="60" cy="58" rx="20" ry="25"/>
+        <path d="M40 50C40 33 50 27 60 27S80 33 80 50"/>
+        <path d="M44 43C52 43 60 37 64 31"/>
+        <path d="M34 69C34 82 32 91 26 99M86 69C86 82 88 91 94 99"/>
+        <path d="M34 52C34 16 86 16 86 52"/>
+        <rect x="28" y="50" width="10" height="19" rx="3" style="stroke:var(--cup,currentColor)"/>
+        <rect x="82" y="50" width="10" height="19" rx="3" style="stroke:var(--cup,currentColor)"/>
+      </g>
+    </symbol>
+  </defs>
+</svg>
+
+<div id="f">
+  <header id="top">
+    <span class="mark">veraldar<b class="cur">▮</b></span>
+    <span id="title"></span>
+    <span id="eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+  </header>
+
+  <main id="stage">
+    <!-- 0 · the start card: the manifesto types itself -->
+    <section class="scene now" id="s-start">
+      <div class="card">
+        <p class="manifesto"><span id="m0"></span><b class="cur blink">▮</b></p>
+        <h1 data-t="title"></h1>
+        <p class="sub" data-t="sub"></p>
+        <p class="note" data-t="note"></p>
+        <button class="go" id="play" type="button" hidden></button>
+      </div>
+    </section>
+
+    <!-- 1 · the way in: dusk, the workshop, the desk's tree -->
+    <section class="scene" id="s-knock">
+      <svg viewBox="0 0 390 330" aria-hidden="true">
+        <defs><clipPath id="skyclip"><rect x="150" y="20" width="224" height="104"/></clipPath></defs>
+        <rect class="ln-d" x="150" y="20" width="224" height="140" rx="2"/>
+        <path class="ln-d" d="M262 20V160M150 124H374"/>
+        <g class="ln-f dusk-sky"><path d="M164 46H210M290 40H350M176 70H236M300 88H362M160 104H204"/></g>
+        <g clip-path="url(#skyclip)"><circle class="ln-sun sun" cx="318" cy="124" r="24"/></g>
+        <path class="ln-d" d="M150 258H390M150 270H390M168 270V330M372 270V330"/>
+        <rect class="ln-d" x="186" y="172" width="108" height="78" rx="3"/>
+        <path class="ln-d" d="M240 250V258"/>
+        <use href="#crown" x="214" y="176" width="52" height="61" class="cr" data-on="desk"/>
+        <use href="#root" x="214" y="176" width="52" height="61" class="rt" data-on="desk"/>
+        <text class="s9" x="240" y="286" text-anchor="middle" data-t="deskPc"></text>
+        <path class="ln-d" d="M308 258V252H374V258M316 252V228H366V252M316 234H306M366 234H376"/>
+        <g class="steam ln-f"><path d="M330 220c-5-7 5-11 0-18"/><path d="M341 222c-5-7 5-11 0-18"/><path d="M352 220c-5-7 5-11 0-18"/></g>
+        <use href="#pf" class="person" x="6" y="112" width="150" height="163"/>
+        <g class="waves"><path d="M35 182q-7 10 0 20M27 176q-11 16 0 32"/><path d="M127 182q7 10 0 20M135 176q11 16 0 32"/></g>
+        <rect class="phone-r" data-on="phone" x="96" y="252" width="13" height="21" rx="2"/>
+        <text x="14" y="316" data-t="workshop"></text>
+        <text class="s9 rv" data-on="phone" x="14" y="300" data-t="phoneWay"></text>
+      </svg>
+    </section>
+
+    <!-- 2 · the work: the desk's tree builds the night level -->
+    <section class="scene" id="s-work">
+      <svg viewBox="0 0 390 330" aria-hidden="true">
+        <use href="#crown" x="14" y="18" width="120" height="140" class="cr on"/>
+        <use href="#root" x="14" y="18" width="120" height="140" class="rt" data-on="read"/>
+        <path class="ln-ok draw" data-on="draft" pathLength="1" d="M74 62H128V117"/>
+        <circle class="ln-ok rv" data-on="draft" cx="128" cy="120" r="3"/>
+        <text class="tok s9 rv" data-on="draft" x="128" y="136" text-anchor="middle" data-t="nightLevel1"></text>
+        <text class="tok s9 rv" data-on="draft" x="128" y="146" text-anchor="middle" data-t="nightLevel2"></text>
+        <text class="s9" x="74" y="176" text-anchor="middle" data-t="deskPc"></text>
+        <text class="s9 tok rv" data-on="stays" x="74" y="188" text-anchor="middle" data-t="staysHere"></text>
+        <rect class="panel" x="158" y="14" width="222" height="156" rx="4"/>
+        <text class="th" x="170" y="34" data-t="main"></text><text x="200" y="34" data-t="atDesk"></text>
+        <path class="hair" d="M158 44H380"/>
+        <text class="typed rv" data-on="you" x="170" y="62" data-you="work"></text>
+        <text class="rv" data-on="read" x="170" y="82" data-t="reading"></text>
+        <text class="rv" data-on="draft" x="170" y="100" data-t="drafted"></text>
+        <text class="rv" data-on="ready" x="170" y="118" data-t="runs"></text>
+        <circle class="fo pulse rv" data-on="ready" cx="366" cy="114" r="3"/>
+        <use href="#pf" class="person" x="10" y="214" width="62" height="68"/>
+        <rect class="phone-r on" x="44" y="268" width="8" height="13" rx="1.5"/>
+        <text class="s9" x="41" y="298" text-anchor="middle" data-t="you"></text>
+        <text class="s9" x="41" y="310" text-anchor="middle" data-t="handsBusy"></text>
+        <g class="rv" data-on="draft">
+          <rect class="panel" x="96" y="190" width="284" height="130" rx="3"/>
+          <text class="s9" x="106" y="206" data-t="draftFile"></text>
+          <circle class="ln-d" cx="346" cy="218" r="11"/>
+          <g class="ff crisp"><rect x="140" y="222" width="2" height="2"/><rect x="204" y="232" width="2" height="2"/><rect x="262" y="214" width="2" height="2"/><rect x="308" y="246" width="2" height="2"/><rect x="176" y="212" width="2" height="2"/></g>
+          <path class="ln-h crisp" d="M96 302H150V288H190V302H238V274H276V302H312V290H380"/>
+          <path class="ln-h crisp" d="M176 254H214M250 240H290"/>
+          <rect class="ln-ok crisp" x="118" y="292" width="7" height="10"/>
+        </g>
+      </svg>
+    </section>
+
+    <!-- 3 · the trees: every computer its own tree, its own root; one private line; one app -->
+    <section class="scene" id="s-trees">
+      <svg viewBox="0 0 390 330" aria-hidden="true">
+        <rect class="phone-r on" x="189" y="6" width="12" height="20" rx="2"/>
+        <g class="ln-h">
+          <path class="draw" data-on="bridge" pathLength="1" stroke-dasharray="1" d="M193 28C160 36 104 46 72 74"/>
+          <path class="draw" data-on="bridge" pathLength="1" d="M195 28V66"/>
+          <path class="draw" data-on="bridge" pathLength="1" d="M197 28C230 36 286 46 318 74"/>
+        </g>
+        <g class="rv" data-on="grove">
+          <use href="#crown" x="20" y="58" width="96" height="112" class="cr on"/>
+          <use href="#root" x="20" y="58" width="96" height="112" class="rt" data-on="roots"/>
+          <text class="s9 th" x="68" y="190" text-anchor="middle" data-t="desk"></text>
+        </g>
+        <g class="rv d1" data-on="grove">
+          <use href="#crown" x="147" y="58" width="96" height="112" class="cr on"/>
+          <use href="#root" x="147" y="58" width="96" height="112" class="rt" data-on="roots"/>
+          <text class="s9 th" x="195" y="190" text-anchor="middle" data-t="tv"></text>
+        </g>
+        <g class="rv d2" data-on="grove">
+          <use href="#crown" x="274" y="58" width="96" height="112" class="cr on"/>
+          <use href="#root" x="274" y="58" width="96" height="112" class="rt" data-on="roots"/>
+          <text class="s9 th" x="322" y="190" text-anchor="middle" data-t="workshopShort"></text>
+        </g>
+        <text class="s9 tok rv" data-on="roots" x="195" y="252" text-anchor="middle" data-t="rootsLbl"></text>
+        <path class="ln-f" d="M68 198V212H322V198M195 198V212"/>
+        <path class="ln-sky draw" data-on="line" pathLength="1" d="M68 198V212H322V198"/>
+        <path class="ln-sky draw" data-on="line" pathLength="1" d="M195 198V212"/>
+        <text class="s9 tsky rv" data-on="line" x="195" y="232" text-anchor="middle" data-t="lineLbl"></text>
+        <text class="s9 th rv" data-on="bridge" x="195" y="300" text-anchor="middle" data-t="bridgeLbl"></text>
+      </svg>
+    </section>
+
+    <!-- 4 · the move: the desk's work goes to the tv, down the private line -->
+    <section class="scene" id="s-move">
+      <svg viewBox="0 0 390 330" aria-hidden="true">
+        <g class="lit"><use href="#crown" x="10" y="10" width="84" height="98" class="cr"/><use href="#root" x="10" y="10" width="84" height="98" class="rt"/></g>
+        <use href="#crown" x="296" y="10" width="84" height="98" class="cr" data-on="pull"/>
+        <use href="#root" x="296" y="10" width="84" height="98" class="rt" data-on="pull"/>
+        <text class="s9" x="52" y="124" text-anchor="middle" data-t="desk"></text>
+        <text class="s9" x="338" y="124" text-anchor="middle" data-t="tv"></text>
+        <use href="#pf" class="person" x="167" y="4" width="56" height="61"/>
+        <rect class="phone-r on" x="189" y="72" width="12" height="20" rx="2"/>
+        <path class="ln-f" stroke-dasharray="3 4" d="M188 80C150 66 118 52 96 46M202 80C240 66 272 52 294 46"/>
+        <path class="ln-f" d="M52 108V150H338V108"/>
+        <path class="ln-sky draw" data-on="pull" pathLength="1" d="M52 108V150H338V108"/>
+        <circle class="fo pk" cx="52" cy="150" r="4"/>
+        <text class="s9 tsky rv" data-on="pull" x="195" y="166" text-anchor="middle" data-t="privateLine"></text>
+        <rect class="ln-d" x="226" y="100" width="62" height="38" rx="2"/>
+        <path class="ln-d" d="M257 138V144"/>
+        <g class="rv" data-on="screen">
+          <circle class="ln-d" cx="276" cy="110" r="4"/>
+          <path class="ln-h crisp" d="M228 132H242V126H256V132H268V122H286"/>
+          <rect class="ln-ok crisp" x="236" y="122" width="4" height="6"/>
+        </g>
+        <g class="rv" data-on="growing">
+          <rect class="panel" x="100" y="174" width="190" height="18" rx="2"/>
+          <text class="s9 tok" x="195" y="186" text-anchor="middle" data-t="growing"></text>
+        </g>
+        <rect class="panel" x="14" y="198" width="362" height="124" rx="4"/>
+        <text class="th" x="26" y="216" data-t="oneList"></text><text x="86" y="216">· main</text>
+        <path class="hair" d="M14 226H376"/>
+        <text x="26" y="244" data-t="listDesk"></text>
+        <text class="typed rv" data-on="you" x="26" y="262" data-you="move"></text>
+        <text class="rv" data-on="pull" x="26" y="280" data-t="listPull"></text>
+        <text class="rv" data-on="screen" x="26" y="298" data-t="listScreen"></text>
+      </svg>
+    </section>
+
+    <!-- 5 · the edge: nothing goes public; the one limit, said plainly -->
+    <section class="scene" id="s-edge">
+      <svg viewBox="0 0 390 330" aria-hidden="true">
+        <rect class="ln-sky" x="18" y="22" width="236" height="150" rx="10" stroke-dasharray="4 4" opacity=".7"/>
+        <text class="s9 tsky" x="30" y="40" data-t="lineLbl"></text>
+        <path class="ln-f" d="M64 104H150V140M150 104H172V82H190"/>
+        <circle class="ln-h" cx="64" cy="104" r="5"/><text class="s9" x="64" y="126" text-anchor="middle" data-t="desk"></text>
+        <circle class="ln-h" cx="150" cy="140" r="5"/><text class="s9" x="150" y="162" text-anchor="middle" data-t="tv"></text>
+        <rect class="phone-r on" x="190" y="72" width="12" height="20" rx="2"/>
+        <path class="ln-d" d="M202 82H252"/>
+        <path class="ln-h rv" data-on="stop" d="M254 66V98" stroke-width="3"/>
+        <text class="s9 th rv" data-on="stop" x="262" y="60" data-t="noExit"></text>
+        <circle class="ln-f" cx="330" cy="108" r="40" stroke-dasharray="2 4"/>
+        <text class="s9" x="330" y="112" text-anchor="middle" data-t="public"></text>
+        <g transform="translate(22,200)">
+          <g class="rv" data-on="you"><text x="0" y="0" data-t="asked"></text><text class="typed" x="104" y="0" data-you="edge"></text></g>
+          <g class="rv" data-on="stop"><text x="0" y="20" data-t="answer"></text><text class="th" x="104" y="20" data-t="notHere"></text></g>
+          <g class="rv" data-on="hand"><text x="0" y="40" data-t="path"></text><text class="th" x="104" y="40" data-t="byHand"></text></g>
+          <g class="rv" data-on="limit"><text x="0" y="60" data-t="cloudBrain"></text><text class="th" x="104" y="60" data-t="seesSent"></text></g>
+          <g class="rv d1" data-on="limit"><text x="0" y="80" data-t="homeBrain"></text><text class="tok" x="104" y="80" data-t="keepsIn"></text></g>
+          <g class="rv" data-on="serve"><text x="0" y="100" data-t="machines"></text><text class="th" x="104" y="100" data-t="serveNever"></text></g>
+        </g>
+      </svg>
+    </section>
+
+    <!-- 6 · the world: the trees host, the line carries, the app connects; then the manifesto -->
+    <section class="scene" id="s-world">
+      <svg viewBox="0 0 390 330" aria-hidden="true">
+        <g class="grove">
+          <g class="lit"><use href="#crown" x="34" y="40" width="70" height="82" class="cr"/><use href="#root" x="34" y="40" width="70" height="82" class="rt"/></g>
+          <g class="lit"><use href="#crown" x="160" y="24" width="70" height="82" class="cr"/><use href="#root" x="160" y="24" width="70" height="82" class="rt"/></g>
+          <g class="lit"><use href="#crown" x="286" y="40" width="70" height="82" class="cr"/><use href="#root" x="286" y="40" width="70" height="82" class="rt"/></g>
+          <text class="s9" x="69" y="140" text-anchor="middle" data-t="desk"></text>
+          <text class="s9" x="195" y="124" text-anchor="middle" data-t="tv"></text>
+          <text class="s9" x="321" y="140" text-anchor="middle" data-t="workshopShort"></text>
+          <path class="ln-sky" d="M69 122V164H321V122M195 106V164"/>
+          <rect class="phone-r on" x="189" y="198" width="12" height="20" rx="2"/>
+          <path class="ln-h" stroke-dasharray="3 4" opacity=".6" d="M189 206C130 204 84 170 74 128M195 198V170M201 206C260 204 306 170 316 128"/>
+          <text class="rv" data-on="host" x="195" y="252" text-anchor="middle" data-t="host"></text>
+          <ellipse class="ln-ok rv" data-on="world" cx="195" cy="128" rx="182" ry="112" stroke-dasharray="2 5"/>
+        </g>
+        <g class="mark-g rv" data-on="world">
+          <use href="#crown" x="140" y="34" width="110" height="128" class="cr on"/>
+          <use href="#root" x="140" y="34" width="110" height="128" class="rt on"/>
+          <text class="th s12" x="195" y="190" text-anchor="middle">veraldar</text>
+        </g>
+        <text class="lic rv s9" data-on="free" x="195" y="216" text-anchor="middle" data-t="lic"></text>
+      </svg>
+      <div class="blackout">
+        <p class="manifesto"><span id="m1"></span><b class="cur">▮</b></p>
+        <p class="endcard"><b>veraldar▮</b><br><span data-t="product"></span></p>
+      </div>
+    </section>
+
+    <!-- 7 · your tree: hold it, let go — the door opens -->
+    <section class="scene s-door" id="s-door">
+      <svg viewBox="0 0 390 330">
+        <g id="doortree" tabindex="0" role="button">
+          <rect x="105" y="20" width="180" height="250" fill="transparent"/>
+          <use href="#crown" x="120" y="30" width="150" height="175" class="cr"/>
+          <use href="#root" x="120" y="30" width="150" height="175" class="rt on"/>
+        </g>
+        <text class="s9" x="195" y="232" text-anchor="middle" data-t="yourTree"></text>
+      </svg>
+    </section>
+  </main>
+
+  <i id="rail" aria-hidden="true"></i>
+  <section id="hud">
+    <div id="cap" aria-live="polite"></div>
+    <p id="sub" role="status"></p>
+    <div id="nav">
+      <nav id="ch"></nav>
+      <div id="ctl">
+        <button id="pause" type="button"></button>
+        <button id="again" type="button" hidden></button>
+        <button id="open" class="go" type="button" hidden></button>
+      </div>
+    </div>
+  </section>
+</div>
+<noscript><p style="position:fixed;inset:auto 0 0 0;padding:12px;text-align:center;color:#8a8a90">this film needs javascript.</p></noscript>
+
+<script>
+(() => {
+"use strict";
+const Q = new URLSearchParams(location.search);
+const L = Q.get('lang') === 'fr' ? 'fr' : 'en';
+document.documentElement.lang = L;
+const inFrame = window.parent !== window;
+/* fv_* = copies of pwa/lib/onboard-script.json (e2e: far-vision lines match) */
+const T = {
+  en: {
+    title: 'the far vision', sub: 'many trees · one phone',
+    note: 'a short film. the replies are written ahead — nothing here is live. what is marked growing is still being built.',
+    manifesto: 'what ai can simulate, ai can create.',
+    play: '▸ play · sound on', pause: '▮▮', resume: '▸', again: 'again ↺', open: 'open the door',
+    wait: 'the voice is on its way…', quiet: 'no sound here — the words are on screen',
+    hold: 'hold the tree, then let go', heard: 'heard · let go — the door opens', tap: 'a tap is not enough. hold, then let go.',
+    elsewhere: 'the door is on veraldar.org — hold the tree there to begin.',
+    who: { desk: 'desk', tv: 'tv', you: 'you' },
+    ch: ['the way in', 'the work', 'the trees', 'the move', 'the edge', 'the world', 'your tree'],
+    you: { work: 'add a night level to the game', move: 'put it on the tv', edge: 'post it online' },
+    t: {
+      title: 'the far vision', sub: 'many trees · one phone',
+      deskPc: 'desk computer', workshop: 'the workshop · dusk', phoneWay: 'the phone · the way in',
+      nightLevel1: 'night', nightLevel2: 'level', staysHere: 'the work stays here', main: 'main', atDesk: '· the desk',
+      reading: '· reading levels/', drafted: '· level 2 drafted', runs: '· runs here · ready to show',
+      you: 'you', handsBusy: 'hands busy', draftFile: 'levels/02-night · draft',
+      desk: 'desk', tv: 'tv', workshopShort: 'workshop',
+      rootsLbl: 'each root: its own brain, its own memory', lineLbl: 'the private line · only your devices',
+      bridgeLbl: 'bifrost · one app, every tree', privateLine: 'the private line',
+      growing: 'trees passing work · growing', oneList: 'one list',
+      listDesk: '[desk] level 2 drafted · night level', listPull: '[tv]   got the night level from the desk',
+      listScreen: '[tv]   on the big screen · controller one',
+      noExit: 'no way out', public: 'public', asked: 'asked', answer: 'answer', notHere: 'not from here',
+      path: 'path', byHand: 'you publish · by hand', cloudBrain: 'cloud brain', seesSent: 'sees what you send it',
+      homeBrain: 'home brain', keepsIn: 'keeps it all in', machines: 'machines', serveNever: 'serve · never feel',
+      host: 'trees host · the line carries · the app connects', lic: 'AGPL-3.0 · free for everyone',
+      product: 'a Veraldar product.', yourTree: 'your tree',
+    },
+    lines: {
+      fv_open: 'one phone. many trees. here is what they can do together.',
+      fv_dusk: 'dusk, in the workshop. hands busy, headphones on.',
+      fv_phone: 'the phone stays in the pocket. it is the way in.',
+      fv_desk: 'every computer here grows a tree. this one sits at the desk.',
+      fv_hold: 'hold the mic and speak. amber means you are heard.',
+      fv_read: 'reading the levels.',
+      fv_draft: 'level two drafted. dusk colors, same rules.',
+      fv_stays: 'you talk. it works. the work stays on your computer.',
+      fv_ready: 'it runs here. the tv can show it.',
+      fv_grove: 'the desk is not alone. the tv has a tree. so does the workshop.',
+      fv_roots: 'each tree has its own root: its own brain, its own memory.',
+      fv_line: 'one private line joins them. only your devices are on it.',
+      fv_bridge: 'one app in your hand reaches them all. that is bifrost.',
+      fv_pull: 'got the night level from the desk.',
+      fv_screen: 'on the big screen. controller one.',
+      fv_moved: 'the work moved down the private line. nothing went public.',
+      fv_growing: 'trees that pass work to each other: that part is still growing.',
+      fv_stop: 'not from here.',
+      fv_hand: 'your trees never publish on their own. you do that, by hand.',
+      fv_limit: 'one limit, said plainly: a cloud brain sees what you send it. a brain at home keeps it all in.',
+      fv_serve: 'the machines serve. they never feel.',
+      fv_host: 'the trees host. the line carries. the app connects.',
+      fv_world: 'the world holds them all. that world is veraldar.',
+      fv_free: 'free for everyone. your hardware, your words.',
+      fv_start: 'it starts with one tree. yours. hold it to begin.',
+    },
+  },
+  fr: {
+    title: 'la vision lointaine', sub: 'plusieurs arbres · un téléphone',
+    note: 'un court film. les réponses sont écrites d’avance — rien n’est en direct. ce qui est marqué « ça pousse » est encore en construction.',
+    manifesto: 'ce que l’ia peut simuler, l’ia peut le créer.',
+    play: '▸ lire · son activé', pause: '▮▮', resume: '▸', again: 'encore ↺', open: 'ouvrir la porte',
+    wait: 'la voix arrive…', quiet: 'pas de son ici — les mots sont à l’écran',
+    hold: 'maintenez l’arbre, puis relâchez', heard: 'entendu · relâchez — la porte s’ouvre', tap: 'un appui court ne suffit pas. maintenez, puis relâchez.',
+    elsewhere: 'la porte est sur veraldar.org — maintenez l’arbre là-bas pour commencer.',
+    who: { desk: 'bureau', tv: 'télé', you: 'vous' },
+    ch: ['l’entrée', 'le travail', 'les arbres', 'le passage', 'la limite', 'le monde', 'votre arbre'],
+    you: { work: 'ajoute un niveau de nuit au jeu', move: 'mets-le sur la télé', edge: 'publie-le en ligne' },
+    t: {
+      title: 'la vision lointaine', sub: 'plusieurs arbres · un téléphone',
+      deskPc: 'ordinateur du bureau', workshop: 'l’atelier · le soir', phoneWay: 'le téléphone · l’entrée',
+      nightLevel1: 'niveau', nightLevel2: 'de nuit', staysHere: 'le travail reste ici', main: 'main', atDesk: '· le bureau',
+      reading: '· lecture de levels/', drafted: '· niveau 2 en brouillon', runs: '· tourne ici · prêt à montrer',
+      you: 'vous', handsBusy: 'mains prises', draftFile: 'levels/02-night · brouillon',
+      desk: 'bureau', tv: 'télé', workshopShort: 'atelier',
+      rootsLbl: 'chaque racine : son cerveau, sa mémoire', lineLbl: 'la ligne privée · vos appareils seulement',
+      bridgeLbl: 'bifrost · une appli, tous les arbres', privateLine: 'la ligne privée',
+      growing: 'se passer le travail · ça pousse', oneList: 'une liste',
+      listDesk: '[bureau] niveau 2 en brouillon', listPull: '[télé]   niveau de nuit pris au bureau',
+      listScreen: '[télé]   grand écran · manette un',
+      noExit: 'pas de sortie', public: 'public', asked: 'demandé', answer: 'réponse', notHere: 'pas d’ici',
+      path: 'chemin', byHand: 'vous publiez · à la main', cloudBrain: 'cerveau en ligne', seesSent: 'voit ce que vous envoyez',
+      homeBrain: 'cerveau maison', keepsIn: 'garde tout chez vous', machines: 'machines', serveNever: 'servent · ne ressentent rien',
+      host: 'les arbres hébergent · la ligne transporte · l’appli relie', lic: 'AGPL-3.0 · libre pour tout le monde',
+      product: 'un produit Veraldar.', yourTree: 'votre arbre',
+    },
+    lines: {
+      fv_open: "un téléphone. plusieurs arbres. voici ce qu'ils peuvent faire ensemble.",
+      fv_dusk: "le soir, à l'atelier. les mains prises, le casque sur les oreilles.",
+      fv_phone: "le téléphone reste dans la poche. c'est lui, l'entrée.",
+      fv_desk: 'ici, chaque ordinateur fait pousser un arbre. celui-ci est au bureau.',
+      fv_hold: "maintenez le micro et parlez. l'ambre veut dire que vous êtes entendu.",
+      fv_read: 'je lis les niveaux.',
+      fv_draft: 'niveau deux, en brouillon. couleurs du soir, mêmes règles.',
+      fv_stays: 'vous parlez. il travaille. le travail reste sur votre ordinateur.',
+      fv_ready: 'il tourne ici. la télé peut le montrer.',
+      fv_grove: "le bureau n'est pas seul. la télé a son arbre. l'atelier aussi.",
+      fv_roots: 'chaque arbre a sa propre racine : son cerveau, sa mémoire.',
+      fv_line: 'une ligne privée les relie. seuls vos appareils y sont.',
+      fv_bridge: "une appli dans votre main les rejoint tous. c'est bifrost.",
+      fv_pull: "j'ai pris le niveau de nuit sur le bureau.",
+      fv_screen: 'sur le grand écran. manette un.',
+      fv_moved: "le travail a suivi la ligne privée. rien n'est devenu public.",
+      fv_growing: "des arbres qui se passent le travail : ça, c'est encore en train de pousser.",
+      fv_stop: "pas d'ici.",
+      fv_hand: 'vos arbres ne publient jamais seuls. ça, vous le faites à la main.',
+      fv_limit: 'une limite, dite simplement : un cerveau en ligne voit ce que vous lui envoyez. un cerveau à la maison garde tout chez vous.',
+      fv_serve: 'les machines servent. elles ne ressentent rien.',
+      fv_host: "les arbres hébergent. la ligne transporte. l'appli relie.",
+      fv_world: "le monde les contient tous. ce monde, c'est veraldar.",
+      fv_free: 'libre pour tout le monde. votre matériel, vos mots.',
+      fv_start: 'tout commence par un arbre. le vôtre. maintenez-le pour commencer.',
+    },
+  },
+}[L];
+
+/* the film: chapters of beats — [who, line id | you-key | 'manifesto', cue].
+   who = reader | desk | tv (spoken) · you (typed, amber: heard) · type (the manifesto) */
+const CH = [
+  { scene: 's-knock', beats: [['reader', 'fv_open'], ['reader', 'fv_dusk', 'dusk'], ['reader', 'fv_phone', 'phone'], ['reader', 'fv_desk', 'desk'], ['reader', 'fv_hold', 'hold']] },
+  { scene: 's-work', beats: [['you', 'work', 'you'], ['desk', 'fv_read', 'read'], ['desk', 'fv_draft', 'draft'], ['reader', 'fv_stays', 'stays'], ['desk', 'fv_ready', 'ready']] },
+  { scene: 's-trees', beats: [['reader', 'fv_grove', 'grove'], ['reader', 'fv_roots', 'roots'], ['reader', 'fv_line', 'line'], ['reader', 'fv_bridge', 'bridge']] },
+  { scene: 's-move', beats: [['you', 'move', 'you'], ['tv', 'fv_pull', 'pull'], ['tv', 'fv_screen', 'screen'], ['reader', 'fv_moved'], ['reader', 'fv_growing', 'growing']] },
+  { scene: 's-edge', beats: [['you', 'edge', 'you'], ['desk', 'fv_stop', 'stop'], ['reader', 'fv_hand', 'hand'], ['reader', 'fv_limit', 'limit'], ['reader', 'fv_serve', 'serve']] },
+  { scene: 's-world', beats: [['reader', 'fv_host', 'host'], ['reader', 'fv_world', 'world'], ['reader', 'fv_free', 'free'], ['type', 'manifesto', 'black']] },
+  { scene: 's-door', beats: [['reader', 'fv_start', 'door']] },
+];
+const idsOf = c => (CH[c] ? CH[c].beats.filter(b => /^(reader|desk|tv)$/.test(b[0])).map(b => b[1]) : []);
+
+const $ = id => document.getElementById(id);
+const capEl = $('cap'), subEl = $('sub'), chEl = $('ch'), titleEl = $('title');
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+document.querySelectorAll('[data-t]').forEach(el => { el.textContent = T.t[el.dataset.t] || ''; });
+document.querySelectorAll('[data-you]').forEach(el => { el.textContent = '› ' + T.you[el.dataset.you]; });
+$('play').textContent = T.play; $('again').textContent = T.again; $('open').textContent = T.open;
+$('doortree').setAttribute('aria-label', T.hold);
+
+/* ── the voice: the door's own pack, one element (phones suspend WebAudio) ── */
+const PACK = '/onboarding/';
+const au = new Audio(); au.preload = 'auto'; au.setAttribute('playsinline', '');
+let unlocked = false, cut = null;
+const voice = v => { document.body.dataset.voice = v; };
+const file = id => PACK + L + '/' + id + '.mp3';
+const urls = new Map(), waiting = new Map();
+let answered = false; // the parent said it hands the lines over
+function load(id){
+  if (!urls.has(id)) urls.set(id, new Promise(res => {
+    let done = false;
+    const fin = u => { if (!done) { done = true; waiting.delete(id); res(u); } };
+    const self = () => fetch(file(id)).then(r => { if (!r.ok) throw r.status; return r.blob(); })
+      .then(b => fin(URL.createObjectURL(b)), () => fin(file(id)));
+    if (!inFrame) return self();
+    waiting.set(id, b => b ? fin(URL.createObjectURL(b)) : self());
+    setTimeout(() => { if (!done && !answered) self(); }, 400); // a parent that never answers
+  }));
+  return urls.get(id);
+}
+function preload(ids){
+  const fresh = ids.filter(id => !urls.has(id));
+  if (!fresh.length) return;
+  if (inFrame) window.parent.postMessage({ voice: 'need', lang: L, ids: fresh }, '*');
+  fresh.forEach(load);
+}
+window.addEventListener('message', e => {
+  const d = e.data;
+  if (e.source !== window.parent || !d || d.lang !== L) return;
+  if (d.voice === 'ack') { answered = true; return; }
+  if (d.voice !== 'line') return;
+  const w = waiting.get(d.id);
+  if (w) w(d.blob instanceof Blob && d.blob.size ? d.blob : null);
+});
+function sub(s, hot){ subEl.textContent = s || ''; subEl.classList.toggle('hot', !!hot); subEl.classList.remove('wait'); }
+/** one line, spoken + on screen → 'ok' | 'quiet' | 'blocked' | 'cut'; start() runs with its first audio */
+function say(id, start){
+  voice('loading');
+  sub(T.wait); subEl.classList.add('wait');
+  return new Promise(res => {
+    let tm = 0, slow = 0, done = false, began = false;
+    const begin = () => { if (began) return; began = true; clearTimeout(slow); if (subEl.classList.contains('wait')) sub(''); if (start) start(); };
+    const fin = v => {
+      if (done) return; done = true; clearTimeout(tm); clearTimeout(slow);
+      au.onended = au.onerror = au.onplaying = null; cut = null;
+      if (v !== 'cut') voice(v === 'ok' ? 'idle' : 'quiet');
+      res(v);
+    };
+    const quiet = () => { begin(); voice('quiet'); sub(T.quiet); if (!tm) tm = setTimeout(() => fin('quiet'), Math.max(1800, T.lines[id].length * 62)); };
+    slow = setTimeout(quiet, 8000); // a voice that never comes: the film goes on in words
+    cut = () => { au.pause(); fin('cut'); };
+    au.onplaying = () => { if (done) return; voice('speaking'); begin(); };
+    au.onended = () => fin('ok');
+    au.onerror = quiet;
+    load(id).then(url => {
+      if (done) return;
+      au.src = url;
+      au.play().then(() => { unlocked = true; }).catch(e => {
+        if (!unlocked && e && e.name === 'NotAllowedError') fin('blocked'); else quiet();
+      });
+    });
+  });
+}
+
+/* ── the stage ── */
+let run = 0, at = { c: -1, b: 0 }, paused = false, ended = false;
+const wait = ms => new Promise(r => setTimeout(r, RM ? Math.min(ms, 200) : ms));
+function showScene(id){
+  document.querySelectorAll('.scene').forEach(s => s.classList.toggle('now', s.id === id));
+}
+function resetCues(sec){
+  [...sec.classList].forEach(k => { if (k.indexOf('c-') === 0) sec.classList.remove(k); });
+  sec.querySelectorAll('[data-on]').forEach(el => el.classList.remove('on'));
+}
+function cueOn(sec, cue){
+  if (!cue) return;
+  sec.classList.add('c-' + cue);
+  sec.querySelectorAll('[data-on]').forEach(el => { if (el.dataset.on.split(' ').indexOf(cue) >= 0) el.classList.add('on'); });
+}
+/** the caption: the line before (dim) and this one */
+function caption(who, text){
+  const prev = capEl.querySelector('.now');
+  capEl.textContent = '';
+  if (prev) { prev.className = 'prev'; capEl.appendChild(prev); }
+  const p = document.createElement('p');
+  p.className = 'now' + (who === 'you' ? ' you' : '');
+  if (who !== 'reader' && who !== 'type') {
+    const b = document.createElement('b'); b.textContent = T.who[who] + ' › '; p.appendChild(b);
+  }
+  p.appendChild(document.createTextNode(who === 'you' ? '"' + text + '"' : text));
+  capEl.appendChild(p);
+  return p;
+}
+function chapters(){
+  chEl.textContent = '';
+  CH.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('aria-label', (i + 1) + ' · ' + T.ch[i]);
+    b.addEventListener('click', () => { paused = false; void playFrom(i, 0); });
+    chEl.appendChild(b);
+  });
+}
+function mark(c, b){
+  [...chEl.children].forEach((el, i) => {
+    el.classList.toggle('done', i < c); el.classList.toggle('now', i === c);
+    el.setAttribute('aria-current', i === c ? 'step' : 'false');
+    el.style.setProperty('--p', i < c ? '100%' : i === c ? Math.round(100 * b / CH[c].beats.length) + '%' : '0%');
+  });
+  titleEl.textContent = (c + 1) + ' · ' + T.ch[c];
+}
+function typeInto(el, text, my, cps){
+  return new Promise(res => {
+    let i = 0; el.textContent = '';
+    const tick = () => {
+      if (my !== run) return res();
+      el.textContent = text.slice(0, ++i);
+      if (i < text.length) setTimeout(tick, RM ? 0 : (text[i - 1] === ',' ? 260 : cps)); else res();
+    };
+    setTimeout(tick, RM ? 0 : 250);
+  });
+}
+/** you: hold the mic (amber, heard), the words type themselves, let go */
+async function youSay(key, sec, cue, my){
+  document.body.classList.add('heard'); voice('idle'); sub('');
+  const p = caption('you', '');
+  cueOn(sec, cue);
+  const els = sec.querySelectorAll('[data-you="' + key + '"]');
+  const text = T.you[key];
+  await typeInto(p, '"' + text + '"', my, 38);
+  els.forEach(el => { el.textContent = '› ' + text; });
+  await wait(650);
+  document.body.classList.remove('heard');
+}
+async function beat(c, b, my){
+  const [who, id, cue] = CH[c].beats[b];
+  const sec = $(CH[c].scene);
+  mark(c, b);
+  if (who === 'you') return youSay(id, sec, cue, my);
+  if (who === 'type') {
+    caption('type', ''); capEl.textContent = '';
+    cueOn(sec, cue);
+    await wait(1000); if (my !== run) return;
+    await typeInto($('m1'), T.manifesto, my, 58); if (my !== run) return;
+    await wait(700); if (my !== run) return;
+    sec.classList.add('c-endcard');
+    await wait(1800);
+    return;
+  }
+  caption(who, T.lines[id]);
+  const r = await say(id, () => { if (my === run) cueOn(sec, cue); });
+  if (my !== run) return 'cut';
+  return r;
+}
+/** play from chapter c, beat b (the beats before it in that scene drawn at once) */
+async function playFrom(c, b){
+  const my = ++run;
+  if (cut) cut();
+  ended = false; paused = false;
+  document.body.classList.remove('heard', 'try');
+  $('again').hidden = true; $('open').hidden = true; $('pause').hidden = false; $('pause').textContent = T.pause;
+  $('play').hidden = true;
+  sub('');
+  for (let ci = c; ci < CH.length; ci++) {
+    if (my !== run) return;
+    const sec = $(CH[ci].scene);
+    if (ci !== at.c || b === 0) resetCues(sec);
+    if (ci === c) {
+      CH[ci].beats.slice(0, b).forEach(x => { if (x[0] !== 'type') cueOn(sec, x[2]); });
+      if (ci === 5 && b >= 4) sec.classList.add('c-black', 'c-endcard');
+    }
+    preload(idsOf(ci).concat(idsOf(ci + 1)));
+    showScene(CH[ci].scene);
+    if (ci !== c || b === 0) { capEl.textContent = ''; await wait(ci === c ? 300 : 700); }
+    for (let bi = ci === c ? b : 0; bi < CH[ci].beats.length; bi++) {
+      if (my !== run) return;
+      at = { c: ci, b: bi };
+      const r = await beat(ci, bi, my);
+      if (my !== run) return;
+      if (r === 'blocked') { blocked(); return; }
+      await wait(320);
+    }
+    if (my !== run) return;
+    mark(ci, CH[ci].beats.length);
+    if (ci === CH.length - 1) { theDoor(); return; }
+    await wait(500);
+  }
+}
+/** the browser wants one tap inside the film before it speaks */
+function blocked(){
+  run++; voice('idle');
+  showScene('s-start'); capEl.textContent = ''; sub('');
+  $('play').hidden = false; $('pause').hidden = true;
+}
+/* ── the end: your tree. hold = heard (amber), let go = the door ── */
+let holdAt = 0, holding = false;
+// only a parent that speaks this film's language (it answered {voice:'need'}:
+// veraldar.org) has a door to open; anywhere else the door is named, not faked
+const hasDoor = () => inFrame && answered;
+function theDoor(){
+  ended = true; at = { c: CH.length - 1, b: 1 };
+  document.body.classList.add('try');
+  $('s-door').classList.add('try');
+  $('pause').hidden = true; $('again').hidden = false; $('open').hidden = !hasDoor();
+  sub(hasDoor() ? T.hold : T.elsewhere);
+}
+function treeDown(e){
+  if (!ended || !hasDoor()) return;
+  if (e && e.preventDefault) e.preventDefault();
+  try { e && e.pointerId != null && $('doortree').setPointerCapture(e.pointerId); } catch (_) {}
+  holding = true; holdAt = performance.now();
+  document.body.classList.add('heard'); sub(T.heard, true);
+}
+function treeUp(){
+  if (!holding) return;
+  holding = false;
+  document.body.classList.remove('heard');
+  if (performance.now() - holdAt < 350) { sub(T.tap); return; }
+  toDoor();
+}
+function toDoor(){ if (cut) cut(); run++; window.parent.postMessage({ film: 'door' }, '*'); }
+const dt = $('doortree');
+dt.addEventListener('pointerdown', treeDown);
+dt.addEventListener('pointerup', treeUp);
+dt.addEventListener('pointercancel', () => { if (holding) { holding = false; document.body.classList.remove('heard'); sub(T.hold); } });
+dt.addEventListener('contextmenu', e => e.preventDefault());
+dt.addEventListener('keydown', e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) treeDown(e); });
+dt.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') treeUp(); });
+$('open').addEventListener('click', toDoor);
+$('again').addEventListener('click', () => void playFrom(0, 0));
+$('pause').addEventListener('click', () => {
+  if (!paused) {
+    paused = true; run++; if (cut) cut(); voice('idle'); document.body.classList.remove('heard');
+    $('pause').textContent = T.resume; $('pause').setAttribute('aria-label', 'play');
+  } else {
+    void playFrom(at.c, at.b);
+  }
+});
+$('pause').setAttribute('aria-label', 'pause');
+$('play').addEventListener('click', () => { unlocked = true; void playFrom(Math.max(0, at.c), at.c < 0 ? 0 : at.b); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && inFrame) window.parent.postMessage({ film: 'skip' }, '*'); });
+
+/* ── start ── */
+chapters();
+if (inFrame) window.parent.postMessage({ tree: 'up' }, '*'); // first paint: the parent's wait gives way
+const startAt = Math.min(CH.length, Math.max(1, Number(Q.get('ch')) || 0)) - 1;
+preload(idsOf(Math.max(0, startAt)).concat(idsOf(Math.max(0, startAt) + 1)));
+titleEl.textContent = T.title;
+if (startAt >= 0 && Q.get('ch')) void playFrom(startAt, 0);
+else {
+  // the manifesto opens the film (typed, as canon) while the first lines load
+  const my = run;
+  typeInto($('m0'), T.manifesto, my, 58).then(() => wait(900)).then(() => { if (my === run) void playFrom(0, 0); });
+}
+})();
+</script>
+</body>
+</html>

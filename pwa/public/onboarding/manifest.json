@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "generated": "2026-10-22T02:10:27.966Z",
+  "generated": "2026-10-22T06:35:13.177Z",
   "voices": {
     "en": {
       "server": "local speaches (onnx)",
@@ -675,6 +675,631 @@
         "bytes": 18668,
         "seed": 7,
         "heard": "C'est tout le trajet. Le micro marche pareil.",
+        "score": 1
+      }
+    },
+    "fv_open": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "one phone. many trees. here is what they can do together.",
+        "sha": "5aec15d7c80f368b",
+        "file": "en/fv_open.mp3",
+        "ms": 3157,
+        "bytes": 19532,
+        "seed": null,
+        "heard": "One phone, many trees. Here is what they can do together.",
+        "score": 1
+      },
+      "fr": {
+        "text": "un téléphone. plusieurs arbres. voici ce qu'ils peuvent faire ensemble.",
+        "sha": "4dd0388c251e4124",
+        "file": "fr/fv_open.mp3",
+        "ms": 4817,
+        "bytes": 29468,
+        "seed": 7,
+        "heard": "Un téléphone, plusieurs arbres. Voici ce qu'ils peuvent faire ensemble.",
+        "score": 1
+      }
+    },
+    "fv_dusk": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "dusk, in the workshop. hands busy, headphones on.",
+        "sha": "076e487f28d5cedb",
+        "file": "en/fv_dusk.mp3",
+        "ms": 3096,
+        "bytes": 19100,
+        "seed": null,
+        "heard": "Dusk in the workshop. Hands busy. Headphones on.",
+        "score": 1
+      },
+      "fr": {
+        "text": "le soir, à l'atelier. les mains prises, le casque sur les oreilles.",
+        "sha": "58e45ae90d00b457",
+        "file": "fr/fv_dusk.mp3",
+        "ms": 5402,
+        "bytes": 33068,
+        "seed": 7,
+        "heard": "Le soir, à l'atelier, les mains prises, le casque sur les oreilles.",
+        "score": 1
+      }
+    },
+    "fv_phone": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "the phone stays in the pocket. it is the way in.",
+        "sha": "f02026726a817dae",
+        "file": "en/fv_phone.mp3",
+        "ms": 2694,
+        "bytes": 16796,
+        "seed": null,
+        "heard": "The phone stays in the pocket. It is the way in.",
+        "score": 1
+      },
+      "fr": {
+        "text": "le téléphone reste dans la poche. c'est lui, l'entrée.",
+        "sha": "3a8521b443dd4d7e",
+        "file": "fr/fv_phone.mp3",
+        "ms": 4574,
+        "bytes": 28028,
+        "seed": 7,
+        "heard": "Le téléphone reste dans la poche. C'est lui, l'entrée.",
+        "score": 1
+      }
+    },
+    "fv_desk": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "every computer here grows a tree. this one sits at the desk.",
+        "sha": "b243cea3a3f977e6",
+        "file": "en/fv_desk.mp3",
+        "ms": 3563,
+        "bytes": 21980,
+        "seed": null,
+        "heard": "Every computer here grows a tree. This one sits at the desk.",
+        "score": 1
+      },
+      "fr": {
+        "text": "ici, chaque ordinateur fait pousser un arbre. celui-ci est au bureau.",
+        "sha": "b5b1e71b70fa740b",
+        "file": "fr/fv_desk.mp3",
+        "ms": 4833,
+        "bytes": 29612,
+        "seed": 7,
+        "heard": "Ici, chaque ordinateur fait pousser un arbre. Celui-ci est au bureau.",
+        "score": 1
+      }
+    },
+    "fv_hold": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "hold the mic and speak. amber means you are heard.",
+        "sha": "56a2ebfd37d18a23",
+        "file": "en/fv_hold.mp3",
+        "ms": 2770,
+        "bytes": 17228,
+        "seed": null,
+        "heard": "Hold the mic and speak. Amber means you are heard.",
+        "score": 1
+      },
+      "fr": {
+        "text": "maintenez le micro et parlez. l'ambre veut dire que vous êtes entendu.",
+        "sha": "a955ef91a4a13e83",
+        "file": "fr/fv_hold.mp3",
+        "ms": 4614,
+        "bytes": 28316,
+        "seed": 7,
+        "heard": "Maintenez le micro et parlez. L'ambre veut dire que vous êtes entendu.",
+        "score": 1
+      }
+    },
+    "fv_read": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "reading the levels.",
+        "sha": "0dc912516cf18443",
+        "file": "en/fv_read.mp3",
+        "ms": 1156,
+        "bytes": 7580,
+        "seed": null,
+        "heard": "Reading the levels.",
+        "score": 1
+      },
+      "fr": {
+        "text": "je lis les niveaux.",
+        "sha": "92f4f012d951296d",
+        "file": "fr/fv_read.mp3",
+        "ms": 1174,
+        "bytes": 7580,
+        "seed": 7,
+        "heard": "Je lis les niveaux.",
+        "score": 1
+      }
+    },
+    "fv_draft": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "level two drafted. dusk colors, same rules.",
+        "sha": "6b4b607810265141",
+        "file": "en/fv_draft.mp3",
+        "ms": 3029,
+        "bytes": 18812,
+        "seed": null,
+        "heard": "Level two drafted. Dusk colors same rules.",
+        "score": 1
+      },
+      "fr": {
+        "text": "niveau deux, en brouillon. couleurs du soir, mêmes règles.",
+        "sha": "2ca9acb1d4f0a5ea",
+        "file": "fr/fv_draft.mp3",
+        "ms": 4940,
+        "bytes": 30188,
+        "seed": 11,
+        "heard": "Niveau deux, en brouillon, couleur du soir, même règle.",
+        "score": 1
+      }
+    },
+    "fv_stays": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "you talk. it works. the work stays on your computer.",
+        "sha": "239b6e8a0a0571c7",
+        "file": "en/fv_stays.mp3",
+        "ms": 2882,
+        "bytes": 17948,
+        "seed": null,
+        "heard": "You talk, it works. The work stays on your computer.",
+        "score": 1
+      },
+      "fr": {
+        "text": "vous parlez. il travaille. le travail reste sur votre ordinateur.",
+        "sha": "ca98acd27d6b6427",
+        "file": "fr/fv_stays.mp3",
+        "ms": 4696,
+        "bytes": 28748,
+        "seed": 7,
+        "heard": "Vous parlez. Il travaille. Le travail reste sur votre ordinateur.",
+        "score": 1
+      }
+    },
+    "fv_ready": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "it runs here. the tv can show it.",
+        "sha": "e9eb5e6201567fd8",
+        "file": "en/fv_ready.mp3",
+        "ms": 2219,
+        "bytes": 13916,
+        "seed": null,
+        "heard": "It runs here. The TV can show it.",
+        "score": 1
+      },
+      "fr": {
+        "text": "il tourne ici. la télé peut le montrer.",
+        "sha": "dc5ecd67f691f3ae",
+        "file": "fr/fv_ready.mp3",
+        "ms": 3302,
+        "bytes": 20396,
+        "seed": 7,
+        "heard": "Il tourne ici. La télé peut le montrer.",
+        "score": 1
+      }
+    },
+    "fv_grove": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "the desk is not alone. the tv has a tree. so does the workshop.",
+        "sha": "43b539384474e44a",
+        "file": "en/fv_grove.mp3",
+        "ms": 3904,
+        "bytes": 23996,
+        "seed": null,
+        "heard": "The desk is not alone. The TV has a tree. So does the workshop.",
+        "score": 1
+      },
+      "fr": {
+        "text": "le bureau n'est pas seul. la télé a son arbre. l'atelier aussi.",
+        "sha": "2bbca30b0b221730",
+        "file": "fr/fv_grove.mp3",
+        "ms": 4813,
+        "bytes": 29468,
+        "seed": 7,
+        "heard": "Le bureau n'est pas seul. La télé a son arbre. L'atelier aussi.",
+        "score": 1
+      }
+    },
+    "fv_roots": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "each tree has its own root: its own brain, its own memory.",
+        "sha": "86ffa90b52d78df6",
+        "file": "en/fv_roots.mp3",
+        "ms": 3520,
+        "bytes": 21692,
+        "seed": null,
+        "heard": "Each tree has its own root, its own brain, its own memory.",
+        "score": 1
+      },
+      "fr": {
+        "text": "chaque arbre a sa propre racine : son cerveau, sa mémoire.",
+        "sha": "bd629800e89e2ffd",
+        "file": "fr/fv_roots.mp3",
+        "ms": 4446,
+        "bytes": 27308,
+        "seed": 7,
+        "heard": "Chaque arbre a sa propre racine, son cerveau, sa mémoire.",
+        "score": 1
+      }
+    },
+    "fv_line": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "one private line joins them. only your devices are on it.",
+        "sha": "80405eeb33490807",
+        "file": "en/fv_line.mp3",
+        "ms": 3605,
+        "bytes": 22268,
+        "seed": null,
+        "heard": "One private line joins them. Only your devices are on it.",
+        "score": 1
+      },
+      "fr": {
+        "text": "une ligne privée les relie. seuls vos appareils y sont.",
+        "sha": "54612d300a0a889c",
+        "file": "fr/fv_line.mp3",
+        "ms": 4210,
+        "bytes": 25868,
+        "seed": 7,
+        "heard": "Une ligne privée les relie. Seuls vos appareils y sont.",
+        "score": 1
+      }
+    },
+    "fv_bridge": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "one app in your hand reaches them all. that is bifrost.",
+        "sha": "132d7c9aa79f1500",
+        "file": "en/fv_bridge.mp3",
+        "ms": 3177,
+        "bytes": 19676,
+        "seed": null,
+        "heard": "One app in your hand reaches them all. That is Bifrost.",
+        "score": 1
+      },
+      "fr": {
+        "text": "une appli dans votre main les rejoint tous. c'est bifrost.",
+        "sha": "b7ff5193d17b0787",
+        "file": "fr/fv_bridge.mp3",
+        "ms": 4610,
+        "bytes": 28316,
+        "seed": 7,
+        "heard": "Une appli dans votre main les rejoint tous. C'est Bifrost.",
+        "score": 1
+      }
+    },
+    "fv_pull": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "got the night level from the desk.",
+        "sha": "c4a5a2ad6e7b6d1d",
+        "file": "en/fv_pull.mp3",
+        "ms": 1664,
+        "bytes": 10604,
+        "seed": null,
+        "heard": "Got the night level from the desk.",
+        "score": 1
+      },
+      "fr": {
+        "text": "j'ai pris le niveau de nuit sur le bureau.",
+        "sha": "3fa6896a646abb61",
+        "file": "fr/fv_pull.mp3",
+        "ms": 1976,
+        "bytes": 12476,
+        "seed": 7,
+        "heard": "J'ai pris le niveau de nuit sur le bureau.",
+        "score": 1
+      }
+    },
+    "fv_screen": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "on the big screen. controller one.",
+        "sha": "16c24abeffac3031",
+        "file": "en/fv_screen.mp3",
+        "ms": 1984,
+        "bytes": 12476,
+        "seed": null,
+        "heard": "On the big screen, controller one.",
+        "score": 1
+      },
+      "fr": {
+        "text": "sur le grand écran. manette un.",
+        "sha": "813d89c9886ee05f",
+        "file": "fr/fv_screen.mp3",
+        "ms": 2614,
+        "bytes": 16220,
+        "seed": 11,
+        "heard": "Sur le grand écran, manette un.",
+        "score": 1
+      }
+    },
+    "fv_moved": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "the work moved down the private line. nothing went public.",
+        "sha": "117e225a42efd325",
+        "file": "en/fv_moved.mp3",
+        "ms": 3243,
+        "bytes": 20108,
+        "seed": null,
+        "heard": "The work moved down the private line. Nothing went public.",
+        "score": 1
+      },
+      "fr": {
+        "text": "le travail a suivi la ligne privée. rien n'est devenu public.",
+        "sha": "2a9b8df6fec3581f",
+        "file": "fr/fv_moved.mp3",
+        "ms": 4257,
+        "bytes": 26156,
+        "seed": 7,
+        "heard": "Le travail a suivi la ligne privée. Rien n'est devenu public.",
+        "score": 1
+      }
+    },
+    "fv_growing": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "trees that pass work to each other: that part is still growing.",
+        "sha": "5725ff0dc60e02b0",
+        "file": "en/fv_growing.mp3",
+        "ms": 3307,
+        "bytes": 20396,
+        "seed": null,
+        "heard": "Trees that pass work to each other. That part is still growing.",
+        "score": 1
+      },
+      "fr": {
+        "text": "des arbres qui se passent le travail : ça, c'est encore en train de pousser.",
+        "sha": "de3e74f7f131a3ab",
+        "file": "fr/fv_growing.mp3",
+        "ms": 4298,
+        "bytes": 26444,
+        "seed": 7,
+        "heard": "Des arbres qui se passent le travail, ça c'est encore en train de pousser.",
+        "score": 1
+      }
+    },
+    "fv_stop": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "not from here.",
+        "sha": "e9928eb98e1ac919",
+        "file": "en/fv_stop.mp3",
+        "ms": 943,
+        "bytes": 6284,
+        "seed": null,
+        "heard": "Not from here.",
+        "score": 1
+      },
+      "fr": {
+        "text": "pas d'ici.",
+        "sha": "95f72f4469e9d404",
+        "file": "fr/fv_stop.mp3",
+        "ms": 655,
+        "bytes": 4556,
+        "seed": 7,
+        "heard": "Pas d'ici.",
+        "score": 1
+      }
+    },
+    "fv_hand": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "your trees never publish on their own. you do that, by hand.",
+        "sha": "a72b36b7fdf99a24",
+        "file": "en/fv_hand.mp3",
+        "ms": 3371,
+        "bytes": 20828,
+        "seed": null,
+        "heard": "Your trees never publish on their own. You do that by hand.",
+        "score": 1
+      },
+      "fr": {
+        "text": "vos arbres ne publient jamais seuls. ça, vous le faites à la main.",
+        "sha": "a464a3ecc1f8aeb3",
+        "file": "fr/fv_hand.mp3",
+        "ms": 4695,
+        "bytes": 28748,
+        "seed": 7,
+        "heard": "Vos arbres ne publient jamais seuls. Ça, vous le faites à la main.",
+        "score": 1
+      }
+    },
+    "fv_limit": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "one limit, said plainly: a cloud brain sees what you send it. a brain at home keeps it all in.",
+        "sha": "46df9ba4d3ef002e",
+        "file": "en/fv_limit.mp3",
+        "ms": 5717,
+        "bytes": 34940,
+        "seed": null,
+        "heard": "One limit said plainly: a cloud brain sees what you send it. A brain at home keeps it all in.",
+        "score": 1
+      },
+      "fr": {
+        "text": "une limite, dite simplement : un cerveau en ligne voit ce que vous lui envoyez. un cerveau à la maison garde tout chez vous.",
+        "sha": "5f6af279bd44c75a",
+        "file": "fr/fv_limit.mp3",
+        "ms": 7553,
+        "bytes": 45884,
+        "seed": 7,
+        "heard": "Une limite, dites simplement. Un cerveau en ligne voit ce que vous lui envoyez. Un cerveau à la maison garde tout chez vous.",
+        "score": 1
+      }
+    },
+    "fv_serve": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "the machines serve. they never feel.",
+        "sha": "766c328dad1f6da9",
+        "file": "en/fv_serve.mp3",
+        "ms": 1970,
+        "bytes": 12476,
+        "seed": null,
+        "heard": "The machines serve; they never feel.",
+        "score": 1
+      },
+      "fr": {
+        "text": "les machines servent. elles ne ressentent rien.",
+        "sha": "baf48a3a4c173fbc",
+        "file": "fr/fv_serve.mp3",
+        "ms": 3029,
+        "bytes": 18812,
+        "seed": 7,
+        "heard": "Les machines servent, elles ne ressentent rien.",
+        "score": 1
+      }
+    },
+    "fv_host": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "the trees host. the line carries. the app connects.",
+        "sha": "1270c6514f1a6590",
+        "file": "en/fv_host.mp3",
+        "ms": 2901,
+        "bytes": 17948,
+        "seed": null,
+        "heard": "The tree's host. The line carries. The app connects.",
+        "score": 0.89
+      },
+      "fr": {
+        "text": "les arbres hébergent. la ligne transporte. l'appli relie.",
+        "sha": "364ad5cb4f5bffeb",
+        "file": "fr/fv_host.mp3",
+        "ms": 4293,
+        "bytes": 26300,
+        "seed": 7,
+        "heard": "Les arbres hébergent, la ligne transporte, l'appli relie.",
+        "score": 1
+      }
+    },
+    "fv_world": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "the world holds them all. that world is veraldar.",
+        "sha": "deb21a5c778be4b5",
+        "file": "en/fv_world.mp3",
+        "ms": 2861,
+        "bytes": 17804,
+        "seed": null,
+        "heard": "The world holds them all. That world is Vereldar.",
+        "score": 0.89
+      },
+      "fr": {
+        "text": "le monde les contient tous. ce monde, c'est veraldar.",
+        "sha": "a9eb5b22019722a1",
+        "file": "fr/fv_world.mp3",
+        "ms": 4528,
+        "bytes": 27740,
+        "seed": 7,
+        "heard": "Le monde les contient tous. Ce monde, c'est Veraldar.",
+        "score": 1
+      }
+    },
+    "fv_free": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "free for everyone. your hardware, your words.",
+        "sha": "48deb729b4c58fe2",
+        "file": "en/fv_free.mp3",
+        "ms": 2525,
+        "bytes": 15788,
+        "seed": null,
+        "heard": "Free for everyone. Your hardware. Your words.",
+        "score": 1
+      },
+      "fr": {
+        "text": "libre pour tout le monde. votre matériel, vos mots.",
+        "sha": "04861ba5a3415230",
+        "file": "fr/fv_free.mp3",
+        "ms": 4133,
+        "bytes": 25436,
+        "seed": 7,
+        "heard": "Libre pour tout le monde, votre matériel, vos mots.",
+        "score": 1
+      }
+    },
+    "fv_start": {
+      "on": [
+        "film"
+      ],
+      "en": {
+        "text": "it starts with one tree. yours. hold it to begin.",
+        "sha": "4c2349814ea3eaf6",
+        "file": "en/fv_start.mp3",
+        "ms": 3074,
+        "bytes": 19100,
+        "seed": null,
+        "heard": "It starts with one tree. Yours, hold it to begin.",
+        "score": 1
+      },
+      "fr": {
+        "text": "tout commence par un arbre. le vôtre. maintenez-le pour commencer.",
+        "sha": "e067a04b8a4deb71",
+        "file": "fr/fv_start.mp3",
+        "ms": 4332,
+        "bytes": 26588,
+        "seed": 7,
+        "heard": "Tout commence par un arbre, le vôtre. Maintenez-le pour commencer.",
         "score": 1
       }
     }

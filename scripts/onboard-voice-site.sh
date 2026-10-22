@@ -6,6 +6,9 @@
 # Door v3 (10-22): also the brain presets (pwa/lib/brain-presets.json — the
 # site door's service list + the settings it writes) and the tree film
 # (pwa/artifacts-builtin/door-tree.html → onboarding/tree.html).
+# FILM-V1 (10-22): + the far vision — its lines ("on": ["film"], fv_*) and
+# the film itself (pwa/artifacts-builtin/far-vision.html → onboarding/), the
+# site's #&film.
 #   scripts/onboard-voice-site.sh [SITE_DIR]   (default ~/Work/veraldar-site)
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")/.." && pwd)
@@ -18,7 +21,7 @@ python3 - "$PACK" "$OUT" <<'PY'
 import json, shutil, sys
 pack, out = sys.argv[1], sys.argv[2]
 m = json.load(open(f"{pack}/manifest.json"))
-keep = {k: v for k, v in m["lines"].items() if "site" in v.get("on", [])}
+keep = {k: v for k, v in m["lines"].items() if {"site", "film"} & set(v.get("on", []))}
 n = 0
 for lid, e in keep.items():
     for lang in ("en", "fr"):
@@ -33,5 +36,6 @@ print(f"{n} files, {len(keep)} lines → {out}")
 PY
 cp "$HERE/pwa/lib/brain-presets.json" "$OUT/brain-presets.json"
 cp "$HERE/pwa/artifacts-builtin/door-tree.html" "$OUT/tree.html"
-echo "+ brain-presets.json, tree.html → $OUT"
+cp "$HERE/pwa/artifacts-builtin/far-vision.html" "$OUT/far-vision.html"
+echo "+ brain-presets.json, tree.html, far-vision.html → $OUT"
 chmod -R a+rX "$OUT"

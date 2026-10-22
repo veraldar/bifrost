@@ -1,5 +1,6 @@
 import { type Page, expect, test } from '@playwright/test';
 import presets from '../lib/brain-presets.json';
+import script from '../lib/onboard-script.json';
 
 /** veraldar.org's door (v3, 10-22) — playwright.site.config.ts serves the
  *  site's working copy. Layman copy (no "box"), every step a history entry
@@ -224,6 +225,121 @@ test('site: no dead air — the door and the film say the voice is on its way un
   await expect(f.locator('body')).toHaveAttribute('data-voice', 'speaking', { timeout: 10_000 });
   await expect(f.locator('svg')).toHaveClass(/b-tree/);
   expect(frameReqs).toEqual([]);
+});
+
+/** THE FAR VISION (FILM-V1, 10-22) — veraldar.org's film, staged right under
+ *  the hero (a still from its third chapter + the chapters as ways in), the
+ *  multi-tree story in the door's own voice (every fv_* line in the script,
+ *  word for word, each with its mp3 in both languages); #&film opens it, a
+ *  chapter jumps, pause holds, back closes it; a link to a chapter opens it on
+ *  a fresh load; its end is your tree: hold it, let go — the door opens. */
+test('site: the far vision — staged under the hero, the multi-tree story in the door’s voice, its end opens the door', async ({
+  page,
+  request,
+}) => {
+  test.setTimeout(240_000);
+  const fv = script.lines.filter((l) => l.id.startsWith('fv_'));
+  expect(fv.length).toBeGreaterThanOrEqual(25);
+  const html = await (await request.get('/onboarding/far-vision.html')).text();
+  for (const l of fv) {
+    expect(html, `film line ${l.id}`).toContain(l.en);
+    expect(html, `film line ${l.id} (fr)`).toContain(l.fr);
+    for (const lang of ['en', 'fr'])
+      expect((await request.head(`/onboarding/${lang}/${l.id}.mp3`)).status(), `${lang}/${l.id}.mp3`).toBe(200);
+  }
+  const line = (id: string) => fv.find((l) => l.id === id)!.en;
+  let filmFetched = false;
+  page.on('request', (r) => {
+    if (r.url().includes('far-vision.html')) filmFetched = true;
+  });
+
+  // staged: right under the hero, before the names
+  await page.goto('/');
+  const order = await page.evaluate(() =>
+    [...document.querySelectorAll('main > .hero, main > section')].map((e) => e.id || e.className)
+  );
+  expect(order.slice(0, 3)).toEqual(['hero', 'vision', 'lore']);
+  await page.locator('#vision').scrollIntoViewIfNeeded();
+  await expect(page.locator('#vision-ch button')).toHaveCount(7);
+  await expect(page.locator('#vision')).toContainText('growing');
+  expect(await page.locator('#vision').innerText()).not.toMatch(/\bbox\b|tailnet|federation/i);
+  expect(filmFetched).toBe(false); // lazy: nothing before the tap
+  await page.locator('#vision').screenshot({ path: `${SHOTS}/site-film-0-staged.png` });
+
+  // ▸ watch: the film, its own history entry
+  await page.getByTestId('vision-play').click();
+  await expect(page.locator('#film')).toBeVisible();
+  expect(page.url()).toMatch(/#&film$/);
+  await expect(page.locator('#film iframe')).toHaveAttribute('src', /onboarding\/far-vision\.html\?lang=en$/);
+  const f = page.frameLocator('#film iframe');
+  const play = f.locator('#play');
+  const now = f.locator('#cap .now');
+  await expect(f.locator('#m0')).toHaveText('what ai can simulate, ai can create.', { timeout: 10_000 });
+  await expect
+    .poll(async () => ((await play.isVisible()) ? 'play' : await now.textContent()), { timeout: 20_000 })
+    .toMatch(/play|one phone/);
+  if (await play.isVisible()) await play.click();
+  await expect(now).toHaveText(line('fv_open'));
+  await expect(f.locator('body')).toHaveAttribute('data-voice', 'speaking', { timeout: 10_000 });
+  await expect(f.locator('#title')).toHaveText('1 · the way in');
+  await expect(f.locator('#s-knock [data-on=phone]').first()).toHaveClass(/on/, { timeout: 20_000 });
+  await page.screenshot({ path: `${SHOTS}/site-film-1-way-in.png` });
+
+  // chapter 2 by its mark: you hold the mic (amber), the desk answers in the voice
+  await f.locator('#ch button').nth(1).click();
+  await expect(f.locator('#title')).toHaveText('2 · the work');
+  await expect(f.locator('#cap .now.you')).toContainText('add a night level to the game');
+  await expect(f.locator('body')).toHaveClass(/heard/);
+  await expect(now).toHaveText(/desk › reading the levels\./, { timeout: 10_000 });
+  await expect(f.locator('#s-work [data-on=draft]').first()).toHaveClass(/on/, { timeout: 20_000 });
+  await page.screenshot({ path: `${SHOTS}/site-film-2-work.png` });
+
+  // chapter 3: every computer its own tree, its own root; the private line
+  await f.locator('#ch button').nth(2).click();
+  await expect(f.locator('#title')).toHaveText('3 · the trees');
+  await expect(f.locator('#s-trees [data-on=line]').first()).toHaveClass(/on/, { timeout: 30_000 });
+  await page.screenshot({ path: `${SHOTS}/site-film-3-trees.png` });
+  // pause holds the film where it is; play goes on from there
+  await f.locator('#pause').click();
+  await expect(f.locator('body')).toHaveAttribute('data-voice', 'idle');
+  await expect(f.locator('#title')).toHaveText('3 · the trees');
+  await f.locator('#pause').click();
+  await expect(f.locator('body')).toHaveAttribute('data-voice', /loading|speaking/);
+
+  // chapter 4: the move, marked growing
+  await f.locator('#ch button').nth(3).click();
+  await expect(f.locator('#s-move [data-on=growing]').first()).toHaveClass(/on/, { timeout: 40_000 });
+  await page.screenshot({ path: `${SHOTS}/site-film-4-move.png` });
+
+  // back closes it: the page, as it was
+  await page.goBack();
+  await expect(page.locator('#film')).toBeHidden();
+  await expect(page.locator('#film iframe')).toHaveAttribute('src', 'about:blank');
+  expect(page.url()).not.toMatch(/film/);
+
+  // a link to a chapter, on a fresh load: your tree — hold it, let go, the door opens
+  await page.goto('about:blank');
+  await page.goto('/#&film=7');
+  await expect(page.locator('#film')).toBeVisible();
+  await expect(page.locator('#film iframe')).toHaveAttribute('src', /far-vision\.html\?lang=en&ch=7$/);
+  await expect
+    .poll(async () => ((await play.isVisible()) ? 'play' : await now.textContent()), { timeout: 20_000 })
+    .toMatch(/play|one tree/);
+  if (await play.isVisible()) await play.click(); // a fresh load: no gesture yet
+  await expect(now).toHaveText(line('fv_start'));
+  await expect(f.locator('#sub')).toHaveText('hold the tree, then let go', { timeout: 20_000 });
+  await page.screenshot({ path: `${SHOTS}/site-film-7-your-tree.png` });
+  const tree = f.locator('#doortree');
+  await tree.dispatchEvent('pointerdown', { pointerId: 1, isPrimary: true });
+  await expect(f.locator('body')).toHaveClass(/heard/);
+  await page.waitForTimeout(600);
+  await tree.dispatchEvent('pointerup', { pointerId: 1, isPrimary: true });
+  await expect(page.locator('#film')).toBeHidden();
+  await expect(page.locator('#door')).toBeVisible();
+  await expect(page).toHaveURL(/#door-step=0$/);
+  await page.goBack(); // the film's entry gave way to the door's: back = the page
+  await expect(page.locator('#door')).toBeHidden();
+  expect(new URL(page.url()).hash).toBe('');
 });
 
 /** both surfaces, for real: APP_URL=https://<computer>:8443 (the sandbox) —

@@ -157,3 +157,20 @@ test('no dead air: the tree film plays from the door’s memory, each beat’s d
   for (const id of ['name_tree', 'name_root', 'name_trunk', 'name_branch', 'name_try', 'name_done'])
     expect(names).toContain(`${id}.mp3`);
 });
+
+/** the far vision (FILM-V1) is built in, like the tree film: served by the
+ *  artifact route, its spoken lines = the script's, word for word, both
+ *  languages, each one in the pack (veraldar.org gets the same files) */
+test('the far vision: built in, its lines are the script’s, every one voiced', async ({ request }) => {
+  const r = await request.get('/api/artifact/far-vision.html');
+  expect(r.status()).toBe(200);
+  const html = await r.text();
+  const fv = script.lines.filter((l) => l.id.startsWith('fv_'));
+  expect(fv.length).toBeGreaterThanOrEqual(25);
+  for (const l of fv) {
+    expect(html, `film line ${l.id}`).toContain(l.en);
+    expect(html, `film line ${l.id} (fr)`).toContain(l.fr);
+    for (const lang of ['en', 'fr'])
+      expect((await request.head(`/onboarding/${lang}/${l.id}.mp3`)).status(), `${lang}/${l.id}.mp3`).toBe(200);
+  }
+});

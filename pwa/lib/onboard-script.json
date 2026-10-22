@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "about": "THE onboarding script — one source for the app door (components/tree-door.tsx), the voice pack (scripts/onboard-voice.mjs renders public/onboarding/), veraldar.org's door and the tree film (pwa/artifacts-builtin/door-tree.html; synced copies). v2 (door v3, 10-22): words a first-timer already knows — 'your computer', never 'box'; every name glossed where it first appears. Brand: terse, lowercase, honest, warm; no please/thanks, no exclamation marks (docs/brand/brand.md §2). Change a line here, re-run the generator — the manifest hash catches a stale pack.",
+  "about": "THE onboarding script — one source for the app door (components/tree-door.tsx), the voice pack (scripts/onboard-voice.mjs renders public/onboarding/), veraldar.org's door, the tree film (pwa/artifacts-builtin/door-tree.html) and the far vision (fv_*, on: film — pwa/artifacts-builtin/far-vision.html, veraldar.org's #&film; synced copies). v2 (door v3, 10-22): words a first-timer already knows — 'your computer', never 'box'; every name glossed where it first appears. Brand: terse, lowercase, honest, warm; no please/thanks, no exclamation marks (docs/brand/brand.md §2). Change a line here, re-run the generator — the manifest hash catches a stale pack.",
   "lines": [
     { "id": "greet", "on": ["app"], "en": "hi. this is bifrost. you talk to your own computer, and it does the work. two choices, then you try it.", "fr": "bonjour. voici bifrost. vous parlez à votre propre ordinateur, et il fait le travail. deux choix, puis vous essayez." },
     { "id": "greet_back", "on": ["app"], "en": "hi again. your answers came with you. one step, then you try it.", "fr": "re-bonjour. vos réponses ont suivi. une étape, puis vous essayez." },
@@ -27,6 +27,31 @@
     { "id": "name_trunk", "on": ["app", "site"], "en": "the trunk is a private line. it carries your words.", "fr": "le tronc est une ligne privée. il porte vos mots." },
     { "id": "name_branch", "on": ["app", "site"], "en": "the branch is bifrost, the app in your hand. the bridge to your tree.", "fr": "la branche, c'est bifrost, l'appli dans votre main. le pont vers votre arbre." },
     { "id": "name_try", "on": ["app", "site"], "en": "now you. hold the branch, then let go.", "fr": "à vous. maintenez la branche, puis relâchez." },
-    { "id": "name_done", "on": ["app", "site"], "en": "that is the whole trip. the mic works the same way.", "fr": "c'est tout le trajet. le micro marche pareil." }
+    { "id": "name_done", "on": ["app", "site"], "en": "that is the whole trip. the mic works the same way.", "fr": "c'est tout le trajet. le micro marche pareil." },
+    { "id": "fv_open", "on": ["film"], "en": "one phone. many trees. here is what they can do together.", "fr": "un téléphone. plusieurs arbres. voici ce qu'ils peuvent faire ensemble." },
+    { "id": "fv_dusk", "on": ["film"], "en": "dusk, in the workshop. hands busy, headphones on.", "fr": "le soir, à l'atelier. les mains prises, le casque sur les oreilles." },
+    { "id": "fv_phone", "on": ["film"], "en": "the phone stays in the pocket. it is the way in.", "fr": "le téléphone reste dans la poche. c'est lui, l'entrée." },
+    { "id": "fv_desk", "on": ["film"], "en": "every computer here grows a tree. this one sits at the desk.", "fr": "ici, chaque ordinateur fait pousser un arbre. celui-ci est au bureau." },
+    { "id": "fv_hold", "on": ["film"], "en": "hold the mic and speak. amber means you are heard.", "fr": "maintenez le micro et parlez. l'ambre veut dire que vous êtes entendu." },
+    { "id": "fv_read", "on": ["film"], "en": "reading the levels.", "fr": "je lis les niveaux." },
+    { "id": "fv_draft", "on": ["film"], "en": "level two drafted. dusk colors, same rules.", "fr": "niveau deux, en brouillon. couleurs du soir, mêmes règles." },
+    { "id": "fv_stays", "on": ["film"], "en": "you talk. it works. the work stays on your computer.", "fr": "vous parlez. il travaille. le travail reste sur votre ordinateur." },
+    { "id": "fv_ready", "on": ["film"], "en": "it runs here. the tv can show it.", "fr": "il tourne ici. la télé peut le montrer." },
+    { "id": "fv_grove", "on": ["film"], "en": "the desk is not alone. the tv has a tree. so does the workshop.", "fr": "le bureau n'est pas seul. la télé a son arbre. l'atelier aussi." },
+    { "id": "fv_roots", "on": ["film"], "en": "each tree has its own root: its own brain, its own memory.", "fr": "chaque arbre a sa propre racine : son cerveau, sa mémoire." },
+    { "id": "fv_line", "on": ["film"], "en": "one private line joins them. only your devices are on it.", "fr": "une ligne privée les relie. seuls vos appareils y sont." },
+    { "id": "fv_bridge", "on": ["film"], "en": "one app in your hand reaches them all. that is bifrost.", "fr": "une appli dans votre main les rejoint tous. c'est bifrost." },
+    { "id": "fv_pull", "on": ["film"], "en": "got the night level from the desk.", "fr": "j'ai pris le niveau de nuit sur le bureau." },
+    { "id": "fv_screen", "on": ["film"], "en": "on the big screen. controller one.", "fr": "sur le grand écran. manette un." },
+    { "id": "fv_moved", "on": ["film"], "en": "the work moved down the private line. nothing went public.", "fr": "le travail a suivi la ligne privée. rien n'est devenu public." },
+    { "id": "fv_growing", "on": ["film"], "en": "trees that pass work to each other: that part is still growing.", "fr": "des arbres qui se passent le travail : ça, c'est encore en train de pousser." },
+    { "id": "fv_stop", "on": ["film"], "en": "not from here.", "fr": "pas d'ici." },
+    { "id": "fv_hand", "on": ["film"], "en": "your trees never publish on their own. you do that, by hand.", "fr": "vos arbres ne publient jamais seuls. ça, vous le faites à la main." },
+    { "id": "fv_limit", "on": ["film"], "en": "one limit, said plainly: a cloud brain sees what you send it. a brain at home keeps it all in.", "fr": "une limite, dite simplement : un cerveau en ligne voit ce que vous lui envoyez. un cerveau à la maison garde tout chez vous." },
+    { "id": "fv_serve", "on": ["film"], "en": "the machines serve. they never feel.", "fr": "les machines servent. elles ne ressentent rien." },
+    { "id": "fv_host", "on": ["film"], "en": "the trees host. the line carries. the app connects.", "fr": "les arbres hébergent. la ligne transporte. l'appli relie." },
+    { "id": "fv_world", "on": ["film"], "en": "the world holds them all. that world is veraldar.", "fr": "le monde les contient tous. ce monde, c'est veraldar." },
+    { "id": "fv_free", "on": ["film"], "en": "free for everyone. your hardware, your words.", "fr": "libre pour tout le monde. votre matériel, vos mots." },
+    { "id": "fv_start", "on": ["film"], "en": "it starts with one tree. yours. hold it to begin.", "fr": "tout commence par un arbre. le vôtre. maintenez-le pour commencer." }
   ]
 }

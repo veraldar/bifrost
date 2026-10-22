@@ -49,6 +49,12 @@ veraldar — the world (the org; the brand)
   midgard   — one phone, one PWA — swipe between bridges
 ```
 
+> **Public copy since 10-22 follows `naming-ladder.md`** (the user may veto).
+> Root = the tree's brain, trunk = the private line, branch = bifrost (the
+> app in your hand), and yggdrasil = the tree, never "the brain". This map is
+> the 09-30 original. Its "roots = the network" no longer appears on
+> veraldar.org, the doors or the films.
+
 The manifesto (believed, canonical, said plainly):
 
 > **What AI can simulate, AI can create.**

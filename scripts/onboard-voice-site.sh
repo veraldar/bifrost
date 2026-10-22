@@ -3,6 +3,9 @@
 # pack (pwa/public/onboarding, scripts/onboard-voice.mjs) into the site repo:
 # the same files, so the site door and the app door are one voice by
 # construction. Lines marked "on": ["site", …] in the manifest only.
+# Door v3 (10-22): also the brain presets (pwa/lib/brain-presets.json — the
+# site door's service list + the settings it writes) and the tree film
+# (pwa/artifacts-builtin/door-tree.html → onboarding/tree.html).
 #   scripts/onboard-voice-site.sh [SITE_DIR]   (default ~/Work/veraldar-site)
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")/.." && pwd)
@@ -28,4 +31,7 @@ json.dump(m, open(f"{out}/manifest.json", "w"), indent=2, ensure_ascii=False)
 open(f"{out}/manifest.json", "a").write("\n")
 print(f"{n} files, {len(keep)} lines → {out}")
 PY
+cp "$HERE/pwa/lib/brain-presets.json" "$OUT/brain-presets.json"
+cp "$HERE/pwa/artifacts-builtin/door-tree.html" "$OUT/tree.html"
+echo "+ brain-presets.json, tree.html → $OUT"
 chmod -R a+rX "$OUT"

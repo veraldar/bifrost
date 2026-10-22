@@ -1,11 +1,13 @@
 /** GET /api/artifact/[name] → files the opencode agent dropped into
  *  bifrost/artifacts/ so the phone can render them inline in the chat
  *  (markdown images / sandboxed iframes). Name is sanitized; the type map
- *  and dir are shared with the /artifacts gallery via lib/artifacts. */
+ *  and dir are shared with the /artifacts gallery via lib/artifacts. A name
+ *  the agents' dir doesn't hold falls back to the app's own built-ins
+ *  (pwa/artifacts-builtin — the door's tree film). */
 import { NextResponse } from 'next/server';
 import { readFile, stat } from 'fs/promises';
 import path from 'path';
-import { ARTIFACT_TYPES, ARTIFACTS_DIR } from '@/lib/artifacts';
+import { ARTIFACTS_DIR, ARTIFACT_TYPES, BUILTIN_ARTIFACTS_DIR } from '@/lib/artifacts';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,18 +20,21 @@ export async function GET(_req: Request, ctx: { params: Promise<{ name: string }
   const ext = path.extname(name).toLowerCase();
   const type = ARTIFACT_TYPES[ext];
   if (!type) return NextResponse.json({ error: 'unsupported type' }, { status: 415 });
-  try {
-    const file = path.join(ARTIFACTS_DIR, name);
-    if (!(await stat(file)).isFile()) throw new Error('not a file');
-    const data = await readFile(file);
-    return new Response(new Uint8Array(data), {
-      headers: {
-        'Content-Type': type,
-        // long enough to cache during a chat, short enough to pick up rewrites
-        'Cache-Control': 'no-store',
-      },
-    });
-  } catch {
-    return NextResponse.json({ error: 'not found' }, { status: 404 });
+  for (const dir of [ARTIFACTS_DIR, BUILTIN_ARTIFACTS_DIR]) {
+    try {
+      const file = path.join(dir, name);
+      if (!(await stat(file)).isFile()) continue;
+      const data = await readFile(file);
+      return new Response(new Uint8Array(data), {
+        headers: {
+          'Content-Type': type,
+          // long enough to cache during a chat, short enough to pick up rewrites
+          'Cache-Control': 'no-store',
+        },
+      });
+    } catch {
+      /* not in this dir */
+    }
   }
+  return NextResponse.json({ error: 'not found' }, { status: 404 });
 }

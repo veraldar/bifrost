@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>your tree — yggdrasil · root · trunk · branch</title>
+<!--
+  THE TREE FILM — the door's "why these names?", watched (door v3, 10-22).
+  Self-contained: served like any artifact (/api/artifact/door-tree.html, a
+  built-in: pwa/artifacts-builtin) and copied to veraldar.org (/onboarding/
+  tree.html). Loaded only when asked for — never on the way in.
+  ~15 s, five beats, each one line of THE script (pwa/lib/onboard-script.json,
+  name_* — copies below; e2e checks they match) in the door's own pre-recorded
+  voice (/onboarding/<lang>/<id>.mp3, the same pack on both surfaces). Then the
+  try-it: hold the branch (amber = heard), let go, and the words travel down
+  the trunk to the root and the answer comes back — the mic's own rule (a tap
+  is not a message). ?lang=fr for French. Silent if audio is off: every line
+  is on screen. Done → parent.postMessage({tree:'done'}).
+-->
+<style>
+:root{--bg:#080810;--text:#fff;--dim:#888;--line:rgba(255,255,255,.14);--ok:#4ade80;--amber:#fbbf24;--sky:#38bdf8;--mono:ui-monospace,'Cascadia Mono',Menlo,Consolas,monospace}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font:13px/1.6 var(--mono);-webkit-text-size-adjust:100%;overflow:hidden;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#f{position:fixed;inset:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:8px;padding:calc(16px + env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom));max-width:560px;margin:0 auto}
+header{font-size:10px;letter-spacing:.28em;color:var(--dim);padding-right:96px;line-height:36px}
+svg{width:100%;height:100%;display:block;touch-action:none;cursor:default}
+svg.b-try{cursor:pointer}
+.cap{display:grid;gap:8px;min-height:7.4em;align-content:end}
+#say{font-size:14px;line-height:1.65;min-height:3.3em}
+#say:not(:empty)::before{content:"▸ ";color:var(--amber)}
+#sub{font-size:11px;color:var(--dim);min-height:1.6em}
+#sub.hot{color:var(--amber)}
+.row{display:flex;gap:8px}
+.row[hidden]{display:none}
+button{font:inherit;color:inherit;background:none;border:1px solid var(--line);min-height:44px;padding:0 16px;cursor:pointer;flex:1}
+button.go{background:var(--text);color:var(--bg);border-color:var(--text);letter-spacing:.12em;font-size:12px}
+/* the drawing — circuit traces, the brand's tree */
+.tr{fill:none;stroke:var(--dim);stroke-width:3;stroke-linecap:square;stroke-linejoin:miter;stroke-dasharray:1;stroke-dashoffset:1;opacity:.55;transition:stroke-dashoffset 1.4s ease,stroke .5s,opacity .5s,filter .4s}
+.nd{fill:var(--bg);stroke:var(--dim);stroke-width:2;opacity:0;transition:opacity .4s .9s,fill .4s,stroke .5s}
+.ground{stroke:var(--line);stroke-width:1;stroke-dasharray:3 5;opacity:0;transition:opacity .6s}
+.lbl{font:11px var(--mono);fill:var(--text);letter-spacing:.08em;opacity:0;transition:opacity .6s .3s}
+.b-tree .tree .tr{stroke-dashoffset:0}
+.b-tree .tree .nd,.b-tree .ground,.b-tree .l-tree{opacity:1}
+.b-root .roots .tr{stroke:var(--ok);opacity:1}
+.b-root .roots .nd{stroke:var(--ok)}
+.b-root .l-root,.b-trunk .l-trunk,.b-branch .l-branch{opacity:1}
+.b-trunk .trunk .tr{stroke:var(--sky);opacity:1}
+.b-branch .branch .tr{stroke-dashoffset:0;stroke:var(--text);opacity:.85}
+.phone{opacity:0;transition:opacity .6s .9s}
+.phone .body{fill:var(--bg);stroke:var(--text);stroke-width:2;transition:stroke .15s}
+.phone .screen{fill:rgba(255,255,255,.04);transition:fill .5s}
+.phone .mic{fill:var(--dim);transition:fill .15s}
+.phone .ans{font:16px var(--mono);fill:var(--ok);opacity:0;transition:opacity .4s}
+.b-branch .phone{opacity:1}
+.b-try:not(.tried) .phone .mic{animation:invite 1.4s ease-in-out infinite}
+/* held = amber, at once: you are heard */
+.heard .branch .tr,.heard .phone .body{stroke:var(--amber)}
+.heard .phone .mic{fill:var(--amber)}
+.heard .branch .tr{filter:drop-shadow(0 0 5px var(--amber))}
+/* the root thinks */
+.think .roots .tr{filter:drop-shadow(0 0 6px var(--ok))}
+.think .roots .nd{fill:var(--ok)}
+.answered .phone .screen{fill:rgba(74,222,128,.16)}
+.answered .phone .ans{opacity:1}
+#sig{opacity:0}
+@keyframes invite{50%{fill:var(--amber)}}
+@media (prefers-reduced-motion:reduce){*{transition-duration:0s!important;transition-delay:0s!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div id="f">
+  <header id="hd">YOUR TREE · 15 S</header>
+  <svg id="s" viewBox="0 0 360 600" aria-hidden="true">
+    <line class="ground" x1="100" y1="388" x2="340" y2="388"/>
+    <g class="tree">
+      <g class="crown">
+        <path class="tr" pathLength="1" d="M210 200 L170 160 V110 L150 90"/>
+        <path class="tr" pathLength="1" d="M210 200 L250 160 V100 L270 80"/>
+        <path class="tr" pathLength="1" d="M210 230 V60"/>
+        <path class="tr" pathLength="1" d="M210 244 H280 L300 224"/>
+        <path class="tr" pathLength="1" d="M170 160 H130"/>
+        <path class="tr" pathLength="1" d="M250 160 H290"/>
+        <circle class="nd" cx="150" cy="90" r="5"/><circle class="nd" cx="270" cy="80" r="5"/>
+        <circle class="nd" cx="210" cy="60" r="5"/><circle class="nd" cx="300" cy="224" r="5"/>
+        <circle class="nd" cx="130" cy="160" r="5"/><circle class="nd" cx="290" cy="160" r="5"/>
+      </g>
+      <g class="trunk"><path id="tp" class="tr" pathLength="1" d="M210 388 V200"/></g>
+      <g class="roots">
+        <path class="tr" pathLength="1" d="M210 388 L170 428 V478 L140 508"/>
+        <path class="tr" pathLength="1" d="M210 388 L250 428 V498 L280 528"/>
+        <path class="tr" pathLength="1" d="M210 388 V546"/>
+        <path class="tr" pathLength="1" d="M170 448 H130"/>
+        <path class="tr" pathLength="1" d="M250 458 H300"/>
+        <circle class="nd" cx="140" cy="508" r="5"/><circle class="nd" cx="280" cy="528" r="5"/>
+        <circle class="nd" cx="210" cy="546" r="5"/><circle class="nd" cx="130" cy="448" r="5"/>
+        <circle class="nd" cx="300" cy="458" r="5"/><circle class="nd" cx="210" cy="478" r="6"/>
+      </g>
+    </g>
+    <g class="branch"><path class="tr" pathLength="1" d="M210 290 H150 L110 330 H86"/></g>
+    <g class="phone">
+      <rect class="body" x="30" y="292" width="56" height="96" rx="8"/>
+      <rect class="screen" x="37" y="302" width="42" height="64" rx="2"/>
+      <text class="ans" x="58" y="340" text-anchor="middle">↩</text>
+      <circle class="mic" cx="58" cy="377" r="5"/>
+    </g>
+    <text class="lbl l-tree" x="210" y="36" text-anchor="middle" id="l-tree">yggdrasil</text>
+    <text class="lbl l-root" x="226" y="574" id="l-root">root</text>
+    <text class="lbl l-trunk" x="222" y="340" id="l-trunk">trunk</text>
+    <text class="lbl l-branch" x="30" y="278" id="l-branch">branch · bifrost</text>
+    <!-- the trip: phone → branch → trunk → the root's heart, and back -->
+    <path id="trip" d="M86 330 H110 L150 290 H210 V478" fill="none" stroke="none"/>
+    <circle id="sig" r="6" cx="86" cy="330"/>
+  </svg>
+  <div class="cap" aria-live="polite">
+    <p id="say"></p>
+    <p id="sub"></p>
+    <div class="row" id="start" hidden><button class="go" id="play">▸ play · sound on</button></div>
+    <div class="row" id="end" hidden><button id="again">again ↺</button><button class="go" id="done">back to the door</button></div>
+  </div>
+</div>
+<script>
+(()=>{
+const L = new URLSearchParams(location.search).get('lang') === 'fr' ? 'fr' : 'en';
+document.documentElement.lang = L;
+/* name_* = copies of pwa/lib/onboard-script.json (e2e: door-tree lines match) */
+const T = {
+  en: {
+    head: 'YOUR TREE · 15 S', play: '▸ play · sound on', again: 'again ↺', done: 'back to the door',
+    labels: { tree: 'yggdrasil', root: 'root', trunk: 'trunk', branch: 'branch · bifrost' },
+    lines: {
+      name_tree: 'yggdrasil is the tree: your computer, and everything on it.',
+      name_root: 'the root is the brain. it thinks and remembers.',
+      name_trunk: 'the trunk is a private line. it carries your words.',
+      name_branch: 'the branch is bifrost, the app in your hand. the bridge to your tree.',
+      name_try: 'now you. hold the branch, then let go.',
+      name_done: 'that is the whole trip. the mic works the same way.',
+    },
+    trySub: 'press and hold anywhere on the tree', heard: 'heard · let go to send',
+    tap: 'a tap is not a message. hold, then let go.', down: 'your words go down the trunk, to the root…',
+    think: 'the root thinks…', up: 'the answer comes back up.',
+  },
+  fr: {
+    head: 'VOTRE ARBRE · 15 S', play: '▸ lire · son activé', again: 'encore ↺', done: 'retour à la porte',
+    labels: { tree: 'yggdrasil', root: 'racine', trunk: 'tronc', branch: 'branche · bifrost' },
+    lines: {
+      name_tree: "yggdrasil, c'est l'arbre : votre ordinateur, et tout ce qu'il fait tourner.",
+      name_root: "la racine, c'est le cerveau. elle réfléchit et se souvient.",
+      name_trunk: 'le tronc est une ligne privée. il porte vos mots.',
+      name_branch: "la branche, c'est bifrost, l'appli dans votre main. le pont vers votre arbre.",
+      name_try: 'à vous. maintenez la branche, puis relâchez.',
+      name_done: "c'est tout le trajet. le micro marche pareil.",
+    },
+    trySub: "appuyez et maintenez n'importe où sur l'arbre", heard: 'entendu · relâchez pour envoyer',
+    tap: "un appui court n'est pas un message. maintenez, puis relâchez.", down: "vos mots descendent le tronc, jusqu'à la racine…",
+    think: 'la racine réfléchit…', up: 'la réponse remonte.',
+  },
+}[L];
+const $ = id => document.getElementById(id);
+const svg = $('s'), say1 = $('say'), sub1 = $('sub'), sig = $('sig'), trip = $('trip'), tp = $('tp');
+$('hd').textContent = T.head; $('play').textContent = T.play; $('again').textContent = T.again; $('done').textContent = T.done;
+for (const k in T.labels) $('l-' + k).textContent = T.labels[k];
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const inFrame = window.parent !== window;
+if (!inFrame) $('done').hidden = true;
+
+/* the voice: the door's own pack, one element (phones suspend WebAudio) */
+const PACK = '/onboarding/';
+const au = new Audio(); au.preload = 'auto'; au.setAttribute('playsinline', '');
+let run = 0, unlocked = false, cut = null;
+function sub(s, hot){ sub1.textContent = s || ''; sub1.classList.toggle('hot', !!hot); }
+/** one line, spoken + on screen → 'ok' | 'quiet' (no audio: timed by length) | 'blocked' | 'cut' */
+function say(id){
+  say1.textContent = T.lines[id];
+  return new Promise(res => {
+    let tm = 0, done = false;
+    const fin = v => { if (done) return; done = true; clearTimeout(tm); au.onended = au.onerror = null; cut = null; res(v); };
+    const quiet = () => { if (!tm) tm = setTimeout(() => fin('quiet'), Math.max(1800, T.lines[id].length * 62)); };
+    cut = () => { au.pause(); fin('cut'); };
+    au.onended = () => fin('ok');
+    au.onerror = quiet;
+    au.src = PACK + L + '/' + id + '.mp3';
+    au.play().then(() => { unlocked = true; }).catch(e => {
+      if (!unlocked && e && e.name === 'NotAllowedError') fin('blocked'); else quiet();
+    });
+  });
+}
+const wait = ms => new Promise(r => setTimeout(r, RM ? Math.min(ms, 300) : ms));
+const ease = k => k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+/** a signal along a path (the trunk, or the whole trip) */
+function travel(path, ms, color, back, my){
+  const len = path.getTotalLength();
+  sig.style.fill = color; sig.style.opacity = 1;
+  return new Promise(res => {
+    const t0 = performance.now();
+    const f = now => {
+      if (my !== run) return res();
+      const k = RM ? 1 : Math.min(1, (now - t0) / ms);
+      const p = path.getPointAtLength((back ? 1 - ease(k) : ease(k)) * len);
+      sig.setAttribute('cx', p.x); sig.setAttribute('cy', p.y);
+      if (k < 1) requestAnimationFrame(f); else res();
+    };
+    requestAnimationFrame(f);
+  });
+}
+async function trunkWalk(my){
+  while (my === run && beat === 'trunk') {
+    await travel(tp, 800, 'var(--sky)', false, my);
+    if (my !== run || beat !== 'trunk') break;
+    await travel(tp, 800, 'var(--sky)', true, my);
+  }
+  if (!busy) sig.style.opacity = 0;
+}
+
+let beat = '', phase = 'film', busy = false, holdAt = 0;
+function reset(){
+  if (cut) cut();
+  svg.setAttribute('class', '');
+  sig.style.opacity = 0; beat = ''; phase = 'film'; busy = false;
+  say1.textContent = ''; sub('');
+  $('start').hidden = true; $('end').hidden = true;
+}
+async function film(){
+  reset();
+  const my = ++run;
+  // a frame between the reset and the first beat: the draw-on transitions start from zero
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  for (const [b, id] of [['tree', 'name_tree'], ['root', 'name_root'], ['trunk', 'name_trunk'], ['branch', 'name_branch'], ['try', 'name_try']]) {
+    if (my !== run) return;
+    beat = b; svg.classList.add('b-' + b);
+    if (b === 'trunk') trunkWalk(my);
+    const r = await say(id);
+    if (my !== run || r === 'cut') return;
+    if (r === 'blocked') { reset(); run++; $('start').hidden = false; say1.textContent = ''; return; }
+  }
+  phase = 'try'; sub(T.trySub);
+}
+
+/* the try-it: hold = heard (amber, this frame), release = the trip */
+function down(e){
+  if (phase !== 'try') return;
+  if (e && e.preventDefault) e.preventDefault();
+  try { e && e.pointerId != null && svg.setPointerCapture(e.pointerId); } catch (_) {}
+  holdAt = performance.now(); phase = 'held';
+  svg.classList.add('heard'); sub(T.heard, true);
+}
+function up(){
+  if (phase !== 'held') return;
+  svg.classList.remove('heard');
+  if (performance.now() - holdAt < 350) { phase = 'try'; sub(T.tap); return; }
+  void go();
+}
+async function go(){
+  const my = run; phase = 'trip'; busy = true;
+  svg.classList.add('tried');
+  sub(T.down);
+  await travel(trip, 1300, 'var(--amber)', false, my); if (my !== run) return;
+  svg.classList.add('think'); sub(T.think);
+  await wait(900); if (my !== run) return;
+  svg.classList.remove('think'); sub(T.up);
+  await travel(trip, 1300, 'var(--ok)', true, my); if (my !== run) return;
+  sig.style.opacity = 0; busy = false;
+  svg.classList.add('answered');
+  await say('name_done'); if (my !== run) return;
+  sub(''); phase = 'done'; $('end').hidden = false;
+}
+svg.addEventListener('pointerdown', down);
+svg.addEventListener('pointerup', up);
+svg.addEventListener('pointercancel', () => { if (phase === 'held') { svg.classList.remove('heard'); phase = 'try'; sub(T.trySub); } });
+svg.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('keydown', e => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat && phase === 'try') { e.preventDefault(); down(); } });
+document.addEventListener('keyup', e => { if (e.key === ' ' || e.key === 'Enter') up(); });
+$('play').addEventListener('click', () => { unlocked = true; void film(); });
+$('again').addEventListener('click', () => void film());
+$('done').addEventListener('click', () => { if (cut) cut(); run++; window.parent.postMessage({ tree: 'done' }, '*'); });
+// the tap that opened the film usually lets it speak at once; if the browser
+// says no (iOS, a chat frame), one tap on play does
+void film();
+})();
+</script>
+</body>
+</html>

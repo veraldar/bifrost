@@ -6,6 +6,10 @@ import path from 'path';
 
 export const ARTIFACTS_DIR =
   process.env.ARTIFACTS_DIR || path.join(process.cwd(), '..', 'artifacts');
+/** artifacts the app itself ships (in git, unlike the agents' dir): the door's
+ *  tree film. Served by the same route when the agents' dir has no such file;
+ *  never listed in the gallery (they are not the user's). */
+export const BUILTIN_ARTIFACTS_DIR = path.join(process.cwd(), 'artifacts-builtin');
 
 const TEXT = 'text/plain; charset=utf-8';
 

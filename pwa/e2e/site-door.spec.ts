@@ -147,16 +147,18 @@ test('site: the tree, spoken and filmed — the film is the app’s own, back cl
   expect(film.status()).toBe(200);
   expect(await film.text()).toContain('THE TREE FILM');
   await page.goto('/');
-  await page.locator('#lore pre').scrollIntoViewIfNeeded();
-  await expect(page.locator('#lore pre')).toContainText('the brain: thinks, remembers');
+  await page.getByTestId('lore-tree').scrollIntoViewIfNeeded();
+  await expect(page.getByTestId('lore-tree')).toContainText('the brain: thinks, remembers');
   await page.locator('#lore-film').click();
   await expect(page.locator('#film')).toBeVisible();
   await expect(page.locator('#film iframe')).toHaveAttribute(
     'src',
-    /onboarding\/tree\.html\?lang=en/
+    /onboarding\/tree\.html\?lang=en&from=page$/
   );
   const f = page.frameLocator('#film iframe');
-  await expect(f.locator('#hd')).toHaveText('YOUR TREE · 15 S');
+  await expect(f.locator('#hd')).toHaveText('ONE TREE, UP CLOSE · 15 S');
+  // opened from the page, not the door: its way out says so
+  await expect(f.locator('#done')).toHaveText('back to the page');
   await page.goBack();
   await expect(page.locator('#film')).toBeHidden();
   await expect(page.locator('#film iframe')).toHaveAttribute('src', 'about:blank');
@@ -227,13 +229,14 @@ test('site: no dead air — the door and the film say the voice is on its way un
   expect(frameReqs).toEqual([]);
 });
 
-/** THE FAR VISION (FILM-V1, 10-22) — veraldar.org's film, staged right under
+/** WHAT IT DOES (FILM-V1, 10-22; named by FILM-NAMING, it was "the far
+ *  vision") — veraldar.org's film, staged right under
  *  the hero (a still from its third chapter + the chapters as ways in), the
  *  multi-tree story in the door's own voice (every fv_* line in the script,
  *  word for word, each with its mp3 in both languages); #&film opens it, a
  *  chapter jumps, pause holds, back closes it; a link to a chapter opens it on
  *  a fresh load; its end is your tree: hold it, let go — the door opens. */
-test('site: the far vision — staged under the hero, the multi-tree story in the door’s voice, its end opens the door', async ({
+test('site: what it does — staged under the hero, what works today in the door’s voice, its end opens the door', async ({
   page,
   request,
 }) => {
@@ -260,6 +263,7 @@ test('site: the far vision — staged under the hero, the multi-tree story in th
   );
   expect(order.slice(0, 3)).toEqual(['hero', 'vision', 'lore']);
   await page.locator('#vision').scrollIntoViewIfNeeded();
+  await expect(page.locator('#vision h2')).toHaveText('what it does');
   await expect(page.locator('#vision-ch button')).toHaveCount(7);
   await expect(page.locator('#vision')).toContainText('growing');
   expect(await page.locator('#vision').innerText()).not.toMatch(/\bbox\b|tailnet|federation/i);
@@ -376,4 +380,57 @@ test('site → app → back: the #door= handoff, then back to the site’s last 
   await expect(page.locator('#door')).toBeVisible();
   await expect(page.locator('#dbox')).toHaveValue(app.host);
   await page.screenshot({ path: `${SHOTS}/site-door-5-back-from-app.png` });
+});
+
+/** ONE NAMING LADDER (FILM-NAMING, 10-22 — bifrost docs/brand/naming-ladder.md).
+ *  A first-timer is told what it does before any name but the site's own; the
+ *  plain thing comes before its name; yggdrasil is the tree (the brain is its
+ *  root), never "the brain"; the film and the 15 s film use the same words;
+ *  the film is named for what it shows, not a far vision. */
+test('site: one naming ladder — what it does first, the plain thing before its name, one meaning per name', async ({
+  page,
+  request,
+}) => {
+  await page.goto('/');
+  // the hero says what it does before any product name (the masthead and the
+  // world-tree strap — another page's — are the only words above it)
+  const before = await page.evaluate(() => {
+    const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const seen: string[] = [];
+    let n: Node | null;
+    while ((n = w.nextNode())) {
+      const el = n.parentElement!;
+      if (el.closest('script,style,[hidden],#door,#film,header,.wtline')) continue;
+      const t = (n.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!t || !el.getBoundingClientRect().height) continue;
+      if (/talk/i.test(t) && /phone/i.test(t) && /computer/i.test(t)) return seen;
+      seen.push(t);
+    }
+    return null;
+  });
+  expect(before, 'the page says what it does').not.toBeNull();
+  expect(before!.join(' ')).not.toMatch(/bifrost|yggdrasil|\broot|trunk|branch|brain|private line/i);
+  // the film is named for what it shows; the myth's extra names are gone
+  const shown = await page.locator('body').innerText();
+  expect(shown).not.toMatch(/far vision|midgard|asgard|tailnet/i);
+  await expect(page.locator('#lore h2')).toHaveText('one tree, up close');
+  // the old names wait behind one line, like the door's
+  await expect(page.getByTestId('lore-why')).not.toHaveAttribute('open', /.*/);
+  // yggdrasil is the tree, never "the brain" — on the page, in the door, on /start
+  for (const path of ['/', '/start.html']) {
+    const src = await (await request.get(path)).text();
+    expect(src, path).not.toMatch(/brain\s*\(yggdrasil\)|THE BRAIN — YGGDRASIL|installs the brain|cerveau \(yggdrasil\)|no root,/i);
+  }
+  // the two films share their words: bifrost = the app in your hand, the private line
+  const lines = Object.fromEntries(script.lines.map((l) => [l.id, l]));
+  for (const id of ['fv_bridge', 'name_branch']) expect(lines[id].en, id).toContain('the app in your hand');
+  for (const id of ['fv_line', 'name_trunk']) expect(lines[id].en, id).toContain('private line');
+  // the plain thing before its name
+  expect(lines.name_tree.en.indexOf('your computer')).toBeLessThan(lines.name_tree.en.indexOf('yggdrasil'));
+  expect(lines.fv_open.en).toMatch(/today/);
+  const film = await (await request.get('/onboarding/far-vision.html')).text();
+  expect(film).toContain("title: 'what it does'");
+  expect(film).not.toMatch(/title: 'the far vision'|vision lointaine/);
+  const close = await (await request.get('/onboarding/tree.html')).text();
+  expect(close).toContain('ONE TREE, UP CLOSE');
 });

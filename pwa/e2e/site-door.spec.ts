@@ -160,3 +160,39 @@ test('site: the tree, spoken and filmed — the film is the app’s own, back cl
   await expect(page.locator('#film')).toBeHidden();
   await expect(page.locator('#film iframe')).toHaveAttribute('src', 'about:blank');
 });
+
+/** both surfaces, for real: APP_URL=https://<computer>:8443 (the sandbox) —
+ *  the site's handoff opens the app's door with the answers, and the phone's
+ *  back button walks the app's steps, then lands on the site's last step */
+test('site → app → back: the #door= handoff, then back to the site’s last step', async ({
+  page,
+}) => {
+  test.skip(!process.env.APP_URL, 'APP_URL not set');
+  const app = new URL(process.env.APP_URL!);
+  // the app's seed POST is answered here: MAIN's real preferences stay as they are
+  await page.route(`${app.origin}/api/onboard`, (r) =>
+    r.request().method() !== 'POST'
+      ? r.continue()
+      : r.fulfill({ json: { id: 'ses_e2e', title: '[MAIN]', slug: 'main', created: false } })
+  );
+  await openDoor(page);
+  await page.locator('#dnext').click(); // → language
+  await page.locator('#dopts .opt').nth(1).click(); // français
+  await page.locator('#dskip').click(); // → the last step
+  await page.locator('#dbox').fill(app.host);
+  const open = page.getByTestId('door-open');
+  await expect(open).toHaveAttribute('href', `${app.origin}/#door=v1.fr.short`);
+  await open.click();
+  await page.waitForURL(`${app.origin}/#door=v1.fr.short`);
+  const tree = page.getByTestId('tree-first');
+  await tree.tap();
+  await expect(page.getByTestId('door')).toHaveAttribute('data-step', 'brain');
+  await expect(page.getByTestId('door-say')).toContainText('vos réponses ont suivi');
+  await page.goBack(); // the app's tree, answers kept
+  await expect(page.getByTestId('door')).toHaveAttribute('data-step', 'idle');
+  await page.goBack(); // → the site, its last step, the address still there
+  await expect(page).toHaveURL(/#door-step=4$/);
+  await expect(page.locator('#door')).toBeVisible();
+  await expect(page.locator('#dbox')).toHaveValue(app.host);
+  await page.screenshot({ path: `${SHOTS}/site-door-5-back-from-app.png` });
+});

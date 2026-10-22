@@ -161,6 +161,71 @@ test('site: the tree, spoken and filmed — the film is the app’s own, back cl
   await expect(page.locator('#film iframe')).toHaveAttribute('src', 'about:blank');
 });
 
+/** NO DEAD AIR (FILM-V1, 10-22) — the pack slowed on purpose (a phone's first
+ *  uncached load): the door opens with its voice already loading (the panel's
+ *  edge glides, past 0.7 s the words say so), speaking only with the first
+ *  audio; the film's frame waits under the same rail until its first paint,
+ *  then plays from the site's memory (the sandboxed frame fetches nothing),
+ *  each beat's drawing starting with its voice. Real taps: audio may play. */
+test('site: no dead air — the door and the film say the voice is on its way until it plays', async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const DELAY = 3_000; // the words show from 0.7 s (fully by 1 s): a window the polls can't miss
+  const frameReqs: string[] = [];
+  page.on('request', (r) => {
+    if (/\/onboarding\/en\/\w+\.mp3$/.test(r.url()) && r.frame() !== page.mainFrame()) frameReqs.push(r.url());
+  });
+  await page.route('**/onboarding/en/*.mp3', async (r) => {
+    await new Promise((res) => setTimeout(res, DELAY));
+    await r.continue();
+  });
+  await page.goto('/');
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  const tree = page.locator('#tree');
+  await tree.scrollIntoViewIfNeeded();
+  await tree.tap(); // the greeting is still on the wire
+  await expect(page.locator('#door')).toBeVisible();
+  const rail = page.getByTestId('door-voice');
+  await expect(rail).toHaveAttribute('data-voice', 'loading');
+  await expect(rail).toHaveAttribute('data-s', 'working');
+  await expect(page.getByTestId('door-voice-note')).toHaveText('the voice is on its way…');
+  await expect
+    .poll(() => page.getByTestId('door-voice-note').evaluate((e) => Number(getComputedStyle(e).opacity)), {
+      intervals: [100],
+      timeout: DELAY,
+    })
+    .toBeGreaterThan(0.9);
+  await page.screenshot({ path: `${SHOTS}/site-voice-1-loading.png` });
+  await expect(rail).toHaveAttribute('data-voice', 'speaking', { timeout: DELAY + 5_000 });
+  await expect(rail).toHaveAttribute('data-s', 'speaking');
+  await expect(page.getByTestId('door-voice-note')).toHaveText('');
+  await page.screenshot({ path: `${SHOTS}/site-voice-2-speaking.png` });
+
+  // the film, at once: its lines are still on the wire
+  await page.getByTestId('door-why').click();
+  await page.locator('#door [data-k=film]').click();
+  await expect(page.locator('#film')).toBeVisible();
+  await expect(page.locator('#film')).toHaveAttribute('data-up', '', { timeout: 10_000 });
+  await expect(page.locator('#film-wait')).toBeHidden();
+  const f = page.frameLocator('#film iframe');
+  await expect(f.locator('body')).toHaveAttribute('data-voice', 'loading');
+  await expect(f.locator('svg')).not.toHaveClass(/b-tree/);
+  await expect(f.locator('#sub')).toHaveText('the voice is on its way…');
+  await page.screenshot({ path: `${SHOTS}/site-voice-3-film-loading.png` });
+  const play = f.locator('#play');
+  await expect
+    .poll(async () => ((await play.isVisible()) ? 'play' : await f.locator('body').getAttribute('data-voice')), {
+      timeout: DELAY + 8_000,
+    })
+    .toMatch(/speaking|play/);
+  if (await play.isVisible()) await play.click();
+  await expect(f.locator('body')).toHaveAttribute('data-voice', 'speaking', { timeout: 10_000 });
+  await expect(f.locator('svg')).toHaveClass(/b-tree/);
+  expect(frameReqs).toEqual([]);
+});
+
 /** both surfaces, for real: APP_URL=https://<computer>:8443 (the sandbox) —
  *  the site's handoff opens the app's door with the answers, and the phone's
  *  back button walks the app's steps, then lands on the site's last step */

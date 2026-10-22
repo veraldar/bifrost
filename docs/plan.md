@@ -124,7 +124,12 @@ the phone device class). The user tests LAST — the 2-min confirmation only.
    flow into the deck (e2e running now: e2e-base/voiceui/wedge)
 2. voice round-trip: hotword fix verified ("Bifrost" clean at utterance start)
 3. echo bleed fixed: the mic no longer transcribes the TTS playback
-4. 24h stability: the root serving continuously (the timer + the receipts)
+4. stability: **ACCELERATED churn proof in simulation (user law 10-07:
+   only simulation is proof; if sim can't prove it, sim improves — never
+   the user's burden).** Compress the 24h-equivalent into minutes: N
+   reconnects, N rekeys, upstream kills mid-turn, queue deaths, memory
+   soak over the turn volume — the churn suite. Wall-clock waiting
+   deleted. The user's test = the consent confirmation, never evidence.
 5. session lifecycle on the root: create, list, switch, artifacts save
 6. version string: 0.7.0-x displayed on the sandbox
 7. room→session mapping: voice tests do not pollute [MAIN]

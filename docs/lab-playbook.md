@@ -270,3 +270,11 @@ the Rule 10-05/10-07 amendments + new Rule 10-08 above. Receipts + full
 index in docs/research/. The playbook's own evolution mechanism candidate:
 RuleEvolve-style pool + mutator/judge + provenance-gated cull (arXiv
 2610.00650).
+
+## Rule 10-09 — SIMULATION-ONLY PROOF (user, 10-07)
+Only simulation is proof. If a property (stability, endurance, scale)
+cannot be proven in simulation, the SIMULATION must improve — compressed
+time, fault injection, event churn — never the user's testing burden.
+The user's test is the consent confirmation (the feel-check), never the
+evidence. Every gate item must name its simulation proof before it can
+gate anything.

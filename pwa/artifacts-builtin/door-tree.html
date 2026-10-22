@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
-<title>your tree — yggdrasil · root · trunk · branch</title>
+<title>one tree, up close — yggdrasil · root · trunk · branch</title>
 <!--
   THE TREE FILM — the door's "why these names?", watched (door v3, 10-22).
   Self-contained: served like any artifact (/api/artifact/door-tree.html, a
@@ -17,6 +17,11 @@
   the trunk to the root and the answer comes back — the mic's own rule (a tap
   is not a message). ?lang=fr for French. Silent if audio is off: every line
   is on screen. Done → parent.postMessage({tree:'done'}).
+  FILM-NAMING (10-22): "one tree, up close" — the close-up of veraldar.org's
+  film "what it does" (the wide shot: many computers, each its own tree), in
+  the same words: the plain thing first, then its name ("the tree is your
+  computer … its name is yggdrasil"). ?from=page: opened from a page, not the
+  door — the way out says so.
   No dead air (FILM-V1, 10-22): every line is asked for up front — from the
   parent's memory when it answers ({voice:'need'} → {voice:'line', blob}: a
   sandboxed frame can't fetch the pack itself), else fetched here, else
@@ -144,15 +149,16 @@ button.go{background:var(--text);color:var(--bg);border-color:var(--text);letter
 </div>
 <script>
 (()=>{
-const L = new URLSearchParams(location.search).get('lang') === 'fr' ? 'fr' : 'en';
+const Q = new URLSearchParams(location.search);
+const L = Q.get('lang') === 'fr' ? 'fr' : 'en';
 document.documentElement.lang = L;
 /* name_* = copies of pwa/lib/onboard-script.json (e2e: door-tree lines match) */
 const T = {
   en: {
-    head: 'YOUR TREE · 15 S', play: '▸ play · sound on', again: 'again ↺', done: 'back to the door',
+    head: 'ONE TREE, UP CLOSE · 15 S', play: '▸ play · sound on', again: 'again ↺', done: 'back to the door', donePage: 'back to the page',
     labels: { tree: 'yggdrasil', root: 'root', trunk: 'trunk', branch: 'branch · bifrost' },
     lines: {
-      name_tree: 'yggdrasil is the tree: your computer, and everything on it.',
+      name_tree: 'the tree is your computer, working for you. its name is yggdrasil.',
       name_root: 'the root is the brain. it thinks and remembers.',
       name_trunk: 'the trunk is a private line. it carries your words.',
       name_branch: 'the branch is bifrost, the app in your hand. the bridge to your tree.',
@@ -165,10 +171,10 @@ const T = {
     wait: 'the voice is on its way…', quiet: 'no sound here — the words are on screen',
   },
   fr: {
-    head: 'VOTRE ARBRE · 15 S', play: '▸ lire · son activé', again: 'encore ↺', done: 'retour à la porte',
+    head: 'UN ARBRE, DE PRÈS · 15 S', play: '▸ lire · son activé', again: 'encore ↺', done: 'retour à la porte', donePage: 'retour à la page',
     labels: { tree: 'yggdrasil', root: 'racine', trunk: 'tronc', branch: 'branche · bifrost' },
     lines: {
-      name_tree: "yggdrasil, c'est l'arbre : votre ordinateur, et tout ce qu'il fait tourner.",
+      name_tree: "l'arbre, c'est votre ordinateur, qui travaille pour vous. son nom : yggdrasil.",
       name_root: "la racine, c'est le cerveau. elle réfléchit et se souvient.",
       name_trunk: 'le tronc est une ligne privée. il porte vos mots.',
       name_branch: "la branche, c'est bifrost, l'appli dans votre main. le pont vers votre arbre.",
@@ -183,7 +189,7 @@ const T = {
 }[L];
 const $ = id => document.getElementById(id);
 const svg = $('s'), say1 = $('say'), sub1 = $('sub'), sig = $('sig'), trip = $('trip'), tp = $('tp');
-$('hd').textContent = T.head; $('play').textContent = T.play; $('again').textContent = T.again; $('done').textContent = T.done;
+$('hd').textContent = T.head; $('play').textContent = T.play; $('again').textContent = T.again; $('done').textContent = Q.get('from') === 'page' ? T.donePage : T.done;
 for (const k in T.labels) $('l-' + k).textContent = T.labels[k];
 const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const inFrame = window.parent !== window;

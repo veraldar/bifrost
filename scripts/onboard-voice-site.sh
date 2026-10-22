@@ -6,9 +6,10 @@
 # Door v3 (10-22): also the brain presets (pwa/lib/brain-presets.json — the
 # site door's service list + the settings it writes) and the tree film
 # (pwa/artifacts-builtin/door-tree.html → onboarding/tree.html).
-# FILM-V1 (10-22): + the far vision — its lines ("on": ["film"], fv_*) and
-# the film itself (pwa/artifacts-builtin/far-vision.html → onboarding/), the
-# site's #&film.
+# FILM-V1 (10-22): + the film — its lines ("on": ["film"], fv_*) and the film
+# itself (pwa/artifacts-builtin/far-vision.html → onboarding/), the site's
+# #&film. FILM-NAMING (10-22) renamed it "what it does" (it was "the far
+# vision"); the file name stays — links and caches point at it.
 #   scripts/onboard-voice-site.sh [SITE_DIR]   (default ~/Work/veraldar-site)
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")/.." && pwd)

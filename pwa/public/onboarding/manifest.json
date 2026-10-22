@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "generated": "2026-10-19T09:25:37.410Z",
+  "version": 2,
+  "generated": "2026-10-22T02:10:27.966Z",
   "voices": {
     "en": {
       "server": "local speaches (onnx)",
@@ -20,23 +20,23 @@
         "app"
       ],
       "en": {
-        "text": "this is bifrost. your box, your voice. two choices, then you talk.",
-        "sha": "367cc5cfdc8e77a4",
+        "text": "hi. this is bifrost. you talk to your own computer, and it does the work. two choices, then you try it.",
+        "sha": "db4cb697303a1ef7",
         "file": "en/greet.mp3",
-        "ms": 3842,
-        "bytes": 23708,
+        "ms": 5888,
+        "bytes": 35948,
         "seed": null,
-        "heard": "This is Bifrost. Your box, your voice. Two choices. Then you talk.",
+        "heard": "Hi, this is Bifrost. You talk to your own computer, and it does the work. Two choices, then you try it.",
         "score": 1
       },
       "fr": {
-        "text": "voici bifrost. votre box, votre voix. deux choix, puis vous parlez.",
-        "sha": "ec8a7730512ecaec",
+        "text": "bonjour. voici bifrost. vous parlez à votre propre ordinateur, et il fait le travail. deux choix, puis vous essayez.",
+        "sha": "3e5786bcfbde0c5f",
         "file": "fr/greet.mp3",
-        "ms": 6535,
-        "bytes": 39836,
+        "ms": 9182,
+        "bytes": 55676,
         "seed": 7,
-        "heard": "Voici Bifrost. Votre box, votre voix. Deux choix, puis vous parlez.",
+        "heard": "Bonjour, voici Bifrost. Vous parlez à votre propre ordinateur et il fait le travail. Deux choix, puis vous essayez.",
         "score": 1
       }
     },
@@ -45,24 +45,24 @@
         "app"
       ],
       "en": {
-        "text": "this is bifrost. your answers came with you. one step, then you talk.",
-        "sha": "9cd7c1ec20a9e337",
+        "text": "hi again. your answers came with you. one step, then you try it.",
+        "sha": "f585f31ec460926a",
         "file": "en/greet_back.mp3",
-        "ms": 3903,
-        "bytes": 23996,
+        "ms": 3627,
+        "bytes": 22412,
         "seed": null,
-        "heard": "This is Bifrost. Your answers came with you. One step, then you talk.",
+        "heard": "Hi again. Your answers came with you. One step, then you try it.",
         "score": 1
       },
       "fr": {
-        "text": "voici bifrost. vos réponses ont suivi. une étape, puis vous parlez.",
-        "sha": "4ded77583317d690",
+        "text": "re-bonjour. vos réponses ont suivi. une étape, puis vous essayez.",
+        "sha": "c87e5f6bc0d7e092",
         "file": "fr/greet_back.mp3",
-        "ms": 4855,
-        "bytes": 29756,
+        "ms": 5174,
+        "bytes": 31628,
         "seed": 7,
-        "heard": "Voici Beefrost. Vos réponses ont suivi une étape, puis vous parlez.",
-        "score": 0.91
+        "heard": "Rebonjour. Vos réponses ont suivi une étape, puis vous essayez.",
+        "score": 0.82
       }
     },
     "site_greet": {
@@ -70,24 +70,24 @@
         "site"
       ],
       "en": {
-        "text": "this is bifrost. your box, your voice. three choices, then your install line.",
-        "sha": "6c1569208bc64283",
+        "text": "hi. this is bifrost. you talk from your phone, your own computer does the work. three choices, then how to set it up.",
+        "sha": "d4f1b2e22837480b",
         "file": "en/site_greet.mp3",
-        "ms": 4612,
-        "bytes": 28316,
+        "ms": 6741,
+        "bytes": 40988,
         "seed": null,
-        "heard": "This is Bifrost. Your box, your voice, three choices, then your install line.",
+        "heard": "Hi, this is Bifrost. You talk from your phone. Your own computer does the work. Three choices. Then how to set it up.",
         "score": 1
       },
       "fr": {
-        "text": "voici bifrost. votre box, votre voix. trois choix, puis votre ligne d'installation.",
-        "sha": "1691651c19a6a43f",
+        "text": "bonjour. voici bifrost. vous parlez depuis votre téléphone, votre propre ordinateur fait le travail. trois choix, puis comment l'installer.",
+        "sha": "b28424770b75ba15",
         "file": "fr/site_greet.mp3",
-        "ms": 6214,
-        "bytes": 37820,
-        "seed": 11,
-        "heard": "Voici Beefrost. Votre box, votre voix, trois choix, puis votre ligne d'installation.",
-        "score": 0.92
+        "ms": 9422,
+        "bytes": 57116,
+        "seed": 7,
+        "heard": "Bonjour, voici Beefrost. Vous parlez depuis votre téléphone, votre propre ordinateur fait le travail. Trois choix, puis comment l'installer.",
+        "score": 0.95
       }
     },
     "lang": {
@@ -174,23 +174,23 @@
         "site"
       ],
       "en": {
-        "text": "short. signal only.",
-        "sha": "8ee3603b8c4f3a65",
+        "text": "short. just the point.",
+        "sha": "6fe7883a3a56a187",
         "file": "en/style_short.mp3",
-        "ms": 1514,
-        "bytes": 9740,
+        "ms": 1403,
+        "bytes": 9020,
         "seed": null,
-        "heard": "Short signal only.",
+        "heard": "Short. Just the point.",
         "score": 1
       },
       "fr": {
-        "text": "court. juste le signal.",
-        "sha": "c0f37d4224ef8fc5",
+        "text": "court. juste l'essentiel.",
+        "sha": "b6415cb9d7d20579",
         "file": "fr/style_short.mp3",
-        "ms": 2666,
-        "bytes": 16652,
+        "ms": 2587,
+        "bytes": 16076,
         "seed": 7,
-        "heard": "Court, juste le signal.",
+        "heard": "Court, juste l'essentiel.",
         "score": 1
       }
     },
@@ -225,75 +225,49 @@
         "site"
       ],
       "en": {
-        "text": "who does the thinking? three brains. the data facts differ.",
-        "sha": "4a6308fad13dbaa8",
+        "text": "who does the thinking? a cloud service you pick, or your own computer.",
+        "sha": "28ed82eb4813ecb3",
         "file": "en/site_brain.mp3",
-        "ms": 3319,
-        "bytes": 20540,
+        "ms": 3711,
+        "bytes": 22844,
         "seed": null,
-        "heard": "Who does the thinking? Three brains. The data facts differ.",
+        "heard": "Who does the thinking? A cloud service you pick, or your own computer?",
         "score": 1
       },
       "fr": {
-        "text": "qui réfléchit ? trois cerveaux. les faits diffèrent.",
-        "sha": "dd17cd9d877dae8e",
+        "text": "qui réfléchit ? un service en ligne de votre choix, ou votre propre ordinateur.",
+        "sha": "87592151915b7dd4",
         "file": "fr/site_brain.mp3",
-        "ms": 4329,
-        "bytes": 26588,
+        "ms": 5690,
+        "bytes": 34796,
         "seed": 7,
-        "heard": "Qui réfléchit? Trois cerveaux. Les faits diffèrent.",
+        "heard": "Qui réfléchit un service en ligne de votre choix ou votre propre ordinateur.",
         "score": 1
       }
     },
-    "brain_plan": {
+    "brain_cloud": {
       "on": [
         "app",
         "site"
       ],
       "en": {
-        "text": "the brain is a coding plan. the vendor sees what you send.",
-        "sha": "2bcc1eb091bba99a",
-        "file": "en/brain_plan.mp3",
-        "ms": 3307,
-        "bytes": 20396,
+        "text": "the brain is a cloud service. it sees what you say to it.",
+        "sha": "0e25f1ccb36f5c5a",
+        "file": "en/brain_cloud.mp3",
+        "ms": 3349,
+        "bytes": 20684,
         "seed": null,
-        "heard": "The brain is a coding plan. The vendor sees what you send.",
+        "heard": "The brain is a cloud service. It sees what you say to it.",
         "score": 1
       },
       "fr": {
-        "text": "le cerveau est un forfait de code. le fournisseur voit ce que vous envoyez.",
-        "sha": "8a6f2a0330fdf731",
-        "file": "fr/brain_plan.mp3",
-        "ms": 4895,
-        "bytes": 29900,
+        "text": "le cerveau est un service en ligne. il voit ce que vous lui dites.",
+        "sha": "8ce2a00398b20390",
+        "file": "fr/brain_cloud.mp3",
+        "ms": 4013,
+        "bytes": 24716,
         "seed": 7,
-        "heard": "Le cerveau est un forfait de code. Le fournisseur voit ce que vous envoyez.",
-        "score": 1
-      }
-    },
-    "brain_router": {
-      "on": [
-        "app",
-        "site"
-      ],
-      "en": {
-        "text": "the brain is a cloud model through openrouter. your words travel to its provider.",
-        "sha": "cfa87ac074ed1517",
-        "file": "en/brain_router.mp3",
-        "ms": 4651,
-        "bytes": 28460,
-        "seed": null,
-        "heard": "The brain is a cloud model through OpenRouter. Your words travel to its provider.",
-        "score": 1
-      },
-      "fr": {
-        "text": "le cerveau est un modèle cloud via openrouter. vos mots vont chez son fournisseur.",
-        "sha": "3d02c8d5f5512a4d",
-        "file": "fr/brain_router.mp3",
-        "ms": 5934,
-        "bytes": 36236,
-        "seed": 7,
-        "heard": "Le cerveau est un modèle cloud via OpenRouter. Vos mots vont chez son fournisseur.",
+        "heard": "Le cerveau est un service en ligne. Il voit ce que vous lui dites.",
         "score": 1
       }
     },
@@ -303,23 +277,23 @@
         "site"
       ],
       "en": {
-        "text": "the brain runs on your box. nothing leaves your network.",
-        "sha": "f9603d9ba42c4e38",
+        "text": "the brain runs on your own computer. nothing leaves your home.",
+        "sha": "9de803b8c154c5a7",
         "file": "en/brain_local.mp3",
-        "ms": 3157,
-        "bytes": 19532,
+        "ms": 3285,
+        "bytes": 20252,
         "seed": null,
-        "heard": "The brain runs on your box. Nothing leaves your network.",
+        "heard": "The brain runs on your own computer. Nothing leaves your home.",
         "score": 1
       },
       "fr": {
-        "text": "le cerveau tourne sur votre box. rien ne quitte votre réseau.",
-        "sha": "4b70b91f431b751b",
+        "text": "le cerveau tourne sur votre propre ordinateur. rien ne sort de chez vous.",
+        "sha": "d2fbedca8851ea79",
         "file": "fr/brain_local.mp3",
-        "ms": 4093,
-        "bytes": 25148,
+        "ms": 4814,
+        "bytes": 29468,
         "seed": 7,
-        "heard": "Le cerveau tourne sur votre box. Rien ne quitte votre réseau.",
+        "heard": "Le cerveau tourne sur votre propre ordinateur. Rien ne sort de chez vous.",
         "score": 1
       }
     },
@@ -353,23 +327,23 @@
         "app"
       ],
       "en": {
-        "text": "planted. this is main. hold the mic, say anything, let go to send.",
-        "sha": "638b708c590fcbd2",
+        "text": "ready. this is main, your main conversation. hold the mic, say anything, let go to send.",
+        "sha": "edb38175e392f4bc",
         "file": "en/planted.mp3",
-        "ms": 3842,
-        "bytes": 23708,
+        "ms": 5227,
+        "bytes": 31916,
         "seed": null,
-        "heard": "Planted. This is Maine. Hold the mic. Say anything. Let go to send.",
-        "score": 0.92
+        "heard": "Ready. This is main. Your main conversation. Hold the mic. Say anything. Let go to send.",
+        "score": 1
       },
       "fr": {
-        "text": "planté. voici main. maintenez le micro, dites quelque chose, relâchez pour envoyer.",
-        "sha": "8317394ec3456325",
+        "text": "c'est prêt. voici main, votre conversation principale. maintenez le micro, dites quelque chose, relâchez pour envoyer.",
+        "sha": "57ce3442728fb6cb",
         "file": "fr/planted.mp3",
-        "ms": 5976,
-        "bytes": 36380,
+        "ms": 7333,
+        "bytes": 44588,
         "seed": 7,
-        "heard": "Planté. Voici main. Maintenez le micro. Dites quelque chose. Relâchez pour envoyer.",
+        "heard": "C'est prêt. Voici main, votre conversation principale. Maintenez le micro, dites quelque chose, relâchez pour envoyer.",
         "score": 1
       }
     },
@@ -428,23 +402,23 @@
         "app"
       ],
       "en": {
-        "text": "no mic access. bifrost works by text too. the keyboard is below.",
-        "sha": "86b8a715e2ac8a68",
+        "text": "no mic access. you can type instead, just below.",
+        "sha": "65492e29171d7ecc",
         "file": "en/mic_denied.mp3",
-        "ms": 4672,
-        "bytes": 28604,
+        "ms": 3093,
+        "bytes": 19100,
         "seed": null,
-        "heard": "No mic access. Bifrost works by text too. The keyboard is below.",
+        "heard": "No mic access. You can type instead, just below.",
         "score": 1
       },
       "fr": {
-        "text": "pas d'accès au micro. bifrost marche aussi au clavier, juste en dessous.",
-        "sha": "497ff1f7fa8ceabe",
+        "text": "pas d'accès au micro. vous pouvez écrire à la place, juste en dessous.",
+        "sha": "0c3fe5789ecd819d",
         "file": "fr/mic_denied.mp3",
-        "ms": 4965,
-        "bytes": 30332,
+        "ms": 4085,
+        "bytes": 25148,
         "seed": 7,
-        "heard": "Pas d'accès au micro. Bifrost marche aussi au clavier, juste en dessous.",
+        "heard": "Pas d'accès au micro. Vous pouvez écrire à la place, juste en dessous.",
         "score": 1
       }
     },
@@ -453,23 +427,23 @@
         "app"
       ],
       "en": {
-        "text": "you are in. talk to your tree.",
-        "sha": "13cc7a3a3f676a6b",
+        "text": "you are in. talk to your tree any time.",
+        "sha": "0aa865f8fe22bd5a",
         "file": "en/in.mp3",
-        "ms": 1715,
-        "bytes": 10892,
+        "ms": 2155,
+        "bytes": 13484,
         "seed": null,
-        "heard": "You are in. Talk to your tree.",
-        "score": 1
+        "heard": "You are in. Talk to your tree anytime.",
+        "score": 0.78
       },
       "fr": {
-        "text": "vous y êtes. parlez à votre arbre.",
-        "sha": "2e3f9d7b9bfa6f82",
+        "text": "vous y êtes. parlez à votre arbre quand vous voulez.",
+        "sha": "d8638134833ddb9a",
         "file": "fr/in.mp3",
-        "ms": 2696,
-        "bytes": 16796,
+        "ms": 3576,
+        "bytes": 21980,
         "seed": 7,
-        "heard": "Vous y êtes. Parlez à votre arbre.",
+        "heard": "Vous y êtes. Parlez à votre arbre quand vous voulez.",
         "score": 1
       }
     },
@@ -478,23 +452,23 @@
         "app"
       ],
       "en": {
-        "text": "your box did not answer. hold the tree to try again.",
-        "sha": "cc090e4a8f8e60fa",
+        "text": "your computer did not answer. check it is on, then hold the tree again.",
+        "sha": "fc0a985a23c90b73",
         "file": "en/box_down.mp3",
-        "ms": 3074,
-        "bytes": 19100,
+        "ms": 3989,
+        "bytes": 24572,
         "seed": null,
-        "heard": "Your box did not answer. Hold the tree to try again.",
+        "heard": "Your computer did not answer. Check it is on. Then hold the tree again.",
         "score": 1
       },
       "fr": {
-        "text": "votre box n'a pas répondu. maintenez l'arbre pour réessayer.",
-        "sha": "c903baaee3475fa8",
+        "text": "votre ordinateur n'a pas répondu. vérifiez qu'il est allumé, puis maintenez l'arbre à nouveau.",
+        "sha": "7826a549993aead4",
         "file": "fr/box_down.mp3",
-        "ms": 4295,
-        "bytes": 26300,
+        "ms": 7335,
+        "bytes": 44588,
         "seed": 7,
-        "heard": "Votre box n'a pas répondu. Maintenez l'arbre pour réessayer.",
+        "heard": "Votre ordinateur n'a pas répondu. Vérifiez qu'il est allumé, puis maintenez l'arbre à nouveau.",
         "score": 1
       }
     },
@@ -503,23 +477,23 @@
         "site"
       ],
       "en": {
-        "text": "your box already runs? open it. its door picks up here. no box yet: your line.",
-        "sha": "526cbe60f979cad6",
+        "text": "already set up? open it, your answers come along. not yet? here is how.",
+        "sha": "11f7250d35029b63",
         "file": "en/site_install.mp3",
-        "ms": 5130,
-        "bytes": 31340,
+        "ms": 4352,
+        "bytes": 26732,
         "seed": null,
-        "heard": "Your box already runs. Open it. Its door picks up here. No box yet. Your line.",
+        "heard": "Already set up. Open it. Your answers come along. Not yet. Here is how.",
         "score": 1
       },
       "fr": {
-        "text": "votre box tourne déjà ? ouvrez-la. sa porte reprend ici. sinon : votre ligne.",
-        "sha": "4d9573007e690d41",
+        "text": "déjà installé ? ouvrez-le, vos réponses suivent. pas encore ? voici comment.",
+        "sha": "78d9bbdcfdc907e2",
         "file": "fr/site_install.mp3",
-        "ms": 6295,
-        "bytes": 38396,
+        "ms": 5415,
+        "bytes": 33068,
         "seed": 7,
-        "heard": "Votre box tourne déjà. Ouvrez-la. Sa porte reprend ici. Sinon, votre ligne.",
+        "heard": "Déjà installé ? Ouvrez-le. Vos réponses suivent. Pas encore ? Voici comment.",
         "score": 1
       }
     },
@@ -528,23 +502,179 @@
         "site"
       ],
       "en": {
-        "text": "box running? open it. your answers come along.",
-        "sha": "b8c7947874602020",
+        "text": "opening it. your answers come along.",
+        "sha": "26487f7bf2a0ad16",
         "file": "en/site_open.mp3",
-        "ms": 2773,
-        "bytes": 17228,
+        "ms": 2005,
+        "bytes": 12620,
         "seed": null,
-        "heard": "Box running. Open it. Your answers come along.",
+        "heard": "Opening it, your answers come along.",
         "score": 1
       },
       "fr": {
-        "text": "box lancée ? ouvrez-la. vos réponses suivent.",
-        "sha": "51cb5e6c8ea4f00b",
+        "text": "ouverture. vos réponses suivent.",
+        "sha": "a8a308107ccfbd72",
         "file": "fr/site_open.mp3",
-        "ms": 4701,
+        "ms": 2779,
+        "bytes": 17228,
+        "seed": 7,
+        "heard": "Ouverture. Vos réponses suivent.",
+        "score": 1
+      }
+    },
+    "name_tree": {
+      "on": [
+        "app",
+        "site"
+      ],
+      "en": {
+        "text": "yggdrasil is the tree: your computer, and everything on it.",
+        "sha": "3327e616f01889af",
+        "file": "en/name_tree.mp3",
+        "ms": 3458,
+        "bytes": 21404,
+        "seed": null,
+        "heard": "Igdrassil is the tree, your computer, and everything on it.",
+        "score": 0.9
+      },
+      "fr": {
+        "text": "yggdrasil, c'est l'arbre : votre ordinateur, et tout ce qu'il fait tourner.",
+        "sha": "988ac89d584ac844",
+        "file": "fr/name_tree.mp3",
+        "ms": 4691,
         "bytes": 28748,
         "seed": 7,
-        "heard": "Box lancée. Ouvrez-la. Vos réponses suivent.",
+        "heard": "Idrasil, c'est l'arbre, votre ordinateur et tout ce qu'il fait tourner.",
+        "score": 0.91
+      }
+    },
+    "name_root": {
+      "on": [
+        "app",
+        "site"
+      ],
+      "en": {
+        "text": "the root is the brain. it thinks and remembers.",
+        "sha": "0aef2dd3265059df",
+        "file": "en/name_root.mp3",
+        "ms": 2667,
+        "bytes": 16652,
+        "seed": null,
+        "heard": "The root is the brain. It thinks and remembers.",
+        "score": 1
+      },
+      "fr": {
+        "text": "la racine, c'est le cerveau. elle réfléchit et se souvient.",
+        "sha": "324c7442dbe4f1fa",
+        "file": "fr/name_root.mp3",
+        "ms": 4371,
+        "bytes": 26876,
+        "seed": 7,
+        "heard": "La racine, c'est le cerveau. Elle réfléchit et se souvient.",
+        "score": 1
+      }
+    },
+    "name_trunk": {
+      "on": [
+        "app",
+        "site"
+      ],
+      "en": {
+        "text": "the trunk is a private line. it carries your words.",
+        "sha": "30008469746b905d",
+        "file": "en/name_trunk.mp3",
+        "ms": 2923,
+        "bytes": 18092,
+        "seed": null,
+        "heard": "The trunk is a private line. It carries your words.",
+        "score": 1
+      },
+      "fr": {
+        "text": "le tronc est une ligne privée. il porte vos mots.",
+        "sha": "e95d2d040317b8d8",
+        "file": "fr/name_trunk.mp3",
+        "ms": 3530,
+        "bytes": 21836,
+        "seed": 7,
+        "heard": "Le tronc est une ligne privée. Il porte vos mots.",
+        "score": 1
+      }
+    },
+    "name_branch": {
+      "on": [
+        "app",
+        "site"
+      ],
+      "en": {
+        "text": "the branch is bifrost, the app in your hand. the bridge to your tree.",
+        "sha": "98de0c4d7a7b6ac4",
+        "file": "en/name_branch.mp3",
+        "ms": 3627,
+        "bytes": 22412,
+        "seed": null,
+        "heard": "The branch is Bifrost. The app in your hand. The bridge to your tree.",
+        "score": 1
+      },
+      "fr": {
+        "text": "la branche, c'est bifrost, l'appli dans votre main. le pont vers votre arbre.",
+        "sha": "dff8b8b8055cc797",
+        "file": "fr/name_branch.mp3",
+        "ms": 5331,
+        "bytes": 32636,
+        "seed": 7,
+        "heard": "La branche, ses bifrostes, l'appli dans votre main, le pont vers votre arbre.",
+        "score": 0.85
+      }
+    },
+    "name_try": {
+      "on": [
+        "app",
+        "site"
+      ],
+      "en": {
+        "text": "now you. hold the branch, then let go.",
+        "sha": "302db4f7cd91ec71",
+        "file": "en/name_try.mp3",
+        "ms": 2196,
+        "bytes": 13772,
+        "seed": null,
+        "heard": "Now you hold the branch, then let go.",
+        "score": 1
+      },
+      "fr": {
+        "text": "à vous. maintenez la branche, puis relâchez.",
+        "sha": "44eb7b7f4d2ea4e3",
+        "file": "fr/name_try.mp3",
+        "ms": 3379,
+        "bytes": 20828,
+        "seed": 7,
+        "heard": "À vous. Maintenez la branche, puis relâchez.",
+        "score": 1
+      }
+    },
+    "name_done": {
+      "on": [
+        "app",
+        "site"
+      ],
+      "en": {
+        "text": "that is the whole trip. the mic works the same way.",
+        "sha": "98861fa6cae94de2",
+        "file": "en/name_done.mp3",
+        "ms": 2901,
+        "bytes": 17948,
+        "seed": null,
+        "heard": "That is the whole trip. The mic works the same way.",
+        "score": 1
+      },
+      "fr": {
+        "text": "c'est tout le trajet. le micro marche pareil.",
+        "sha": "6f1b0f13f41ff2b1",
+        "file": "fr/name_done.mp3",
+        "ms": 3012,
+        "bytes": 18668,
+        "seed": 7,
+        "heard": "C'est tout le trajet. Le micro marche pareil.",
         "score": 1
       }
     }

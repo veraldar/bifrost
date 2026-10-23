@@ -170,6 +170,13 @@ test('#4 B · the echo gate: the phone speaks its reply, no user turn comes back
     );
     expect(diag.some((l) => /echo gate: mic paused while the phone speaks/.test(l))).toBe(true);
     expect(diag.some((l) => /echo gate: the phone is quiet — mic back/.test(l))).toBe(true);
+    // the empty tap does not strand the strip: nothing heard → listening again
+    await expect(free).toContainText('tap the bars to send', { timeout: 15_000 });
+    expect(diag.length).toBeGreaterThan(0);
+    const diag2 = await page.evaluate(() =>
+      (JSON.parse(localStorage.getItem('oz-diag') || '[]') as { msg: string }[]).map((e) => e.msg)
+    );
+    expect(diag2.some((l) => /tap-to-send: nothing was heard — mic back/.test(l))).toBe(true);
   } finally {
     await leave(page);
     await request.delete(`/api/session/${s.id}`);

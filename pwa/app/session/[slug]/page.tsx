@@ -2011,6 +2011,20 @@ export default function SessionView({
       // straight through the whole run, with the reply never spoken.
       setFreeCycle('processing');
       await mic(false);
+      // an empty tap (nothing said — or only the phone's own voice, which the
+      // echo gate kept out): no turn lands, no run starts, no idle ever comes,
+      // and heartbeats keep re-arming the escape — the strip sat on "working
+      // on it · mic paused" with nothing working. The commit already waited
+      // for the STT final; a turn lands within a poll or two of it.
+      const base = totalRef.current;
+      setTimeout(() => {
+        if (modeRef.current !== 'free' || freeCycleRef.current !== 'processing') return;
+        if (totalRef.current > base || liveRef.current || freeSpokeMsgRef.current) return;
+        diagEvent('voice', 'tap-to-send: nothing was heard — mic back');
+        setBusy(false);
+        setError('nothing heard — talk, then tap the bars');
+        freeMicGiveBack();
+      }, 10_000);
     } catch {
       // same stale-room recovery as pttUp: drop OUR room, reconnect fresh
       setError('voice session stale — reconnecting…');

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "generated": "2026-10-22T13:23:06.357Z",
+  "generated": "2026-10-23T02:41:53.523Z",
   "voices": {
     "en": {
       "server": "local speaches (onnx)",
@@ -327,23 +327,23 @@
         "app"
       ],
       "en": {
-        "text": "ready. this is main, your main conversation. hold the mic, say anything, let go to send.",
-        "sha": "edb38175e392f4bc",
+        "text": "ready. this is main, your main conversation. hold the mic and say anything, or type it below.",
+        "sha": "f701145f44e069bd",
         "file": "en/planted.mp3",
-        "ms": 5227,
-        "bytes": 31916,
+        "ms": 5781,
+        "bytes": 35228,
         "seed": null,
-        "heard": "Ready. This is main. Your main conversation. Hold the mic. Say anything. Let go to send.",
+        "heard": "Ready. This is main your main conversation. Hold the mic and say anything, or type it below.",
         "score": 1
       },
       "fr": {
-        "text": "c'est prêt. voici main, votre conversation principale. maintenez le micro, dites quelque chose, relâchez pour envoyer.",
-        "sha": "57ce3442728fb6cb",
+        "text": "c'est prêt. voici main, votre conversation principale. maintenez le micro et dites quelque chose, ou écrivez-le en dessous.",
+        "sha": "896b0ad234a78cdb",
         "file": "fr/planted.mp3",
-        "ms": 7333,
-        "bytes": 44588,
+        "ms": 7573,
+        "bytes": 46028,
         "seed": 7,
-        "heard": "C'est prêt. Voici main, votre conversation principale. Maintenez le micro, dites quelque chose, relâchez pour envoyer.",
+        "heard": "C'est prêt. Voici main, votre conversation principale. Maintenez le micro et dites quelque chose, ou écrivez-le en dessous.",
         "score": 1
       }
     },

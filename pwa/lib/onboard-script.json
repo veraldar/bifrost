@@ -14,7 +14,7 @@
     { "id": "brain_cloud", "on": ["app", "site"], "en": "the brain is a cloud service. it sees what you say to it.", "fr": "le cerveau est un service en ligne. il voit ce que vous lui dites." },
     { "id": "brain_local", "on": ["app", "site"], "en": "the brain runs on your own computer. nothing leaves your home.", "fr": "le cerveau tourne sur votre propre ordinateur. rien ne sort de chez vous." },
     { "id": "pair", "on": ["app"], "en": "on your phone? scan the code. or stay here.", "fr": "sur votre téléphone ? scannez le code. ou restez ici." },
-    { "id": "planted", "on": ["app"], "en": "ready. this is main, your main conversation. hold the mic, say anything, let go to send.", "fr": "c'est prêt. voici main, votre conversation principale. maintenez le micro, dites quelque chose, relâchez pour envoyer." },
+    { "id": "planted", "on": ["app"], "en": "ready. this is main, your main conversation. hold the mic and say anything, or type it below.", "fr": "c'est prêt. voici main, votre conversation principale. maintenez le micro et dites quelque chose, ou écrivez-le en dessous." },
     { "id": "heard", "on": ["app"], "en": "heard.", "fr": "entendu." },
     { "id": "not_heard", "on": ["app"], "en": "nothing came through. check the mic, then hold again.", "fr": "rien n'est passé. vérifiez le micro, puis maintenez à nouveau." },
     { "id": "mic_denied", "on": ["app"], "en": "no mic access. you can type instead, just below.", "fr": "pas d'accès au micro. vous pouvez écrire à la place, juste en dessous." },

@@ -245,6 +245,14 @@
     justify-self: start; min-height: 40px; padding: 0 16px; border: 1px solid var(--oz-text);
     background: var(--oz-text); color: var(--oz-bg); letter-spacing: .12em; font-size: 11.5px;
   }
+  /* the keyboard way in — first-class next to the voice: same height, outlined */
+  .oz-ft .ways { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+  .oz-ft .ty {
+    justify-self: start; min-height: 40px; padding: 4px 14px; border: 1px solid var(--oz-text);
+    color: var(--oz-text); background: transparent; letter-spacing: .08em; font-size: 11.5px;
+    display: inline-flex; flex-direction: column; align-items: flex-start; justify-content: center; text-align: left;
+  }
+  .oz-ft .ty small { color: var(--oz-dim); font-size: 10.5px; letter-spacing: .04em; }
   .oz-door {
     position: fixed; z-index: 40; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom));
     width: 60px; height: 60px; display: block;

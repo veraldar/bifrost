@@ -57,9 +57,14 @@ const FT = {
     mic: 'the mic: your browser asks once.',
     allow: 'allow the mic',
     hold: 'hold the mic ↓ say anything · let go to send',
+    type: 'or type it ↓',
+    typeSub: 'the box below · send',
     released: 'released — nothing sent · hold the mic while you talk',
     sent: 'sent · listening for your words…',
+    sentTyped: 'sent · on its way to the tree…',
+    lost: 'it did not arrive · send it again',
     heard: 'heard',
+    got: 'received',
     answering: 'the tree answers…',
     now: [
       ['hold the mic', 'talk'],
@@ -74,9 +79,14 @@ const FT = {
     mic: 'le micro : votre navigateur demande une fois.',
     allow: 'autoriser le micro',
     hold: 'maintenez le micro ↓ dites quelque chose · relâchez pour envoyer',
+    type: 'ou écrivez-le ↓',
+    typeSub: 'la case en dessous · envoyer',
     released: 'relâché — rien envoyé · maintenez le micro pendant que vous parlez',
     sent: 'envoyé · à l’écoute de vos mots…',
+    sentTyped: 'envoyé · en route vers l’arbre…',
+    lost: 'pas arrivé · renvoyez-le',
     heard: 'entendu',
+    got: 'reçu',
     answering: 'l’arbre répond…',
     now: [
       ['maintenez le micro', 'parler'],
@@ -222,7 +232,17 @@ export default function SessionView({
   const [firstHint, setFirstHint] = useState('');
   const [firstLang, setFirstLang] = useState<Lang>('en');
   const lineVoice = useVoiceState(); // the first-turn card's own lines
-  const firstRef = useRef({ sentAt: 0, before: 0, heardAt: 0, heardTime: 0, heard: '', saidIn: false });
+  // typed: the first turn came from the keyboard (10-23: a first-timer may
+  // prefer to type — same turn, same "you are in"; no STT to prove, no voice)
+  const firstRef = useRef({
+    sentAt: 0,
+    before: 0,
+    heardAt: 0,
+    heardTime: 0,
+    heard: '',
+    saidIn: false,
+    typed: false,
+  });
   const [input, setInput] = useState('');
   // swipe-history browser: index of the message on screen, null = closed
   const [histIdx, setHistIdx] = useState<number | null>(null);
@@ -1599,39 +1619,71 @@ export default function SessionView({
     }
   }
 
-  /** pttUp, the turn is going out: from here a transcript must land */
-  function firstSent() {
-    if (first !== 'practice' && first !== 'sent') return;
+  /** pttUp (or a typed send), the turn is going out: from here a message
+   *  must land. A typed turn may start before the mic was ever asked for —
+   *  or after it was refused: typing never needs it */
+  function firstSent(typed = false) {
+    const from: FirstTurn[] = typed ? ['practice', 'mic', 'denied'] : ['practice', 'sent'];
+    if (!from.includes(first)) return;
     const before = [...msgs].reverse().find((m) => m.role === 'user' && !isOnboardPrompt(m.text));
-    firstRef.current = { ...firstRef.current, sentAt: Date.now(), before: before?.time || 0 };
+    firstRef.current = { ...firstRef.current, sentAt: Date.now(), before: before?.time || 0, typed };
+    diagEvent('voice', `first-turn: ${typed ? 'typed' : 'voice'} turn sent`);
     setFirstHint('');
     setFirst('sent');
   }
 
+  /** the card's "or type it": the composer takes the turn (keyboard up) */
+  function firstType() {
+    unlockLines(); // a tap: the card's later lines may play
+    diagEvent('voice', 'first-turn: type chosen');
+    inputRef.current?.focus();
+  }
+
   // sent → heard: a user message newer than the last one before the release
-  // (server times only — the phone's clock never decides)
+  // (server times only — the phone's clock never decides; a typed turn's
+  // optimistic echo carries the phone's clock, so it never counts as landed)
   useEffect(() => {
     if (first !== 'sent') return;
     const f = firstRef.current;
     const u = [...msgs]
       .reverse()
-      .find((m) => m.role === 'user' && m.time > f.before && !isOnboardPrompt(m.text));
+      .find(
+        (m) =>
+          m.role === 'user' &&
+          m.time > f.before &&
+          !m.queued &&
+          !echoesRef.current.includes(m) &&
+          !isOnboardPrompt(m.text)
+      );
     if (u) {
       f.heard = u.text;
       f.heardTime = u.time;
       f.heardAt = Date.now();
-      diagEvent('voice', `first-turn: transcript ${Date.now() - f.sentAt}ms after release — STT alive`);
+      diagEvent(
+        'voice',
+        f.typed
+          ? `first-turn: typed turn landed ${Date.now() - f.sentAt}ms after send`
+          : `first-turn: transcript ${Date.now() - f.sentAt}ms after release — STT alive`
+      );
       try {
         localStorage.setItem(FIRST_TURN_KEY, String(Date.now()));
       } catch {
         /* private mode: the card comes back next time, harmless */
       }
       setFirst('heard');
-      if (getSpeech().phase === 'idle') void say('heard', firstLang);
+      // "heard." is the STT's proof — typed words were never listened for
+      if (!f.typed && getSpeech().phase === 'idle') void say('heard', firstLang);
       return;
     }
     const t = setTimeout(
       () => {
+        if (f.typed) {
+          // the send itself failed or stalled: the error line says why
+          diagEvent('voice-fail', 'first-turn: typed turn not in the transcript 15s after send');
+          setFirstHint(FT[firstLang].lost);
+          setFirst('practice');
+          return;
+        }
         diagEvent('voice-fail', 'first-turn: nothing transcribed 15s after release');
         setFirstHint(line('not_heard', firstLang));
         setFirst('practice');
@@ -1656,9 +1708,11 @@ export default function SessionView({
         ? undefined
         : [...msgs.slice(ui + 1)].reverse().find((m) => m.role === 'assistant' && m.text.trim());
     if (a && a.done !== false && !busy) {
-      diagEvent('voice', `first-turn: reply ${Date.now() - f.sentAt}ms after release`);
+      diagEvent('voice', `first-turn: reply ${Date.now() - f.sentAt}ms after ${f.typed ? 'send' : 'release'}`);
       markHeard(slug, a.time);
-      startSpeech(a.text, slug);
+      // you talked, it talks back; you typed, it writes back — the reply is
+      // on screen right above the card (the deck can still speak it)
+      if (!f.typed) startSpeech(a.text, slug);
       setFirst('in');
       return;
     }
@@ -1776,6 +1830,7 @@ export default function SessionView({
       .map((a) => ({ name: a.name, content: a.content }));
     setAttachments([]);
     stickRef.current = true;
+    if (first !== 'off') firstSent(true); // the door's first turn, typed
     void sendTextAsync(text, images, files);
   }
 
@@ -2303,27 +2358,52 @@ export default function SessionView({
           {(first === 'mic' || first === 'practice') && (
             <>
               <p className="t">{FT[firstLang].planted}</p>
+              {/* two first-class ways in: the voice, or the keyboard */}
               {first === 'mic' ? (
                 <>
                   <p>{FT[firstLang].mic}</p>
-                  <button
-                    type="button"
-                    className="go"
-                    data-testid="first-allow-mic"
-                    onClick={() => void allowMic()}
-                  >
-                    {FT[firstLang].allow}
-                  </button>
+                  <div className="ways">
+                    <button
+                      type="button"
+                      className="go"
+                      data-testid="first-allow-mic"
+                      onClick={() => void allowMic()}
+                    >
+                      {FT[firstLang].allow}
+                    </button>
+                    <button
+                      type="button"
+                      className="ty"
+                      data-testid="first-type"
+                      onClick={firstType}
+                    >
+                      {FT[firstLang].type}
+                      <small>{FT[firstLang].typeSub}</small>
+                    </button>
+                  </div>
                 </>
               ) : (
-                <p className={firstHint ? 'hint' : ''}>{firstHint || FT[firstLang].hold}</p>
+                <>
+                  <p className={firstHint ? 'hint' : ''}>{firstHint || FT[firstLang].hold}</p>
+                  <button
+                    type="button"
+                    className="ty"
+                    data-testid="first-type"
+                    onClick={firstType}
+                  >
+                    {FT[firstLang].type}
+                    <small>{FT[firstLang].typeSub}</small>
+                  </button>
+                </>
               )}
             </>
           )}
-          {first === 'sent' && <p>{FT[firstLang].sent}</p>}
+          {first === 'sent' && (
+            <p>{firstRef.current.typed ? FT[firstLang].sentTyped : FT[firstLang].sent}</p>
+          )}
           {first === 'heard' && (
             <>
-              <p className="t">{FT[firstLang].heard}</p>
+              <p className="t">{firstRef.current.typed ? FT[firstLang].got : FT[firstLang].heard}</p>
               <blockquote data-testid="first-heard">“{firstRef.current.heard}”</blockquote>
               <p className="sub">{FT[firstLang].answering}</p>
             </>
@@ -2349,9 +2429,20 @@ export default function SessionView({
           {first === 'denied' && (
             <>
               <p className="t">{line('mic_denied', firstLang)}</p>
-              <button type="button" className="go" onClick={() => setFirst('off')}>
-                {FT[firstLang].ok}
-              </button>
+              <div className="ways">
+                <button
+                  type="button"
+                  className="ty"
+                  data-testid="first-type"
+                  onClick={firstType}
+                >
+                  {FT[firstLang].type}
+                  <small>{FT[firstLang].typeSub}</small>
+                </button>
+                <button type="button" className="go" onClick={() => setFirst('off')}>
+                  {FT[firstLang].ok}
+                </button>
+              </div>
             </>
           )}
         </section>

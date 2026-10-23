@@ -45,7 +45,7 @@ import {
   line,
   stripMarkers,
 } from '@/lib/tree-first';
-import { say, unlockLines, useVoiceState, warmLines } from '@/lib/onboard-voice';
+import { say, stopLine, unlockLines, useVoiceState, warmLines } from '@/lib/onboard-voice';
 
 type Mode = 'text' | 'free';
 /** the door's last step, in MAIN: mic (ask once) → practice (hold, talk,
@@ -102,6 +102,9 @@ type Attach =
   | { kind: 'file'; name: string; content: string };
 
 const PTT_BARS = 9;
+/** echo gate tail: the speaker's output buffer + the room's reverb outlive
+ *  the audio element's end by a few hundred ms */
+const ECHO_TAIL_MS = 400;
 
 function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
   return Promise.race([
@@ -965,7 +968,7 @@ export default function SessionView({
         ensureVoice()
           .then((r) => {
             reconnectFailsRef.current = 0;
-            if (modeRef.current === 'free') return r.localParticipant.setMicrophoneEnabled(true);
+            if (modeRef.current === 'free') return mic(true, r);
             return undefined;
           })
           .catch(() => {
@@ -1055,8 +1058,15 @@ export default function SessionView({
     }
   }
 
-  async function mic(on: boolean) {
-    await roomRef.current?.localParticipant.setMicrophoneEnabled(on);
+  async function mic(on: boolean, room: Room | null = roomRef.current) {
+    if (on && echoGated()) {
+      // the phone is still talking (or its tail is): the mic comes back
+      // when the echo gate opens, never into its own voice
+      echoHeldRef.current = true;
+      return;
+    }
+    if (!on) echoHeldRef.current = false;
+    await room?.localParticipant.setMicrophoneEnabled(on);
   }
 
   /** Text-mode PTT: release the CAPTURE DEVICE between holds. A muted track
@@ -1161,6 +1171,13 @@ export default function SessionView({
     pttCancelArmRef.current = false;
     setPttCancelArm(false);
     setMicLive(false);
+    // barge-in: a hold while the phone talks stops the talking — the reply
+    // would otherwise ride into the held turn (echo gate, UX-BATCH #4)
+    if (getSpeech().phase !== 'idle') {
+      stopSpeech();
+      diagEvent('voice', 'barge-in: the hold stopped the reply');
+    }
+    stopLine();
     // instant feedback: hold UI (equalizer slot) appears on press — the bars
     // stay flat until the room + mic track are actually live
     setHolding(true);
@@ -1346,6 +1363,50 @@ export default function SessionView({
   const freeCycleRef = useRef(freeCycle);
   freeCycleRef.current = freeCycle;
   const freeLevels = useMicLevels(mode === 'free' && voiceState === 'ready', roomRef);
+
+  // ── echo gate (UX-BATCH #4, 10-23): the phone's own voice must never reach
+  // its own mic — replies came back as user turns. While a reply (or a door
+  // line) is audible, the published mic track is PAUSED (LiveKit track mute:
+  // the device stays open, nothing renegotiates, the agent hears silence).
+  // It comes back ECHO_TAIL_MS after the audio ends, and only if the moment
+  // still wants it hot — hands-free listening or a held mic; every mic(true)
+  // inside that window waits for it. ?echogate=0 = off (the replay test's A/B).
+  const audible =
+    speech.phase === 'loading' || speech.phase === 'playing' || lineVoice === 'speaking';
+  const echoGateOffRef = useRef<boolean | null>(null);
+  const audibleUntilRef = useRef(0); // epoch ms the mic may be hot again (Infinity: audible now)
+  const echoHeldRef = useRef(false); // the gate holds the mic down — reopen at its end
+  function echoGated(): boolean {
+    if (echoGateOffRef.current === null)
+      echoGateOffRef.current =
+        new URLSearchParams(window.location.search).get('echogate') === '0';
+    return !echoGateOffRef.current && Date.now() < audibleUntilRef.current;
+  }
+  useEffect(() => {
+    if (audible) {
+      audibleUntilRef.current = Infinity;
+      if (!echoGated()) return;
+      const pub = roomRef.current?.localParticipant.getTrackPublication(Track.Source.Microphone);
+      if (pub?.track && !pub.isMuted) {
+        echoHeldRef.current = true;
+        void pub.mute();
+        diagEvent('voice', 'echo gate: mic paused while the phone speaks');
+      }
+      return;
+    }
+    if (audibleUntilRef.current !== Infinity) return; // nothing was audible
+    audibleUntilRef.current = Date.now() + ECHO_TAIL_MS;
+    const t = setTimeout(() => {
+      if (!echoHeldRef.current) return;
+      echoHeldRef.current = false;
+      const want =
+        pttWantRef.current || (modeRef.current === 'free' && freeCycleRef.current === 'listening');
+      diagEvent('voice', `echo gate: the phone is quiet — mic ${want ? 'back' : 'stays off'}`);
+      if (want) void roomRef.current?.localParticipant.setMicrophoneEnabled(true);
+    }, ECHO_TAIL_MS);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audible]);
 
   // auto-listen cycle: while waiting for the reply (free_state "processing"),
   // the first assistant message that lands is spoken via the same TTS as the

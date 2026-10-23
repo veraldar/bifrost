@@ -250,6 +250,12 @@ export default function SessionView({
   const [busy, setBusy] = useState(false);
   const [busySecs, setBusySecs] = useState(0);
   const [holding, setHolding] = useState(false);
+  // the held mic is really capturing (UX-BATCH #3, 10-23): "heard" is said
+  // only from here — the device re-acquire + track unmute take 200-600 ms
+  // after the hold arms, and words spoken before it never reach the STT
+  // ("Bifrost" lost its attack: "Frost / Defrost / Ifrast", onset-cut repro)
+  const [micLive, setMicLive] = useState(false);
+  const pressAtRef = useRef(0);
   const [pttSecs, setPttSecs] = useState(0);
   const [voiceState, setVoiceState] = useState<'off' | 'connecting' | 'ready'>('off');
   const [error, setError] = useState('');
@@ -1154,6 +1160,7 @@ export default function SessionView({
     pttWantRef.current = true;
     pttCancelArmRef.current = false;
     setPttCancelArm(false);
+    setMicLive(false);
     // instant feedback: hold UI (equalizer slot) appears on press — the bars
     // stay flat until the room + mic track are actually live
     setHolding(true);
@@ -1185,6 +1192,18 @@ export default function SessionView({
           .catch(() => {});
       }
       await room.localParticipant.setMicrophoneEnabled(true);
+      if (pttWantRef.current) {
+        // capturing now: the cue turns "heard" + one haptic tick — the beat
+        // a walkie-talkie chirp gives (the attack of the first word survives)
+        setMicLive(true);
+        const ms = Math.round(performance.now() - (pressAtRef.current || performance.now()));
+        diagEvent('ptt', `mic live ${ms}ms after press`);
+        try {
+          navigator.vibrate?.(12);
+        } catch {
+          /* no haptics: the words + amber carry it */
+        }
+      }
     } catch {
       setHolding(false); // connect/mic failed — error already surfaced by ensureVoice
     }
@@ -1956,6 +1975,7 @@ export default function SessionView({
       e.preventDefault();
       clearHoldArm();
       pttStartRef.current = { x: e.clientX, y: e.clientY };
+      pressAtRef.current = performance.now();
       // PTT arms at 250ms — a shorter press is a tap (see micTap)
       holdArmRef.current = setTimeout(() => {
         holdArmRef.current = null;
@@ -2016,10 +2036,12 @@ export default function SessionView({
   type VoiceTone = 'idle' | 'heard' | 'working' | 'speaking' | 'drop';
   const [tone, words]: [VoiceTone, string] = holding
     ? voiceState !== 'ready'
-      ? ['heard', 'connecting… keep holding']
+      ? ['idle', 'connecting… keep holding, talk at “heard”']
       : pttCancelArm
         ? ['drop', 'release to delete · slide back to keep']
-        : ['heard', 'heard · release to send · slide left to delete']
+        : !micLive
+          ? ['idle', 'opening the mic… talk at “heard”']
+          : ['heard', 'heard · release to send · slide left to delete']
     : speech.phase !== 'idle'
       ? [
           'speaking',
@@ -2529,10 +2551,11 @@ export default function SessionView({
             />
             {holding ? (
               <div
-                aria-label={voiceState === 'ready' ? 'listening' : 'connecting'}
+                aria-label={voiceState !== 'ready' ? 'connecting' : micLive ? 'listening' : 'opening the mic'}
                 role="status"
+                data-live={micLive ? '' : undefined}
                 className={`oz-pill ${
-                  pttCancelArm ? 'drop' : voiceState === 'ready' ? '' : 'wait'
+                  pttCancelArm ? 'drop' : voiceState === 'ready' && micLive ? '' : 'wait'
                 }`}
               >
                 {voiceState !== 'ready' ? (
@@ -2614,7 +2637,7 @@ export default function SessionView({
                 {...micHoldHandlers}
                 data-testid="composer-mic"
                 aria-label="push to talk"
-                className={`oz-k mic ${holding ? `heard ${pttCancelArm ? 'drop' : ''}` : ''} ${
+                className={`oz-k mic ${holding && micLive ? `heard ${pttCancelArm ? 'drop' : ''}` : ''} ${
                   voiceState === 'connecting' ? 'opacity-50' : ''
                 }`}
               >

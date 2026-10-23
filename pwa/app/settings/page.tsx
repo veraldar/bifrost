@@ -13,6 +13,7 @@ import { useTheme } from 'next-themes';
 import { LineIcon } from '@/components/line-icon';
 import { YggTree } from '@/components/ygg';
 import { VERSION } from '@/lib/version';
+import { VOICE_TEST_SLUG, setVoiceTest, voiceTestOn } from '@/lib/voice-test';
 
 const WORLDS = [
   { id: 'aether', desc: 'deep-space terminal · plain hairlines' },
@@ -31,8 +32,29 @@ export default function SettingsPage() {
   // the world whose tree answers right now (+ a counter so a re-tap replays)
   const [wake, setWake] = useState<{ id: string; n: number } | null>(null);
   const [mic, setMic] = useState<MicPerm>('unknown');
+  // voice tests in their own room (lib/voice-test.ts) — device-local
+  const [vt, setVt] = useState(false);
+  const [vtBusy, setVtBusy] = useState(false);
+  const [vtErr, setVtErr] = useState('');
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setMounted(true);
+    setVt(voiceTestOn());
+  }, []);
+
+  async function toggleVoiceTest() {
+    const on = !vt;
+    setVtBusy(true);
+    setVtErr('');
+    try {
+      await setVoiceTest(on);
+      setVt(on);
+    } catch (e) {
+      setVtErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setVtBusy(false);
+    }
+  }
 
   useEffect(() => {
     if (!wake) return;
@@ -155,6 +177,37 @@ export default function SettingsPage() {
           </li>
         </ul>
         <p className="note">mic access is the browser&apos;s to grant or revoke — site settings.</p>
+      </section>
+
+      {/* testing the voice must never write into MAIN */}
+      <section className="oz-blk">
+        <h2>voice tests</h2>
+        <ul className="oz-kv">
+          <li>
+            <span>test room</span>
+            <span data-testid="voice-test-state">
+              {vt ? `on · MAIN opens ${VOICE_TEST_SLUG}` : 'off · voice lands where you are'}
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={vt}
+              aria-label="voice tests in their own room"
+              data-testid="voice-test-toggle"
+              disabled={vtBusy}
+              onClick={() => void toggleVoiceTest()}
+              className={`oz-k sm ${vt ? 'on' : ''}`}
+            >
+              {vt ? 'on' : 'off'}
+            </button>
+          </li>
+        </ul>
+        {vtErr && <p className="note text-[var(--oz-danger)]">{vtErr}</p>}
+        <p className="note">
+          on: the mic talks to its own session, {VOICE_TEST_SLUG} — MAIN opens it instead, so test
+          turns never land in MAIN.{' '}
+          {vt && <Link href={`/session/${VOICE_TEST_SLUG}`}>open {VOICE_TEST_SLUG} ›</Link>}
+        </p>
       </section>
     </main>
   );

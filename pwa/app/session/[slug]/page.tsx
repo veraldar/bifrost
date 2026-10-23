@@ -46,6 +46,12 @@ import {
   stripMarkers,
 } from '@/lib/tree-first';
 import { say, stopLine, unlockLines, useVoiceState, warmLines } from '@/lib/onboard-voice';
+import {
+  VOICE_TEST_SLUG,
+  setVoiceTest,
+  voiceTestOn,
+  voiceTestRedirect,
+} from '@/lib/voice-test';
 
 type Mode = 'text' | 'free';
 /** the door's last step, in MAIN: mic (ask once) → practice (hold, talk,
@@ -229,6 +235,8 @@ export default function SessionView({
   const [seekFrac, setSeekFrac] = useState<number | null>(null);
   const seekRef = useRef<HTMLDivElement>(null);
   const [msgs, setMsgs] = useState<Msg[]>([]);
+  // this view IS the voice-test room (lib/voice-test.ts) — said in the header
+  const [voiceTest, setVoiceTest_] = useState(false);
   // the door's last step (lib/tree-first.ts): MAIN opens with the first-turn
   // card until one voice turn came through on this device
   const [first, setFirst] = useState<FirstTurn>('off');
@@ -501,6 +509,15 @@ export default function SessionView({
 
   useEffect(() => {
     params.then((p) => {
+      // voice tests on (settings): MAIN is never opened — never joined as a
+      // room, never written — its test twin opens instead
+      const twin = voiceTestRedirect(p.slug);
+      if (twin) {
+        diagEvent('voice', `voice tests on — ${p.slug} opens ${twin}`);
+        router.replace(`/session/${twin}`);
+        return;
+      }
+      setVoiceTest_(p.slug === VOICE_TEST_SLUG && voiceTestOn());
       setSlug(p.slug);
       echoesRef.current = [];
       seenRef.current = 0;
@@ -2166,6 +2183,19 @@ export default function SessionView({
             </span>
           )}
         </Link>
+        {voiceTest && (
+          <button
+            type="button"
+            data-testid="voice-test-chip"
+            aria-label="voice tests on — tap to go back to MAIN"
+            onClick={() => {
+              void setVoiceTest(false).then(() => router.replace('/session/main'));
+            }}
+            className="oz-k sm on"
+          >
+            test room ✕
+          </button>
+        )}
         {/* search is not a mode — hands-free lives on the composer mic: tap
             to toggle, hold to talk (req 09-30) */}
         <button

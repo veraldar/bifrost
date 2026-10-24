@@ -19,7 +19,8 @@ import { appendFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { get } from 'node:http';
 import { OC, ocFetch } from './oc';
-import { liveSids, liveSince } from './oc-live';
+import { isOrphanRun, isRunLive, liveSids, liveSince } from './oc-live';
+import { queuedItems, queuedSids } from './oc-queue';
 import { runEnded } from './oc-forward';
 import { emitRunDone, emitRunError } from './run-events';
 import { bustCache } from './oc-cache';
@@ -54,6 +55,7 @@ const lastEvent: Map<string, number> = (gW.__ozLastEvent ??= new Map());
 export const lastEventAt = (sid: string) => lastEvent.get(sid) || 0;
 let started = false;
 let connected = false;
+let connecting = false; // a connect() is in flight — never stack a second one
 let downSince = 0;
 let warnedDown = false;
 
@@ -102,6 +104,20 @@ async function stallAbort(sid: string, quietS: number, why: string) {
   }, 10_000);
 }
 
+/** Queue pickup when no run will end to do it (churn suite, 10-24): pickup
+ *  only ever ran at a run's end, so turns queued behind a run that finished
+ *  while the proxy was down (a restart, a deploy) sat "queued" forever. A
+ *  session the brain is not running, with turns waiting and no run of ours
+ *  in flight — or only an entry restored from disk — gets its queue moving. */
+function pickUpOrphans(busy: Record<string, unknown>) {
+  const sids = new Set([...queuedSids(), ...liveSids().filter(isOrphanRun)]);
+  for (const sid of sids) {
+    if (sid in busy || (isRunLive(sid) && !isOrphanRun(sid))) continue;
+    void diag(`run ${sid} has no owner and the brain is idle — closing it, queue pickup`);
+    runEnded(sid, sid);
+  }
+}
+
 async function stallScan() {
   // stream outage: no verdicts possible — one warning per outage, then
   // reconnect logic owns it
@@ -129,6 +145,7 @@ async function stallScan() {
   } catch {
     busy = {};
   }
+  pickUpOrphans(busy);
   const all = new Set([...tracked, ...Object.keys(busy)]);
   const now = Date.now();
   for (const sid of all) {
@@ -164,10 +181,12 @@ async function stallScan() {
  *  showed zero captured events while curl -N on the same endpoint saw them),
  *  which would silence the watchdog exactly when it's needed. */
 function connect() {
+  connecting = true;
   const req = get(
     `${OC}/event`,
     { headers: { Accept: 'text/event-stream' } },
     (res) => {
+      connecting = false;
       if (res.statusCode !== 200) {
         res.resume();
         fail(new Error(`event stream ${res.statusCode}`));
@@ -177,6 +196,11 @@ function connect() {
       downSince = 0;
       warnedDown = false;
       void diag('event stream connected — stall watchdog active');
+      // a run may have ended while the stream was down (or this proxy was):
+      // nothing will announce it — look once, now
+      void (ocFetch('/session/status') as Promise<Record<string, unknown>>)
+        .then(pickUpOrphans)
+        .catch(() => {});
       const dec = new TextDecoder();
       let buf = '';
       res.on('data', (chunk: Buffer) => {
@@ -218,6 +242,13 @@ function connect() {
             if (idle || /"completed":\s*1\d{12}/.test(block)) {
               emitRunDone(m[1], idle ? 'idle' : 'step');
             }
+            // the run ended and no forward of ours will say so (restored
+            // after a restart, or none tracked with turns waiting): end it
+            // here, which also moves the queue
+            if (idle && (isOrphanRun(m[1]) || (!isRunLive(m[1]) && queuedItems(m[1]).length))) {
+              void diag(`run ${m[1]} ended with no owner in this proxy — closing it, queue pickup`);
+              runEnded(m[1], m[1]);
+            }
           }
         }
       });
@@ -228,6 +259,7 @@ function connect() {
   const fail = (e: Error) => {
     if (connected) void diag(`event stream lost: ${e.message}`);
     connected = false;
+    connecting = false;
     if (!downSince) downSince = Date.now();
     req.destroy();
   };
@@ -245,17 +277,21 @@ export function ensureWatchdog() {
   if (started) return;
   started = true;
   void diag(`watchdog armed (stall limit ${STALL_MS / 1000}s, opencode ${OC})`);
-  // supervisor: whenever the stream is down, reconnect within 2s; while it's
-  // up, no-op (so connections never stack)
+  // supervisor: whenever the stream is down, reconnect within 250ms; while it's
+  // up (or a connect is in flight), no-op — connections never stack. Was 2s:
+  // the churn suite (10 brain SIGKILLs) measured the stream back 0.5–5s after
+  // the brain, and every event in that gap is lost — run-done nudges, list
+  // busts, the liveness stamp the wedge escape reads.
   (function supervise() {
-    if (!connected) {
+    if (!connected && !connecting) {
       try {
         connect();
       } catch (e) {
+        connecting = false;
         void diag(`event stream connect threw: ${e}`);
       }
     }
-    setTimeout(supervise, 2000).unref?.();
+    setTimeout(supervise, 250).unref?.();
   })();
   setInterval(stallScan, SCAN_MS).unref?.();
 }

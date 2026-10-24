@@ -7,7 +7,8 @@
  *  Identity-pinned waits (herdr §1.4): a queue is keyed by session ID (the
  *  occupant), never by name — and it dies with its session: DELETE purges
  *  it, so nothing queued under a dead session is ever forwarded. */
-import { readFile, writeFile } from 'fs/promises';
+import { readFileSync } from 'fs';
+import { writeFile } from 'fs/promises';
 import path from 'path';
 
 const FILE = path.join(process.cwd(), '.oc-queue.json');
@@ -22,18 +23,21 @@ export type QueueItem = {
 const queues = new Map<string, QueueItem[]>();
 
 let loaded = false;
+/** Synchronous on purpose (churn suite, 10-24): the async read let the first
+ *  enqueue after a restart persist() before the file was read — rewriting it
+ *  with only the new item, the queued turns gone — and a dequeue right after
+ *  boot saw an empty queue. */
 function ensureLoaded() {
   if (loaded) return;
   loaded = true;
-  readFile(FILE, 'utf8')
-    .then((raw) => {
-      for (const [sid, items] of Object.entries(JSON.parse(raw) as Record<string, QueueItem[]>)) {
-        if (Array.isArray(items) && items.length) queues.set(sid, items);
-      }
-    })
-    .catch(() => {
-      /* first boot */
-    });
+  try {
+    const raw = readFileSync(FILE, 'utf8');
+    for (const [sid, items] of Object.entries(JSON.parse(raw) as Record<string, QueueItem[]>)) {
+      if (Array.isArray(items) && items.length) queues.set(sid, items);
+    }
+  } catch {
+    /* first boot */
+  }
 }
 
 function persist() {
@@ -65,6 +69,12 @@ export function dequeue(sid: string): QueueItem | null {
 export function purgeQueue(sid: string): void {
   ensureLoaded();
   if (queues.delete(sid)) persist();
+}
+
+/** Sessions with turns waiting (the watchdog's orphan pickup scans these). */
+export function queuedSids(): string[] {
+  ensureLoaded();
+  return [...queues.keys()];
 }
 
 export function queuedItems(sid: string): QueueItem[] {

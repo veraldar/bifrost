@@ -10,6 +10,8 @@
 # Slice 7: anthropic upstream dialect — mapping unit tests; one scenario (chat, tool loop, roll-up
 #   crossing, post-roll-up turn) run in BOTH dialects, stored transcripts + client SSE compared
 #   after id/timestamp normalization; anthropic abort mid-SSE; real-upstream hook self-test.
+# Herdr triad (10-24): declared working/blocked/idle per session, busy map = its projection,
+#   step cap -> blocked/step-cap, SIGKILL mid-run -> restart closes the corpse, blocked/interrupted.
 set -euo pipefail
 cd "$(dirname "$0")"
 source ~/.cargo/env
@@ -484,4 +486,58 @@ for key in mock-429 mock-401 ""; do
   echo "key '${key:-<unset>}': $(grep '^FAIL-AUTH' $TMP/ru-auth.txt | cut -c1-110)"
 done
 echo "slice-7 anthropic dialect ok"
+
+echo "- herdr triad (fold 10-24): declared working/blocked/idle, the busy map as its projection, a restart = blocked/interrupted"
+export YGG_MAX_STEPS=3
+start_srv
+curl -sfN http://$YGG/event >$TMP/tri-ev.txt & EV=$!
+sleep 0.3
+j() { curl -sf "http://$YGG$1" | python3 -c "import sys,json;d=json.load(sys.stdin);print($2)"; }
+st_of() { j /session/$1 "d['state']['type']+('/'+d['state']['reason'] if 'reason' in d['state'] else '')"; }
+post_bg() { curl -sN -X POST http://$YGG/session/$1/message -H 'content-type: application/json' -H 'accept: text/event-stream' \
+  -d "{\"parts\":[{\"type\":\"text\",\"text\":\"$2\"}]}" >$3; }
+wait_st() { for _ in $(seq 50); do [ "$(st_of $1)" = "$2" ] && return; sleep 0.1; done; echo "FAIL: $1 state $(st_of $1), want $2"; exit 1; }
+TS=$(curl -sf -X POST http://$YGG/session | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
+[ "$(st_of $TS)" = idle ] || { echo "FAIL: a fresh session is $(st_of $TS), want idle"; exit 1; }
+post_bg $TS "slow please" $TMP/tri1.txt & BG=$!
+wait_st $TS working
+[ "$(j /session/status "d.get('$TS',{}).get('type')")" = busy ] || { echo "FAIL: the busy map lost a working session"; exit 1; }
+[ "$(j /session/state "d['$TS']['type']")" = working ] || { echo "FAIL: /session/state lost a working session"; exit 1; }
+wait $BG; BG=
+[ "$(st_of $TS)" = idle ] || { echo "FAIL: completed run left $(st_of $TS), want idle"; exit 1; }
+[ "$(j /session/status "len(d)")" = 0 ] || { echo "FAIL: busy map not empty after the run"; exit 1; }
+echo "working -> idle declared; busy map = projection"
+post_bg $TS "tool:forever" $TMP/tri2.txt
+[ "$(st_of $TS)" = blocked/step-cap ] || { echo "FAIL: step-capped run left $(st_of $TS), want blocked/step-cap"; exit 1; }
+[ "$(j /session/status "len(d)")" = 0 ] || { echo "FAIL: a blocked session must not read busy"; exit 1; }
+j /session/state "d['$TS']['message']" | grep -q 'step cap' || { echo "FAIL: blocked carries no reason message"; exit 1; }
+post_bg $TS "hello" $TMP/tri3.txt
+[ "$(st_of $TS)" = idle ] || { echo "FAIL: a good turn after blocked left $(st_of $TS), want idle"; exit 1; }
+echo "step cap -> blocked/step-cap (not busy); the next good turn -> idle"
+python3 - $TMP/tri-ev.txt "$TS" <<'PY'
+import sys, json
+seq = [json.loads(l[5:])["properties"]["state"]["type"] for l in open(sys.argv[1]) if l.startswith("data:")
+       and '"session.state"' in l and json.loads(l[5:])["properties"]["sessionID"] == sys.argv[2]]
+want = ["working", "idle", "working", "blocked", "working", "idle"]
+assert seq == want, f"session.state events {seq} != {want}"
+print(f"session.state events: {' -> '.join(seq)}")
+PY
+post_bg $TS "slow please" $TMP/tri4.txt & BG=$!
+wait_st $TS working
+kill -9 $SRV; wait $SRV 2>/dev/null || true; SRV=; wait $BG 2>/dev/null || true; BG=
+start_srv
+[ "$(st_of $TS)" = blocked/interrupted ] || { echo "FAIL: after a SIGKILL mid-run the session is $(st_of $TS), want blocked/interrupted"; exit 1; }
+[ "$(j /session/status "len(d)")" = 0 ] || { echo "FAIL: an interrupted run must not read busy after the restart"; exit 1; }
+python3 - "$(curl -sf http://$YGG/session/$TS/message)" <<'PY'
+import sys, json
+last = json.loads(sys.argv[1])[-1]["info"]
+assert last["role"] == "assistant" and isinstance(last["time"].get("completed"), int), f"corpse left open: {last}"
+assert last.get("error", {}).get("name") == "MessageAbortedError" and "interrupted" in last["error"]["data"]["message"], last
+print("SIGKILL mid-run -> restart: corpse closed (MessageAbortedError interrupted), session blocked/interrupted")
+PY
+post_bg $TS "hello again" $TMP/tri5.txt
+[ "$(st_of $TS)" = idle ] || { echo "FAIL: the first turn after the restart left $(st_of $TS), want idle"; exit 1; }
+grep -q "MOCK-REPLY" $TMP/tri5.txt || { echo "FAIL: no reply after the restart"; exit 1; }
+echo "herdr triad ok"
+kill $SRV; wait $SRV 2>/dev/null || true; SRV=
 echo PASS

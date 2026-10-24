@@ -2,6 +2,10 @@
 //! drive unchanged. Sessions + message relay to an OpenAI- or Anthropic-compatible endpoint;
 //! abort; global `/event` bus; on-disk store; per-session run serialization;
 //! session get/patch/delete, busy map, model/agent catalog + v2 switches.
+//! Herdr fold (10-24): the run loop DECLARES a triad state per session — working / blocked
+//! (reason: error | step-cap | interrupted) / idle — served on every session info (`state`),
+//! as `GET /session/state` and the `session.state` event; the busy map is its projection.
+//! A restart closes runs the dead process left open and declares them blocked/interrupted.
 //!
 //! Env:
 //!   YGG_UPSTREAM_BASE_URL  e.g. https://api.openai.com/v1  (required; `/chat/completions` is appended)
@@ -100,6 +104,11 @@ struct AppState {
     sessions: Arc<Mutex<HashMap<String, Session>>>,
     /// In-flight replies, keyed by session id; notified by `POST /session/:id/abort`.
     running: Arc<Mutex<HashMap<String, Arc<Notify>>>>,
+    /// Harness-owned run state (herdr §1.1 triad), declared by the run loop: `working` while
+    /// a run is in flight, `blocked` when a run stopped and needs the user (upstream error,
+    /// step cap, interrupted by a restart); absent = `idle`. opencode's binary busy map
+    /// (`GET /session/status`) is a projection of it.
+    states: Arc<Mutex<HashMap<String, Value>>>,
     /// One run at a time per session (opencode serializes; stacked prompts wait their turn).
     run_locks: Arc<Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>>,
     /// Global event bus feeding `GET /event`: `{type, properties}` JSON, opencode-style.
@@ -228,6 +237,61 @@ fn publish(st: &AppState, kind: &str, props: Value) {
     let _ = st.bus.send(json!({ "type": kind, "properties": props }));
 }
 
+/// Declares a session's triad state (`working` | `blocked` + reason | `idle`) and announces
+/// it as `session.state`. The opencode events (`session.status` busy, `session.idle`) keep
+/// firing for clients that only know the binary map.
+fn declare(st: &AppState, id: &str, state: &str, reason: Option<&str>, message: Option<&str>) {
+    let mut v = json!({ "type": state, "since": now_ms() });
+    if let Some(r) = reason {
+        v["reason"] = json!(r);
+    }
+    if let Some(m) = message {
+        v["message"] = json!(m.chars().take(300).collect::<String>());
+    }
+    {
+        let mut states = st.states.lock().unwrap();
+        if state == "idle" {
+            states.remove(id);
+        } else {
+            states.insert(id.to_string(), v.clone());
+        }
+    }
+    publish(st, "session.state", json!({ "sessionID": id, "state": v }));
+}
+
+/// A session's triad state for the wire (`{"type":"idle"}` when nothing is declared).
+fn state_of(st: &AppState, id: &str) -> Value {
+    st.states.lock().unwrap().get(id).cloned().unwrap_or_else(|| json!({ "type": "idle" }))
+}
+
+/// Boot half of the handoff boundary (herdr §1.5): sessions persist, runs in flight do not.
+/// An assistant message the previous process never completed (it died mid-run) is closed
+/// the way an abort closes one — partial kept, running tools marked error — and the session
+/// is declared `blocked` (reason `interrupted`), never left looking busy forever.
+fn close_interrupted(sessions: &mut HashMap<String, Session>, data_dir: &std::path::Path) -> Vec<String> {
+    let mut hit = Vec::new();
+    for (id, s) in sessions.iter_mut() {
+        let Some(last) = s.messages.last_mut() else { continue };
+        if last["info"]["role"] != "assistant" || last["info"]["time"]["completed"].is_u64() {
+            continue;
+        }
+        let now = now_ms();
+        last["info"]["time"]["completed"] = json!(now);
+        last["info"]["error"] = json!({ "name": "MessageAbortedError",
+            "data": { "message": "interrupted: the brain restarted mid-run" } });
+        for p in last["parts"].as_array_mut().into_iter().flatten() {
+            if p["type"] == "tool" && p["state"]["status"] == "running" {
+                p["state"]["status"] = json!("error");
+                p["state"]["error"] = json!("interrupted: the brain restarted mid-run");
+                p["state"]["time"]["end"] = json!(now);
+            }
+        }
+        persist(data_dir, id, s);
+        hit.push(id.clone());
+    }
+    hit
+}
+
 /// Sends an event to the posting client's stream (named SSE event, slice-1 shape)
 /// and to the global bus (`{type, properties}`).
 async fn emit(st: &AppState, tx: &mpsc::Sender<Event>, kind: &str, props: Value) {
@@ -268,14 +332,26 @@ async fn create_session(State(st): State<AppState>, body: Option<Json<Value>>) -
 /// `GET /session` — newest-updated first, like opencode.
 async fn list_sessions(State(st): State<AppState>) -> Json<Value> {
     let sessions = st.sessions.lock().unwrap();
-    let mut infos: Vec<Value> = sessions.values().map(|s| s.info.clone()).collect();
+    // each info carries its triad `state` (computed, never stored)
+    let mut infos: Vec<Value> = sessions
+        .values()
+        .map(|s| {
+            let mut i = s.info.clone();
+            i["state"] = state_of(&st, i["id"].as_str().unwrap_or_default());
+            i
+        })
+        .collect();
     infos.sort_by_key(|i| std::cmp::Reverse(i["time"]["updated"].as_u64().unwrap_or(0)));
     Json(Value::Array(infos))
 }
 
 async fn get_session(State(st): State<AppState>, Path(id): Path<String>) -> Response {
-    match st.sessions.lock().unwrap().get(&id) {
-        Some(s) => Json(s.info.clone()).into_response(),
+    let info = st.sessions.lock().unwrap().get(&id).map(|s| s.info.clone());
+    match info {
+        Some(mut i) => {
+            i["state"] = state_of(&st, &id);
+            Json(i).into_response()
+        }
         None => not_found(&id),
     }
 }
@@ -303,6 +379,7 @@ async fn delete_session(State(st): State<AppState>, Path(id): Path<String>) -> R
     if let Some(n) = st.running.lock().unwrap().remove(&id) {
         n.notify_one();
     }
+    st.states.lock().unwrap().remove(&id);
     let _ = std::fs::remove_file(session_path(&st.data_dir, &id));
     publish(&st, "session.deleted", json!({ "info": s.info }));
     Json(true).into_response()
@@ -316,10 +393,23 @@ async fn get_todo(State(st): State<AppState>, Path(id): Path<String>) -> Respons
     }
 }
 
-/// `GET /session/status` — opencode's busy map: only sessions with a live run appear.
+/// `GET /session/status` — opencode's busy map, now a projection of the triad: only
+/// `working` sessions appear, as `busy` (opencode clients read every key as busy).
 async fn session_status(State(st): State<AppState>) -> Json<Value> {
-    let running = st.running.lock().unwrap();
-    Json(Value::Object(running.keys().map(|k| (k.clone(), json!({ "type": "busy" }))).collect()))
+    let states = st.states.lock().unwrap();
+    Json(Value::Object(
+        states
+            .iter()
+            .filter(|(_, v)| v["type"] == "working")
+            .map(|(k, _)| (k.clone(), json!({ "type": "busy" })))
+            .collect(),
+    ))
+}
+
+/// `GET /session/state` — the full triad for every non-idle session:
+/// `{id: {type: working|blocked, reason?, message?, since}}` (absent = idle).
+async fn session_states(State(st): State<AppState>) -> Json<Value> {
+    Json(Value::Object(st.states.lock().unwrap().clone().into_iter().collect()))
 }
 
 async fn list_messages(State(st): State<AppState>, Path(id): Path<String>) -> Response {
@@ -588,6 +678,7 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<V
 
     let cancel = Arc::new(Notify::new());
     st.running.lock().unwrap().insert(id.to_string(), cancel.clone());
+    declare(st, id, "working", None, None);
     publish(st, "session.status", json!({ "sessionID": id, "status": { "type": "busy" } }));
     let placeholder = make_message(id, "assistant", vec![text_part("")]);
     replace_message(st, id, &placeholder);
@@ -616,10 +707,14 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<V
             replace_message(st, id, &run.msg);
             publish(st, "message.updated", json!({ "info": run.msg["info"] }));
             emit(st, tx, "message.completed", run.msg.clone()).await;
+            declare(st, id, "idle", None, None);
             Ok(run.msg)
         }
         Some(Err(e)) => {
             eprintln!("run error: {e}");
+            // the run stopped and needs the user — the third state, never a silent idle
+            let reason = if e.contains("step cap") { "step-cap" } else { "error" };
+            declare(st, id, "blocked", Some(reason), Some(&e));
             run.finish(&e);
             run.msg["info"]["error"] = json!({ "name": "UnknownError", "data": { "message": e } });
             replace_message(st, id, &run.msg);
@@ -633,6 +728,7 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<V
             replace_message(st, id, &run.msg);
             publish(st, "message.updated", json!({ "info": run.msg["info"] }));
             emit(st, tx, "message.aborted", run.msg.clone()).await;
+            declare(st, id, "idle", None, None); // a stop is the user's own answer
             Ok(run.msg)
         }
     };
@@ -1106,12 +1202,14 @@ async fn main() {
     let listen = std::env::var("YGG_LISTEN").unwrap_or_else(|_| "127.0.0.1:4096".into());
     let data_dir = PathBuf::from(std::env::var("YGG_DATA_DIR").unwrap_or_else(|_| "./data".into()));
     std::fs::create_dir_all(data_dir.join("session")).expect("create YGG_DATA_DIR");
-    let sessions = load_sessions(&data_dir);
+    let mut sessions = load_sessions(&data_dir);
     eprintln!("loaded {} session(s) from {}", sessions.len(), data_dir.display());
+    let interrupted = close_interrupted(&mut sessions, &data_dir);
 
     let state = AppState {
         sessions: Arc::new(Mutex::new(sessions)),
         running: Arc::default(),
+        states: Arc::default(),
         run_locks: Arc::default(),
         bus: broadcast::channel(1024).0,
         data_dir: Arc::new(data_dir),
@@ -1119,9 +1217,14 @@ async fn main() {
         http,
         tools: Arc::new(tool_env),
     };
+    for id in &interrupted {
+        eprintln!("session {id}: run interrupted by the restart — closed, declared blocked");
+        declare(&state, id, "blocked", Some("interrupted"), Some("the brain restarted mid-run"));
+    }
     let app = Router::new()
         .route("/session", get(list_sessions).post(create_session))
         .route("/session/status", get(session_status))
+        .route("/session/state", get(session_states))
         .route("/session/{id}", get(get_session).patch(patch_session).delete(delete_session))
         .route("/session/{id}/message", get(list_messages).post(post_message))
         .route("/session/{id}/abort", post(abort_session))

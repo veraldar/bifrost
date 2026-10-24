@@ -10,7 +10,7 @@
  *   DELETE /api/session/[id]            → delete
  */
 import { NextResponse } from 'next/server';
-import { bustCache, getCache, setCache } from '@/lib/oc-cache';
+import { bustCache, cacheGen, getCache, setCache } from '@/lib/oc-cache';
 import { isRunLive } from '@/lib/oc-live';
 import { runState } from '@/lib/run-state';
 import { PENDING_TTL_MS } from '@/lib/pending-ttl';
@@ -47,6 +47,7 @@ export async function GET() {
     ensureWatchdog();
     const cached = getCache();
     if (cached) return NextResponse.json(cached);
+    const gen = cacheGen();
     const sessions = (await ocFetch('/session')) as Array<Record<string, any>>;
     // enrich with last-message preview (LAN-local, fast; cached 60s)
     const enriched = await Promise.all(
@@ -141,7 +142,7 @@ export async function GET() {
     enriched.sort((a, b) => (b.updated || 0) - (a.updated || 0));
     // never pin an empty list: a transient opencode scope/failure window must
     // not get cached as "no sessions" — the next poll retries instead
-    if (enriched.length) setCache(enriched);
+    if (enriched.length) setCache(enriched, gen);
     return NextResponse.json(enriched);
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });

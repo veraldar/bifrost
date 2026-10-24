@@ -2,7 +2,11 @@
  *  here instead of opencode's internal queue — opencode v1.18 stalls its own
  *  queue forever after an abort, so the proxy owns pickup: when the live run
  *  ends (abort included) the next message is forwarded automatically.
- *  Persisted to disk: a restart must not eat queued messages. */
+ *  Persisted to disk: a restart must not eat queued messages.
+ *
+ *  Identity-pinned waits (herdr §1.4): a queue is keyed by session ID (the
+ *  occupant), never by name — and it dies with its session: DELETE purges
+ *  it, so nothing queued under a dead session is ever forwarded. */
 import { readFile, writeFile } from 'fs/promises';
 import path from 'path';
 
@@ -55,6 +59,12 @@ export function dequeue(sid: string): QueueItem | null {
   if (!q.length) queues.delete(sid);
   persist();
   return item;
+}
+
+/** The session died: nothing queued under it may ever fire. */
+export function purgeQueue(sid: string): void {
+  ensureLoaded();
+  if (queues.delete(sid)) persist();
 }
 
 export function queuedItems(sid: string): QueueItem[] {

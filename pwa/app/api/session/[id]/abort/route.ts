@@ -1,15 +1,15 @@
 /** POST /api/session/[id]/abort → abort a running opencode generation. */
 import { NextResponse } from 'next/server';
-import { ocFetch, resolveId } from '@/lib/oc';
+import { ocFetch, PIN_HEADER, resolveId, sessionGone } from '@/lib/oc';
 import { runEnded } from '@/lib/oc-forward';
 import { markAborted } from '@/lib/oc-live';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await ctx.params;
-    const sid = await resolveId(id);
+    const sid = await resolveId(id, req.headers.get(PIN_HEADER));
     markAborted(sid); // deliberate stop — forward's verify must not re-fire it
     await ocFetch(`/session/${sid}/abort`, { method: 'POST' });
     // stop ends the run — including a zombie's: a registry entry whose owning
@@ -18,6 +18,6 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
     runEnded(sid, id);
     return NextResponse.json({ ok: true });
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    return sessionGone(e) ?? NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

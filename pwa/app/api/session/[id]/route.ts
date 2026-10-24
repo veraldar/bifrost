@@ -4,6 +4,7 @@ import { slugify } from '@/lib/slug';
 import { MAIN_SLUG } from '@/lib/tree-first';
 import { bustCache } from '@/lib/oc-cache';
 import { brainDefault } from '@/lib/brain-default';
+import { purgeQueue } from '@/lib/oc-queue';
 
 export const dynamic = 'force-dynamic';
 
@@ -168,6 +169,9 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
     if (await isMain(id, sid)) {
       return NextResponse.json({ error: 'MAIN is reserved — it cannot be deleted' }, { status: 403 });
     }
+    // identity-pinned waits (herdr §1.4): the queue dies with its session —
+    // nothing queued under it may ever be forwarded
+    purgeQueue(sid);
     const r = await ocFetch(`/session/${sid}`, { method: 'DELETE' });
     bustCache(); // next list poll rebuilds instead of showing the deleted row
     return NextResponse.json(r ?? { ok: true });

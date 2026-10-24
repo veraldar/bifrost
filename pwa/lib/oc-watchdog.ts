@@ -28,7 +28,7 @@ import { bustCache } from './oc-cache';
  *  (verified: `sleep 45` shows quiet growing to ~30s+), so renders/builds
  *  look like stalls. 10min tolerates those; the real 2h hang this guards
  *  against was silent from its first second. Env-tunable for tuning. */
-const STALL_MS = Number(process.env.OC_STALL_MS) || 10 * 60_000;
+export const STALL_MS = Number(process.env.OC_STALL_MS) || 10 * 60_000;
 const SCAN_MS = 30_000;
 const DIR = path.join(process.cwd(), '.diag');
 // Watchdog-graph start (≈ proxy boot). Runs known only through opencode's
@@ -197,10 +197,14 @@ function connect() {
             // "new test" worked for minutes with a stale idle list). Any
             // stream activity for a session invalidates the cache; the
             // list's next poll (≤8s) recomputes fresh. Throttled: streams
-            // fire per token-delta batch — one bust per 5s is plenty.
+            // fire per token-delta batch — one bust per 5s is plenty. A run
+            // state change (the brain's session.state triad, session.idle)
+            // always busts: a run shorter than 5s must not read working for
+            // the cache's whole minute.
             const nowMs = Date.now();
             const gb = globalThis as unknown as { __ozListBustAt?: number };
-            if (nowMs - (gb.__ozListBustAt || 0) > 5_000) {
+            const transition = /"type":"session\.(state|idle)"/.test(block);
+            if (transition || nowMs - (gb.__ozListBustAt || 0) > 5_000) {
               gb.__ozListBustAt = nowMs;
               bustCache();
             }

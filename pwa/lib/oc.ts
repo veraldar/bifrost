@@ -15,14 +15,38 @@ export async function ocFetch(path: string, init?: RequestInit) {
   return text ? JSON.parse(text) : null;
 }
 
-/** Accepts a real session id (sess_*) or a room slug (title with dashes). */
-export async function resolveId(idOrSlug: string): Promise<string> {
-  if (idOrSlug.startsWith('sess_')) return idOrSlug;
+/** The header a session page sends with the session id it opened. */
+export const PIN_HEADER = 'x-session-pin';
+
+/** Accepts a real session id (sess_*) or a room slug (title with dashes).
+ *  `pin` (the page's PIN_HEADER) wins over the name (herdr §1.4 — pin the
+ *  occupant, never the name): it resolves only to that session, so a page
+ *  that opened one session is never served another one wearing the same
+ *  slug (a duplicate name, or the replacement of a deleted session); a
+ *  rename elsewhere keeps reaching it. Nothing found throws a `session_gone`
+ *  error (see sessionGone). */
+export async function resolveId(idOrSlug: string, pin?: string | null): Promise<string> {
+  if (!pin && idOrSlug.startsWith('sess_')) return idOrSlug;
   type Sess = { id: string; title?: string };
   const sessions = (await ocFetch('/session')) as Sess[];
-  const hit = sessions.find((s) => slugify(s.title || '') === idOrSlug || s.id === idOrSlug);
-  if (!hit) throw new Error(`no session for slug ${idOrSlug}`);
+  const hit = pin
+    ? sessions.find((s) => s.id === pin)
+    : sessions.find((s) => slugify(s.title || '') === idOrSlug || s.id === idOrSlug);
+  if (!hit) {
+    throw Object.assign(new Error(`no session for ${idOrSlug}`), { code: 'session_gone' });
+  }
   return hit.id;
+}
+
+/** The typed answer for a request whose session is gone (deleted, or never
+ *  was): 404 `session_gone` — never a 500, never another session's data.
+ *  null when `e` is any other failure. */
+export function sessionGone(e: unknown): Response | null {
+  if ((e as { code?: string })?.code !== 'session_gone') return null;
+  return Response.json(
+    { error: 'this session is gone — it was deleted', code: 'session_gone' },
+    { status: 404 }
+  );
 }
 
 function slugify(title: string): string {

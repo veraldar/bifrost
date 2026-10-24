@@ -112,6 +112,10 @@ const PTT_BARS = 9;
  *  the audio element's end by a few hundred ms */
 const ECHO_TAIL_MS = 400;
 
+// the session this page opened was deleted (another device, another tab) —
+// its name may already belong to a new session, which the pin never reaches
+const GONE = 'this session is gone — it was deleted. Open it again from the list.';
+
 function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
   return Promise.race([
     p,
@@ -340,6 +344,12 @@ export default function SessionView({
   const echoesRef = useRef<Msg[]>([]);
   const seenRef = useRef(0);
   const pollInFlightRef = useRef(false);
+  // identity pin (herdr §1.4): the session id this view opened. Every call
+  // carries it, so a session wearing the same slug — a duplicate name, or
+  // the replacement of a deleted one — never answers in its place
+  const pinRef = useRef('');
+  const pinHeaders = (): Record<string, string> =>
+    pinRef.current ? { 'X-Session-Pin': pinRef.current } : {};
   // "working…" clears only when the run is really over: opencode emits one
   // assistant message per STEP, so the first reply chunk is not the end.
   // The proxy reports the last raw message + its completed timestamp; the
@@ -508,7 +518,7 @@ export default function SessionView({
   const stickRef = useRef(true);
 
   useEffect(() => {
-    params.then((p) => {
+    Promise.all([params, searchParams]).then(([p, sp]) => {
       // voice tests on (settings): MAIN is never opened — never joined as a
       // room, never written — its test twin opens instead
       const twin = voiceTestRedirect(p.slug);
@@ -537,6 +547,10 @@ export default function SessionView({
       totalRef.current = 0;
       liveRef.current = false;
       autoArmRef.current = p.slug;
+      // the session this view opened (the list's ?id=, else the first poll's
+      // X-Session-Id) — set before the slug lands, so the first poll is
+      // already pinned
+      pinRef.current = sp.id || '';
       // per-session draft: typing here, leaving, coming back must restore it
       try {
         const draft = localStorage.getItem('oz-draft:' + p.slug) || '';
@@ -568,7 +582,7 @@ export default function SessionView({
         /* no cache */
       }
     });
-  }, [params]);
+  }, [params, searchParams]);
 
   // PC tab shows which session you're in: "Bifrost - <slug>"; leaving the
   // session view (unmount) restores the plain title
@@ -602,10 +616,16 @@ export default function SessionView({
         const want = lim ?? limit;
         const r = await fetch(`/api/session/${slug}/messages?limit=${want}`, {
           cache: 'no-store',
+          headers: pinHeaders(),
           signal: AbortSignal.timeout(10_000),
         });
+        if (r.status === 404) {
+          const d = await r.json().catch(() => ({}));
+          if (d.code === 'session_gone') setError(GONE);
+        }
         if (r.ok) {
           lastGoodPollRef.current = Date.now();
+          if (!pinRef.current) pinRef.current = r.headers.get('X-Session-Id') || '';
           const raw: Msg[] = await r.json();
           // v1 onboarding sessions (still in the store): the prompt was setup
           // for the brain, never shown; its closing marker never for eyes
@@ -843,7 +863,7 @@ export default function SessionView({
         diagEvent('busy', `wedge ${slug} after ${sec}s (auto-abort)`);
         setError('no reply — the run seemed stuck, auto-stopped. Send again.');
         setBusy(false); // the aborted prompt never completes on its own
-        void fetch(`/api/session/${slug}/abort`, { method: 'POST' }).catch(() => {});
+        void fetch(`/api/session/${slug}/abort`, { method: 'POST', headers: pinHeaders() }).catch(() => {});
       }
       // corpse escape: busy, NO live prompt, and NO opencode stream event for
       // the whole stall window → the run is dead whatever the last message
@@ -870,7 +890,7 @@ export default function SessionView({
         );
         setError('no reply — the run seemed stuck, auto-stopped. Send again.');
         setBusy(false);
-        void fetch(`/api/session/${slug}/abort`, { method: 'POST' }).catch(() => {});
+        void fetch(`/api/session/${slug}/abort`, { method: 'POST', headers: pinHeaders() }).catch(() => {});
       }
     }, 1000);
     return () => clearInterval(t);
@@ -1869,7 +1889,7 @@ export default function SessionView({
       `abort ${slug} after ${Math.max(0, Math.round((Date.now() - busyStartRef.current) / 1000))}s (stop btn)`
     );
     try {
-      await fetch(`/api/session/${slug}/abort`, { method: 'POST' });
+      await fetch(`/api/session/${slug}/abort`, { method: 'POST', headers: pinHeaders() });
     } catch {
       /* best effort */
     } finally {
@@ -1955,14 +1975,14 @@ export default function SessionView({
     try {
       const r = await fetch(`/api/session/${slug}/messages`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...pinHeaders() },
         body: JSON.stringify({ text, images, files, async: true }),
         // a hung radio/socket must surface as an error, not a silent stuck send
         signal: AbortSignal.timeout(30_000),
       });
       if (!r.ok) {
         const d = await r.json().catch(() => ({}));
-        setError(d.error || `send failed (${r.status})`);
+        setError(d.code === 'session_gone' ? GONE : d.error || `send failed (${r.status})`);
         setInput((prev) => (prev.trim() ? prev : text)); // draft back, no clobber
         setBusy(false);
       } else if (!willQueue) {

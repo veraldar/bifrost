@@ -12,8 +12,9 @@
 import { NextResponse } from 'next/server';
 import { bustCache, getCache, setCache } from '@/lib/oc-cache';
 import { isRunLive } from '@/lib/oc-live';
+import { runState } from '@/lib/run-state';
 import { PENDING_TTL_MS } from '@/lib/pending-ttl';
-import { ensureWatchdog } from '@/lib/oc-watchdog';
+import { ensureWatchdog, lastEventAt, STALL_MS } from '@/lib/oc-watchdog';
 import { slugify } from '@/lib/slug';
 import { MAIN_SLUG } from '@/lib/tree-first';
 
@@ -74,6 +75,16 @@ export async function GET() {
           const midRun =
             rawRole === 'user' ||
             (rawRole === 'assistant' && !lastRaw?.info?.time?.completed);
+          // herdr triad (§1.1/§1.2): the brain's declaration first, then the
+          // proxy's in-flight record, the detector only for a brain that
+          // declares nothing (lib/run-state). UI chips ride the next build.
+          const rs = runState(
+            s.state,
+            isRunLive(s.id),
+            midRun && rawCreated > Date.now() - PENDING_TTL_MS,
+            lastEventAt(s.id),
+            STALL_MS
+          );
           return {
             id: s.id,
             title: s.title || s.id,
@@ -97,11 +108,18 @@ export async function GET() {
             // in-flight by the proxy — survives restarts via disk), or the
             // transcript itself shows a run in flight AND it's fresh —
             // aborted/failed prompts stay that way forever and must not pin
-            // the session as thinking
+            // the session as thinking. A brain-declared run counts too (voice
+            // runs never pass the proxy)
             pending:
-              isRunLive(s.id) || (midRun && rawCreated > Date.now() - PENDING_TTL_MS),
+              rs.state === 'working' ||
+              isRunLive(s.id) ||
+              (midRun && rawCreated > Date.now() - PENDING_TTL_MS),
+            state: rs.state,
+            stateReason: rs.reason,
+            stateSource: rs.source,
           };
         } catch {
+          const rs = runState(s.state, isRunLive(s.id), false, 0, STALL_MS);
           return {
             id: s.id,
             title: s.title || s.id,
@@ -112,7 +130,10 @@ export async function GET() {
             lastHasQ: false,
             lastAt: 0,
             msgs: 0,
-            pending: isRunLive(s.id),
+            pending: rs.state === 'working',
+            state: rs.state,
+            stateReason: rs.reason,
+            stateSource: rs.source,
           };
         }
       })

@@ -3,7 +3,7 @@
  * POST /api/session/[id]/prompt   → send text/images/files to the session
  */
 import { NextResponse } from 'next/server';
-import { ocFetch, resolveId } from '@/lib/oc';
+import { ocFetch, PIN_HEADER, resolveId, sessionGone } from '@/lib/oc';
 import { bustCache } from '@/lib/oc-cache';
 import { buildParts, forward, runEnded } from '@/lib/oc-forward';
 import { isRunLive, liveSince, runEndedAt } from '@/lib/oc-live';
@@ -24,7 +24,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   try {
     ensureWatchdog(); // the event stream must be up for X-Run-Last-Event to mean anything
     const { id } = await ctx.params;
-    const sid = await resolveId(id);
+    const sid = await resolveId(id, req.headers.get(PIN_HEADER));
     const msgs = await ocFetch(`/session/${sid}/message`);
     const out = msgs.map((m: any) => {
       const text = (m.parts || [])
@@ -121,11 +121,14 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
         // escape keys off this: a busy session with NO events and NO live
         // prompt is a corpse, whatever role the last message claims
         'X-Run-Last-Event': String(lastEventAt(sid) || 0),
+        // the session this slug resolved to — the page pins it and sends it
+        // back as PIN_HEADER from then on (herdr §1.4)
+        'X-Session-Id': sid,
         'Cache-Control': 'no-store',
       },
     });
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    return sessionGone(e) ?? NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
 
@@ -133,7 +136,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   try {
     ensureWatchdog(); // global-guarded across module graphs (oc-watchdog)
     const { id } = await ctx.params;
-    const sid = await resolveId(id);
+    const sid = await resolveId(id, req.headers.get(PIN_HEADER));
     const body = await req.json();
     const async = body.async === true;
     const parts = buildParts(body);
@@ -179,6 +182,6 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       .trim();
     return NextResponse.json({ text: out });
   } catch (e) {
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    return sessionGone(e) ?? NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

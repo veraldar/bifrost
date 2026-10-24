@@ -1,3 +1,4 @@
+import { OC } from './brain';
 import { expect, test } from '@playwright/test';
 
 /** Regression for the wedge guard killing a live session (req: "no reply —
@@ -9,7 +10,7 @@ import { expect, test } from '@playwright/test';
  *  must report the in-flight step BELOW the stack (|0|assistant) so busy
  *  holds, nothing aborts, and both replies arrive. */
 const NAME = `e2e-wedge-${Date.now().toString(36)}`;
-const OC = 'http://127.0.0.1:4096';
+
 let sessionId = '';
 let corpseId = '';
 

@@ -1,9 +1,10 @@
+import { OC } from './brain';
 import { type APIRequestContext, expect, test } from '@playwright/test';
 
 // Sub-sessions are created by opencode itself (agent task runs), never through
 // the phone — so this spec seeds a real parent+child pair directly on the
 // opencode server and asserts only on the PWA's rendering of the pair.
-const OC = process.env.OPENCODE_URL || 'http://127.0.0.1:4096';
+
 const TAG = `e2e-subs-${Date.now().toString(36)}`;
 const created: string[] = [];
 

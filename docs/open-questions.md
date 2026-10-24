@@ -34,3 +34,7 @@ Swipes commit through a 3s undo toast (10s for ≥10-msg sessions) that shows th
 8. gallery sessionStorage cache: list response carries meta version, client refetches on change — default taken
 9. .meta.json git hygiene — RESOLVED: /artifacts/* already gitignored (whitelist rule)
 10. deleted source session → ask falls to p3 chooser, never 404 — default taken
+
+## 10-24 — v0.7 gate (V07-GATE-FINAL)
+- **OG-ctx — yggdrasil injects no context file.** opencode (live) injects the layered AGENTS.md chain into every session, so "what is this project?" is answered with ≤1 tool call. yggdrasil (the sandbox brain, :4100) injects none: the same question is answered correctly, but through read-only `ls`/`find`/`grep` via bash. `pwa/e2e/context.spec.ts` asserts the honest law per brain (opencode: ≤1 tool, the pointed AGENTS.md read; yggdrasil: never write/edit). DECISION NEEDED before yggdrasil serves live: inject `~/Work/AGENTS.md` + the project AGENTS.md into the system prompt (opencode parity), or keep exploration. Default taken until then: keep exploration (no behavior change in this gate).
+- **OG-think — the sandbox catalog has no think levels and no second model.** `settings.spec` "think switch" and "model picker" are catalog-derived and skip honestly on yggdrasil (one provider, one model, no variants). They are proven on the live opencode stack. Re-check when yggdrasil's catalog grows variants.

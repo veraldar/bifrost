@@ -975,6 +975,7 @@ async fn relay(
     }
 
     let mut buf = String::new();
+    let mut finished = false; // a choice carried finish_reason (some providers never send [DONE])
     let mut stream = resp.bytes_stream();
     while let Some(chunk) = stream.next().await {
         let chunk = chunk.map_err(|e| format!("stream error: {e}"))?;
@@ -987,6 +988,7 @@ async fn relay(
                 return Ok(calls);
             }
             let Ok(v) = serde_json::from_str::<Value>(data) else { continue };
+            finished |= v["choices"][0]["finish_reason"].is_string();
             let delta = &v["choices"][0]["delta"];
             if let Some(text) = delta["content"].as_str() {
                 full.push_str(text);
@@ -1010,8 +1012,16 @@ async fn relay(
             }
         }
     }
+    if !finished {
+        return Err(CUT_OFF.into());
+    }
     Ok(calls)
 }
+
+/// A provider that dies mid-reply closes the stream cleanly — EOF looked like the end, and
+/// the cut-off text was stored as the complete answer (churn suite, 10-24). No end marker
+/// (`[DONE]` / `finish_reason` / `message_stop`) = the run failed, partial kept.
+const CUT_OFF: &str = "upstream stream ended mid-reply (the provider dropped the connection)";
 
 /// Slice 7: an anthropic-dialect request — `{base}/v1/messages`, the key as both
 /// `x-api-key` and bearer (providers differ), `anthropic-version`.
@@ -1079,6 +1089,9 @@ async fn relay_anthropic(
                 break 'read;
             }
         }
+    }
+    if !dec.stopped {
+        return Err(CUT_OFF.into());
     }
     if dec.stop_reason.as_deref() == Some("max_tokens") {
         eprintln!("upstream stopped at max_tokens ({}); raise YGG_MAX_TOKENS", cfg.max_tokens);

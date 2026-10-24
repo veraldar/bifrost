@@ -11,7 +11,8 @@
 #   crossing, post-roll-up turn) run in BOTH dialects, stored transcripts + client SSE compared
 #   after id/timestamp normalization; anthropic abort mid-SSE; real-upstream hook self-test.
 # Herdr triad (10-24): declared working/blocked/idle per session, busy map = its projection,
-#   step cap -> blocked/step-cap, SIGKILL mid-run -> restart closes the corpse, blocked/interrupted.
+#   step cap -> blocked/step-cap, SIGKILL mid-run -> restart closes the corpse, blocked/interrupted,
+#   a provider stream cut mid-reply (no end marker) -> blocked/error, partial kept.
 set -euo pipefail
 cd "$(dirname "$0")"
 source ~/.cargo/env
@@ -538,6 +539,18 @@ PY
 post_bg $TS "hello again" $TMP/tri5.txt
 [ "$(st_of $TS)" = idle ] || { echo "FAIL: the first turn after the restart left $(st_of $TS), want idle"; exit 1; }
 grep -q "MOCK-REPLY" $TMP/tri5.txt || { echo "FAIL: no reply after the restart"; exit 1; }
+post_bg $TS "cut please" $TMP/tri6.txt
+[ "$(st_of $TS)" = blocked/error ] || { echo "FAIL: a reply cut off mid-stream left $(st_of $TS), want blocked/error"; exit 1; }
+grep -q '^event: error' $TMP/tri6.txt || { echo "FAIL: a cut-off reply did not end in an error event"; exit 1; }
+python3 - "$(curl -sf http://$YGG/session/$TS/message)" <<'PY'
+import sys, json
+last = json.loads(sys.argv[1])[-1]
+i = last["info"]
+assert i["role"] == "assistant" and "mid-reply" in i.get("error", {}).get("data", {}).get("message", ""), i
+text = "".join(p.get("text", "") for p in last["parts"] if p["type"] == "text")
+assert text.startswith("MOCK-") and "SLOW-END" not in text, f"partial not kept: {text!r}"
+print(f"provider drops the stream mid-reply -> blocked/error, never a complete-looking answer; partial kept {text!r}")
+PY
 echo "herdr triad ok"
 kill $SRV; wait $SRV 2>/dev/null || true; SRV=
 echo PASS

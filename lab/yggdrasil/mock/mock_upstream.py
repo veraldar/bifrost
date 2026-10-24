@@ -7,6 +7,8 @@ long and each chunk is delayed 0.2s (~10s total) so clients can abort mid-stream
 Slice 3 (bifrost e2e prompts): "sleep N" anywhere delays the first chunk N seconds
 (stands in for a long tool run); "reply with exactly: X" makes the whole reply X
 (echo of the instruction, as a compliant model would answer).
+Cut mode: a last user message starting with "cut" streams half its reply, then the mock
+drops the connection with no end marker (no [DONE] / message_stop) — a provider dying mid-reply.
 MOCK_LATENCY=<seconds> (env, default 0) delays every first chunk like a real provider's
 time-to-first-token.
 Slice 6a tool mode (last user message starts with "tool:"):
@@ -65,13 +67,14 @@ def plan(body):
     last = msgs[-1]["content"]
     reply = f"MOCK-REPLY: you said '{last}' ({len(msgs)} msgs)"
     slow = last.startswith("slow") or bool(re.match(r"count from 1 to", last, re.I))
+    cut = last.startswith("cut")
     exact = re.search(r"reply(?: with exactly)?:\s*(\S+)", last, re.I)
     if exact:
         reply = exact.group(1).rstrip(".")
     nap = re.search(r"\bsleep (\d+)", last)
     if slow:
         reply += " " + "lorem ipsum " * 30 + "SLOW-END"
-    return {"kind": "text", "text": reply, "chunk": 8, "slow": slow, "latency": True,
+    return {"kind": "text", "text": reply, "chunk": 8, "slow": slow, "cut": cut, "latency": True,
             "nap": int(nap.group(1)) if nap else 0}
 
 
@@ -236,6 +239,9 @@ class H(BaseHTTPRequestHandler):
                 time.sleep(float(os.environ.get("MOCK_LATENCY", "0")))
             time.sleep(p.get("nap", 0))
             for i, f in enumerate(frames):
+                if p.get("cut") and i >= len(frames) // 2:
+                    self.close_connection = True
+                    return  # dropped mid-reply: no end marker ever comes
                 self.wfile.write(f.encode()); self.wfile.flush()
                 if p.get("slow") and i in paced: time.sleep(0.2)
         except (BrokenPipeError, ConnectionResetError):

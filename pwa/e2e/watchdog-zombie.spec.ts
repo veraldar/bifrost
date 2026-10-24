@@ -1,3 +1,4 @@
+import { OC } from './brain';
 import { expect, test } from '@playwright/test';
 
 /** Regression for the 2026-10-01 15:17 "no reply — the run seemed stuck,
@@ -14,7 +15,6 @@ import { expect, test } from '@playwright/test';
  *  the run busy well past the earliest possible verdict (quiet>20s + 30s
  *  scan cadence). */
 const NAME = `e2e-zombie-${Date.now().toString(36)}`;
-const OC = 'http://127.0.0.1:4096';
 
 test('untracked (agent-style) stalled run must be aborted by the server watchdog', async ({
   page,

@@ -88,15 +88,29 @@ test('no dead air: a slow voice is on its way from the step’s first frame to i
   // honest: it really was waiting on the wire
   expect(speak.t - open.t).toBeGreaterThan(300);
 
-  // the next line was fetched while this one loaded and spoke: in memory → no wait shown
-  await page.waitForTimeout(DELAY + 400);
+  // the next line was fetched while this one loaded and spoke: in memory → no wait shown.
+  // Wait for THIS line to end first: the recorder logs changes only — clicking while it
+  // still speaks, a cached line whose loading and speaking share one frame would read
+  // speaking → speaking: no mark at all
+  await expect(page.getByTestId('door-voice')).not.toHaveAttribute('data-voice', 'speaking', {
+    timeout: 20_000,
+  });
   const before = (await marks(page)).length;
   await page.getByTestId('door-lang-en').click();
   await expect(page.getByTestId('door')).toHaveAttribute('data-step', 'style');
   await expect(page.getByTestId('door-voice')).toHaveAttribute('data-voice', 'speaking', { timeout: 3_000 });
+  // the recorder samples once per frame: the DOM can read "speaking" before the next frame
+  // logs it — THE 1-in-5 flake (UX-BATCH 10-23; caught 10-24 with m2 = [step style, voice
+  // loading]). Read the marks only once they hold the transition.
+  await expect
+    .poll(async () => first((await marks(page)).slice(before), 'voice', 'speaking')?.t ?? 0)
+    .toBeGreaterThan(0);
   const m2 = (await marks(page)).slice(before);
   const open2 = first(m2, 'step', 'style')!;
-  const speak2 = first(m2, 'voice', 'speaking', open2.t)!;
+  // its first speaking mark since the click, even one a frame BEFORE data-step flips (the
+  // voice store may render first) — early is the opposite of dead air, and the ≤ 150 ms
+  // bound below holds for a negative gap too
+  const speak2 = first(m2, 'voice', 'speaking')!;
   console.log(`voice-wait door: cached line → first audio ${Math.round(speak2.t - open2.t)}ms`);
   expect(speak2.t - open2.t).toBeLessThanOrEqual(150);
   expect(m2.filter((x) => x.k === 'note' && x.v)).toEqual([]);

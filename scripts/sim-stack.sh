@@ -13,7 +13,8 @@
 #   voice    token mints dispatch to agent "sim-none" — no worker serves it, so no real
 #            voice agent ever joins a sim room (the LiveKit server is the real one)
 #
-# Env: SIM_DIR, SIM_FRESH=1 (up: wipe the brain store first). Exit 0 = all three answer.
+# Env: SIM_DIR, SIM_FRESH=1 (up: wipe the brain store first), SIM_STALL_MS (the proxy's stall
+# window, default production 10 min — watchdog-zombie.spec needs 20000). Exit 0 = all three answer.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 YGG_DIR=${YGG_DIR:-$HOME/Work/bifrost/lab/yggdrasil}
@@ -62,7 +63,9 @@ up() {
     -E YGG_MAX_TOKENS=16384 -E YGG_VOICE=1 -E YGG_VOICE_MAX_WORDS=60 \
     "$YGG_DIR/target/release/yggdrasil"
   # bifrost-sandbox.service's restart policy
-  systemd-run --user -q --unit=sim-pwa -p Restart=on-failure -p RestartSec=5 \
+  local stall=()
+  [ -n "${SIM_STALL_MS:-}" ] && stall=(-E OC_STALL_MS="$SIM_STALL_MS")
+  systemd-run --user -q --unit=sim-pwa -p Restart=on-failure -p RestartSec=5 "${stall[@]}" \
     -p WorkingDirectory="$SIM/pwa" \
     -E PORT=$APP_PORT -E HOST=127.0.0.1 -E OPENCODE_URL=http://$BRAIN -E BIFROST_AUTH=tailnet \
     -E ARTIFACTS_DIR="$SIM/artifacts" -E NODE_ENV=production \

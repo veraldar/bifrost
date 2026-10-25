@@ -18,3 +18,4 @@ over the LAN; the phone is just a browser (PWA) on the tailnet. Install: README.
 | 2026-09-24 20:40 | omarchy | Omarchy / 7.2.3-arch1-3 | AMD Ryzen 7 5700U with Radeon Graphics / 30Gi | node v26.8.1, next 15.5.18, py 3.14.7, uv 0.12.13, docker 29.7.2 | active active active  | 10 passed (14.6s) |
 | 2026-10-23 11:00 | omarchy | Omarchy / 7.2.3-arch1-3 | AMD Ryzen 7 5700U with Radeon Graphics / 30Gi | node v26.8.1, next 15.5.18, py 3.14.7, uv 0.12.13, docker 29.7.2 | active active inactive  | FAILED — 45 passed (4.6m) |
 | 2026-10-24 10:00 | omarchy | Omarchy / 7.2.3-arch1-3 | AMD Ryzen 7 5700U with Radeon Graphics / 30Gi | node v26.8.1, next 15.5.18, py 3.14.7, uv 0.12.13, docker 29.7.2 | active active inactive  | FAILED — 43 passed (5.1m) |
+| 2026-10-25 11:00 | omarchy | Omarchy / 7.2.3-arch1-3 | AMD Ryzen 7 5700U with Radeon Graphics / 30Gi | node v26.8.1, next 15.5.18, py 3.14.7, uv 0.12.13, docker 29.7.2 | active active inactive  | FAILED — 45 passed (5.9m) |

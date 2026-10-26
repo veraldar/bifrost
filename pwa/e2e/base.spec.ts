@@ -6,7 +6,8 @@ let sessionId = '';
 test('home: sessions list renders from live opencode', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Bifrost' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'new session' })).toBeVisible();
+  // exact: the key, never a row whose title starts with "New session"
+  await expect(page.getByRole('button', { name: 'new session', exact: true })).toBeVisible();
   // at least one real session row (list must never be silently empty)
   const rows = page.locator('ul button');
   await expect(rows.first()).toBeVisible();

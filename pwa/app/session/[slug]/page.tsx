@@ -52,6 +52,7 @@ import {
   voiceTestOn,
   voiceTestRedirect,
 } from '@/lib/voice-test';
+import { ECHO_TAIL_MS, agentInRoom, releaseMicDevice, withTimeout } from '@/lib/voice-room';
 
 type Mode = 'text' | 'free';
 /** the door's last step, in MAIN: mic (ask once) → practice (hold, talk,
@@ -108,22 +109,10 @@ type Attach =
   | { kind: 'file'; name: string; content: string };
 
 const PTT_BARS = 9;
-/** echo gate tail: the speaker's output buffer + the room's reverb outlive
- *  the audio element's end by a few hundred ms */
-const ECHO_TAIL_MS = 400;
 
 // the session this page opened was deleted (another device, another tab) —
 // its name may already belong to a new session, which the pin never reaches
 const GONE = 'this session is gone — it was deleted. Open it again from the list.';
-
-function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
-  return Promise.race([
-    p,
-    new Promise<never>((_, rej) =>
-      setTimeout(() => rej(new Error(`${what} timeout (${ms / 1000}s)`)), ms)
-    ),
-  ]);
-}
 
 function fileToDataUrl(f: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -132,21 +121,6 @@ function fileToDataUrl(f: File): Promise<string> {
     r.onerror = () => reject(r.error);
     r.readAsDataURL(f);
   });
-}
-
-/** The voice agent can lag the room join (fresh dispatch after a page
- *  reload or a teardown): poll briefly instead of dropping the turn — a
- *  commit fired while `remoteParticipants` is still empty reaches nobody
- *  and the hold is lost silently (req 09-29 'switching from hand free to
- *  keyboard and then using the push to talk is not working'). */
-async function agentInRoom(room: Room, ms: number) {
-  const deadline = Date.now() + ms;
-  for (;;) {
-    const agent = Array.from(room.remoteParticipants.values())[0];
-    if (agent) return agent;
-    if (Date.now() >= deadline) return null;
-    await new Promise((r) => setTimeout(r, 120));
-  }
 }
 
 /** Live mic equalizer — 5 voice-band bars (100Hz–2kHz) from the published
@@ -1104,23 +1078,6 @@ export default function SessionView({
     }
     if (!on) echoHeldRef.current = false;
     await room?.localParticipant.setMicrophoneEnabled(on);
-  }
-
-  /** Text-mode PTT: release the CAPTURE DEVICE between holds. A muted track
-   *  still holds the mic hardware (phone shows 'mic in use' — req 09-29
-   *  'mic on only on push to talk'), and a full room teardown forces a
-   *  reconnect on the next press — slower than the hold on a laggy link.
-   *  So the room + agent stay warm; unpublishing stops the device, and the
-   *  next hold's setMicrophoneEnabled(true) re-acquires it (~200ms). */
-  function releaseMicDevice(room: Room) {
-    const pub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
-    if (pub?.track) {
-      try {
-        room.localParticipant.unpublishTrack(pub.track, true);
-      } catch {
-        /* track already gone */
-      }
-    }
   }
 
   // radio "out": the agent committed the final turn — release the capture

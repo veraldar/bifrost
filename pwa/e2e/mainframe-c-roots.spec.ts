@@ -69,8 +69,6 @@ test('one tree: the band on top, the roots at the bottom — no corner door, MAI
   await expect(roots.locator('svg > g.base')).toHaveCount(1);
   // the roots are a NEW drawing (the trunk continued down), not the tree again
   expect(await roots.locator('svg:has(> g.base)').getAttribute('viewBox')).toBe('150 0 1108 226');
-  // a device that never held: the one hold phrase, for its first visits
-  await expect(page.getByTestId('roots-say')).toContainText('hold to talk · tap to open');
   // full width, on the ground
   const vp = page.viewportSize()!;
   const b = (await roots.boundingBox())!;
@@ -92,6 +90,51 @@ test('one tree: the band on top, the roots at the bottom — no corner door, MAI
   }
   await page.mouse.wheel(0, -20_000);
   await shot(page, '1-idle');
+});
+
+test('the one hold phrase: a device that never held reads it on its first 3 visits, then MAIN’s line', async ({
+  page,
+}) => {
+  const now = Date.now();
+  // an idle MAIN (the real one may be working — that state outranks the hint)
+  await page.route(
+    (u) => u.pathname === '/api/session',
+    (r) =>
+      r.request().method() === 'GET'
+        ? r.fulfill({
+            json: [
+              {
+                id: 'ses_main',
+                title: '[MAIN]',
+                preview: 'you are in — say what to build next',
+                updated: now,
+                lastRole: 'assistant',
+                lastAt: now - 99_999_999,
+                msgs: 4,
+              },
+            ],
+          })
+        : r.continue()
+  );
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('hint-init')) return;
+    sessionStorage.setItem('hint-init', '1');
+    localStorage.removeItem('bifrost-roots-held');
+    localStorage.removeItem('bifrost-roots-hint');
+  });
+  for (let visit = 1; visit <= 4; visit++) {
+    await page.goto('/');
+    const say = page.getByTestId('roots-say');
+    if (visit <= 3) await expect(say).toContainText('hold to talk · tap to open');
+    else await expect(say).toContainText('you are in');
+  }
+  // a hold retires it at once (even inside the first visits)
+  await page.evaluate(() => localStorage.setItem('bifrost-roots-hint', '0'));
+  await page.goto('/');
+  await expect(page.getByTestId('roots-say')).toContainText('hold to talk · tap to open');
+  await page.evaluate(() => localStorage.setItem('bifrost-roots-held', '1'));
+  await page.goto('/');
+  await expect(page.getByTestId('roots-say')).toContainText('you are in');
 });
 
 test('press = amber in the same frame; let go inside 0.3 s = MAIN opens (no voice minted)', async ({

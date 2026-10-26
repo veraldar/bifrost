@@ -1,5 +1,6 @@
 /** Yggdrasil drawn as circuit traces — the one drawing every surface crops
- *  (session-list band, settings world minis, veraldar.org hero). Static
+ *  (session-list band, the front page's roots, settings world minis,
+ *  veraldar.org hero). Static
  *  markup, no client code: motion is pure CSS, governed by state classes
  *  on the wrapper (styles/brand.css § tree):
  *    wake     one pulse climbs the trunk, once — the box answered
@@ -59,10 +60,78 @@ export function YggTree({ viewBox, slice }: { viewBox?: string; slice?: boolean 
             key={k}
             className={`sig ${s.cls}`}
             pathLength={1}
+            data-j={s.j}
             style={{ '--i': s.i, '--j': s.j ?? 0 } as React.CSSProperties}
             d={s.d}
           />
         ))}
+      </g>
+    </svg>
+  );
+}
+
+// THE ROOTS (MAINFRAME-C, 10-26) — the same tree continued below its bottom
+// edge (y 767 of the crown becomes y 0 here): the five trunk exits at x 540 ·
+// 602 · 704 · 806 · 867 carry on in the direction they leave the crown (45°
+// flares, the vertical bus), then spread in the crown's own vocabulary.
+// Stroked, not filled: w = trace width. Geometry from the C mockup
+// (artifacts/mainframe-proposals.html, ROOTS/RSIG).
+const ROOTS: { d: string; w: number }[] = [
+  { d: 'M704 -24 V230', w: 20 },
+  { d: 'M564 -24 L540 0 M540 0 L470 70 H330 L270 130 H120', w: 28 },
+  { d: 'M843 -24 L867 0 M867 0 L937 70 H1080 L1140 130 H1290', w: 28 },
+  { d: 'M626 -24 L602 0 M602 0 L560 42 V90 L520 130 V230', w: 26 },
+  { d: 'M782 -24 L806 0 M806 0 L848 42 V90 L888 130 V230', w: 26 },
+  { d: 'M420 70 L380 110 V230', w: 18 },
+  { d: 'M990 70 L1030 110 V230', w: 18 },
+  { d: 'M704 56 L664 96 V230', w: 14 },
+  { d: 'M704 92 L744 132 V230', w: 14 },
+  { d: 'M300 100 L262 62 H180', w: 14 },
+  { d: 'M1110 100 L1148 62 H1230', w: 14 },
+];
+
+// signal centrelines, every one from the trunk outward (pathLength=1):
+// --i = order while held (your words run down to the root tips), --j = turn
+// while MAIN works (one thought at a time — the band's 8 s clock)
+const RSIG: { d: string; i: number; j?: number }[] = [
+  { d: 'M704 0 V200', i: 0 },
+  { d: 'M540 0 L470 70 H330 L270 130 H150', i: 1, j: 0 },
+  { d: 'M867 0 L937 70 H1080 L1140 130 H1258', i: 2, j: 1 },
+  { d: 'M602 0 L560 42 V90 L520 130 V200M806 0 L848 42 V90 L888 130 V200', i: 3, j: 2 },
+  { d: 'M420 70 L380 110 V200M990 70 L1030 110 V200', i: 4, j: 3 },
+];
+
+/** the roots' crop: same horizontal span as the band, so on a phone the
+ *  trunk leaves the band and enters the roots at the same x */
+export const ROOTS_VIEWBOX = '150 0 1108 226';
+
+/** The roots: held = every signal runs down (amber, --i); working = one
+ *  walks (.w, --j); the answer = one pulse climbs the taproot (.t, wake) */
+export function YggRoots() {
+  return (
+    <svg
+      viewBox={ROOTS_VIEWBOX}
+      preserveAspectRatio="xMidYMin slice"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <g className="base">
+        {ROOTS.map((r, k) => (
+          <path key={k} d={r.d} strokeWidth={r.w} />
+        ))}
+      </g>
+      <g>
+        {RSIG.map((s, k) => (
+          <path
+            key={k}
+            className={s.j === undefined ? 'sig h' : 'sig h w'}
+            pathLength={1}
+            data-j={s.j}
+            style={{ '--i': s.i, '--j': s.j ?? 0 } as React.CSSProperties}
+            d={s.d}
+          />
+        ))}
+        <path className="sig t" pathLength={1} d="M704 200 V0" />
       </g>
     </svg>
   );

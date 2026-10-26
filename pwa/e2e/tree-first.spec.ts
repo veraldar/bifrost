@@ -4,7 +4,7 @@ import { type Page, expect, test } from '@playwright/test';
  *  HTML → press = amber in the same frame → release = the greeting from the
  *  pre-recorded pack → language · style (MAIN seeded with them) · the brain
  *  the computer runs, shown with its provider → MAIN with the first-turn card
- *  → home: list + corner door, MAIN locked. v3: every name glossed where it
+ *  → home: list + the roots (MAIN, MAINFRAME-C 10-26). v3: every name glossed where it
  *  first appears; back/forward walk the steps and keep the #door= answers;
  *  "why these names?" → the $ tree, spoken → the tree film (a built-in
  *  artifact) played through its try-it. The voice turn itself is
@@ -176,19 +176,20 @@ test('door: first paint → hold → greeting → language · style · brain →
   expect(lines.some((l) => /prerender miss/.test(l))).toBe(false);
   await shot(page, '6-main-first-turn');
 
-  // 7 · home afterwards: the list + the tree shrunk to its corner, MAIN locked
+  // 7 · home afterwards: the list + the roots at the bottom — they ARE MAIN
+  // (MAINFRAME-C 10-26: the corner door is gone, MAIN is not a row); they
+  // grow up from the bottom edge once, after the door
   await page.goto('/');
-  const door = page.getByTestId('tree-door');
-  await expect(door).toBeVisible();
+  const roots = page.getByTestId('roots');
+  await expect(roots).toBeVisible();
+  await expect(page.getByTestId('tree-door')).toHaveCount(0);
   await expect(page.getByTestId('tree-first')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'BIFROST' })).toBeVisible();
-  await expect(door).not.toHaveClass(/shrink/, { timeout: 5_000 });
-  await expect(door).toHaveAttribute('href', '/session/main');
-  const mainRow = page.locator('.oz-sw', { hasText: '[MAIN]' });
-  await expect(mainRow).toHaveCount(1);
-  await expect(mainRow).toHaveAttribute('data-locked', '');
+  await expect(roots).not.toHaveClass(/grow/, { timeout: 5_000 });
+  await expect(page.getByTestId('roots-hit')).toHaveAttribute('href', '/session/main');
+  await expect(page.locator('.oz-sw', { hasText: '[MAIN]' })).toHaveCount(0);
   expect((await request.delete('/api/session/main')).status()).toBe(403);
-  await shot(page, '7-corner-door');
+  await shot(page, '7-roots');
 
   // 8 · a returning device never sees the door again (hidden before paint)
   await page.reload();

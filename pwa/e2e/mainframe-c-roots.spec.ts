@@ -80,6 +80,7 @@ test('one tree: the band on top, the roots at the bottom — no corner door, MAI
   await expect(page.locator('.oz-row', { hasText: '[MAIN]' })).toHaveCount(0);
   await expect(page.getByTestId('roots-name')).toHaveText('main');
   await expect(page.getByTestId('roots-hit')).toHaveAttribute('href', '/session/main');
+  await shot(page, '1-idle');
   // the last row scrolls clear of the roots
   await page.mouse.wheel(0, 20_000);
   const last = page.locator('.oz-row').last();
@@ -89,7 +90,6 @@ test('one tree: the band on top, the roots at the bottom — no corner door, MAI
     expect(lb.y + lb.height).toBeLessThanOrEqual(b.y + 1);
   }
   await page.mouse.wheel(0, -20_000);
-  await shot(page, '1-idle');
 });
 
 test('the one hold phrase: a device that never held reads it on its first 3 visits, then MAIN’s line', async ({

@@ -17,6 +17,15 @@ export async function GET(_req: Request, ctx: { params: Promise<{ name: string }
     return NextResponse.json({ error: 'bad name' }, { status: 400 });
   }
   const ext = path.extname(name).toLowerCase();
+  // the type comes from the extension alone — no extension is no file we
+  // could serve, which is a 404 (a 415 read as "wrong format" for a name
+  // that never existed, 10-24 /api/artifact/the-tree-film)
+  if (!ext) {
+    return NextResponse.json(
+      { error: 'not found — artifact names carry their extension (the door films: door-tree.html, far-vision.html)' },
+      { status: 404 }
+    );
+  }
   if (!ARTIFACT_TYPES[ext]) return NextResponse.json({ error: 'unsupported type' }, { status: 415 });
   const hit = await resolveArtifact(name);
   if (hit) {

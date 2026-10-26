@@ -73,6 +73,7 @@ test('hold → talk → let go = sent → the reply is spoken here → hands-fre
   await expect(roots).toHaveAttribute('data-phase', 'working', { timeout: 3_000 });
   await expect(page.getByTestId('roots-say')).toContainText('sent · awaiting answer');
   expect(new URL(page.url()).pathname).toBe('/');
+  await page.waitForTimeout(400); // the press's amber fades out (.12–.24 s transitions)
   await shot(page, '9-working');
 
   // the words land in the voice-test room

@@ -5,14 +5,16 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { LineIcon } from '@/components/line-icon';
 import { BAND_VIEWBOX, YggTree } from '@/components/ygg';
-import { Door, TreeDoor } from '@/components/tree-door';
+import { Door } from '@/components/tree-door';
+import { Roots } from '@/components/roots';
 import { Marked } from '@/components/marked';
 import { askedSessions, clearAsked, notifyReply } from '@/lib/notify';
 import type { ArtifactEntry } from '@/lib/artifacts';
 import { countUnseen, seenInit } from '@/lib/artifact-read';
 import { lastRead, markRead } from '@/lib/read';
 import { slugify } from '@/lib/slug';
-import { DOOR_KEY, isMainSlug, isOnboardPrompt } from '@/lib/tree-first';
+import { DOOR_KEY, MAIN_SLUG, isMainSlug, isOnboardPrompt } from '@/lib/tree-first';
+import { VOICE_TEST_SLUG, voiceTestOn } from '@/lib/voice-test';
 
 // open-question circles go stale after this long
 const OPEN_QUESTION_TTL_MS = 48 * 60 * 60 * 1000;
@@ -160,12 +162,15 @@ export default function SessionsPage() {
   // IS the door (it paints before any script), and the layout's boot script
   // hides it before paint on a device that walked it (brand.css § door)
   const [tf, setTf] = useState<'first' | 'done' | null>(null);
+  // voice tests on (settings): the roots carry the voice-test room instead
+  const [vt, setVt] = useState(false);
   useEffect(() => {
     try {
       setTf(localStorage.getItem(DOOR_KEY) ? 'done' : 'first');
     } catch {
       setTf('done'); // private mode can't keep the flag — never trap it on the tree
     }
+    setVt(voiceTestOn());
   }, []);
   // instant paint on back-navigation: the last fetched list is cached in
   // sessionStorage (per-tab), so the rows are there before the first fetch
@@ -218,10 +223,27 @@ export default function SessionsPage() {
     return m;
   }, [sessions]);
   const knownIds = useMemo(() => new Set(sessions.map((s) => s.id)), [sessions]);
-  const roots = useMemo(
-    () => sessions.filter((s) => !s.parentId || !knownIds.has(s.parentId)),
-    [sessions, knownIds]
+  // MAIN is not a row: it is the roots (MAINFRAME-C) — with voice tests on,
+  // the roots carry voice-test (and MAIN, unreachable then, stays out too).
+  // MAIN's own sub-sessions surface at the top: nothing silently disappears
+  const rootsSlug = vt ? VOICE_TEST_SLUG : MAIN_SLUG;
+  const inRoots = (s: Sess) => {
+    const sl = slugify(s.title || '');
+    return isMainSlug(sl) || sl === rootsSlug;
+  };
+  const mainRow = useMemo(
+    () => sessions.find((s) => slugify(s.title || '') === rootsSlug),
+    [sessions, rootsSlug]
   );
+  const tops = useMemo(() => {
+    const held = new Set(sessions.filter(inRoots).map((s) => s.id));
+    return sessions.filter(
+      (s) => !held.has(s.id) && (!s.parentId || !knownIds.has(s.parentId) || held.has(s.parentId))
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions, knownIds, rootsSlug]);
+  // the roots walk while MAIN works — the band then shares its clock
+  const [rootsWorking, setRootsWorking] = useState(false);
 
   // which parents have their sub-tree expanded — per-tab persistence so
   // back-navigation doesn't collapse what you opened
@@ -431,15 +453,20 @@ export default function SessionsPage() {
     []
   );
 
-  // the band walks only while something is true: any run (sub-runs too)
+  // the caption counts every run on the box (MAIN's too); the crown walks
+  // for the branches only — MAIN's run walks the roots
   const working = sessions.filter((s) => s.pending).length;
+  const branchWorking = sessions.some((s) => s.pending && !inRoots(s));
 
   if (tf !== 'done') return <Door />;
 
   return (
     <>
-      {/* pb-24: the last row scrolls clear of the corner door */}
-      <main className="relative mx-auto flex min-h-dvh max-w-md flex-col px-3 pb-24">
+      {/* the last row scrolls clear of the roots (84 px + the safe area) */}
+      <main
+        className="relative mx-auto flex min-h-dvh max-w-md flex-col px-3"
+        style={{ paddingBottom: 'calc(100px + env(safe-area-inset-bottom))' }}
+      >
         {/* the wordmark alone, full caps, no sign before it — it is the way
             into settings; the artifact runestone counts what you haven't seen */}
         <header className="oz-head">
@@ -472,7 +499,8 @@ export default function SessionsPage() {
         {/* the tree, once, as a quiet band — one thought walks it at a time
             while something works; it falls still when nothing does */}
         <figure
-          className={`oz-band oz-ygg -mx-3 mb-2.5 ${working ? 'live' : ''}`}
+          className={`oz-band oz-ygg -mx-3 mb-2.5 ${working ? 'live' : ''} ${branchWorking ? 'walk' : ''}`}
+          data-shared={branchWorking && rootsWorking ? '' : undefined}
           aria-label={working ? `your box — ${working} working` : 'your box — nothing working'}
         >
           <YggTree viewBox={BAND_VIEWBOX} slice />
@@ -592,7 +620,7 @@ export default function SessionsPage() {
           )
         ) : (
           <ul className="flex flex-col gap-1">
-          {[...roots]
+          {[...tops]
             .map((s) => {
               const unread =
                 s.lastRole === 'assistant' && (s.lastAt || 0) > lastRead(slugify(s.title || s.id));
@@ -722,15 +750,22 @@ export default function SessionsPage() {
         )}
       </main>
 
-      {/* the tree, shrunk to its corner, stays the door: MAIN */}
-      <TreeDoor />
+      {/* the tree's roots, the ground of the page: MAIN — tap to open it,
+          hold to talk to it from here */}
+      <Roots
+        main={mainRow}
+        branchWorking={branchWorking}
+        onSettled={load}
+        onWorking={setRootsWorking}
+      />
 
       {/* undo toast — the bar is the mercy window; tap undo to restore the row */}
       {toast && (
         <div
           key={toast.key}
           role="status"
-          className="oz-toast fixed inset-x-3 bottom-4 z-50 mx-auto max-w-md"
+          className="oz-toast fixed inset-x-3 z-50 mx-auto max-w-md"
+          style={{ bottom: 'calc(92px + env(safe-area-inset-bottom))' }}
         >
           {/* what you just removed — msg count makes a heavy delete visible
               while the (longer) mercy window is still open */}

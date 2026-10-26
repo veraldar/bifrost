@@ -19,10 +19,9 @@
  *              glides it: working), a pulse climbs the trunk, and past 0.7 s
  *              the words say so. Speaking: the rail breathes green. No sound
  *              at all: said in words, never a silent wait.
- *    TreeDoor  afterwards — the same drawing shrunk to its corner, a link
- *              to MAIN; the shrink from full screen plays once */
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import Link from 'next/link';
+ *  Afterwards the front page carries the tree as crown + roots: the roots
+ *  are the way to MAIN (components/roots.tsx, MAINFRAME-C 10-26). */
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { YggTree } from '@/components/ygg';
 import { diagEvent } from '@/lib/diag';
@@ -700,47 +699,5 @@ export function Door() {
         </div>
       )}
     </main>
-  );
-}
-
-export function TreeDoor() {
-  const ref = useRef<HTMLAnchorElement>(null);
-  // the one-shot is consumed before paint: the door starts at full screen
-  // and settles into its corner — or simply stands there, every later time
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    let play = false;
-    try {
-      play = sessionStorage.getItem(TF_SHRINK_KEY) !== null;
-      sessionStorage.removeItem(TF_SHRINK_KEY);
-    } catch {
-      /* private mode — the door just stands */
-    }
-    if (!play) return;
-    const r = el.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    // same crop both ends (slice, centered): scaled to cover the viewport,
-    // the square door frames exactly what the full-screen tree showed
-    el.style.setProperty('--tf-s', String(Math.max(vw, vh) / r.width));
-    el.style.setProperty('--tf-x', `${vw / 2 - (r.left + r.width / 2)}px`);
-    el.style.setProperty('--tf-y', `${vh / 2 - (r.top + r.height / 2)}px`);
-    el.classList.add('shrink');
-  }, []);
-
-  return (
-    <Link
-      ref={ref}
-      href={`/session/${MAIN_SLUG}`}
-      data-testid="tree-door"
-      aria-label="open MAIN"
-      className="oz-door oz-ygg"
-      onAnimationEnd={(e) => {
-        if (e.target === e.currentTarget) e.currentTarget.classList.remove('shrink');
-      }}
-    >
-      <YggTree slice />
-    </Link>
   );
 }

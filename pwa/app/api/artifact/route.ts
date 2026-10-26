@@ -1,5 +1,7 @@
-/** GET /api/artifact → list of everything in bifrost/artifacts/ for the
- *  /artifacts gallery: name, mtime, size, served type. Newest first. */
+/** GET /api/artifact → every artifact the user can see, for the /artifacts
+ *  gallery and the home bell: this checkout's artifacts/, the main tree's
+ *  (from a worktree) and the app's built-ins, one row per name — name,
+ *  mtime, size, served type, source. Newest first. */
 import { NextResponse } from 'next/server';
 import { listArtifacts } from '@/lib/artifacts';
 

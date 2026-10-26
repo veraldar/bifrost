@@ -1,7 +1,8 @@
 'use client';
 
-/** /artifacts — everything the agents dropped into bifrost/artifacts/,
- *  newest first, day-grouped. Unread = file mtime newer than the version
+/** /artifacts — everything the agents dropped (this checkout's artifacts/,
+ *  plus the main tree's when served from a worktree — tagged "main") and
+ *  the app's built-ins (tagged), newest first, day-grouped. Unread = file mtime newer than the version
  *  you last opened (phone-local watermarks, lib/artifact-read). Tapping a
  *  row opens the artifact right here — same rendering rules as the chat —
  *  and marks it seen, which drops the home bell badge.
@@ -48,6 +49,19 @@ function glyphOf(name: string): string {
   if (k === 'pdf') return '▦';
   if (k === 'md') return '¶';
   return '·';
+}
+
+/** provenance tag — this checkout's own files go untagged */
+const SOURCE_TAG: Record<string, string> = { main: 'main', builtin: 'built-in' };
+
+function SourceTag({ f }: { f: ArtifactEntry }) {
+  const tag = SOURCE_TAG[f.source];
+  if (!tag) return null;
+  return (
+    <span data-testid="artifact-source" className="shrink-0 text-[10px] text-[var(--oz-dim)]">
+      {tag}
+    </span>
+  );
 }
 
 function fmtTime(t: number): string {
@@ -303,6 +317,8 @@ export default function ArtifactsPage() {
                   <span className={`truncate text-xs ${isUnread ? 'font-bold' : 'opacity-80'}`}>
                     {f.name}
                   </span>
+                  <span className="ml-auto" />
+                  <SourceTag f={f} />
                 </div>
               </button>
               {/* both entries possible: tap = here, corner = new tab. Sibling
@@ -345,6 +361,7 @@ export default function ArtifactsPage() {
                       </span>
                       {isUnread && <span aria-label="unseen">●</span>}
                       <span className={`t ${isUnread ? '' : 'opacity-80'}`}>{f.name}</span>
+                      <SourceTag f={f} />
                       <time>
                         {fmtTime(f.mtime)} · {fmtSize(f.size)}
                       </time>

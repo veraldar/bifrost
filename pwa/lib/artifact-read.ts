@@ -41,12 +41,19 @@ export function countUnseen(files: ArtifactEntry[]): number {
 }
 
 /** First run after the feature ships: treat everything currently on disk
- *  as seen — a bell opening at "167" helps nobody. */
+ *  as seen — a bell opening at "167" helps nobody. Per source: when a phone
+ *  first meets a new source (the main tree's dir joined the sandbox gallery
+ *  10-26, ~500 files), that source's backlog is seen too; only what lands
+ *  after rings. The bare INIT key is the local dir's (pre-sources phones). */
 export function seenInit(files: ArtifactEntry[]): void {
-  if (localStorage.getItem(INIT)) return;
-  for (const f of files) markSeen(f.name, f.mtime);
+  const key = (src: string) => (src === 'local' ? INIT : `${INIT}:${src}`);
+  // local always inits on the first load, even empty — its first file rings
+  const srcs = ['local', ...files.map((f) => f.source || 'local')];
+  const todo = new Set(srcs.filter((src) => !localStorage.getItem(key(src))));
+  if (!todo.size) return;
+  for (const f of files) if (todo.has(f.source || 'local')) markSeen(f.name, f.mtime);
   try {
-    localStorage.setItem(INIT, '1');
+    for (const src of todo) localStorage.setItem(key(src), '1');
   } catch {
     /* private mode */
   }

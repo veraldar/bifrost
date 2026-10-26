@@ -274,7 +274,7 @@
     -webkit-tap-highlight-color: transparent;
   }
   .oz-roots-hit:focus-visible { outline: 1px solid var(--oz-text); outline-offset: -3px; }
-  .oz-roots svg {
+  .oz-roots-hit > svg {
     position: absolute; left: 0; right: 0; top: 0; width: 100%; height: 84px;
     -webkit-mask-image: linear-gradient(#000 0, #000 34%, transparent 78%);
     mask-image: linear-gradient(#000 0, #000 34%, transparent 78%);
@@ -310,7 +310,7 @@
 
   /* heard — the press (class, this frame), then a hold / hands-free (data-s) */
   .oz-roots:is(.heard, [data-s='heard']) { border-top-color: var(--oz-active); }
-  .oz-roots:is(.heard, [data-s='heard']) svg { filter: drop-shadow(0 0 12px color-mix(in srgb, var(--oz-active) 40%, transparent)); }
+  .oz-roots:is(.heard, [data-s='heard']) .oz-roots-hit > svg { filter: drop-shadow(0 0 12px color-mix(in srgb, var(--oz-active) 40%, transparent)); }
   .oz-roots:is(.heard, [data-s='heard']) .base { opacity: .9; }
   .oz-roots:is(.heard, [data-s='heard']) .base path { stroke: var(--oz-active); }
   .oz-roots:is(.heard, [data-s='heard']) .sig.h {
@@ -325,7 +325,7 @@
   .oz-roots.heard[data-phase='off']:not([data-armed]) .ln .held { display: inline; }
   /* drop — slid off (or Esc) while talking: let go and nothing is sent */
   .oz-roots:is(.drop, [data-s='drop']) { border-top-color: var(--oz-danger); }
-  .oz-roots:is(.drop, [data-s='drop']) svg { filter: none; }
+  .oz-roots:is(.drop, [data-s='drop']) .oz-roots-hit > svg { filter: none; }
   .oz-roots:is(.drop, [data-s='drop']) .base path { stroke: var(--oz-danger); }
   .oz-roots:is(.drop, [data-s='drop']) .sig.h { animation: none; opacity: 0; }
   .oz-roots:is(.drop, [data-s='drop']) :is(.nm, .ln) { color: var(--oz-danger); border-color: var(--oz-danger); box-shadow: none; }

@@ -18,5 +18,9 @@ chk "what runs: lanes"                      RUNS    'lanes:'
 chk "what to test next: last URD row"       NEXT    'last URD row'
 chk "what to test next: owed rows"          NEXT    'open URD rows'
 chk "what to test next: sandbox command"    NEXT    'PW_BASE_URL=http://127.0.0.1:8090'
-for m in version url runs next; do [ -n "$(WHERE_NOGATE=1 scripts/where.sh $m)" ] && echo "PASS  subcommand $m" || { echo "FAIL  subcommand $m"; fails=$((fails+1)); }; done
+chk "which labs run: worldtree timer"      LABS    '^  worldtree +'
+chk "which labs run: ygg-sim, no driver"    LABS    'ygg-sim +container up=[01] · driver: none'
+chk "which labs run: registry owner+wake"   LABS    'wake: .*\| S13'
+chk "labs: all 16 registry rows"            LABS    'the Mac'
+for m in version url runs next labs; do [ -n "$(WHERE_NOGATE=1 scripts/where.sh $m)" ] && echo "PASS  subcommand $m" || { echo "FAIL  subcommand $m"; fails=$((fails+1)); }; done
 [ "$fails" = 0 ] && echo "where.sh spec GREEN" || { echo "where.sh spec RED ($fails)"; exit 1; }

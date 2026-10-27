@@ -12,4 +12,5 @@ flock -n /tmp/worldtree-nightly.lock -c '
   python3 -m wt run --as-of "$(date -u +%F)" --commit --no-fetch
   python3 -m wt countries --as-of "$(date -u +%F)" --no-commit  # 0.6.0: the atlas is refreshed nightly too (it was only rebuilt by gate runs)
   bash scripts/publish.sh
+  python3 -m wt ledger  # S17: the one run-health line (no trunk commit marks a run any more)
 ' || echo "nightly skipped: another cycle holds the lock"

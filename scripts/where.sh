@@ -2,7 +2,7 @@
 # where.sh — "where am I?" in ONE call (S5 MAIN-CONTEXT, v07-reflection-and-plan F2).
 #   what version · what URL · what runs · what do I test next
 # Read-only: never builds, restarts, switches or writes (agi-status runs with AGI_STATUS_RO=1).
-# Usage: scripts/where.sh [version|url|runs|next|all]     (default all)
+# Usage: scripts/where.sh [version|url|runs|next|labs|all]     (default all)
 #        WHERE_NOGATE=1 skips the gate.py probe (it spawns a LiveKit dispatch probe).
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -79,11 +79,33 @@ do_next() {
   echo "  jitless session (cat /proc/self/cgroup shows lk-yggdrasil)? see $SANDBOX/AGENTS.md"
 }
 
+do_labs() {
+  hr "LABS"
+  local c l n
+  lc() { git log -1 --format='%h %cd' --date=format:%m-%d -- "$@" 2>/dev/null; }
+  # worldtree: the one lab with a live loop (timer + run ledger)
+  n="$(systemctl --user list-timers worldtree-fetch.timer --no-pager 2>/dev/null | awk 'NR==2{print $1,$2,$3,"(next)"}')"
+  l="$(tail -1 lab/worldtree-data/ledger.jsonl 2>/dev/null | python3 -c 'import sys,json
+try: d=json.loads(sys.stdin.read()); print("last run",d["run_id"],"health",d["value"],"published",d["published"],"sha_ok",d["published_sha_ok"])
+except Exception: print("no ledger line yet")')"
+  echo "  worldtree   $(systemctl --user is-enabled worldtree-fetch.timer 2>/dev/null) timer · ${n:-?} · $l"
+  echo "  lk-verify   $(systemctl --user is-enabled lk-verify.timer 2>/dev/null) timer · last run: $(systemctl --user show lk-verify.service -p ActiveState --value 2>/dev/null) (failed = RED)"
+  c="$(docker ps --format '{{.Names}}' 2>/dev/null | grep -c '^ygg-sim$')"
+  echo "  ygg-sim     container up=$c · driver: none · last lab commit $(lc lab/ygg-sim)"
+  echo "  voice-lab   hand-fed, no driver · newest result $(ls -t ~/Work/voice-lab/results/*.json 2>/dev/null | head -1 | xargs -r stat -c '%y' | cut -c6-10) · its commits: $(git -C ~/Work/voice-lab rev-list --count HEAD 2>/dev/null || echo 0)"
+  echo "  bridge      bifrost-bridge $(systemctl --user is-active bifrost-bridge 2>/dev/null) · yggdrasil $(systemctl --user is-active lk-yggdrasil 2>/dev/null) (graduated labs)"
+  echo "  dormant     pcb $(lc hardware) · edge $(lc edge) · research-feed $(lc docs/research/research-feed.md) (last commits)"
+  echo "registry (docs/labs.md): lab | state | wake trigger | owner"
+  awk '/<!-- labs -->/{f=1;next} /<!-- \/labs -->/{f=0} f&&/^\| /&&!/^\| (lab|---)/' docs/labs.md |
+    awk -F' \\| ' '{gsub(/^\| /,"",$1); gsub(/ \|$/,"",$4); printf "  %-20s %-60.60s | wake: %-50.50s | %s\n", $1,$2,$3,$4}'
+}
+
 case "$MODE" in
   version) do_version ;;
   url)     do_url ;;
   runs)    do_runs ;;
   next)    do_next ;;
-  all|"")  echo "where.sh · $(date '+%F %H:%M')"; do_version; do_url; do_runs; do_next ;;
-  *) echo "usage: where.sh [version|url|runs|next|all]"; exit 2 ;;
+  labs)    do_labs ;;
+  all|"")  echo "where.sh · $(date '+%F %H:%M')"; do_version; do_url; do_runs; do_next; do_labs ;;
+  *) echo "usage: where.sh [version|url|runs|next|labs|all]"; exit 2 ;;
 esac

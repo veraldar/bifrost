@@ -1,4 +1,4 @@
-"""Git helpers for `run --commit` (one commit per run, schema.md §1)."""
+"""Git helpers for `run --commit` (a commit only when a tracked file changed; the per-run marker is ledger.jsonl)."""
 import subprocess
 
 from .common import root
@@ -14,11 +14,13 @@ def head_commit():
 
 
 def commit_run(run_id, published, first_fail):
+    """Commit a run only when it changed a tracked file. A run that changed nothing (the normal night: raw/series/
+    runs/out are gitignored) leaves NO trunk commit; its marker is the ledger line (wt/ledger.py), S17."""
     msg = f"run {run_id}: published" if published else f"run {run_id}: held — {first_fail}"
     # pathspec "." = this lab dir only: R sits inside the bifrost repo, and a bare
     # `add -A` stages every other session's work (run 20261004T081621Z did).
     _git("add", "-A", "--", ".")
-    # --allow-empty: raw/series/runs/out are gitignored (relocate 10-04) — a run
-    # that changed no tracked file still gets its one-commit-per-run marker.
-    _git("commit", "-q", "--allow-empty", "-m", msg, "--", ".")
+    if _git("diff", "--cached", "--quiet", "--", ".", check=False).returncode == 0:
+        return None
+    _git("commit", "-q", "-m", msg, "--", ".")
     return msg

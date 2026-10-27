@@ -147,7 +147,9 @@ test('door: first paint → hold → greeting → language · style · brain →
   }
   await expect(card).toHaveAttribute('data-state', 'practice');
   await expect(card).toContainText('ready. this is main — your main conversation.');
-  await expect(card).toContainText('hold the mic');
+  // the walk-through's first way (UX-CALM): type · hold · hands-free, "type" on now
+  await expect(card).toHaveAttribute('data-way', 'type');
+  await expect(card).toContainText('type it');
   const ls = await page.evaluate(() => ({
     door: localStorage.getItem('bifrost-door'),
     prefs: localStorage.getItem('bifrost-onboard'),

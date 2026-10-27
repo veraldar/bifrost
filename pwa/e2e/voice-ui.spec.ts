@@ -32,12 +32,12 @@ test('rail, glyph and words follow every voice state', async ({ page }) => {
   await expect(phase).toContainText('◉');
   await expect(mic).toHaveClass(/\bheard\b/);
   await expect(page.getByRole('status', { name: 'listening' })).toBeVisible({ timeout: 30_000 });
-  await expect(phase).toContainText('release to send');
+  await expect(phase).toHaveText(/heard$/); // state only (ux-calm): no 'release to send'
 
-  // slide left inside the key → drop armed: red, ×, words say what release does
+  // slide left inside the key → drop armed: red, ×, one word for what release does
   await page.mouse.move(mb.x + 4, mb.y + mb.height / 2, { steps: 6 });
   await expect(rail).toHaveAttribute('data-s', 'drop');
-  await expect(phase).toContainText('release to delete');
+  await expect(phase).toHaveText(/× ?delete$/);
   await page.mouse.up();
   await expect(rail).toHaveAttribute('data-s', 'idle');
 
@@ -46,7 +46,7 @@ test('rail, glyph and words follow every voice state', async ({ page }) => {
   const free = page.getByTestId('free-phase');
   await expect(free).not.toContainText('connecting', { timeout: 30_000 });
   await expect(rail).toHaveAttribute('data-s', 'heard');
-  await expect(free).toContainText('tap the bars to send');
+  await expect(free).toHaveText(/hands-free$/); // the mode, not a lesson (ux-calm)
   await expect(page.getByRole('button', { name: 'send what you said' })).toBeEnabled();
   // the exit click must be a real gesture: within 400ms of the entering tap
   // it IS the gesture's ghost and the free-dock guard swallows it (see

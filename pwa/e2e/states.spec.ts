@@ -70,11 +70,11 @@ test('hands-free: keyword protocol status, no cancel button, screenshot', async 
   await page.getByRole('button', { name: 'push to talk' }).click();
   const phase = page.getByTestId('free-phase');
   await expect(phase).toBeVisible({ timeout: 30_000 });
-  // agent joined → ready: the keyword hint replaces "connecting…"
-  await expect(phase).not.toContainText('connecting', { timeout: 30_000 });
+  // ready: the strip's "connecting…" gives way to the bars
+  await expect(page.getByTestId('free-strip')).not.toContainText('connecting', { timeout: 30_000 });
   // the cancel button is gone; turns are committed by saying "over"
   await expect(page.getByTestId('free-cancel')).toHaveCount(0);
-  await expect(phase).toContainText('over');
+  await expect(phase).toHaveText(/hands-free$/); // "over" is taught by the walk-through (ux-calm)
   await page.screenshot({ path: '../artifacts/e2e-free-listening.png' });
   // leave hands-free quickly — the fake mic never says "over", so nothing
   // can commit, but short tests keep the shared server state clean

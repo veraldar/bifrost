@@ -181,9 +181,10 @@ test('every voice state keeps the footer box', async ({ page, browserName }) => 
   await page.getByRole('button', { name: 'send', exact: true }).tap();
   await expect(page.getByRole('button', { name: 'listen' })).toBeVisible({ timeout: 90_000 });
   await page.getByRole('button', { name: 'listen' }).tap();
-  await expect(page.locator('.oz-phase')).toContainText('synthesizing', { timeout: 5_000 });
+  // the deck says synthesizing / speaking — the line stays empty (ux-calm: said once)
+  await expect(page.locator('.oz-deck')).toContainText('synthesizing', { timeout: 5_000 });
   keep('synthesizing', await record(page, 'voice', 'synthesizing'));
-  await expect(page.locator('.oz-phase')).toContainText('speaking', { timeout: 15_000 });
+  await expect(page.locator('.oz-deck')).toContainText('speaking', { timeout: 15_000 });
   keep('speaking', await record(page, 'voice', 'speaking'));
   await page.getByRole('button', { name: 'stop speaking' }).tap();
   await expect(page.locator('.oz-phase')).toHaveText('', { timeout: 5_000 });
@@ -193,11 +194,11 @@ test('every voice state keeps the footer box', async ({ page, browserName }) => 
   const [mx, my] = [mic.x + mic.width / 2, mic.y + mic.height / 2];
   const f = await finger(page);
   await f.send('touchStart', mx, my);
-  await expect(page.locator('.oz-phase')).toContainText('heard ·', { timeout: 30_000 });
+  await expect(page.locator('.oz-phase')).toHaveText(/heard$/, { timeout: 30_000 });
   await page.waitForTimeout(300);
   keep('heard', await record(page, 'voice', 'heard'));
   await f.send('touchMove', mx - 32, my);
-  await expect(page.locator('.oz-phase')).toContainText('release to delete');
+  await expect(page.locator('.oz-phase')).toHaveText(/delete$/);
   keep('drop', await record(page, 'voice', 'drop'));
   await f.send('touchEnd');
   await f.done();
@@ -205,7 +206,7 @@ test('every voice state keeps the footer box', async ({ page, browserName }) => 
 
   // hands-free: a quick tap on the same mic; the strip replaces the composer
   await page.getByTestId('composer-mic').tap();
-  await expect(page.getByTestId('free-phase')).toContainText('over', { timeout: 30_000 });
+  await expect(page.getByTestId('free-phase')).toHaveText(/hands-free$/, { timeout: 30_000 });
   await page.waitForTimeout(600); // past the 400 ms ghost guard, or the exit tap is eaten
   keep('hands-free', await record(page, 'voice', 'hands-free'));
   await page.getByTestId('free-exit').tap();

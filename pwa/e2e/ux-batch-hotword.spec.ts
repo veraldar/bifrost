@@ -70,7 +70,7 @@ test('#3 · hold: "opening the mic…" until capture is live, then "heard" — a
     const b = (await mic.boundingBox())!;
     await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
     await page.mouse.down();
-    await expect(page.getByText(/heard · release to send/)).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('.oz-phase')).toHaveText(/heard$/, { timeout: 15_000 });
     await page.waitForTimeout(4_200); // the wav: 1.2 s beat + the sentence + tail
     await page.mouse.up();
 
@@ -78,7 +78,7 @@ test('#3 · hold: "opening the mic…" until capture is live, then "heard" — a
       () => (window as unknown as { __cues: { t: number; s: string }[] }).__cues
     );
     const opening = cues.findIndex((c) => /opening the mic/.test(c.s));
-    const heard = cues.findIndex((c) => /heard · release to send/.test(c.s));
+    const heard = cues.findIndex((c) => /^\W*heard$/.test(c.s));
     console.log(`cues: ${cues.map((c) => c.s.replace(/^\W+/, '')).join(' → ')}`);
     expect(opening).toBeGreaterThanOrEqual(0); // the cue never claims "heard" early
     expect(heard).toBeGreaterThan(opening);

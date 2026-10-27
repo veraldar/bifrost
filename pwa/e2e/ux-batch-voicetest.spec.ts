@@ -88,7 +88,7 @@ test('#5 · voice-test on → turns land in voice-test, MAIN untouched; off → 
     const b = (await mic.boundingBox())!;
     await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
     await page.mouse.down();
-    await expect(page.getByText(/heard · release to send/)).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('.oz-phase')).toHaveText(/heard$/, { timeout: 15_000 });
     await page.waitForTimeout(3_500);
     await page.mouse.up();
 

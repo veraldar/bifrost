@@ -108,14 +108,14 @@ async function replay(page: Page, request: APIRequestContext, s: { name: string;
   // hands-free: a tap on the mic; listening = the mic is hot
   await page.getByTestId('composer-mic').click();
   const free = page.getByTestId('free-phase');
-  await expect(free).toContainText('tap the bars to send', { timeout: 30_000 });
+  await expect(free).toHaveAttribute('data-s', 'heard', { timeout: 30_000 }); // listening (ux-calm: no hint words)
   await page.waitForTimeout(2_000);
   const before = (await users(request, s.id)).length;
 
   // the phone speaks its reply — into its own mic
   await listen.click();
-  await expect(free).toContainText('speaking', { timeout: 30_000 });
-  await expect(free).not.toContainText('speaking', { timeout: 90_000 });
+  await expect(free).toHaveAttribute('data-s', 'speaking', { timeout: 30_000 });
+  await expect(free).not.toHaveAttribute('data-s', 'speaking', { timeout: 90_000 });
   const routed = await page.evaluate(() => (window as unknown as { __echo: { routed: number } }).__echo.routed);
   expect(routed).toBeGreaterThan(0); // the reply really went through the loop
   // the agent's batch STT needs the segment's end + ~1-2 s
@@ -171,7 +171,7 @@ test('#4 B · the echo gate: the phone speaks its reply, no user turn comes back
     expect(diag.some((l) => /echo gate: mic paused while the phone speaks/.test(l))).toBe(true);
     expect(diag.some((l) => /echo gate: the phone is quiet — mic back/.test(l))).toBe(true);
     // the empty tap does not strand the strip: nothing heard → listening again
-    await expect(free).toContainText('tap the bars to send', { timeout: 15_000 });
+    await expect(free).toHaveAttribute('data-cycle', 'listening', { timeout: 15_000 });
     expect(diag.length).toBeGreaterThan(0);
     const diag2 = await page.evaluate(() =>
       (JSON.parse(localStorage.getItem('oz-diag') || '[]') as { msg: string }[]).map((e) => e.msg)

@@ -61,7 +61,7 @@ test('A · keyboard: typed turn → composer clears, one message, reply lands, b
   }
 });
 
-test('B · after the door: a typed turn moves the first-turn card on (never stays on "hold the mic")', async ({
+test('B · after the door: a typed turn moves the first-turn card on to the next way (hold)', async ({
   page,
   request,
 }) => {
@@ -76,9 +76,9 @@ test('B · after the door: a typed turn moves the first-turn card on (never stay
     await box.fill('what is two plus two?');
     await page.getByRole('button', { name: 'send', exact: true }).click();
     await expect(box).toHaveValue('');
-    // the words went out → the card says so, then the answer, then "you are in"
-    await expect(card).toHaveAttribute('data-state', /sent|heard|in/, { timeout: 15_000 });
-    await expect(card).toHaveAttribute('data-state', 'in', { timeout: 180_000 });
+    // the words went out → the card says so, then the answer, then the next way
+    await expect(card).toHaveAttribute('data-state', /sent|heard/, { timeout: 15_000 });
+    await expect(card).toHaveAttribute('data-way', 'hold', { timeout: 180_000 });
     expect(await page.evaluate(() => localStorage.getItem('bifrost-first-turn'))).toBeTruthy();
   } finally {
     await request.delete(`/api/session/${s.id}`);
@@ -88,7 +88,7 @@ test('B · after the door: a typed turn moves the first-turn card on (never stay
 test.describe('the door offers typing (mic already allowed)', () => {
   test.use({ permissions: ['microphone'] });
 
-  test('#1 · first turn: "or type it" next to the mic → typed round-trip → you are in', async ({
+  test('#1 · the walk opens on "type it" → typed round-trip → the walk moves on to "hold"', async ({
     page,
     request,
   }) => {
@@ -98,11 +98,11 @@ test.describe('the door offers typing (mic already allowed)', () => {
       await page.goto(`/session/${s.slug}?id=${s.id}&first=1`);
       const card = page.getByTestId('first-turn');
       await expect(card).toHaveAttribute('data-state', 'practice');
-      // two first-class ways in, side by side: hold the mic, or type
-      await expect(card).toContainText('hold the mic');
+      // the walk's first way (UX-CALM): type — the card's button brings the keyboard
+      await expect(card).toHaveAttribute('data-way', 'type');
       const type = page.getByTestId('first-type');
       await expect(type).toBeVisible();
-      await expect(type).toContainText('or type it');
+      await expect(type).toContainText('type it');
       await page.screenshot({ path: `${process.env.TF_SHOTS || '../artifacts'}/ux-batch-door-type-1.png` });
       await type.click();
       const box = page.getByPlaceholder('message…');
@@ -110,11 +110,11 @@ test.describe('the door offers typing (mic already allowed)', () => {
       await box.pressSequentially('what is two plus two?');
       await box.press('Enter');
       await expect(box).toHaveValue('');
-      await expect(card).toHaveAttribute('data-state', /sent|heard|in/, { timeout: 15_000 });
+      await expect(card).toHaveAttribute('data-state', /sent|heard/, { timeout: 15_000 });
       // the same proof voice gives: YOUR words in the transcript (server copy), then the reply
-      await expect(card).toHaveAttribute('data-state', /heard|in/, { timeout: 20_000 });
-      await expect(card).toHaveAttribute('data-state', 'in', { timeout: 180_000 });
-      await expect(page.getByTestId('first-in')).toBeVisible();
+      await expect(card).toHaveAttribute('data-state', /heard|practice|mic/, { timeout: 20_000 });
+      await expect(card).toHaveAttribute('data-way', 'hold', { timeout: 180_000 });
+      await expect(card.locator('li[data-way="type"]')).toHaveAttribute('data-s', 'done');
       await expect(page.getByText(/\b(4|four)\b/i).first()).toBeVisible();
       const diag = await page.evaluate(() =>
         (JSON.parse(localStorage.getItem('oz-diag') || '[]') as { kind: string; msg: string }[]).map(
@@ -124,7 +124,7 @@ test.describe('the door offers typing (mic already allowed)', () => {
       expect(diag.some((l) => /first-turn: typed turn landed/.test(l))).toBe(true);
       expect(diag.some((l) => /first-turn: reply \d+ms after send/.test(l))).toBe(true);
       await page.screenshot({ path: `${process.env.TF_SHOTS || '../artifacts'}/ux-batch-door-type-2-in.png` });
-      await page.getByTestId('first-ok').click();
+      await page.getByTestId('first-close').click(); // ✕: the walk ends here
       await page.reload();
       await expect(page.getByTestId('first-turn')).toHaveCount(0); // never comes back
     } finally {

@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test';
  *  data-theme on <html>, tokens.css re-scopes every --oz-* color. Settings
  *  draws each world in its own palette; a tap applies at once, persists
  *  across reloads, and the home band is the same tree in the new world. */
-const BG = { aether: '#080810', terminus: '#100c14', drift: '#ece8f8' } as const;
+const BG = { aether: '#07080e', terminus: '#1c1013', drift: '#e6e0f6' } as const;
 
 const htmlTheme = (page: import('@playwright/test').Page) =>
   page.evaluate(() => document.documentElement.dataset.theme);

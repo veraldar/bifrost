@@ -9,6 +9,9 @@
 :root { --oz-rule: solid; --oz-tick: 0; }
 [data-theme='terminus'] { --oz-tick: 1; }
 [data-theme='drift'] { --oz-rule: dotted; }
+[data-theme='divergence'] { --oz-rule: dashed; }
+[data-theme='transcendence'] { --oz-rule: double; }
+[data-theme='control'] { --oz-tick: 1; }
 
 @layer components {
   /* ── motion vocabulary — slowed to breathing ── */

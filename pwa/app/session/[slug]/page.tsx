@@ -2180,7 +2180,7 @@ export default function SessionView({
             : ['heard', 'hands-free · say “over” or tap the bars to send']
         : busy
           ? ['working', 'working on it · type to queue the next']
-          : ['idle', 'hold the mic to talk'];
+          : ['idle', ''];
   const GLYPH: Record<VoiceTone, string> = {
     idle: '○',
     heard: '◉',
@@ -2315,7 +2315,7 @@ export default function SessionView({
           <div className="pt-10 text-center text-xs text-[var(--oz-dim)]">
             {isOnboardingSlug(slug)
               ? 'setup — your box speaks first, then you answer by voice'
-              : 'empty session — type, hold the mic to talk, or tap it for hands-free'}
+              : 'empty session — type below'}
           </div>
         )}
         {msgs.map((m, i) => (

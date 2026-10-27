@@ -13,6 +13,13 @@
 [data-theme='transcendence'] { --oz-rule: double; }
 [data-theme='control'] { --oz-tick: 1; }
 
+/* chrome scale (UX-SPACING 10-27) — every header and footer is built from one
+   gap, one line, one key (the .oz-k sizes): the header is gap·line·gap = 52 on
+   every page, the session footer rule·gap·key·line = 81 in every voice state.
+   The line never grows — words come and go inside it, nothing under them moves.
+   The safe areas ride on top of the scale (0 until viewport-fit=cover). */
+:root { --oz-gap: 12px; --oz-line: 28px; --oz-key: 40px; --oz-roots-h: 84px; }
+
 @layer components {
   /* ── motion vocabulary — slowed to breathing ── */
   @keyframes oz-blink { 50% { opacity: 0; } }
@@ -37,7 +44,7 @@
   /* ── controls: one square key, many tints ── */
   .oz-k {
     position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-    height: 40px; min-width: 40px; padding: 0 10px;
+    height: var(--oz-key); min-width: var(--oz-key); padding: 0 10px;
     border: 1px solid var(--oz-border); background: var(--oz-surface); color: var(--oz-dim);
     font-size: 12px; text-decoration: none; -webkit-touch-callout: none;
     touch-action: manipulation; user-select: none; -webkit-user-select: none;
@@ -45,7 +52,7 @@
   }
   .oz-k:hover { color: var(--oz-text); }
   .oz-k:disabled { opacity: .5; }
-  .oz-k.sm { height: 28px; min-width: 28px; padding: 0 8px; font-size: 11px; }
+  .oz-k.sm { height: var(--oz-line); min-width: var(--oz-line); padding: 0 8px; font-size: 11px; }
   .oz-k.ok { border-color: color-mix(in srgb, var(--oz-success) 60%, transparent); color: var(--oz-success); }
   .oz-k.red { border-color: color-mix(in srgb, var(--oz-danger) 60%, transparent); color: var(--oz-danger); }
   .oz-k.on { border-color: var(--oz-info); color: var(--oz-info); }
@@ -75,7 +82,10 @@
   .oz-tick::after, .oz-blk::after { bottom: -4px; right: -4px; border-bottom: 1px solid var(--oz-text); border-right: 1px solid var(--oz-text); }
 
   /* ── headers ── */
-  .oz-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 52px; }
+  .oz-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; flex: none;
+    height: calc(var(--oz-gap) * 2 + var(--oz-line) + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top);
+  }
   .oz-brand { text-decoration: none; font-weight: 700; letter-spacing: .08em; font-size: 14px; }
 
   /* ── the tree — one drawing, many crops, governed motion ──
@@ -267,7 +277,7 @@
      answer climbs the taproot once · speaking = they breathe green */
   .oz-roots {
     position: fixed; z-index: 40; left: 0; right: 0; bottom: 0; margin: 0 auto; max-width: 28rem;
-    height: calc(84px + env(safe-area-inset-bottom));
+    height: calc(var(--oz-roots-h) + env(safe-area-inset-bottom));
     border-top: 1px var(--oz-rule) var(--oz-border); background: var(--oz-surface);
     transition: border-color .24s ease-in-out;
   }
@@ -433,26 +443,30 @@
   }
   .oz-rail[data-s='drop'] { background: color-mix(in srgb, var(--oz-danger) 70%, transparent); }
 
-  /* the exact-words line: glyph + sentence, never color alone */
+  /* the exact-words line: glyph + sentence, never color alone. The footer's
+     line — one fixed row under the dock, empty or not; 10.5 px so the longest
+     words (hands-free, 47 chars) fit 336 px, the S22's column */
   .oz-phase {
-    display: flex; gap: 6px; align-items: baseline; min-height: 28px; padding: 0 0 10px;
-    font-size: 11px; color: var(--oz-dim); transition: color .28s ease-in-out;
+    display: flex; gap: 6px; align-items: center; flex: none; white-space: nowrap;
+    height: calc(var(--oz-line) + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom);
+    font-size: 10.5px; color: var(--oz-dim); transition: color .28s ease-in-out;
   }
+  .oz-phase > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .oz-phase[data-s='heard'] { color: var(--oz-active); }
   .oz-phase[data-s='working'], .oz-phase[data-s='speaking'] { color: var(--oz-success); }
   .oz-phase[data-s='drop'] { color: var(--oz-danger); }
   .oz-phase .g { flex: none; width: 1.1em; text-align: center; }
 
   /* ── dock ── */
-  .oz-dock { display: flex; align-items: flex-end; gap: 8px; padding: 12px 0; border-top: 1px var(--oz-rule) var(--oz-border); }
+  .oz-dock { display: flex; align-items: flex-end; gap: 8px; padding: var(--oz-gap) 0 0; border-top: 1px var(--oz-rule) var(--oz-border); }
   .oz-ta {
-    flex: 1; min-width: 0; min-height: 40px; resize: none; padding: 9px 12px;
+    flex: 1; min-width: 0; min-height: var(--oz-key); resize: none; padding: 9px 12px;
     border: 1px solid var(--oz-border); background: var(--oz-surface); outline: none;
     font-size: 14px; line-height: 1.4; caret-color: var(--oz-active);
   }
   .oz-ta::placeholder { color: var(--oz-dim); }
   .oz-pill {
-    flex: 1; min-width: 0; height: 40px; display: flex; align-items: center; justify-content: center; gap: 10px;
+    flex: 1; min-width: 0; height: var(--oz-key); display: flex; align-items: center; justify-content: center; gap: 10px;
     padding: 0 12px; border: 1px solid color-mix(in srgb, var(--oz-active) 60%, transparent);
     background: var(--oz-surface); color: var(--oz-active); font-size: 11px;
   }

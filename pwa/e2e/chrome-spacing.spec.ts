@@ -1,5 +1,5 @@
-import { type Page, expect, test } from '@playwright/test';
 import { appendFileSync, mkdirSync } from 'node:fs';
+import { type Page, expect, test } from '@playwright/test';
 
 /** UX-SPACING (10-27): the chrome holds still. One header height on every
  *  page; the session footer (dock + phase line) reserves the same box in every
@@ -73,7 +73,11 @@ async function record(page: Page, where: string, state: string): Promise<Chrome>
 }
 
 // the footer's frame: where the dock starts, where the phase line ends
-const frame = (c: Chrome) => ({ dockTop: c.dock?.top, phaseBottom: c.phase?.bottom, bodyBottom: c.body?.bottom });
+const frame = (c: Chrome) => ({
+  dockTop: c.dock?.top,
+  phaseBottom: c.phase?.bottom,
+  bodyBottom: c.body?.bottom,
+});
 
 async function newSession(page: Page, name: string): Promise<string> {
   const r = await page.request.post('/api/session', { data: { name } });
@@ -87,7 +91,10 @@ async function newSession(page: Page, name: string): Promise<string> {
 async function finger(page: Page) {
   const cdp = await page.context().newCDPSession(page);
   const send = (type: 'touchStart' | 'touchMove' | 'touchEnd', x = 0, y = 0) =>
-    cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+    cdp.send('Input.dispatchTouchEvent', {
+      type,
+      touchPoints: type === 'touchEnd' ? [] : [{ x, y }],
+    });
   return { send, done: () => cdp.detach() };
 }
 
@@ -155,7 +162,9 @@ test('every voice state keeps the footer box', async ({ page, browserName }) => 
   const seen: Record<string, ReturnType<typeof frame> & { phaseH?: number; words: string }> = {};
   const keep = (state: string, c: Chrome) => {
     seen[state] = { ...frame(c), phaseH: c.phase?.h, words: c.words };
-    expect.soft(c.clipped, `${state}: every word on one line at ${c.vw}px ("${c.words}")`).toBe(false);
+    expect
+      .soft(c.clipped, `${state}: every word on one line at ${c.vw}px ("${c.words}")`)
+      .toBe(false);
   };
   keep('idle', idle);
 
@@ -196,12 +205,16 @@ test('every voice state keeps the footer box', async ({ page, browserName }) => 
 
   for (const [state, f] of Object.entries(seen)) {
     expect.soft(f.dockTop, `${state} dock top (words: "${f.words}")`).toBe(seen.idle.dockTop);
-    expect.soft(f.phaseH, `${state} phase line height (words: "${f.words}")`).toBe(seen.idle.phaseH);
+    expect
+      .soft(f.phaseH, `${state} phase line height (words: "${f.words}")`)
+      .toBe(seen.idle.phaseH);
     expect.soft(f.phaseBottom, `${state} phase line bottom`).toBe(seen.idle.phaseBottom);
   }
 });
 
-test('MAIN and a session share the footer; onboarding adds content, not chrome', async ({ page }) => {
+test('MAIN and a session share the footer; onboarding adds content, not chrome', async ({
+  page,
+}) => {
   const sess = await newSession(page, `e2e-spacing-m-${Date.now().toString(36)}`);
   await page.goto(sess);
   await expect(page.getByPlaceholder('message…')).toBeVisible();

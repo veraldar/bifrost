@@ -465,7 +465,7 @@ export default function SessionsPage() {
       {/* the last row scrolls clear of the roots (84 px + the safe area) */}
       <main
         className="relative mx-auto flex min-h-dvh max-w-md flex-col px-3"
-        style={{ paddingBottom: 'calc(100px + env(safe-area-inset-bottom))' }}
+        style={{ paddingBottom: 'calc(var(--oz-roots-h) + 16px + env(safe-area-inset-bottom))' }}
       >
         {/* the wordmark alone, full caps, no sign before it — it is the way
             into settings; the artifact runestone counts what you haven't seen */}
@@ -765,7 +765,7 @@ export default function SessionsPage() {
           key={toast.key}
           role="status"
           className="oz-toast fixed inset-x-3 z-50 mx-auto max-w-md"
-          style={{ bottom: 'calc(92px + env(safe-area-inset-bottom))' }}
+          style={{ bottom: 'calc(var(--oz-roots-h) + 8px + env(safe-area-inset-bottom))' }}
         >
           {/* what you just removed — msg count makes a heavy delete visible
               while the (longer) mercy window is still open */}

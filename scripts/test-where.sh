@@ -10,7 +10,7 @@ chk() { # name, section, regex that must appear inside that section
 chk "what version: live release label"      VERSION '^stable .*LIVE +v[0-9]'
 chk "what version: served build id"         VERSION ':8080 serves build [A-Za-z0-9_-]{15,}'
 chk "what version: sandbox commit"          VERSION '^sandbox .*@[0-9a-f]{7}'
-chk "what URL: stable + next, https"        URL     '^stable +https://.*\n?'
+chk "what URL: stable + next, https"        URL     '^stable +https://'
 chk "what URL: next on :8443"               URL     '^next +https://[^ ]+:8443'
 chk "what runs: units with state"           RUNS    'lk-pwa +(active|inactive|failed)'
 chk "what runs: listening ports"            RUNS    'listening:'

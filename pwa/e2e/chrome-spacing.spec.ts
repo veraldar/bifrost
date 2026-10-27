@@ -79,10 +79,18 @@ const frame = (c: Chrome) => ({
   bodyBottom: c.body?.bottom,
 });
 
+// every session a test opens is deleted after it — a list that grows run by
+// run pushes the roots out of mainframe-c-roots' 40-Tab reach
+const made: string[] = [];
+test.afterEach(async ({ page }) => {
+  for (const id of made.splice(0)) await page.request.delete(`/api/session/${id}`);
+});
+
 async function newSession(page: Page, name: string): Promise<string> {
   const r = await page.request.post('/api/session', { data: { name } });
   expect(r.ok()).toBe(true);
   const j = (await r.json()) as { id?: string };
+  if (j.id) made.push(j.id);
   return `/session/${name}${j.id ? `?id=${j.id}` : ''}`;
 }
 
@@ -198,7 +206,7 @@ test('every voice state keeps the footer box', async ({ page, browserName }) => 
   // hands-free: a quick tap on the same mic; the strip replaces the composer
   await page.getByTestId('composer-mic').tap();
   await expect(page.getByTestId('free-phase')).toContainText('over', { timeout: 30_000 });
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(600); // past the 400 ms ghost guard, or the exit tap is eaten
   keep('hands-free', await record(page, 'voice', 'hands-free'));
   await page.getByTestId('free-exit').tap();
   await expect(page.getByPlaceholder('message…')).toBeVisible();

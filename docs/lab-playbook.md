@@ -252,6 +252,28 @@ scope (arXiv 2609.29144). Therefore:
    gate.py). Counterfactual: hermetic determinism still wins for regression
    hunting — parity binds CERTIFICATION claims, not exploratory runs.
 
+## Fleet rule 10-27: CROSS-LINE PARITY — a fix exists on every product line, or is a named gap
+
+The 10-27 class (user: "it was fixed, it came back"): the hands-free mic guards
+and the dialects theme retune existed on main/live (v0.6.x) but never shipped on
+`lab/sandbox` (v0.7) — the branch forked from `ab00e73` (10-01) BEFORE the fixes
+were committed on main (`6405ead`, 10-04), and nothing ever compared lines.
+Three laws:
+
+1. **PORT OVER REWRITE** — hitting a bug another line already fixed? Find the
+   existing fix first (`git log --all -S <symbol>` / the reviews index) and PORT
+   it; never re-derive what a review already settled. The port documents the
+   source commit.
+2. **DRIFT GUARD** — `scripts/drift-guard.sh` inventories known class-fixes
+   across product worktrees. Run it before any release/ship and after any
+   "it came back" report. A new product line registers its probes there the day
+   it forks; a gap must be a NAMED row, never silence.
+3. **TOUCH-EVENT SPECS** — a mouse click always lands on the pressed element, so
+   no mouse spec can ever see a touch ghost (the tap's synthesized click is
+   hit-tested against the DOM that exists AFTER the lift). Any spec guarding a
+   touch gesture drives CDP touch events — `pwa/e2e/hf-quick-tap.spec.ts` is
+   the pattern.
+
 ## THE RESEARCH FEED (10-03, user): papers auto-discovered, concepts feed the labs
 The labs don't invent methodology alone — the state-of-the-art is monitored
 and absorbed: arXiv/Google Scholar queries per cadence (the self-improving

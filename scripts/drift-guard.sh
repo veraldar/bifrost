@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# drift-guard.sh — CROSS-LINE PARITY (fleet rule 10-27, docs/lab-playbook.md)
+#
+# The 10-27 lesson: the 10-02 hands-free mic guards and the 'dialects' theme
+# retune existed on main/live (v0.6.x) but NEVER shipped on lab/sandbox (v0.7)
+# — the branch forked from ab00e73 (10-01) before they were committed, and no
+# tool ever compared product lines. The user experienced it as "fixed, came
+# back". This guard inventories known class-fixes across product worktrees.
+#
+#   usage: scripts/drift-guard.sh [worktree ...]
+#          (default: ~/Work/bifrost ~/Work/bifrost-sandbox — register a new
+#           product line here the day it forks)
+#
+# A probe is a greppable symbol in a file. A line missing a probe is either a
+# NEW drift (port the fix, per law 1) or a KNOWN-GAP (named below, until ported).
+# exit 0 = no unexpected drift · exit 1 = unexpected drift or broken manifest.
+set -u
+
+# name|file|extended-regex|known-missing (comma-separated root basenames, '-')
+# A known-missing entry is a NAMED, REVIEWED divergence (comment says why) —
+# never silence. Review these rows at every fleet pass: a gap stays named only
+# until someone ports it.
+FIXES='
+# first-turn-tap: the sandbox keeps first-turn logic in the session page
+# (first === practice/sent/mic); main puts the door on the front page
+# (tree-door) and every session opens keyboard (10-02 fix #3). Same user
+# behavior, different structure — reviewed 10-27, HF-CLICK report §6.
+first-turn-tap|pwa/app/session/[slug]/page.tsx|first-turn: tap — released, nothing sent|bifrost
+ghost-click-guard|pwa/app/session/[slug]/page.tsx|freeGhostGuardRef|-
+tap-arm-reinterpret|pwa/app/session/[slug]/page.tsx|pttDownAtRef|-
+theme-dialects|pwa/styles/tokens.css|per-world|bifrost-sandbox
+'
+
+ROOTS=("$@")
+[ ${#ROOTS[@]} -eq 0 ] && ROOTS=("$HOME/Work/bifrost" "$HOME/Work/bifrost-sandbox")
+
+bad=0
+printf '%-22s %-24s %-22s %s\n' "FIX" "WORKTREE" "BRANCH" "STATE"
+printf -- '--------------------------------------------------------------------------------\n'
+while IFS='|' read -r name file regex known; do
+  [ -z "${name:-}" ] && continue
+  case "$name" in \#*) continue ;; esac
+  for root in "${ROOTS[@]}"; do
+    label="$(basename "$root")"
+    branch="$(git -C "$root" branch --show-current 2>/dev/null || echo '?')"
+    if [ ! -f "$root/$file" ]; then
+      printf '%-22s %-24s %-22s %s\n' "$name" "$label" "$branch" "NO-FILE ($file)"
+      bad=$((bad + 1)); continue
+    fi
+    if grep -qE "$regex" "$root/$file" 2>/dev/null; then
+      printf '%-22s %-24s %-22s %s\n' "$name" "$label" "$branch" "OK"
+    elif [ ",${known%%,*}," != ",-," ] && printf '%s' "$known" | tr ',' '\n' | grep -qx "$label"; then
+      printf '%-22s %-24s %-22s %s\n' "$name" "$label" "$branch" "KNOWN-GAP"
+    else
+      printf '%-22s %-24s %-22s %s\n' "$name" "$label" "$branch" "MISSING  <-- drift"
+      bad=$((bad + 1))
+    fi
+  done
+done <<<"$FIXES"
+
+echo
+if [ "$bad" -eq 0 ]; then
+  echo "drift-guard: clean (any KNOWN-GAP above is a named, pending port)"
+  exit 0
+fi
+echo "drift-guard: $bad unexpected drift — port the fix (law 1) or name the gap in the manifest"
+exit 1

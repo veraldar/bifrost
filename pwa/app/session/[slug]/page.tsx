@@ -2176,10 +2176,10 @@ export default function SessionView({
         ? voiceState !== 'ready'
           ? ['idle', 'hands-free · connecting…']
           : freeCycle === 'processing'
-            ? ['working', 'working on it · mic paused']
+            ? ['working', '']
             : ['heard', 'hands-free · say “over” or tap the bars to send']
         : busy
-          ? ['working', 'working on it · type to queue the next']
+          ? ['working', '']
           : ['idle', ''];
   const GLYPH: Record<VoiceTone, string> = {
     idle: '○',

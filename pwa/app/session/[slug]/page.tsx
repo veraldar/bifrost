@@ -2180,9 +2180,7 @@ export default function SessionView({
             : ['heard', 'hands-free · say “over” or tap the bars to send']
         : busy
           ? ['working', 'working on it · type to queue the next']
-          : first === 'off' || first === 'in'
-            ? ['idle', 'hold the mic to talk · tap it for hands-free']
-            : ['idle', 'hold the mic to talk'];
+          : ['idle', 'hold the mic to talk'];
   const GLYPH: Record<VoiceTone, string> = {
     idle: '○',
     heard: '◉',

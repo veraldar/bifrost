@@ -9,7 +9,7 @@ let sessionId = '';
 
 test('queue: mid-run send queues, stop advances to it', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'new session' }).click();
+  await page.getByRole('button', { name: 'new session', exact: true }).click();
   await page.getByPlaceholder('session name…').fill(NAME);
   await page.getByRole('button', { name: 'create & open' }).click();
   await expect(page).toHaveURL(new RegExp(`/session/${NAME}`));

@@ -20,7 +20,10 @@ import {
 
 const WAV = join(__dirname, 'fixtures/roots-over-en.wav'); // 0.6 s · "What is three plus three? Over." · 4 s
 
+// the user has allowed the mic: without a grant, headless Chromium answers the
+// Permissions API 'prompt' or 'denied' (by version/flags) and the hold stops at that gate
 test.use({
+  permissions: ['microphone'],
   launchOptions: {
     args: [
       '--use-fake-ui-for-media-stream',

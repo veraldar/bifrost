@@ -90,10 +90,11 @@ for (const { press, ms, limit, arms } of [
     await page.goto(`/session/${NAME}?id=${sessionId}`);
     const mic = page.getByRole('button', { name: 'push to talk' });
     await expect(mic).toBeVisible();
-    // the user taps a settled screen: the room preconnected, the idle words up
+    // the user taps a settled screen: the room preconnected, the line idle
+    // (idle renders nothing since d02e965/9f43c8e — the state is data-s)
     await token;
     await expect(mic).not.toHaveClass(/opacity-50/, { timeout: 30_000 });
-    await expect(page.locator('.oz-phase')).toContainText('tap it for hands-free');
+    await expect(page.locator('.oz-phase')).toHaveAttribute('data-s', 'idle');
     await page.waitForTimeout(500);
     const msgsBefore = await total(request);
 

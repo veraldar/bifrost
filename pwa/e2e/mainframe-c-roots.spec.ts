@@ -72,8 +72,10 @@ test('one tree: the band on top, the roots at the bottom — no corner door, MAI
   // full width, on the ground
   const vp = page.viewportSize()!;
   const b = (await roots.boundingBox())!;
-  expect(Math.round(b.x)).toBe(0);
+  // the column is max-w-md and centred: on a phone that is x = 0; the suite's desktop project
+  // centres it (x = (1280 − 448) / 2)
   expect(Math.round(b.width)).toBe(Math.min(vp.width, 448));
+  expect(Math.round(b.x)).toBe(Math.round((vp.width - b.width) / 2));
   expect(Math.round(b.y + b.height)).toBe(vp.height);
   expect(Math.round(b.height)).toBeGreaterThanOrEqual(84);
   // MAIN is the roots, never a row
@@ -198,7 +200,13 @@ test('keyboard: the roots take focus; Enter = tap; a short Space = tap', async (
   const hit = page.getByTestId('roots-hit');
   // reachable by Tab from the page (not mouse-only)
   let reached = false;
-  for (let i = 0; i < 40 && !reached; i++) {
+  // bounded by what the page can focus — a long session list sits before the roots, and it
+  // renders after the roots do: the bound is re-read every step
+  const stops = () =>
+    page.evaluate(
+      () => document.querySelectorAll('a[href], button, input, textarea, select, [tabindex]').length
+    );
+  for (let i = 0; !reached && i < (await stops()) + 5; i++) {
     await page.keyboard.press('Tab');
     reached = await hit.evaluate((el) => el === document.activeElement);
   }
@@ -244,6 +252,7 @@ test('voice tests OFF: a hold talks to MAIN’s room (token room = main) — int
       (await request.get('/api/session/main/messages?limit=1')).headers()['x-total-count'] || 0
     );
   const before = await mainTotal();
+  await page.context().grantPermissions(['microphone']); // the user has allowed the mic
   const asked: string[] = [];
   // the room the roots ask for — answered with a refusal, so no room opens
   await page.route('**/api/token', async (route) => {

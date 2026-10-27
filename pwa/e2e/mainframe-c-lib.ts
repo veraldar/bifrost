@@ -96,11 +96,23 @@ export async function quietRoom(room: string, ms = 45_000) {
   const url = (env.LIVEKIT_API_URL || 'http://127.0.0.1:7880').replace(/^ws(s)?:/, 'http$1:');
   const svc = new RoomServiceClient(url, env.LIVEKIT_API_KEY, env.LIVEKIT_API_SECRET);
   const t0 = Date.now();
+  let deadline = t0 + ms;
+  let closed = false;
   for (;;) {
     const ps = await svc.listParticipants(room).catch(() => []);
     if (!ps.length) return Date.now() - t0;
-    if (Date.now() - t0 > ms)
+    if (Date.now() > deadline) {
+      // a job whose human never joined (a page that minted a token and left at once) has no
+      // disconnect to end on: its agent waits for LiveKit's ~5 min empty timeout. Agents only,
+      // no human → close the room once; anyone else in it is a real failure.
+      if (!closed && ps.every((p) => p.identity.startsWith('agent-'))) {
+        await svc.deleteRoom(room).catch(() => {});
+        closed = true;
+        deadline = Date.now() + 10_000;
+        continue;
+      }
       throw new Error(`room ${room} still holds ${ps.map((p) => p.identity).join(', ')}`);
+    }
     await new Promise((r) => setTimeout(r, 500));
   }
 }

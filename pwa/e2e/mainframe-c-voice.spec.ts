@@ -22,7 +22,10 @@ import {
 
 const WAV = join(__dirname, 'fixtures/first-turn-en.wav');
 
+// the user has allowed the mic: without a grant, headless Chromium answers the
+// Permissions API 'prompt' or 'denied' (by version/flags) and the hold stops at that gate
 test.use({
+  permissions: ['microphone'],
   launchOptions: {
     args: [
       '--use-fake-ui-for-media-stream',

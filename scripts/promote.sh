@@ -311,6 +311,8 @@ else
   git archive --format=tar "$BASE" pwa agent scripts | tar -x -C "$REL" || die "archive failed"
 fi
 for f in "${STATE_LINKS[@]}"; do ln -sfn "$REPO/pwa/$f" "$REL/pwa/$f"; done
+# env/ before the build: pwa/.env.local -> ../env/live-pwa.env must resolve (next build stats it)
+freeze_env "$REL" || die "env copy failed"
 link_artifacts "$REL"
 
 LOG="$REL/build.log"
@@ -323,7 +325,10 @@ LOG="$REL/build.log"
   GIT_CEILING_DIRECTORIES="$BIF" PATH="$NODE_BIN:$PATH" "$NODE_BIN/npm" run build
   cd "$REL/agent"
   "$UV" sync --frozen
-) > "$LOG" 2>&1 || die "build failed — see $LOG (live untouched)"
+) > "$LOG" 2>&1
+# (never `( set -e … ) || die`: bash ignores set -e inside an || list — a failed next build was staged as built)
+(($? == 0)) || die "build failed — see $LOG (live untouched)"
+[[ -s "$REL/pwa/.next/BUILD_ID" ]] || die "no .next/BUILD_ID — see $LOG (live untouched)"
 
 BUILD_ID="$(cat "$REL/pwa/.next/BUILD_ID")"
 # freeze the source (manifest catches any later edit; read-only says "don't")
@@ -340,7 +345,6 @@ json.dump({
 }, open(sys.argv[1], "w"), indent=1)
 EOF
 chmod a-w "$REL/RELEASE.json"
-freeze_env "$REL" || die "env copy failed"
 link_artifacts "$REL"
 say "built $ID · build $BUILD_ID · manifest ${MANIFEST:0:12} · env $(env_hash "$REL")"
 ((BUILD_ONLY)) && { say "--build-only: staged, live untouched"; exit 0; }

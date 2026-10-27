@@ -137,3 +137,17 @@ the phone device class). The user tests LAST — the 2-min confirmation only.
    end-to-end pending)
 THE ORDER: e2e green → sim-lab phone-class suite → receipts to the
 coordinator → user confirmation test → the URD row → v0.8 starts.
+
+## ALIGNMENT 10-27: adopted from the root's MAIN session (validated together)
+- Rule 10-27 + scripts/drift-guard.sh (9d3daa8): cross-line parity — the
+  10-02 mic fixes + the dialects theme never reached the v0.7 fork ("fixed,
+  came back"). The guard inventories class-fixes across product worktrees.
+- The user ADOPTED all four fork-gap measures (root's proposition, req 10-27):
+  A fork manifest (docs/lines/<line>.md at fork time) · B merge cadence ≤3
+  days on product lines · C commit-fixes-same-day on live-serving lines ·
+  D drift-guard = a blocking ship step. The root writes these as fleet rule
+  10-28 on the user's go.
+- UX: the decorative mic glyph removed from the roots row; the footer
+  teaching line retired (d02e965, rebuilt, restarted).
+- FOLD INTO S2 TRUNK-MERGE: the merge brief cites 10-27/10-28 + runs
+  drift-guard as a blocking step; S1's test gaps include the fork-gap class.

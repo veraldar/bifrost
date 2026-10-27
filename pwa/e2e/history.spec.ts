@@ -20,7 +20,7 @@ async function dragX(page: Page, selector: string, dx: number) {
 
 test('history: swipe → opens the past, ← returns, past newest closes', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'new session' }).click();
+  await page.getByRole('button', { name: 'new session', exact: true }).click();
   await page.getByPlaceholder('session name…').fill(NAME);
   await page.getByRole('button', { name: 'create & open' }).click();
   await expect(page).toHaveURL(new RegExp(`/session/${NAME}`));

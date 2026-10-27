@@ -57,7 +57,9 @@ test('#5 · voice-test on → turns land in voice-test, MAIN untouched; off → 
   await sw.click();
   await expect(sw).toHaveAttribute('aria-checked', 'true');
   await expect(page.getByTestId('voice-test-state')).toContainText('MAIN opens voice-test');
-  await page.screenshot({ path: `${process.env.TF_SHOTS || '../artifacts'}/ux-batch-voice-test-settings.png` });
+  await page.screenshot({
+    path: `${process.env.TF_SHOTS || '../artifacts'}/ux-batch-voice-test-settings.png`,
+  });
 
   try {
     // MAIN (the tree's way back) opens the test twin
@@ -90,17 +92,19 @@ test('#5 · voice-test on → turns land in voice-test, MAIN untouched; off → 
     await page.waitForTimeout(3_500);
     await page.mouse.up();
 
-    // the turn lands in voice-test
-    await expect(page.locator('[data-mi]', { hasText: /two plus two/i }).last()).toBeVisible({
-      timeout: 30_000,
-    });
-    const vt = (
-      (await (await request.get('/api/session/voice-test/messages?limit=200')).json()) as {
-        role: string;
-        text: string;
-      }[]
-    ).filter((m) => m.role === 'user');
-    expect(vt.length).toBeGreaterThan(userBefore);
+    // the turn lands in voice-test — counted, not seen: voice-test keeps every earlier
+    // "two plus two", so a visible one can be old and a one-shot count can run ahead of the turn
+    const userTurns = async () =>
+      (
+        (await (await request.get('/api/session/voice-test/messages?limit=200')).json()) as {
+          role: string;
+          text: string;
+        }[]
+      ).filter((m) => m.role === 'user');
+    await expect
+      .poll(async () => (await userTurns()).length, { timeout: 30_000 })
+      .toBeGreaterThan(userBefore);
+    const vt = await userTurns();
     expect(vt[vt.length - 1].text).toMatch(/two plus two/i);
 
     // MAIN: never a room, not one message more
@@ -109,7 +113,9 @@ test('#5 · voice-test on → turns land in voice-test, MAIN untouched; off → 
     expect(rooms.every((r) => r === 'voice-test')).toBe(true);
     await page.waitForTimeout(3_000);
     expect(await mainTotal()).toBe(mainBefore);
-    await page.screenshot({ path: `${process.env.TF_SHOTS || '../artifacts'}/ux-batch-voice-test-room.png` });
+    await page.screenshot({
+      path: `${process.env.TF_SHOTS || '../artifacts'}/ux-batch-voice-test-room.png`,
+    });
 
     // the chip turns it off → MAIN again
     await page.getByTestId('voice-test-chip').click();

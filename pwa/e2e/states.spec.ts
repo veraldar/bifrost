@@ -15,7 +15,7 @@ test('home: sessions list screenshot', async ({ page }) => {
 
 test('session states: empty → working… → replied, screenshots each', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'new session' }).click();
+  await page.getByRole('button', { name: 'new session', exact: true }).click();
   await page.getByPlaceholder('session name…').fill(NAME);
   await page.getByRole('button', { name: 'create & open' }).click();
   await expect(page).toHaveURL(new RegExp(`/session/${NAME}`));

@@ -19,8 +19,9 @@ test('rail, glyph and words follow every voice state', async ({ page }) => {
   const rail = page.locator('.oz-rail');
   const phase = page.locator('.oz-phase');
   await expect(rail).toHaveAttribute('data-s', 'idle');
-  await expect(phase).toContainText('○');
-  await expect(phase).toContainText('hold the mic to talk');
+  // idle renders nothing (9f43c8e: states appear only when there is a state)
+  await expect(phase).toHaveAttribute('data-s', 'idle');
+  await expect(phase).toHaveText('');
 
   // hold the mic → heard: amber rail, ◉, the held key glows
   const mic = page.getByRole('button', { name: 'push to talk' });

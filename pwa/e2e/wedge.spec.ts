@@ -16,7 +16,7 @@ let corpseId = '';
 
 test('stacked prompt behind a live run must not wedge-abort', async ({ page, request }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'new session' }).click();
+  await page.getByRole('button', { name: 'new session', exact: true }).click();
   await page.getByPlaceholder('session name…').fill(NAME);
   await page.getByRole('button', { name: 'create & open' }).click();
   await expect(page).toHaveURL(new RegExp(`/session/${NAME}`));
@@ -68,7 +68,7 @@ test('dead run masked by an un-completed step must event-quiet wedge', async ({
   // the stall window = corpse. ?stall=15 shrinks the 5-minute production
   // window for the test; sleep 25 keeps the step un-completed well past it.
   await page.goto('/');
-  await page.getByRole('button', { name: 'new session' }).click();
+  await page.getByRole('button', { name: 'new session', exact: true }).click();
   await page.getByPlaceholder('session name…').fill(`${NAME}-corpse`);
   await page.getByRole('button', { name: 'create & open' }).click();
   await expect(page).toHaveURL(new RegExp(`/session/${NAME}-corpse`));

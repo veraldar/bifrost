@@ -8,7 +8,7 @@ import { expect, test } from '@playwright/test';
  */
 test('fresh session answers with bifrost context', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'new session' }).click();
+  await page.getByRole('button', { name: 'new session', exact: true }).click();
   await page.getByPlaceholder('session name…').fill('e2e-context');
   await page.getByRole('button', { name: 'create & open' }).click();
   await expect(page).toHaveURL(/\/session\/e2e-context/);

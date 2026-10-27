@@ -192,8 +192,9 @@ test('identity pin: a queued turn dies with its session', async ({ request }) =>
     data: { text: 'q-QUEUED-behind', async: true },
   });
   expect((await q.json()).queued).toBeTruthy();
-  // the proxy's queue file (server cwd = this runner's cwd: pwa/)
-  const FILE = path.join(process.cwd(), '.oc-queue.json');
+  // the proxy's queue file: the server's cwd — this runner's pwa/ on the sandbox, the
+  // matrix clone's on a frozen-rc serve (scripts/next-slot.sh serve prints PW_SERVER_CWD)
+  const FILE = path.join(process.env.PW_SERVER_CWD || process.cwd(), '.oc-queue.json');
   const onDisk = async () => readFile(FILE, 'utf8').catch(() => '');
   expect(await onDisk(), 'the queued turn is on disk behind the live run').toContain(
     'q-QUEUED-behind'

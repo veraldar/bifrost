@@ -1,0 +1,12 @@
+# NOT enabled by default (a schedule is autonomy: enabled_by user).
+# systemctl --user link ~/Work/bifrost/scripts/agi-reap.{service,timer} && systemctl --user enable --now agi-reap.timer
+[Unit]
+Description=agi lanes: reap dead RUNNING rows every 30 s
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=30s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

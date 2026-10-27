@@ -33,25 +33,27 @@ tap-arm-reinterpret|pwa/app/session/[slug]/page.tsx|pttDownAtRef|-
 theme-dialects|pwa/styles/tokens.css|oz-bg: #07080e|-
 # the 10-06 voice-outage fixes (79d53f1/c6a1b2d/232b25c) on the live agent never reached the
 # v0.7 agent (lane2/merge) — found 10-27 by RULER-V07, ported onto release/v0.7 by 3-way merge.
-# KNOWN-GAP bifrost-sandbox / lane2-merge: their agent/ trees are not what ships (rc1 = release/v0.7);
+# DRAINED 10-27 (DRAIN-DRIFT): lab/sandbox now carries all four (139109f, verbatim from release/v0.7 ca990ca).
+# KNOWN-GAP lane2-merge only: its agent/ tree is not what ships (rc1 = release/v0.7);
 # lane2-merge/agent still SERVES the next slot (lk-agent-ygg) until the next slot runs a release.
-agent-load-inf|agent/agent.py|load_threshold=float\("inf"\)|bifrost-sandbox,lane2-merge
-agent-ordered-yield|agent/agent.py|yielding \(ordered|bifrost-sandbox,lane2-merge
-agent-split-brain|agent/agent.py|BRAIN MISMATCH|bifrost-sandbox,lane2-merge
-agent-loopback-http|agent/agent.py|AGENT_HTTP_HOST|bifrost-sandbox,lane2-merge
+agent-load-inf|agent/agent.py|load_threshold=float\("inf"\)|lane2-merge
+agent-ordered-yield|agent/agent.py|yielding \(ordered|lane2-merge
+agent-split-brain|agent/agent.py|BRAIN MISMATCH|lane2-merge
+agent-loopback-http|agent/agent.py|AGENT_HTTP_HOST|lane2-merge
 # pwa fixes on trunk after the fork (ab00e73), found 10-27 by RULER-V07 diffing live v0.6.1 vs rc1.
 # PORTED onto release/v0.7 (rc2): the TTS generation lock (6405ead, the stutter fix) + the 300 s
-# headersTimeout (40c6037, runs > 5 min died mid-flight). KNOWN-GAP lab/sandbox until release/v0.7
-# merges back (v0.7.1 slice 1). NAMED, not ported tonight (v0.7.1, owner S2 TRUNK-MERGE):
+# headersTimeout (40c6037, runs > 5 min died mid-flight). PORTED to lab/sandbox 10-27
+# (b2000b0). agent-rearm / artifact-black-page / bifrost-auth-declared are PORTED to lab/sandbox 10-27
+# (3b6e932, 676e42e, e156a71) and stay a NAMED gap on release/v0.7 only (frozen line; the user decides its fate):
 #   agent-rearm (49a61e6: re-dispatch the agent into an agent-less ready room — client + a route
 #   the fork never had), artifact-black-page (547cb89: md opened directly gets the black page),
 #   bifrost-auth-declared (7572aaa: BIFROST_AUTH replaces the IS_VERCEL_PREVIEW guard; tailnet-only
 #   box, no exposure change). artifact-meta (56730fa) + device pairing (9c0425e) are features, not fixes.
-tts-generation-lock|pwa/app/api/tts/stream/route.ts|withTtsGenerationLock|bifrost-sandbox
-oc-headers-timeout|pwa/lib/oc.ts|headersTimeout|bifrost-sandbox
-agent-rearm|pwa/app/session/[slug]/page.tsx|api/dispatch|bifrost-sandbox,release-v07
-artifact-black-page|pwa/app/api/artifact/[name]/route.ts|sec-fetch-dest|bifrost-sandbox,release-v07
-bifrost-auth-declared|pwa/app/api/token/route.ts|BIFROST_AUTH|bifrost-sandbox,release-v07
+tts-generation-lock|pwa/app/api/tts/stream/route.ts|withTtsGenerationLock|-
+oc-headers-timeout|pwa/lib/oc.ts|headersTimeout|-
+agent-rearm|pwa/app/session/[slug]/page.tsx|api/dispatch|release-v07
+artifact-black-page|pwa/app/api/artifact/[name]/route.ts|sec-fetch-dest|release-v07
+bifrost-auth-declared|pwa/app/api/token/route.ts|BIFROST_AUTH|release-v07
 '
 
 ROOTS=("$@")

@@ -476,7 +476,7 @@ export default function SessionView({
 
   const histChip =
     histPos !== null && sentHistory.length > 0
-      ? `history ${histPos + 1}/${sentHistory.length} · ↓ back to draft`
+      ? `history ${histPos + 1}/${sentHistory.length}`
       : '';
   // phone: slide on the textarea itself (touch only — a mouse-drag there
   // must stay text selection; PC uses the arrow keys)
@@ -2154,30 +2154,27 @@ export default function SessionView({
   //   working  one green signal glides — the box is on it
   //   idle     dim, still — you are not heard
   //   drop     red — release now deletes the hold
+  // The words are STATE only, never teaching (UX-CALM 10-27, the user: "all
+  // those help texts — I want all of them gone"; how to hold / say "over" /
+  // tap the bars lives in the first-turn walk-through). Said once: where the
+  // pill or the deck already says it in words, the line stays empty.
   type VoiceTone = 'idle' | 'heard' | 'working' | 'speaking' | 'drop';
   const [tone, words]: [VoiceTone, string] = holding
     ? voiceState !== 'ready'
-      ? ['idle', 'connecting… keep holding, talk at “heard”']
+      ? ['idle', ''] // the pill says connecting…
       : pttCancelArm
-        ? ['drop', 'release to delete · slide back to keep']
+        ? ['drop', 'delete']
         : !micLive
-          ? ['idle', 'opening the mic… talk at “heard”']
-          : ['heard', 'heard · release to send · slide left to delete']
+          ? ['idle', 'opening the mic…']
+          : ['heard', 'heard'] // the onset cue (214af11): talk from here
     : speech.phase !== 'idle'
-      ? [
-          'speaking',
-          speech.phase === 'loading'
-            ? 'synthesizing the reply…'
-            : mode === 'free'
-              ? 'speaking · mic returns when it ends'
-              : 'speaking · red ■ stops speech and work',
-        ]
+      ? ['speaking', ''] // the deck says synthesizing / speaking
       : mode === 'free'
         ? voiceState !== 'ready'
-          ? ['idle', 'hands-free · connecting…']
+          ? ['idle', 'hands-free']
           : freeCycle === 'processing'
             ? ['working', '']
-            : ['heard', 'hands-free · say “over” or tap the bars to send']
+            : ['heard', 'hands-free']
         : busy
           ? ['working', '']
           : ['idle', ''];
@@ -2315,7 +2312,7 @@ export default function SessionView({
           <div className="pt-10 text-center text-xs text-[var(--oz-dim)]">
             {isOnboardingSlug(slug)
               ? 'setup — your box speaks first, then you answer by voice'
-              : 'empty session — type below'}
+              : 'empty session'}
           </div>
         )}
         {msgs.map((m, i) => (
@@ -2354,8 +2351,15 @@ export default function SessionView({
 
         {/* listen chip — anchored to the last message, in the text flow.
             Only when that message IS the agent's (the chip plays it);
-            hidden while the deck is active (the deck owns the controls). */}
+            hidden while the deck is active (the deck owns the controls).
+            Busy law (UX-CALM 10-27, the user: "as long as you're working, I
+            shouldn't be able to tap the listen button"): no chip while the
+            run is in flight — the working row holds this spot with its
+            cancel, the chip takes it over once the reply is whole. Hands-free
+            waiting on its reply (processing) speaks it by itself: no chip. */}
         {speech.phase === 'idle' &&
+          !busy &&
+          !(mode === 'free' && freeCycle === 'processing') &&
           lastAssistant &&
           msgs.length > 0 &&
           msgs[msgs.length - 1] === lastAssistant && (
@@ -2367,6 +2371,7 @@ export default function SessionView({
                 startSpeech(lastAssistant.text, slug);
               }}
               className="oz-chip"
+              data-testid="listen-chip"
             >
               <LineIcon name="volume" size={13} /> listen
             </button>
@@ -2702,13 +2707,10 @@ export default function SessionView({
                   <span className="oz-breathe">connecting…</span>
                 ) : (
                   <>
-                    {pttCancelArm ? (
-                      <span className="tracking-[0.12em]">release to delete</span>
-                    ) : (
-                      <span aria-label="hold duration" className="tabular-nums">
-                        {Math.floor(pttSecs / 60)}:{String(pttSecs % 60).padStart(2, '0')}
-                      </span>
-                    )}
+                    {/* the drop zone is said by the line ("delete") and the red */}
+                    <span aria-label="hold duration" className="tabular-nums">
+                      {Math.floor(pttSecs / 60)}:{String(pttSecs % 60).padStart(2, '0')}
+                    </span>
                     <span className="oz-bars">
                       {pttLevels.map((l, i) => (
                         <i key={i} style={{ height: `${Math.min(22, Math.max(3, Math.round(l * 22)))}px` }} />

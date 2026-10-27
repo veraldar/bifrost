@@ -31,10 +31,20 @@ tap-arm-reinterpret|pwa/app/session/[slug]/page.tsx|pttDownAtRef|-
 # theme-dialects: ported to lab/sandbox 10-27 (be67d66, THEME-PORT report).
 # Probe is a value (the aether dialect ground), not the header comment.
 theme-dialects|pwa/styles/tokens.css|oz-bg: #07080e|-
+# the 10-06 voice-outage fixes (79d53f1/c6a1b2d/232b25c) on the live agent never reached the
+# v0.7 agent (lane2/merge) — found 10-27 by RULER-V07, ported onto release/v0.7 by 3-way merge.
+# KNOWN-GAP bifrost-sandbox / lane2-merge: their agent/ trees are not what ships (rc1 = release/v0.7);
+# lane2-merge/agent still SERVES the next slot (lk-agent-ygg) until the next slot runs a release.
+agent-load-inf|agent/agent.py|load_threshold=float\("inf"\)|bifrost-sandbox,lane2-merge
+agent-ordered-yield|agent/agent.py|yielding \(ordered|bifrost-sandbox,lane2-merge
+agent-split-brain|agent/agent.py|BRAIN MISMATCH|bifrost-sandbox,lane2-merge
+agent-loopback-http|agent/agent.py|AGENT_HTTP_HOST|bifrost-sandbox,lane2-merge
 '
 
 ROOTS=("$@")
 [ ${#ROOTS[@]} -eq 0 ] && ROOTS=("$HOME/Work/bifrost" "$HOME/Work/bifrost-sandbox")
+# the release line (rc1 is frozen from it) is a product line the day it exists
+[ $# -eq 0 ] && [ -d "$HOME/Work/release-v07" ] && ROOTS+=("$HOME/Work/release-v07")
 
 bad=0
 printf '%-22s %-24s %-22s %s\n' "FIX" "WORKTREE" "BRANCH" "STATE"

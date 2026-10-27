@@ -1910,7 +1910,7 @@ export default function SessionView({
       kind === 'type'
         ? ['practice', 'mic', 'denied']
         : kind === 'free'
-          ? ['practice', 'mic', 'sent']
+          ? ['practice', 'mic']
           : ['practice', 'sent'];
     if (!from.includes(first)) return;
     const before = [...msgs].reverse().find((m) => m.role === 'user' && !isOnboardPrompt(m.text));
@@ -1929,7 +1929,9 @@ export default function SessionView({
   // it calls the CURRENT card through this ref
   const firstFreeRef = useRef(() => {});
   firstFreeRef.current = () => {
-    if (first !== 'off' && first !== 'in') firstSent('free');
+    // hands-free only: the agent also reports an "over" said INSIDE a held
+    // turn (push-to-talk) — that turn is the hold, not this way
+    if (modeRef.current === 'free' && first !== 'off' && first !== 'in') firstSent('free');
   };
 
   // the hands-free way, once in hands-free, says what to do there — a mic

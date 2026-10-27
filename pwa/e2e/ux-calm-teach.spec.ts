@@ -14,7 +14,11 @@ import { diag, mainTotal, quietRoom, users, vtMsgs } from './mainframe-c-lib';
  *    2 · the walk's controls (skip, ✕, resume, ?teach=1) — no voice turn,
  *        runs on the sim (:8096) too. */
 
-const WAV = join(__dirname, 'fixtures/roots-over-en.wav'); // 0.6 s · "What is three plus three? Over." · 4 s, looped
+// looped, 12.5 s: "what is two plus two?" · silence · "What is three plus three? Over." · 4 s
+// (first-turn-en + roots-over-en). Two sentences, not one: the voice agent drops a
+// turn identical to its previous one (agent.py last_prompt), so a one-sentence loop
+// makes the hands-free turn a copy of the hold and it never lands
+const WAV = join(__dirname, 'fixtures/ux-calm-walk-en.wav');
 
 test.use({
   viewport: { width: 360, height: 780 },
@@ -115,7 +119,7 @@ test('the walk-through: type → hold → hands-free + “over”, each done onc
   await shot(page, '2-hold');
 
   // 2 · hold: talk at "heard", let go — STT proves itself, the reply speaks
-  await hold(page, 7_500); // the wav loops every ~7 s: one whole sentence passes
+  await hold(page, 7_500); // more than one sentence of the loop passes
   await expect(card).toHaveAttribute('data-state', /sent|heard/, { timeout: 10_000 });
   await expect(card).toHaveAttribute('data-state', 'heard', { timeout: 30_000 });
   console.log(`hold heard: ${await page.getByTestId('first-heard').textContent()}`);

@@ -88,6 +88,9 @@ const FT = {
     sent: 'sent · listening for your words…',
     sentTyped: 'sent · on its way to the tree…',
     lost: 'it did not arrive · send it again',
+    // the voice agent drops a turn identical to its last one (agent.py
+    // last_prompt): "again" with the same words never lands
+    lostFree: 'nothing new arrived · say something else, then “over”',
     heard: 'heard',
     got: 'received',
     answering: 'the tree answers…',
@@ -112,6 +115,7 @@ const FT = {
     sent: 'envoyé · à l’écoute de vos mots…',
     sentTyped: 'envoyé · en route vers l’arbre…',
     lost: 'pas arrivé · renvoyez-le',
+    lostFree: 'rien de nouveau · dites autre chose, puis « over »',
     heard: 'entendu',
     got: 'reçu',
     answering: 'l’arbre répond…',
@@ -2006,7 +2010,7 @@ export default function SessionView({
             'voice-fail',
             `first-turn: ${f.kind} turn not in the transcript 15s after send`
           );
-          setFirstHint(FT[firstLang].lost);
+          setFirstHint(f.kind === 'free' ? FT[firstLang].lostFree : FT[firstLang].lost);
           setFirst('practice');
           return;
         }

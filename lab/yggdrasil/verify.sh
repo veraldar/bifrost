@@ -552,5 +552,28 @@ assert text.startswith("MOCK-") and "SLOW-END" not in text, f"partial not kept: 
 print(f"provider drops the stream mid-reply -> blocked/error, never a complete-looking answer; partial kept {text!r}")
 PY
 echo "herdr triad ok"
+
+# --- OG-ctx (10-27): the AGENTS.md chain rides every run as ONE system message, re-read per run;
+# missing files are skipped; no file = no system message (opencode parity)
+kill $SRV; wait $SRV 2>/dev/null || true; SRV=
+printf 'CTX-ONE stub marker\nline two\n' >$TMP/AGENTS.md
+YGG_CONTEXT_FILES=$TMP/AGENTS.md:$TMP/missing.md start_srv
+ctx_ask() { curl -sfN -X POST http://$YGG/session/$1/message -H 'content-type: application/json' -H 'accept: text/event-stream' \
+  -d '{"parts":[{"type":"text","text":"ctx?"}]}'; }
+CS=$(curl -sf -X POST http://$YGG/session | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
+grep -q "CTX: Instructions from: $TMP/AGENTS.md | CTX-ONE stub marker \[system msgs: 1\]" <<<"$(ctx_ask $CS)" || { echo "FAIL: OG-ctx: context file not injected as one system message"; exit 1; }
+printf 'CTX-TWO edited\n' >$TMP/AGENTS.md
+ctx_ask $CS | grep -q "| CTX-TWO edited \[system msgs: 1\]" || { echo "FAIL: OG-ctx: an edited file must land on the next run (re-read)"; exit 1; }
+python3 - "$(curl -sf http://$YGG/session/$CS/message)" <<'PY'
+import sys, json
+msgs = json.loads(sys.argv[1])
+assert all(m["info"]["role"] in ("user", "assistant") for m in msgs), "the context must never be stored in the transcript"
+print(f"OG-ctx: injected per run, never stored ({len(msgs)} stored messages)")
+PY
+kill $SRV; wait $SRV 2>/dev/null || true; SRV=
+YGG_CONTEXT_FILES=$TMP/missing.md start_srv
+CS=$(curl -sf -X POST http://$YGG/session | python3 -c 'import sys,json;print(json.load(sys.stdin)["id"])')
+ctx_ask $CS | grep -q "CTX: none \[system msgs: 0\]" || { echo "FAIL: OG-ctx: a missing file must inject nothing"; exit 1; }
+echo "OG-ctx ok"
 kill $SRV; wait $SRV 2>/dev/null || true; SRV=
 echo PASS

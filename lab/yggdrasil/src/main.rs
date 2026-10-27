@@ -21,6 +21,8 @@
 //!                          `/config/providers` + `/agent` (default: one provider = the upstream model,
 //!                          agents build + plan)
 //!   YGG_PROJECT_DIR        slice 6a: where tools run / relative paths resolve (default: cwd)
+//!   YGG_CONTEXT_FILES      OG-ctx (10-27): `:`-separated context files injected as the run's system
+//!                          message, re-read every run (default: `<project dir>/AGENTS.md`; missing = skipped)
 //!   YGG_MAX_STEPS          upstream calls per run before the loop gives up (default: 100)
 //!   YGG_BASH_TIMEOUT_MS    default bash tool timeout (default: 120000)
 //!   YGG_TOOLS              `0` = don't declare tools (plain relay, for tool-less upstreams)
@@ -747,6 +749,9 @@ async fn agent_loop(
     run: &mut Run,
 ) -> Result<(), String> {
     let mut convo = rollup_if_needed(st, id, tx, messages).await;
+    if let Some(ctx) = context_prompt(&st.tools.project_dir) {
+        convo.insert(0, json!({ "role": "system", "content": ctx }));
+    }
     let max = st.config.max_steps;
     for _ in 0..max {
         if st.config.rollup_tokens > 0 {
@@ -782,6 +787,33 @@ async fn agent_loop(
         }
     }
     Err(format!("agent loop hit the step cap ({max} upstream calls) without a final reply"))
+}
+
+/// OG-ctx (opencode parity): the layered AGENTS.md chain as the run's system message, so a
+/// fresh session knows where it is without exploring. Re-read every run: an edited file lands
+/// on the next turn, no restart. Each file is capped at 64 KiB; missing or empty files are skipped.
+fn context_prompt(project_dir: &std::path::Path) -> Option<String> {
+    const CAP: usize = 64 * 1024;
+    let files: Vec<PathBuf> = match std::env::var("YGG_CONTEXT_FILES") {
+        Ok(v) if !v.is_empty() => v.split(':').filter(|f| !f.is_empty()).map(PathBuf::from).collect(),
+        _ => vec![project_dir.join("AGENTS.md")],
+    };
+    let parts: Vec<String> = files
+        .iter()
+        .filter_map(|f| {
+            let mut text = std::fs::read_to_string(f).ok()?;
+            if text.len() > CAP {
+                let mut cut = CAP;
+                while !text.is_char_boundary(cut) {
+                    cut -= 1;
+                }
+                text.truncate(cut);
+            }
+            let text = text.trim();
+            (!text.is_empty()).then(|| format!("Instructions from: {}\n{text}", f.display()))
+        })
+        .collect();
+    (!parts.is_empty()).then(|| parts.join("\n\n"))
 }
 
 /// Slice 6b. Over the token limit at run start: summarize everything before the recent

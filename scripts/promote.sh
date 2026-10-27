@@ -210,9 +210,14 @@ switch_to() {  # $1 = release dir name; restarts the live units onto it
 
 gate() { python3 "$REPO/scripts/gate.py"; }
 
+# runs in flight on the brain(s) a switch touches: live's and, given $1, the target release's
+release_brain() { grep -h '^OPENCODE_URL=' "$1/env/live-pwa.env" 2>/dev/null | cut -d= -f2-; }
 in_flight() {
-  curl -s -m 5 http://127.0.0.1:4096/session/status | python3 -c \
-    'import json,sys; print(" ".join(k for k,v in json.load(sys.stdin).items() if (v or {}).get("type")=="busy"))' 2>/dev/null
+  local b
+  for b in $( { release_brain "$BIF/live"; [[ -n "${1:-}" ]] && release_brain "$1"; } | sort -u); do
+    curl -s -m 5 "$b/session/status" | python3 -c \
+      'import json,sys; print(" ".join(k for k,v in json.load(sys.stdin).items() if (v or {}).get("type")=="busy"))' 2>/dev/null
+  done | xargs
 }
 
 unmigrate() {
@@ -242,7 +247,7 @@ case "$MODE" in
     backfill_env
     grep -q 'live/env' "$UNITS/lk-pwa.service.d/live.conf" 2>/dev/null || install_units
     to="$(resolve "$TARGET")" || exit 1
-    busy="$(in_flight)"
+    busy="$(in_flight "$RELS/$to")"
     [[ -z "$busy" || $FORCE == 1 ]] || die "run(s) in flight ($busy) — wait, or --force"
     switch_gated "$to"; exit $? ;;
 esac
@@ -270,7 +275,7 @@ EOF
   chmod a-w "$REL/RELEASE.json"
   say "built $ID (build of $src, new env $(env_hash "$REL"))"
   ((BUILD_ONLY)) && { say "--build-only: staged, live untouched"; exit 0; }
-  busy="$(in_flight)"
+  busy="$(in_flight "$REL")"
   [[ -z "$busy" || $FORCE == 1 ]] || die "run(s) in flight ($busy) — wait, or --force (staged at $REL)"
   switch_gated "$ID"; exit $?
 fi
@@ -341,7 +346,7 @@ say "built $ID · build $BUILD_ID · manifest ${MANIFEST:0:12} · env $(env_hash
 ((BUILD_ONLY)) && { say "--build-only: staged, live untouched"; exit 0; }
 
 # --- switch + gate -------------------------------------------------------------
-busy="$(in_flight)"
+busy="$(in_flight "$REL")"
 [[ -z "$busy" || $FORCE == 1 ]] || die "run(s) in flight ($busy) — wait, or --force (staged at $REL)"
 PREV="$(readlink "$BIF/live" 2>/dev/null || true)"
 backfill_env

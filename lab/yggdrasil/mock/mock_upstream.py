@@ -65,6 +65,9 @@ def plan(body):
             return {"kind": "tools", "text": "", "calls": [("call_nl_0", "bash", json.dumps({"command": cmd}))]}
         return {"kind": "text", "text": f"The command printed: {results[-1]['content'].strip()}", "chunk": 8}
     last = msgs[-1]["content"]
+    if last == "ctx?":  # OG-ctx: echo the injected system message's first line (or none)
+        sysm = [m for m in msgs if m["role"] == "system"]
+        return {"kind": "text", "text": f"CTX: {' | '.join(str(sysm[0]['content']).splitlines()[:2]) if sysm else 'none'} [system msgs: {len(sysm)}]", "chunk": 8}
     reply = f"MOCK-REPLY: you said '{last}' ({len(msgs)} msgs)"
     slow = last.startswith("slow") or bool(re.match(r"count from 1 to", last, re.I))
     cut = last.startswith("cut")

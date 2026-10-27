@@ -2538,7 +2538,7 @@ export default function SessionView({
                 </>
               ) : (
                 <>
-                  <p className={firstHint ? 'hint' : ''}>{firstHint || FT[firstLang].hold}</p>
+                  <p className={firstHint ? 'hint' : ''}>{firstHint}</p>
                   <button
                     type="button"
                     className="ty"

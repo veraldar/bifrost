@@ -25,7 +25,7 @@ import {
 } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { LineIcon, StopSquare } from '@/components/line-icon';
+import { StopSquare } from '@/components/line-icon';
 import { YggRoots } from '@/components/ygg';
 import { diagEvent } from '@/lib/diag';
 import { lastRead } from '@/lib/read';
@@ -482,11 +482,6 @@ export function Roots({
             <span className="held">heard</span>
             <span className="opening">opening main…</span>
           </span>
-          {!showStop && (
-            <span className="end" aria-hidden="true">
-              <LineIcon name="mic" size={16} />
-            </span>
-          )}
         </span>
       </Link>
       {showStop && (

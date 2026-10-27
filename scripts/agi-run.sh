@@ -20,6 +20,12 @@
 #   AGI_RETRIES     retries after a stall (1)
 #   AGI_LOG_DIR     evidence dir (~/Work/bifrost/.agi-log)
 #   AGI_BIN         claude binary (claude)
+#   AGI_SYSTEMD     1 (default) = re-exec under `systemd-run --user` so the lane lives in its own
+#                   transient unit, OUTSIDE the caller's cgroup (restarting the hosting brain kills
+#                   no lane). 0 = run in-place (tests only).
+#   AGI_PUSH_URL    where the completion letter is pushed (http://127.0.0.1:8090/api/push — the
+#                   sandbox PWA; never :8080/:4096). Empty = write the letter, skip the push.
+#   AGI_LETTER_DIR  letters dir (~/Work/bifrost/artifacts/letters)
 set -u
 
 usage() { sed -n '2,10p' "$0"; exit 2; }
@@ -41,6 +47,21 @@ shift $((OPTIND-1))
 if [ -z "$PROMPT" ] && [ -n "$PROMPT_FILE" ]; then PROMPT="$(cat "$PROMPT_FILE")"; fi
 if [ -z "$PROMPT" ] && [ ! -t 0 ]; then PROMPT="$(cat)"; fi
 [ -z "$PROMPT" ] && { echo "agi-run: no prompt given (arg, -f FILE, or stdin)" >&2; exit 2; }
+
+# --- one door, outside the caller's cgroup (S4): re-exec under systemd-run -------------------
+# The prompt travels via a file so quoting/stdin survive the hop. AGI_IN_UNIT marks the child.
+if [ "${AGI_SYSTEMD:-1}" = "1" ] && [ -z "${AGI_IN_UNIT:-}" ] && command -v systemd-run >/dev/null 2>&1; then
+  _d="${AGI_LOG_DIR:-$HOME/Work/bifrost/.agi-log}/prompts"; mkdir -p "$_d"
+  _pf="$_d/$(date -u +%Y%m%dT%H%M%SZ)-$$.txt"; printf '%s' "$PROMPT" >"$_pf"
+  _unit="agi-lane-$(printf '%s' "$SESSION" | tr -c 'A-Za-z0-9_.-' '-')-$$"
+  _envs=(); for _v in AGI_MODEL AGI_STALL_SECS AGI_RETRIES AGI_LOG_DIR AGI_BIN AGI_POLL_SECS AGI_PUSH_URL AGI_LETTER_DIR AGI_DETACH; do
+    [ -n "${!_v:-}" ] && _envs+=("--setenv=$_v=${!_v}"); done
+  _wait=(--wait --pipe --collect)   # foreground: same blocking contract as before; AGI_DETACH=1 returns at once
+  [ "${AGI_DETACH:-0}" = "1" ] && _wait=(--collect)
+  exec systemd-run --user --quiet --unit="$_unit" --description="agi lane $SESSION" \
+    --working-directory="$PWD" --setenv=AGI_IN_UNIT=1 --setenv=PATH="$PATH" --setenv=HOME="$HOME" \
+    "${_envs[@]}" "${_wait[@]}" -- "$0" -s "$SESSION" -m "$MODEL" -f "$_pf"
+fi
 
 STALL_SECS="${AGI_STALL_SECS:-600}"
 RETRIES="${AGI_RETRIES:-1}"

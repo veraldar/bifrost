@@ -1764,6 +1764,9 @@ export default function SessionView({
           (!localStorage.getItem(FIRST_TURN_KEY) &&
             ((isMainSlug(slug) && !!localStorage.getItem(DOOR_KEY)) || asked)));
       if (resume) start = { ...ALL_TODO, ...resume };
+      // kept from the first frame: dropping ?teach=1 below re-keys the page
+      // (Next remounts it on a search-param change) — the remount resumes
+      if (on) localStorage.setItem(TEACH_KEY, JSON.stringify({ slug, ways: start }));
       if (again) {
         // one walk per ask: a reload resumes it (TEACH_KEY), never restarts it
         q.delete('teach');

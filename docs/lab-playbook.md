@@ -274,6 +274,30 @@ Three laws:
    touch gesture drives CDP touch events — `pwa/e2e/hf-quick-tap.spec.ts` is
    the pattern.
 
+## Fleet rule 10-28: NO MORE FORK GAPS (user, 10-27 — closes the 10-27 class at the source)
+
+10-27 catches drift at ship time; 10-28 stops it from opening. The gap opened
+because fixes sat UNCOMMITTED in a worktree for 2 days (only the nightly sweep
+commits), the fork was cut with no record of what it lacks, and nothing
+compared lines again until a user hit the bug. Four parts, ALL adopted
+(user's GO, relayed by the coordinator, 10-27):
+
+1. **FORK MANIFEST** — the day a line forks, the forking session writes
+   `docs/lines/<line>.md`: fork commit + date, purpose, and the tail of
+   `git log --oneline <forkpoint>..main` as "known missing"; any in-flight
+   uncommitted work is committed FIRST or listed as a named gap with an owner.
+   ~10 min at fork time.
+2. **MERGE CADENCE** — product lines merge main at least every 3 days and
+   before any release/ship; frequent small merges are cheap, a month of drift
+   is the 10-27 bug again. **Binding on `lab/sandbox` (v0.7) in particular —
+   it is the active line, not a throwaway.**
+3. **COMMIT-FIXES-SAME-DAY** — a verified fix on a live-serving line is
+   committed the same day, never left as WIP overnight (the 10-02 fixes sat
+   2 days — that WAS the hole).
+4. **SHIP GATE** — `scripts/drift-guard.sh` exit 0 is a BLOCKING step of
+   promote/ship (it runs green; now it gates). A red guard stops the ship.
+
+
 ## THE RESEARCH FEED (10-03, user): papers auto-discovered, concepts feed the labs
 The labs don't invent methodology alone — the state-of-the-art is monitored
 and absorbed: arXiv/Google Scholar queries per cadence (the self-improving

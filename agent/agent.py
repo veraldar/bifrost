@@ -1,6 +1,7 @@
 """LiveKit voice agent bridging phone audio to a local opencode server."""
 
 import asyncio
+import json
 import os
 import re
 from typing import AsyncIterable
@@ -30,13 +31,21 @@ logger = logging.getLogger("opencode-bridge")
 OPENCODE_URL = os.environ.get("OPENCODE_URL", "http://127.0.0.1:4096")
 VOICE_MODEL = os.environ.get("VOICE_MODEL", "opencode/ling-3.0-flash-fin-free")
 SPEACHES_URL = os.environ.get("SPEACHES_URL", "http://127.0.0.1:8000/v1")
-STT_MODEL = os.environ.get("STT_MODEL", "Systran/faster-whisper-small")
+STT_MODEL = os.environ.get("STT_MODEL", "mlx-community/Qwen3-ASR-1.7B-8bit")
 TTS_MODEL = os.environ.get("TTS_MODEL", "speaches-ai/Kokoro-82M-v1.0-ONNX")
 TTS_VOICE = os.environ.get("TTS_VOICE", "af_heart")
 INSTRUCTIONS = (
     "You relay the user's spoken words to a coding assistant and speak its answers. "
     "Answers arrive as text from opencode; speak them verbatim unless asked to summarize. "
     "Keep spoken replies concise: code is described, not read character by character."
+)
+
+# req 10-02 mode awareness: appended to hands-free commits so opencode's LLM
+# knows the reply will be read aloud. Protocol, not content — the phone
+# strips `[ctx: …]` from every rendered surface (pwa lib/oc-transcript.ts).
+CTX_TAG = (
+    "\n\n[ctx: mode=hands-free; the user is talking, the reply will be read "
+    "aloud — keep it short, conversational, spoken-style]"
 )
 
 # whisper-small hallucinates on silence/room tone — these strings as an ENTIRE
@@ -74,11 +83,15 @@ class OpenCodeLLM(llm.LLM):
     title is reused, or created on first use.
     """
 
-    def __init__(self, base_url: str, room_key: str = "voice") -> None:
+    def __init__(self, base_url: str, room_key: str = "voice", mode_state: dict | None = None) -> None:
         super().__init__()
         self._base = base_url.rstrip("/")
         self._room_key = room_key.lower()
         self._session_id: str | None = None
+        # current interaction mode, published by the phone as participant
+        # metadata ('text' | 'free') — req 10-02 mode awareness: hands-free
+        # commits carry a spoken-style context tag for opencode's LLM
+        self.mode_state = mode_state or {"mode": "text"}
         # last full (cumulative) voice prompt posted for this room — hands-free
         # VAD re-commits turns as A, A+B, A+B+C… while the previous reply is
         # still playing; only the delta may reach opencode (see _run)
@@ -126,22 +139,30 @@ class OpenCodeLLM(llm.LLM):
 
     async def ask(self, text: str) -> str:
         sid = await self._ensure_session()
+        t0 = asyncio.get_running_loop().time()
         async with httpx.AsyncClient(timeout=300) as c:
             # no `model` in the body on purpose: sending one would clobber the
             # session's model every turn (opencode replaces the whole model
             # ref, think level included). Omitted → the runner uses the
             # session's current model: VOICE_MODEL seeds it once at session
             # creation (below), and a settings-page switch replaces it.
-            r = await c.post(
-                f"{self._base}/session/{sid}/message",
-                json={"parts": [{"type": "text", "text": text}]},
-            )
-            r.raise_for_status()
+            try:
+                r = await c.post(
+                    f"{self._base}/session/{sid}/message",
+                    json={"parts": [{"type": "text", "text": text}]},
+                )
+                r.raise_for_status()
+            except Exception as e:  # noqa: BLE001 — 10-06: ask() failures were
+                # swallowed by the caller's speech fallback and never logged;
+                # the turn vanished with zero trace on either opencode
+                logger.error("oc.ask FAILED sid=%s lat=%.2fs prompt=%r err=%s", sid, asyncio.get_running_loop().time() - t0, text[:60], e)
+                raise
             data = r.json()
-        parts = data.get("parts") or []
-        return "\n".join(
-            p.get("text", "") for p in parts if p.get("type") == "text"
+        reply = "\n".join(
+            p.get("text", "") for p in data.get("parts", []) if p.get("type") == "text"
         ).strip() or "(opencode returned no text)"
+        logger.info("oc.ask ok sid=%s lat=%.2fs reply=%d chars", sid, asyncio.get_running_loop().time() - t0, len(reply))
+        return reply
 
     def chat(
         self,
@@ -154,6 +175,54 @@ class OpenCodeLLM(llm.LLM):
         return OpenCodeStream(
             llm=self, chat_ctx=chat_ctx, tools=tools, conn_options=conn_options
         )
+
+    async def ask_stream(self, text: str) -> AsyncIterable[str]:
+        """Streaming first-sound (reviewer fix 3): consume yggdrasil's SSE reply
+        and yield each COMPLETED sentence as it arrives, so the TTS speaks the
+        first sentence seconds before the run completes. Raises on upstream
+        failure only if nothing was yielded yet."""
+        sid = await self._ensure_session()
+        buf = ""
+        event = ""
+        async with httpx.AsyncClient(timeout=300) as c:
+            async with c.stream(
+                "POST",
+                f"{self._base}/session/{sid}/message",
+                json={"parts": [{"type": "text", "text": text}]},
+                headers={"Accept": "text/event-stream"},
+            ) as r:
+                r.raise_for_status()
+                async for line in r.aiter_lines():
+                    if line.startswith("event:"):
+                        event = line[6:].strip()
+                        continue
+                    if not line.startswith("data:"):
+                        continue
+                    payload = line[5:].strip()
+                    if not payload:
+                        continue
+                    try:
+                        d = json.loads(payload)
+                    except ValueError:
+                        continue
+                    if event == "error":
+                        if not buf:
+                            raise RuntimeError(str(d)[:200])
+                        break
+                    if event == "message.completed":
+                        break
+                    if isinstance(d, dict) and "text" in d and "info" not in d:
+                        buf += d["text"]
+                        while True:
+                            m = re.search(r"^(.*?[.!?])(\s|$)", buf, re.S)
+                            if not m:
+                                break
+                            sent = m.group(1).strip()
+                            buf = buf[m.end():]
+                            if sent:
+                                yield sent
+        if buf.strip():
+            yield buf.strip()
 
 
 class OpenCodeStream(LLMStream):
@@ -205,6 +274,36 @@ class OpenCodeStream(LLMStream):
         if not send:
             logger.info("opencode bridge: turn was only the keyword, skipping")
             return
+        # mode context rides the payload (req 10-02): appended AFTER the
+        # cumulative-dedup bookkeeping so last_prompt stays the raw speech
+        mode = str(self._oc.mode_state.get("mode") or "text")
+        if mode == "free":
+            send = send + CTX_TAG
+        logger.info("turn → opencode (mode=%s)", mode)
+        # Streaming first-sound (AGENT_STREAM_TTS=1 default): speak sentences as
+        # they arrive; AGENT_STREAM_TTS=0 restores wait-for-completion verbatim.
+        if os.environ.get("AGENT_STREAM_TTS", "1") != "0":
+            spoke = False
+            try:
+                async for chunk in self._oc.ask_stream(send):
+                    spoke = True
+                    self._event_ch.send_nowait(
+                        llm.ChatChunk(id="opencode", delta=llm.ChoiceDelta(content=chunk + " "))
+                    )
+                if spoke:
+                    return
+                # stream ended with no text at all → same shape as an empty reply
+                self._event_ch.send_nowait(
+                    llm.ChatChunk(id="opencode", delta=llm.ChoiceDelta(content="(opencode returned no text)"))
+                )
+                return
+            except Exception as e:  # noqa: BLE001
+                if spoke:
+                    self._event_ch.send_nowait(
+                        llm.ChatChunk(id="opencode", delta=llm.ChoiceDelta(content=f"(connection lost: {e})"))
+                    )
+                    return
+                logger.warning("opencode stream failed before first sentence, falling back: %s", e)
         try:
             reply = await self._oc.ask(send)
         except Exception as e:  # noqa: BLE001 - surface errors as speech
@@ -214,12 +313,30 @@ class OpenCodeStream(LLMStream):
         )
 
 
-server = AgentServer()
+# load_threshold: prod default is 0.7 against a load_fnc that reads the
+# systemd USER-SLICE cgroup — it sums EVERY process on the box (other agent
+# sessions, the PWA proxy, e2e runs) and produced "impossible cgroup cpu
+# usage delta" warnings all through 10-06. Result: the worker flapped "at
+# full capacity, marking as unavailable" with ZERO jobs running and silently
+# dropped room dispatches — phone held PTT 17s, no agent ever joined, no STT
+# event at all (pwa/.diag/stt-*.log empty, journal 18:13-18:14). Dev mode
+# already runs inf; this is a single-tenant personal box, so the garbage
+# metric must never gate availability (inf = never unavailable by load).
+# host: the worker's HTTP (health) server listened on 0.0.0.0:8081 — the
+# whole LAN could probe it. Loopback unless AGENT_HTTP_HOST says otherwise.
+server = AgentServer(load_threshold=float("inf"), host=os.environ.get("AGENT_HTTP_HOST", "127.0.0.1"))
+
+_voice_probe_started = False  # one Mac-endpoint probe task per process
 
 
-@server.rtc_session(agent_name="bifrost")
+AGENT_NAME = os.environ.get("AGENT_NAME", "bifrost")
+
+@server.rtc_session(agent_name=AGENT_NAME)
 async def entrypoint(ctx: JobContext) -> None:
     _api_key = "not-needed"
+    # interaction mode published by the phone as participant metadata
+    # ('text' | 'free') — req 10-02 mode awareness
+    mode_state = {"mode": "text"}
     session = AgentSession(
         # turn-taking is keyword-driven in hands-free (see below): turns never
         # auto-commit on silence — speech buffers until "over"/"over and out".
@@ -230,7 +347,7 @@ async def entrypoint(ctx: JobContext) -> None:
         # arrives after turn has been committed") and the speech is dropped
         turn_handling={"endpointing": {"min_delay": 1.5}},
         stt=openai.STT(base_url=SPEACHES_URL, api_key=_api_key, model=STT_MODEL),
-        llm=OpenCodeLLM(OPENCODE_URL, room_key=ctx.room.name),
+        llm=OpenCodeLLM(OPENCODE_URL, room_key=ctx.room.name, mode_state=mode_state),
         tts=openai.TTS(base_url=SPEACHES_URL, api_key=_api_key, model=TTS_MODEL, voice=TTS_VOICE),
     )
     await session.start(
@@ -259,10 +376,74 @@ async def entrypoint(ctx: JobContext) -> None:
     # remote_participants is empty any earlier (verified live: the check at
     # entrypoint start never saw the sibling).
     human_identity = f"user_{ctx.room.name}"
-    if any(p.identity != human_identity for p in ctx.room.remote_participants.values()):
-        logger.warning("another agent already in room '%s' — shutting down", ctx.room.name)
-        ctx.shutdown("duplicate agent")
-        return
+    # A page refresh re-dispatches a job while the previous one is still
+    # draining (its session survives the disconnect through the commit
+    # grace). Yielding instantly strands the room agentless: the phone
+    # already holds its token and never re-mints, so nobody dispatches a
+    # replacement — live 2026-10-02 room 'review': the duplicate kill plus
+    # the old job's exit left ~30s of dead air and every hold/tap failed
+    # with "no voice agent in the room". Wait out the drain; only a
+    # sibling that will not leave is a real duplicate.
+    for i in range(80):  # ~20s at 250ms — drain tail is commit grace + 4s
+        if not any(p.identity != human_identity for p in ctx.room.remote_participants.values()):
+            break
+        if i == 0:
+            logger.info(
+                "previous agent draining in room '%s' — waiting for it to leave", ctx.room.name
+            )
+        await asyncio.sleep(0.25)
+    else:
+        # 10-06 20:59: two FRESH jobs landed in 'main-veraldar' together (the
+        # phone double-connected) and EACH saw the other as 'the previous
+        # agent' — both shut down, room agent-less. Yielding must be ORDERED,
+        # not reflexive: the smallest identity stays, the rest yield — both
+        # sides compute the same order, so exactly one survives.
+        siblings = [
+            p.identity
+            for p in ctx.room.remote_participants.values()
+            if p.identity != human_identity
+        ]
+        my_id = ctx.room.local_participant.identity
+        if siblings and my_id > min(siblings):
+            logger.warning(
+                "another agent still in room '%s' after 20s — yielding (ordered, %s > %s)",
+                ctx.room.name,
+                my_id,
+                min(siblings),
+            )
+            ctx.shutdown("duplicate agent")
+            return
+        logger.warning(
+            "sibling agent persisted in room '%s' — I am primary (%s), proceeding",
+            ctx.room.name,
+            my_id,
+        )
+
+    # ---- mode awareness (req 10-02) ----
+    # The phone publishes its interaction mode ('text' | 'free') as its
+    # participant metadata on every mode switch and on room join. The mode
+    # decides whether committed turns carry the spoken-style context tag —
+    # it must be readable at commit time, not guessed from the turn path
+    # (PTT holds and tap-to-send commits work in BOTH modes).
+    def _phone_mode() -> str:
+        p = ctx.room.remote_participants.get(human_identity)
+        if p is None:
+            return "text"
+        try:
+            return str((json.loads(p.metadata or "{}") or {}).get("mode") or "text")
+        except Exception:  # noqa: BLE001 — malformed metadata must never kill a turn
+            return "text"
+
+    def _on_metadata_changed(participant) -> None:
+        if participant.identity != human_identity:
+            return
+        prev = mode_state["mode"]
+        mode_state["mode"] = _phone_mode()
+        if mode_state["mode"] != prev:
+            logger.info("mode → %s (participant metadata)", mode_state["mode"])
+
+    ctx.room.on("participant_metadata_changed", _on_metadata_changed)
+    mode_state["mode"] = _phone_mode()
 
     def _end_job_with_session(_ev) -> None:
         # start() returns immediately, so the job would otherwise outlive its
@@ -336,12 +517,21 @@ async def entrypoint(ctx: JobContext) -> None:
         nonlocal commit_in_flight
         commit_in_flight = True
         session.input.set_audio_enabled(False)
+        t0 = asyncio.get_running_loop().time()
+        # 10-06 metric: the JoJo turn produced NO bridge log, NO user message
+        # on either opencode instance — invisible failure inside this call.
+        # Log entry, outcome and timing so the failing step names itself.
+        logger.info("commit_user_turn: start (ptt flush)")
         try:
             # transcript_timeout must cover the Mac Studio batch STT POST after
             # the flush: the final landed ~4-5s after commit start (live
             # 2026-09-29 room 'bug') — at 3.0 the commit gave up EMPTY, the
             # late final hit the closed session and was skipped
             await session.commit_user_turn(transcript_timeout=8.0, stt_flush_duration=1.5)
+            logger.info("commit_user_turn: done in %.2fs", asyncio.get_running_loop().time() - t0)
+        except Exception as e:  # noqa: BLE001 — metric first, then re-raise
+            logger.error("commit_user_turn: FAILED after %.2fs: %s", asyncio.get_running_loop().time() - t0, e)
+            raise
         finally:
             session.input.set_audio_enabled(True)
             commit_in_flight = False
@@ -411,9 +601,96 @@ async def entrypoint(ctx: JobContext) -> None:
         # punctuation → space so "over." / "over!" match
         return re.sub(r"[^a-z0-9\u4e00-\u9fff]+", " ", text.lower()).strip()
 
+    # STT metric (req 10-06 'I speak no txt'): every transcript event —
+    # interim AND final — lands in pwa/.diag/stt-<date>.log. The 10-06 Mac
+    # restart outage was invisible in our logs: empty transcripts looked
+    # identical to no audio. This line answers "did audio reach STT and what
+    # came back" per event.
+    from datetime import datetime, timezone
+    from pathlib import Path
+
+    _diag_dir = Path(__file__).resolve().parent.parent / "pwa" / ".diag"
+
+    # 10-06 defense layer (req 'this cannot happen again'):
+    # (a) SPLIT-BRAIN GUARD — the sandbox lane once left OPENCODE_URL pointing
+    #     at the SANDBOX brain (:4100) in this live .env; voice turns landed
+    #     in a session nobody was viewing. .env is gitignored so the fix
+    #     can't be committed — instead every boot compares the resolved brain
+    #     against the committed .env.example and screams on drift.
+    _expected_oc = None
+    try:
+        for _line in (_diag_dir.parent.parent / "agent" / ".env.example").read_text().splitlines():
+            if _line.startswith("OPENCODE_URL="):
+                _expected_oc = _line.split("=", 1)[1].strip()
+                break
+    except OSError:
+        pass
+    logger.warning("brain: OPENCODE_URL=%s speaches=%s", OPENCODE_URL, SPEACHES_URL)
+    if _expected_oc and OPENCODE_URL != _expected_oc:
+        logger.critical(
+            "BRAIN MISMATCH: OPENCODE_URL=%s but agent/.env.example expects %s — voice turns will land in the wrong opencode (10-06 split-brain)",
+            OPENCODE_URL,
+            _expected_oc,
+        )
+
+    # (b) MAC WATCHDOG — the Mac Studio serves STT+TTS; its restart took all
+    #     voice down with zero signal in our own logs (found by hand-probing).
+    #     Probe SPEACHES_URL every 60s; any HTTP answer = alive. Transitions
+    #     go to the journal (CRITICAL when down) and .diag/voice-health-*.log.
+    global _voice_probe_started
+    if not _voice_probe_started:
+        _voice_probe_started = True
+
+        async def _voice_probe() -> None:
+            alive = None
+            while True:
+                try:
+                    async with httpx.AsyncClient(timeout=4) as c:
+                        r = await c.get(f"{SPEACHES_URL.rstrip('/')}/models")
+                        ok = r.status_code < 600
+                except Exception:  # noqa: BLE001 — probe must never die
+                    ok = False
+                if ok != alive:
+                    first = alive is None
+                    alive = ok
+                    try:
+                        row = {
+                            "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+                            "endpoint": SPEACHES_URL,
+                            "up": ok,
+                        }
+                        with (_diag_dir / f"voice-health-{datetime.now(timezone.utc):%Y-%m-%d}.log").open("a") as f:
+                            f.write(f"{row}\n")
+                    except Exception:  # noqa: BLE001
+                        pass
+                    if not ok:
+                        logger.critical("SPEACHES endpoint DOWN (%s) — voice will not transcribe or speak", SPEACHES_URL)
+                    elif first:
+                        logger.info("SPEACHES endpoint up: %s", SPEACHES_URL)
+                    else:
+                        logger.info("SPEACHES endpoint recovered: %s", SPEACHES_URL)
+                await asyncio.sleep(60)
+
+        asyncio.ensure_future(_voice_probe())
+
+    def _diag_stt(ev) -> None:
+        try:
+            row = {
+                "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+                "room": ctx.room.name,
+                "final": bool(ev.is_final),
+                "chars": len(ev.transcript or ""),
+                "head": (ev.transcript or "")[:48],
+            }
+            with (_diag_dir / f"stt-{datetime.now(timezone.utc):%Y-%m-%d}.log").open("a") as f:
+                f.write(f"{row}\n")
+        except Exception:  # noqa: BLE001 — metric must never break voice
+            pass
+
     @session.on("user_input_transcribed")
     def _on_transcript(ev) -> None:
         nonlocal turn_text, keyword_busy
+        _diag_stt(ev)
         if not ev.is_final:
             return
         turn_text = f"{turn_text} {ev.transcript}".strip()
@@ -426,6 +703,11 @@ async def entrypoint(ctx: JobContext) -> None:
         phrase = "over and out" if out else "over"
         keyword_busy = True
         turn_text = ""
+        # keyword turn-taking only exists in hands-free — authoritative mode
+        # even if the metadata update has not landed yet. "over and out" is
+        # the radio exit: its reply lands as text (never spoken) → no tag.
+        if not out:
+            mode_state["mode"] = "free"
         logger.info("keyword commit (%s)", phrase)
         if not out:
             # phone mutes the mic NOW and shows the working animation; the
@@ -464,6 +746,9 @@ async def entrypoint(ctx: JobContext) -> None:
         if asyncio.get_running_loop().time() > deadline:
             break
         await asyncio.sleep(0.2)
+    # the human may have joined after the dup check — their join carries the
+    # current mode metadata; read it once now that they are in the room
+    mode_state["mode"] = _phone_mode()
 
     # (audio output is disabled — the greeting would synthesize into the
     # void; the phone's UI is the greeting now)
@@ -471,4 +756,15 @@ async def entrypoint(ctx: JobContext) -> None:
 
 
 if __name__ == "__main__":
+    # AGENT_HTTP_PORT: the worker's health/metrics http server (default 8081) —
+    # a second lab worker on one box needs its own port.
+    port = os.environ.get("AGENT_HTTP_PORT")
+    if port:
+        server._port = int(port)
+    # the cgroup cpu monitor on this box flaps the load metric (impossible
+    # delta warnings) -> brief "unavailable" windows eat dispatches; a lab
+    # pin near 1.0 keeps the worker dispatchable
+    lt = os.environ.get("AGENT_LOAD_THRESHOLD")
+    if lt:
+        server._load_threshold = float(lt)
     cli.run_app(server)

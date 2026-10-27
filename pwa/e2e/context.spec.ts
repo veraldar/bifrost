@@ -6,7 +6,7 @@ import { expect, test } from '@playwright/test';
  * is, and which stack carried the question — before touching any file.
  * Guarded by the layered AGENTS.md (~/Work stub → ~/Work/bifrost full).
  */
-test('fresh session answers with bifrost context', async ({ page, request }) => {
+test('fresh session answers with bifrost context', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'new session' }).click();
   await page.getByPlaceholder('session name…').fill('e2e-context');
@@ -26,13 +26,11 @@ test('fresh session answers with bifrost context', async ({ page, request }) => 
   // agent knew it without reading files first
   await expect(page.getByText(/Work\/bifrost/).last()).toBeVisible();
 
-  // Context must come from the injected AGENTS.md chain, not exploration —
-  // but the injection is a BRAIN property, not a client one: opencode (live
-  // :8080) injects the layered AGENTS.md; yggdrasil (sandbox :4100) injects
-  // no context file yet (10-23 probe: it answered the SAME question right
-  // with 2 read-only tools, ls/find + grep — honest path, no crawl). The
-  // served app names its brain's dialect so the referee asserts the right
-  // law on the right stack.
+  // Context must come from the injected AGENTS.md chain, not exploration.
+  // Both brains inject it now: opencode (v0.6.x) its layered chain, yggdrasil
+  // (v0.7+) since OG-ctx 10-27 (~/Work/AGENTS.md as the run's system message,
+  // re-read per run). One law: ≤1 tool call, the pointed AGENTS.md read,
+  // never a repo crawl.
   const sid = new URL(page.url()).searchParams.get('id');
   expect(sid).toBeTruthy();
   const raw = (await (
@@ -42,24 +40,9 @@ test('fresh session answers with bifrost context', async ({ page, request }) => 
     parts: Array<{ type: string; tool?: string; state?: any }>;
   }>;
   const toolParts = raw.flatMap((m) => m.parts || []).filter((p) => p.type === 'tool');
-  const dialect = (
-    await (await request.get('/api/brain-dialect').catch(() => null))?.text()
-  )?.trim();
-  if (dialect === 'yggdrasil') {
-    // yggdrasil's injected-context gap is FILED (~/Work/bifrost
-    // docs/open-questions.md, OG-ctx). Current law: never a MUTATION — write/edit are forbidden.
-    // bash may appear (10-23 probe: it runs read-only `ls; find` through it
-    // — a general tool used read-only; a tool-name-level read-only law is
-    // not enforceable while bash exists and is not what this guard owns).
-    const mutating = toolParts.filter((t) => ['write', 'edit'].includes(String(t.tool)));
-    expect(mutating, 'context question must never mutate anything').toEqual([]);
-  } else {
-    // opencode: the stub chain does the pointing — ≤1 tool call, the
-    // pointed AGENTS.md read, never a repo crawl
-    expect(toolParts.length, 'context question must not crawl the repo').toBeLessThanOrEqual(1);
-    for (const t of toolParts) {
-      expect(String(t.state?.input?.filePath || '')).toMatch(/bifrost\/AGENTS\.md$/);
-    }
+  expect(toolParts.length, 'context question must not crawl the repo').toBeLessThanOrEqual(1);
+  for (const t of toolParts) {
+    expect(String(t.state?.input?.filePath || '')).toMatch(/bifrost\/AGENTS\.md$/);
   }
 });
 

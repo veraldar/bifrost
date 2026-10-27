@@ -6,7 +6,8 @@ export default defineConfig({
   // webServer) — against this (production-stall) server it would just time out
   // tree-first runs against the sandbox (:8090) — own config, own server
   // herdr-sim kills its brain — the sim stack only (playwright.sim.config.ts)
-  testIgnore: /(watchdog-zombie|tree-first|first-turn-voice|site-door|voice-wait|door-repro|stt-phone|herdr-sim)\.spec\.ts/,
+  // ux-calm-teach talks for real (STT on the Mac) — playwright.ux-calm.config.ts
+  testIgnore: /(watchdog-zombie|tree-first|first-turn-voice|site-door|voice-wait|door-repro|stt-phone|herdr-sim|ux-calm-teach)\.spec\.ts/,
   timeout: 120_000,
   expect: { timeout: 20_000 },
   workers: 1, // sessions are shared server state — never parallel

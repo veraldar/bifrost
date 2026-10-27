@@ -13,6 +13,11 @@ import { type Page, expect, test } from '@playwright/test';
  *  Works on the real brain (:8090) and on the sim's mock (:8096). */
 
 const S22 = { width: 360, height: 780 };
+// UXCALM_SHOTS=<dir>: phone shots of the footer per state (for the report)
+const SHOTS = process.env.UXCALM_SHOTS || '';
+const shot = async (page: Page, name: string) => {
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/ux-calm-footer-${name}.png` });
+};
 test.use({
   viewport: S22,
   deviceScaleFactor: 3,
@@ -189,6 +194,7 @@ test('zero help text: the footer says state only — text, push-to-talk and hand
   await page.getByTestId('listen-chip').tap();
   await expect(page.locator('.oz-deck')).toContainText('synthesizing', { timeout: 5_000 });
   await expect(page.locator('.oz-deck')).toContainText('speaking', { timeout: 15_000 });
+  await shot(page, 'speaking');
   await page.getByRole('button', { name: 'stop speaking' }).tap();
   await expect(page.locator('.oz-deck')).toHaveCount(0, { timeout: 5_000 });
   // the history chip: ↑ recalls the sent line
@@ -206,6 +212,7 @@ test('zero help text: the footer says state only — text, push-to-talk and hand
   await f.send('touchStart', mx, my);
   await expect(phase).toHaveText(/heard$/, { timeout: 30_000 });
   await page.waitForTimeout(300);
+  await shot(page, 'ptt-heard');
   await f.send('touchMove', mx - 32, my);
   await expect(phase).toHaveAttribute('data-s', 'drop');
   await expect(phase).toHaveText(/delete$/);
@@ -221,6 +228,7 @@ test('zero help text: the footer says state only — text, push-to-talk and hand
   await expect(page.getByTestId('free-strip')).not.toContainText('connecting', { timeout: 30_000 });
   await expect(free).toHaveText(/hands-free$/);
   await page.waitForTimeout(600); // past the 400 ms ghost guard, or the exit is eaten
+  await shot(page, 'hands-free');
   await page.getByTestId('free-exit').tap();
   await expect(ta).toBeVisible();
   await snap('hands-free');

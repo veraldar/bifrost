@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { type Page, expect, test } from '@playwright/test';
 import script from '../lib/onboard-script.json';
@@ -8,17 +9,20 @@ import { diag, mainTotal, quietRoom, users, vtMsgs } from './mainframe-c-lib';
  *  to actually do each one"). The first-turn card is a walk-through: type →
  *  hold → hands-free + "over", each done once for real, re-walkable from
  *  settings (in the test room, so MAIN is never written).
- *    1 · the whole walk, by voice for real: Chrome's capture path plays a
- *        spoken wav as the mic → lk-agent-ygg → STT (the Mac) → the brain.
+ *    1 · the whole walk, by voice for real: the mic is a scripted stream the
+ *        spec speaks into on cue (a wav per step) → LiveKit → lk-agent-ygg →
+ *        STT (the Mac) → the brain.
  *        Needs the sandbox stack (:8090). Own config: playwright.ux-calm.config.ts
  *    2 · the walk's controls (skip, ✕, resume, ?teach=1) — no voice turn,
  *        runs on the sim (:8096) too. */
 
-// looped, 12.5 s: "what is two plus two?" · silence · "What is three plus three? Over." · 4 s
-// (first-turn-en + roots-over-en). Two sentences, not one: the voice agent drops a
-// turn identical to its previous one (agent.py last_prompt), so a one-sentence loop
-// makes the hands-free turn a copy of the hold and it never lands
-const WAV = join(__dirname, 'fixtures/ux-calm-walk-en.wav');
+// the two things the user says, one per voice way — different on purpose: the
+// voice agent drops a turn identical to its previous one (lane2-merge agent.py
+// last_prompt), and a looping capture file makes every "over" commit the same
+// text. A: the hold ("what is two plus two?"), B: hands-free ("What is three
+// plus three? Over.")
+const SAY_A = readFileSync(join(__dirname, 'fixtures/first-turn-en.wav')).toString('base64');
+const SAY_B = readFileSync(join(__dirname, 'fixtures/roots-over-en.wav')).toString('base64');
 
 test.use({
   viewport: { width: 360, height: 780 },
@@ -30,7 +34,6 @@ test.use({
     args: [
       '--use-fake-ui-for-media-stream',
       '--use-fake-device-for-media-stream',
-      `--use-file-for-fake-audio-capture=${WAV}`,
       '--autoplay-policy=no-user-gesture-required',
       ...(process.env.PW_JITLESS ? ['--js-flags=--jitless'] : []),
     ],
@@ -55,6 +58,45 @@ async function returning(page: Page) {
   });
 }
 
+// the mic: getUserMedia hands out a track of one WebAudio destination, silent
+// until the spec says something into it (window.__say, a base64 wav) — the
+// same capture path the app always takes, the words chosen per step
+async function scriptedMic(page: Page) {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __say: (b64: string) => Promise<number> };
+    let ctx: AudioContext | null = null;
+    let out: MediaStreamAudioDestinationNode | null = null;
+    const ensure = () => {
+      if (!ctx) {
+        ctx = new AudioContext();
+        out = ctx.createMediaStreamDestination();
+      }
+      return ctx;
+    };
+    const md = navigator.mediaDevices;
+    const orig = md.getUserMedia.bind(md);
+    md.getUserMedia = async (c?: MediaStreamConstraints) => {
+      if (!c || !c.audio) return orig(c);
+      const ac = ensure();
+      if (ac.state === 'suspended') await ac.resume().catch(() => {});
+      return new MediaStream([out!.stream.getAudioTracks()[0].clone()]);
+    };
+    w.__say = async (b64: string) => {
+      const ac = ensure();
+      if (ac.state === 'suspended') await ac.resume().catch(() => {});
+      const bytes = Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0));
+      const buf = await ac.decodeAudioData(bytes.buffer);
+      const src = ac.createBufferSource();
+      src.buffer = buf;
+      src.connect(out!);
+      src.start();
+      return buf.duration;
+    };
+  });
+}
+const say = (page: Page, b64: string) =>
+  page.evaluate((b) => (window as unknown as { __say: (b: string) => Promise<number> }).__say(b), b64);
+
 // the reply's speech, without the Mac (the deck's own path): 3 s of tone
 async function stubTts(page: Page) {
   const pcm = Buffer.alloc(24000 * 3 * 2);
@@ -65,13 +107,15 @@ async function stubTts(page: Page) {
   );
 }
 
-async function hold(page: Page, ms: number) {
+// a hold as a finger does it: press, talk at "heard", let go after the words
+async function holdAndSay(page: Page, b64: string) {
   const b = (await page.getByTestId('composer-mic').boundingBox())!;
   const p = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [p] });
   await expect(page.locator('.oz-phase')).toHaveText(/heard$/, { timeout: 30_000 });
-  await page.waitForTimeout(ms);
+  const secs = await say(page, b64);
+  await page.waitForTimeout(Math.round(secs * 1000) + 800);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await cdp.detach();
 }
@@ -92,6 +136,7 @@ test('the walk-through: type → hold → hands-free + “over”, each done onc
   const mainBefore = await mainTotal(request);
   const usersBefore = users(await vtMsgs(request)).length;
   await returning(page);
+  await scriptedMic(page);
   await stubTts(page);
 
   // settings → the three ways → walk it → the test room, the card on "type"
@@ -119,7 +164,7 @@ test('the walk-through: type → hold → hands-free + “over”, each done onc
   await shot(page, '2-hold');
 
   // 2 · hold: talk at "heard", let go — STT proves itself, the reply speaks
-  await hold(page, 7_500); // more than one sentence of the loop passes
+  await holdAndSay(page, SAY_A); // "what is two plus two?"
   await expect(card).toHaveAttribute('data-state', /sent|heard/, { timeout: 10_000 });
   await expect(card).toHaveAttribute('data-state', 'heard', { timeout: 30_000 });
   console.log(`hold heard: ${await page.getByTestId('first-heard').textContent()}`);
@@ -133,13 +178,16 @@ test('the walk-through: type → hold → hands-free + “over”, each done onc
   await expect(page.getByTestId('free-strip')).toBeVisible({ timeout: 10_000 });
   await expect(card).toContainText('talk, then say “over”');
   await shot(page, '4-free-on');
-  await expect(card).toHaveAttribute('data-state', /sent|heard/, { timeout: 60_000 });
+  await expect(page.getByTestId('free-phase')).toHaveAttribute('data-cycle', 'listening');
+  await page.waitForTimeout(1_500); // the agent's ear: the hands-free mic opens
+  await say(page, SAY_B); // "What is three plus three? Over."
+  await expect(card).toHaveAttribute('data-state', /sent|heard/, { timeout: 30_000 });
   await expect(card).toHaveAttribute('data-state', 'heard', { timeout: 30_000 });
   console.log(`hands-free heard: ${await page.getByTestId('first-heard').textContent()}`);
   await expect(card).toHaveAttribute('data-state', 'in', { timeout: 180_000 });
   await expect(page.getByTestId('first-in')).toHaveText(script.lines.find((l) => l.id === 'in')!.en);
   await shot(page, '5-in');
-  // out of hands-free before the looping wav says "over" again
+  // out of hands-free: the walk is done, the mic need not stay open
   await page.waitForTimeout(450);
   await page.getByTestId('free-exit').tap({ timeout: 60_000 });
   await expect(ta).toBeVisible();

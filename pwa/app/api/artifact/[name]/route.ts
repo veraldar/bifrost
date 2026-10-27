@@ -11,7 +11,7 @@ import { ARTIFACT_TYPES, resolveArtifact, safeArtifactName } from '@/lib/artifac
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(_req: Request, ctx: { params: Promise<{ name: string }> }) {
+export async function GET(req: Request, ctx: { params: Promise<{ name: string }> }) {
   const { name } = await ctx.params;
   if (!safeArtifactName(name)) {
     return NextResponse.json({ error: 'bad name' }, { status: 400 });
@@ -31,6 +31,28 @@ export async function GET(_req: Request, ctx: { params: Promise<{ name: string }
   if (hit) {
     try {
       const data = await readFile(hit.file);
+      // top-level navigation (address bar / new tab) of a text artifact:
+      // browsers paint raw text white — wrap it in the app's black so an
+      // opened md reads like bifrost. Chat fetches (sec-fetch-dest: empty)
+      // still get the raw bytes they .text()   [port of main 547cb89]
+      if (hit.type.startsWith('text/') && req.headers.get('sec-fetch-dest') === 'document') {
+        const esc = data
+          .toString('utf-8')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+        const html =
+          `<!doctype html><meta charset="utf-8">` +
+          `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+          `<title>${name}</title>` +
+          `<style>html{background:#080810}body{margin:0;background:#080810;color:#fff;` +
+          `font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;padding:16px;` +
+          `white-space:pre-wrap;word-break:break-word}</style>` +
+          `<body>${esc}</body>`;
+        return new Response(html, {
+          headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
+        });
+      }
       return new Response(new Uint8Array(data), {
         headers: {
           'Content-Type': hit.type,

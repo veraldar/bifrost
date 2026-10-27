@@ -54,14 +54,25 @@ export async function removeSub(endpoint: string): Promise<void> {
  *  lands here as `[push] sent`; the service worker posts `[push] shown` to
  *  /api/diag on display — ratio = shown/sent in pwa/.diag/diag-YYYY-MM-DD.log. */
 export async function pushRunDone(slug: string): Promise<void> {
-  if (!ensureConfigured()) return;
+  await broadcast({ slug, body: `reply ready — ${slug}`, tag: `oz-${slug}` }, slug);
+}
+
+/** A lane's completion letter (envelope v1, scripts/agi-run.sh): same wire as a
+ *  run-done push, no session slug — a tap just focuses the app. Returns the
+ *  number of devices reached (0 = no subs / push disabled). */
+export async function pushLetter(l: { id: string; from: string; kind: string; body: string }): Promise<number> {
+  const first = String(l.body || '').split('\n')[0].slice(0, 140);
+  return broadcast(
+    { body: `${l.from.split('/').pop()} · ${l.kind} — ${first}`, tag: `letter-${l.id}` },
+    `letter:${l.id}`
+  );
+}
+
+async function broadcast(msg: { slug?: string; body: string; tag: string }, label: string): Promise<number> {
+  if (!ensureConfigured()) return 0;
   const subs = await loadSubs();
-  if (!subs.length) return;
-  const payload = JSON.stringify({
-    slug,
-    body: `reply ready — ${slug}`,
-    tag: `oz-${slug}`,
-  });
+  if (!subs.length) return 0;
+  const payload = JSON.stringify(msg);
   const alive: Sub[] = [];
   let ok = 0;
   await Promise.all(
@@ -82,9 +93,10 @@ export async function pushRunDone(slug: string): Promise<void> {
     await mkdir(path.join(process.cwd(), '.diag'), { recursive: true });
     await appendFile(
       path.join(process.cwd(), '.diag', `diag-${day}.log`),
-      `${new Date().toISOString()} [push] (server · sent) slug=${slug} ok=${ok}/${subs.length} urgency=high\n`
+      `${new Date().toISOString()} [push] (server · sent) slug=${label} ok=${ok}/${subs.length} urgency=high\n`
     );
   } catch {
     /* diag is best-effort — never fail the push */
   }
+  return ok;
 }

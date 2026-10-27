@@ -59,7 +59,7 @@ if [ "${AGI_SYSTEMD:-1}" = "1" ] && [ -z "${AGI_IN_UNIT:-}" ] && command -v syst
   _wait=(--wait --pipe --collect)   # foreground: same blocking contract as before; AGI_DETACH=1 returns at once
   [ "${AGI_DETACH:-0}" = "1" ] && _wait=(--collect)
   exec systemd-run --user --quiet --unit="$_unit" --description="agi lane $SESSION" \
-    --working-directory="$PWD" --setenv=AGI_IN_UNIT=1 --setenv=PATH="$PATH" --setenv=HOME="$HOME" \
+    --working-directory="$PWD" --setenv=AGI_IN_UNIT=1 --setenv=AGI_UNIT="$_unit" --setenv=PATH="$PATH" --setenv=HOME="$HOME" \
     "${_envs[@]}" "${_wait[@]}" -- "$0" -s "$SESSION" -m "$MODEL" -f "$_pf"
 fi
 
@@ -98,7 +98,8 @@ run_attempt() { # $1 = runid ; sets RC / STALLED / NOTE
     flock 9
     printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
       "$runid" "${runid:0:4}-${runid:4:2}-${runid:6:2}" "$SESSION" "$MODEL" \
-      "$start_iso" "-" "-" "-" "RUNNING" "$LOG_DIR/outputs/$runid.txt" "-" >>"$LOG"
+      "$start_iso" "-" "-" "-" "RUNNING" "$LOG_DIR/outputs/$runid.txt" \
+      "pid=$$ unit=${AGI_UNIT:-none}" >>"$LOG"
   ) 9>"$LOCK"
 
   setsid "$BIN" -p "$PROMPT" \
@@ -152,6 +153,52 @@ PYEOF
   EXTRACT=$?
 }
 
+# Completion letter (envelope v1, v07-reflection §8.6): one file per finished lane in
+# $LETTER_DIR, pushed through /api/push. Never fails the run — a letter is a courtesy of the
+# harness, so author=harness, kind=result|blocked.
+LETTER_DIR="${AGI_LETTER_DIR:-$HOME/Work/bifrost/artifacts/letters}"
+PUSH_URL="${AGI_PUSH_URL-http://127.0.0.1:8090/api/push}"
+write_letter() { # runid status
+  mkdir -p "$LETTER_DIR" 2>/dev/null || return 0
+  python3 - "$1" "$2" "$SESSION" "$MODEL" "$LOG_DIR/outputs/$1.txt" "$LETTER_DIR" "$PUSH_URL" <<'PYEOF' || true
+import hashlib, json, os, socket, sys, time, urllib.request
+runid, status, session, model, out, ldir, push = sys.argv[1:8]
+tree = os.environ.get("AGI_TREE") or socket.gethostname().split(".")[0]
+body = ""
+try:
+    body = open(out, encoding="utf-8", errors="replace").read().strip()
+except OSError:
+    pass
+ok = status == "OK"
+if not body:
+    body = f"{session}: run {runid} ended {status} — no result text (evidence in .agi-log/outputs/)."
+body = "\n".join(body.splitlines()[:20])[:1200]            # ≤ one screen
+arts = []
+if os.path.exists(out):
+    b = open(out, "rb").read()
+    arts.append({"path": os.path.relpath(out, os.path.expanduser("~/Work/bifrost")) if out.startswith(os.path.expanduser("~/Work/bifrost")) else out,
+                 "sha256": hashlib.sha256(b).hexdigest(), "bytes": len(b)})
+lid = f"agi-{runid}"
+letter = {"v": 1, "id": lid, "thread": f"{tree}/{lid}", "from": f"{tree}/{session}", "to": tree,
+          "author": "harness", "cause": os.environ.get("AGI_CAUSE", ""),
+          "kind": "result" if ok else "blocked", "status": status, "body": body,
+          "artifacts": arts, "model": model, "time": time.strftime("%Y-%m-%dT%H:%M:%S%z")}
+os.makedirs(ldir, exist_ok=True)
+path = os.path.join(ldir, f"{lid}.json")
+tmp = path + ".tmp"
+json.dump(letter, open(tmp, "w"), indent=1); os.replace(tmp, path)
+print(f"agi-run: letter {path}")
+if push:
+    try:
+        req = urllib.request.Request(push, data=json.dumps({"letter": letter}).encode(),
+                                     headers={"Content-Type": "application/json"}, method="POST")
+        r = urllib.request.urlopen(req, timeout=10)
+        print(f"agi-run: push {push} -> {r.status} {r.read().decode()[:120]}")
+    except Exception as e:
+        print(f"agi-run: push FAILED ({e}) — letter stays on disk")
+PYEOF
+}
+
 i=0
 MAX_ATTEMPTS=$((RETRIES + 1))
 while :; do
@@ -169,6 +216,7 @@ while :; do
     fi
     log_line "$RUNID" "STALLED" "kill" "$(date '+%F %H:%M:%S%z')" "$DUR" \
       "no output growth ${STALL_SECS}s; killed; retry exhausted"
+    write_letter "$RUNID" "STALLED"
     echo "agi-run: [$SESSION] FAILED — stalled twice, retry exhausted. evidence: $LOG_DIR/outputs/$RUNID.{jsonl,err}" >&2
     exit 1
   fi
@@ -176,6 +224,7 @@ while :; do
   if [ "$RC" -eq 0 ] && [ "$EXTRACT" -eq 0 ]; then
     [ "$i" -gt 1 ] && NOTE="recovered on retry after stall (attempt $i)"
     log_line "$RUNID" "OK" "0" "$(date '+%F %H:%M:%S%z')" "$DUR" "$NOTE"
+    write_letter "$RUNID" "OK"
     echo "agi-run: [$SESSION] OK in ${DUR}s — output: $LOG_DIR/outputs/$RUNID.txt"
     exit 0
   fi
@@ -183,6 +232,7 @@ while :; do
   [ "$EXTRACT" -eq 3 ] && NOTE="no result event in stream"
   [ "$EXTRACT" -eq 4 ] && NOTE="claude reported is_error"
   log_line "$RUNID" "FAIL" "$RC" "$(date '+%F %H:%M:%S%z')" "$DUR" "$NOTE"
+  write_letter "$RUNID" "FAIL"
   echo "agi-run: [$SESSION] FAILED (exit $RC, $NOTE). evidence: $LOG_DIR/outputs/$RUNID.{jsonl,err}" >&2
   exit 1
 done

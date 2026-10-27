@@ -1234,6 +1234,18 @@ export default function SessionView({
   // toggling can't churn the publisher transport (rapid enable/disable
   // killed ICE in the live room 2026-09-30) and a tap can't buffer audio.
   const holdArmRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // when the current press began — classifies a press that armed PTT but
+  // released fast (see the <400ms reinterpret in pttUp)
+  const pttDownAtRef = useRef(0);
+  // entering hands-free replaces the composer with the strip MID-GESTURE: the
+  // same lift's synthesized click lands on whatever now sits under the finger
+  // — the 'leave hands-free' exit — and instantly un-toggles (diag 10-02
+  // 09:38: five mic taps, each followed 30-40ms by a 'leave hands-free'
+  // click; the user saw a flash and 'never hands-free'). Free-dock clicks
+  // within 400ms of the toggle are that ghost, not a user. (HF-CLICK 10-27:
+  // this branch forked before that fix — every tap logged only 'leave
+  // hands-free' again; e2e/hf-quick-tap.spec.ts taps with a real touch.)
+  const freeGhostGuardRef = useRef(0);
   function clearHoldArm() {
     if (holdArmRef.current) {
       clearTimeout(holdArmRef.current);
@@ -1267,6 +1279,33 @@ export default function SessionView({
     // invocation just reconnected — the reconnect storm of 2026-09-25
     if (!pttWantRef.current) return;
     const discard = forceDiscard ?? pttCancelArmRef.current;
+    // HUMAN taps run 250-400ms — slower than the 250ms PTT arm, so every
+    // 'single click' armed PTT and hands-free never toggled (diag 10-02
+    // 09:16: the user's tap logged 'hold — push to talk armed'; their words:
+    // 'I can push the talk, but nothing happened if I single click'). A press
+    // that armed PTT but released this fast held ~0-150ms of room tone, not
+    // speech: abort that nothing agent-side and treat the gesture as what it
+    // was — a tap (req 09-30 tap-toggle, restored for slow human fingers).
+    const heldMs = Date.now() - pttDownAtRef.current;
+    if (!discard && heldMs < 400) {
+      pttWantRef.current = false;
+      pttCancelArmRef.current = false;
+      setPttCancelArm(false);
+      setHolding(false);
+      const room = roomRef.current;
+      if (room) {
+        pttDiscardRpc(); // the buffered 0-150ms is noise — die agent-side
+        try {
+          if (modeRef.current !== 'free') await mic(false); // hands-free keeps listening
+        } catch {
+          /* release below still applies */
+        }
+        if (modeRef.current !== 'free') releaseMicDevice(room);
+      }
+      diagEvent('ptt', `released after ${heldMs}ms — short press = tap`);
+      pressTap();
+      return;
+    }
     pttWantRef.current = false;
     pttCancelArmRef.current = false;
     setPttCancelArm(false);
@@ -1969,7 +2008,26 @@ export default function SessionView({
    *  pure tap — toggle hands-free. No mic was touched, nothing to discard. */
   function micTap() {
     clearHoldArm();
+    // mic taps fire no click (pointerdown preventDefault) — invisible in the
+    // tap diag. Log the gesture so a 'the tap did nothing' report is readable
+    // in the log (2026-10-02 hands-free hunt)
+    diagEvent('voice', 'mic tap — toggle hands-free');
+    freeGhostGuardRef.current = Date.now() + 400;
     toggleHandsFree();
+  }
+
+  /** a press that was a TAP — released before the arm, or armed and let go
+   *  under 400ms (see pttUp): the hands-free toggle. On the first turn a tap
+   *  is not a turn, and hands-free ("over") is taught after — say what
+   *  happened instead of switching modes. */
+  function pressTap() {
+    if (first === 'practice' || first === 'sent' || first === 'mic') {
+      clearHoldArm();
+      setFirstHint(FT[firstLang].released);
+      diagEvent('ptt', 'first-turn: tap — released, nothing sent');
+      return;
+    }
+    micTap();
   }
 
   /** Tap the live equalizer to commit the turn — the tap equivalent of
@@ -2045,6 +2103,9 @@ export default function SessionView({
       clearHoldArm();
       pttStartRef.current = { x: e.clientX, y: e.clientY };
       pressAtRef.current = performance.now();
+      // physical press start — the <400ms tap reinterpret in pttUp measures
+      // from HERE, not from pttDown (which runs 250ms later, at arm time)
+      pttDownAtRef.current = Date.now();
       // PTT arms at 250ms — a shorter press is a tap (see micTap)
       holdArmRef.current = setTimeout(() => {
         holdArmRef.current = null;
@@ -2054,17 +2115,8 @@ export default function SessionView({
     onPointerUp: () => {
       unlockLines(); // a release is a gesture: the first-turn lines may play later
       // tap = the arm timer never fired → no PTT state exists at all
-      if (holdArmRef.current) {
-        if (first === 'practice' || first === 'sent' || first === 'mic') {
-          // first turn: a tap is not a turn, and hands-free ("over") is
-          // taught after — say what happened instead of switching modes
-          clearHoldArm();
-          setFirstHint(FT[firstLang].released);
-          diagEvent('ptt', 'first-turn: tap — released, nothing sent');
-          return;
-        }
-        micTap();
-      } else void pttUp();
+      if (holdArmRef.current) pressTap();
+      else void pttUp();
     },
     onPointerMove: (e: React.PointerEvent<HTMLButtonElement>) => {
       if (!holding) return;
@@ -2562,7 +2614,10 @@ export default function SessionView({
           <button
             data-testid="free-strip"
             aria-label="send what you said"
-            onClick={() => void commitFreeTurn()}
+            onClick={() => {
+              if (Date.now() < freeGhostGuardRef.current) return; // gesture ghost — see freeGhostGuardRef
+              void commitFreeTurn();
+            }}
             className={`oz-pill strip ${
               voiceState === 'ready' && freeCycle === 'listening' ? '' : 'wait'
             }`}
@@ -2590,7 +2645,10 @@ export default function SessionView({
             <button
               data-testid="free-exit"
               aria-label="leave hands-free"
-              onClick={toggleHandsFree}
+              onClick={() => {
+                if (Date.now() < freeGhostGuardRef.current) return; // gesture ghost — see freeGhostGuardRef
+                toggleHandsFree();
+              }}
               className="oz-k red"
             >
               <StopSquare size={12} />

@@ -12,6 +12,10 @@ export const DOOR_VERSION = 'v2';
 /** localStorage: the first voice turn in MAIN came through (STT proven on this
  *  device) — until then MAIN opens with the first-turn card. */
 export const FIRST_TURN_KEY = 'bifrost-first-turn';
+/** localStorage: the first-turn walk-through in progress — `{ slug, ways }`,
+ *  so leaving mid-walk and coming back resumes it. Gone when it ends.
+ *  `?teach=1` (settings → the three ways) starts it again on any device. */
+export const TEACH_KEY = 'bifrost-teach';
 /** sessionStorage one-shot: home plays the tree's shrink-to-corner once. */
 export const TF_SHRINK_KEY = 'tree-first-shrink';
 /** localStorage: the answers, as the door took them. */

@@ -9,11 +9,12 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { LineIcon } from '@/components/line-icon';
 import { YggTree } from '@/components/ygg';
 import { VERSION } from '@/lib/version';
-import { VOICE_TEST_SLUG, setVoiceTest, voiceTestOn } from '@/lib/voice-test';
+import { VOICE_TEST_SLUG, ensureVoiceTestRoom, setVoiceTest, voiceTestOn } from '@/lib/voice-test';
 
 const WORLDS = [
   { id: 'aether', desc: 'deep-space terminal · plain hairlines' },
@@ -30,6 +31,7 @@ const SWATCHES = ['bg', 'text', 'success', 'active', 'danger', 'info'] as const;
 type MicPerm = 'granted' | 'denied' | 'prompt' | 'unknown';
 
 export default function SettingsPage() {
+  const router = useRouter();
   const { theme, setTheme } = useTheme();
   // next-themes only knows the stored theme after mount — render no
   // "current" marker on the server pass instead of a wrong one
@@ -41,6 +43,21 @@ export default function SettingsPage() {
   const [vt, setVt] = useState(false);
   const [vtBusy, setVtBusy] = useState(false);
   const [vtErr, setVtErr] = useState('');
+  // the walk-through again (UX-CALM): MAIN's first-turn card, in the test room
+  const [walkBusy, setWalkBusy] = useState(false);
+  const [walkErr, setWalkErr] = useState('');
+
+  async function walkAgain() {
+    setWalkBusy(true);
+    setWalkErr('');
+    try {
+      await ensureVoiceTestRoom();
+      router.push(`/session/${VOICE_TEST_SLUG}?teach=1`);
+    } catch (e) {
+      setWalkErr(e instanceof Error ? e.message : String(e));
+      setWalkBusy(false);
+    }
+  }
 
   useEffect(() => {
     setMounted(true);
@@ -182,6 +199,29 @@ export default function SettingsPage() {
           </li>
         </ul>
         <p className="note">mic access is the browser&apos;s to grant or revoke — site settings.</p>
+      </section>
+
+      {/* the three ways, walked again — the door's first-turn card, one turn
+          each; in the test room, so practice never writes into MAIN */}
+      <section className="oz-blk">
+        <h2>the three ways</h2>
+        <ul className="oz-kv">
+          <li>
+            <span>walk-through</span>
+            <span>type · hold · hands-free</span>
+            <button
+              type="button"
+              data-testid="walk-again"
+              disabled={walkBusy}
+              onClick={() => void walkAgain()}
+              className="oz-k sm"
+            >
+              walk it
+            </button>
+          </li>
+        </ul>
+        {walkErr && <p className="note text-[var(--oz-danger)]">{walkErr}</p>}
+        <p className="note">one turn each, in {VOICE_TEST_SLUG} — never in MAIN.</p>
       </section>
 
       {/* testing the voice must never write into MAIN */}

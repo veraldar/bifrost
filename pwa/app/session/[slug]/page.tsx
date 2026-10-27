@@ -38,6 +38,7 @@ import {
   DOOR_KEY,
   FIRST_TURN_KEY,
   type Lang,
+  TEACH_KEY,
   TF_PREFS_KEY,
   isMainSlug,
   isOnboardPrompt,
@@ -55,17 +56,34 @@ import {
 import { ECHO_TAIL_MS, agentInRoom, releaseMicDevice, withTimeout } from '@/lib/voice-room';
 
 type Mode = 'text' | 'free';
-/** the door's last step, in MAIN: mic (ask once) → practice (hold, talk,
- *  let go) → sent → heard (the transcript landed: STT alive) → in */
+/** the door's last step, in MAIN — the walk-through (UX-CALM 10-27: the
+ *  footer teaches nothing, so this does): each of the three ways, done once,
+ *  in order. Per way: mic (ask once, voice ways) → practice (do it) → sent →
+ *  heard (it landed: STT alive) → the reply → the next way … → in */
 type FirstTurn = 'off' | 'mic' | 'practice' | 'sent' | 'heard' | 'in' | 'denied';
+/** type · hold to talk · hands-free with "over". A way done out of order
+ *  still counts (a hold during "type" is the hold); skip moves on. */
+type Way = 'type' | 'hold' | 'free';
+type WayState = 'todo' | 'done' | 'skip';
+type Ways = Record<Way, WayState>;
+const WAYS: Way[] = ['type', 'hold', 'free'];
+const ALL_TODO: Ways = { type: 'todo', hold: 'todo', free: 'todo' };
+/** the first way still to walk, in order — null = all three walked */
+const nextWay = (w: Ways): Way | null => WAYS.find((k) => w[k] === 'todo') ?? null;
 const FT = {
   en: {
     planted: 'ready. this is main — your main conversation.',
     mic: 'the mic: your browser asks once.',
     allow: 'allow the mic',
-    hold: 'hold the mic ↓ say anything · let go to send',
-    type: 'or type it ↓',
+    ways: { type: 'type', hold: 'hold', free: 'hands-free' },
+    type: 'type it ↓',
     typeSub: 'the box below · send',
+    hold: 'hold the mic ↓',
+    holdSub: 'talk at “heard” · let go to send',
+    free: 'tap the mic once ↓',
+    freeSub: 'hands-free: the mic stays open',
+    freeOn: 'talk, then say “over”',
+    freeOnSub: '“over” sends it',
     released: 'released — nothing sent · hold the mic while you talk',
     sent: 'sent · listening for your words…',
     sentTyped: 'sent · on its way to the tree…',
@@ -73,21 +91,23 @@ const FT = {
     heard: 'heard',
     got: 'received',
     answering: 'the tree answers…',
-    now: [
-      ['hold the mic', 'talk'],
-      ['tap the mic', 'hands-free · say “over” to send'],
-      ['type below', 'any time'],
-      ['the tree, in the corner of your list', 'back to main'],
-    ],
+    skip: 'skip',
+    close: 'close the walk-through',
     ok: 'ok',
   },
   fr: {
     planted: 'c’est prêt. voici main — votre conversation principale.',
     mic: 'le micro : votre navigateur demande une fois.',
     allow: 'autoriser le micro',
-    hold: 'maintenez le micro ↓ dites quelque chose · relâchez pour envoyer',
-    type: 'ou écrivez-le ↓',
+    ways: { type: 'écrire', hold: 'maintenir', free: 'mains libres' },
+    type: 'écrivez-le ↓',
     typeSub: 'la case en dessous · envoyer',
+    hold: 'maintenez le micro ↓',
+    holdSub: 'parlez dès « heard » · relâchez pour envoyer',
+    free: 'touchez le micro une fois ↓',
+    freeSub: 'mains libres : le micro reste ouvert',
+    freeOn: 'parlez, puis dites « over »',
+    freeOnSub: '« over » l’envoie',
     released: 'relâché — rien envoyé · maintenez le micro pendant que vous parlez',
     sent: 'envoyé · à l’écoute de vos mots…',
     sentTyped: 'envoyé · en route vers l’arbre…',
@@ -95,12 +115,8 @@ const FT = {
     heard: 'entendu',
     got: 'reçu',
     answering: 'l’arbre répond…',
-    now: [
-      ['maintenez le micro', 'parler'],
-      ['touchez le micro', 'mains libres · dites « over » pour envoyer'],
-      ['tapez en bas', 'à tout moment'],
-      ['l’arbre, dans le coin de votre liste', 'retour à main'],
-    ],
+    skip: 'passer',
+    close: 'fermer le parcours',
     ok: 'ok',
   },
 } as const;
@@ -221,8 +237,17 @@ export default function SessionView({
   const [firstHint, setFirstHint] = useState('');
   const [firstLang, setFirstLang] = useState<Lang>('en');
   const lineVoice = useVoiceState(); // the first-turn card's own lines
-  // typed: the first turn came from the keyboard (10-23: a first-timer may
-  // prefer to type — same turn, same "you are in"; no STT to prove, no voice)
+  // the walk-through: the way on the card now, and what each way came to
+  const [way, setWay] = useState<Way>('type');
+  const [ways, setWays] = useState<Ways>(ALL_TODO);
+  // mirrors: the permission probe and the reply effect read the CURRENT way
+  const wayRef = useRef<Way>('type');
+  wayRef.current = way;
+  const waysRef = useRef<Ways>(ALL_TODO);
+  waysRef.current = ways;
+  const walkSlugRef = useRef(''); // the session the walk belongs to ('' = none)
+  // typed: the turn came from the keyboard (10-23: a first-timer may prefer
+  // to type — same turn; no STT to prove, no voice). kind: which way it was
   const firstRef = useRef({
     sentAt: 0,
     before: 0,
@@ -231,6 +256,7 @@ export default function SessionView({
     heard: '',
     saidIn: false,
     typed: false,
+    kind: 'type' as Way,
   });
   const [input, setInput] = useState('');
   // swipe-history browser: index of the message on screen, null = closed
@@ -1054,6 +1080,7 @@ export default function SessionView({
         if (state === 'processing') {
           setFreeCycle('processing');
           await mic(false);
+          firstFreeRef.current(); // the walk's hands-free way: "over" said
         }
         return 'ok';
       });
@@ -1328,7 +1355,7 @@ export default function SessionView({
       return;
     }
     if (modeRef.current !== 'free') await mic(false); // hands-free keeps listening
-    firstSent();
+    firstSent('hold');
     stickRef.current = true;
     setBusy(true); // cleared when the run state settles (see poller)
     armRunWatch();
@@ -1675,47 +1702,151 @@ export default function SessionView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, voiceState, busy, freeCycle, lastAssistant, slug]);
 
-  // ── first turn: the door ends on one real voice turn in MAIN ──────────
-  // (the door walked, nothing heard from this device yet) → the card. STT is
-  // proven by the transcript landing in MAIN as your message; the reply is
-  // spoken; then "you are in" + what to do next.
+  // ── first turn: the door ends on the walk-through in MAIN ─────────────
+  // (the door walked, nothing heard from this device yet) → the card: type,
+  // hold, hands-free + "over" — each done once, for real. STT is proven by
+  // the transcript landing as your message; each reply arrives before the
+  // next way; then "you are in". Re-walkable: ?teach=1 (settings → the three
+  // ways), and a walk left halfway resumes here (TEACH_KEY).
   useEffect(() => {
     let on = false;
     let lang: Lang = 'en';
+    let start: Ways = ALL_TODO;
     try {
+      const q = new URLSearchParams(window.location.search);
       // MAIN after the door — or any session a ?first=1 link names (the
-      // door's own link carries it) — while no voice turn came through here
-      const asked = new URLSearchParams(window.location.search).get('first') === '1';
+      // door's own link carries it) — while no turn came through here
+      const asked = q.get('first') === '1';
+      const again = q.get('teach') === '1';
+      const saved = JSON.parse(localStorage.getItem(TEACH_KEY) || 'null') as {
+        slug?: string;
+        ways?: Ways;
+      } | null;
+      const resume = !again && saved?.slug === slug && saved.ways ? saved.ways : null;
       on =
         !!slug &&
-        !localStorage.getItem(FIRST_TURN_KEY) &&
-        ((isMainSlug(slug) && !!localStorage.getItem(DOOR_KEY)) || asked);
+        (again ||
+          !!resume ||
+          (!localStorage.getItem(FIRST_TURN_KEY) &&
+            ((isMainSlug(slug) && !!localStorage.getItem(DOOR_KEY)) || asked)));
+      if (resume) start = { ...ALL_TODO, ...resume };
+      if (again) {
+        // one walk per ask: a reload resumes it (TEACH_KEY), never restarts it
+        q.delete('teach');
+        const rest = q.toString();
+        window.history.replaceState(
+          null,
+          '',
+          `${window.location.pathname}${rest ? `?${rest}` : ''}`
+        );
+      }
       const p = JSON.parse(localStorage.getItem(TF_PREFS_KEY) || '{}') as { lang?: string };
       lang = p.lang === 'fr' ? 'fr' : 'en';
       setFirstLang(lang);
     } catch {
       on = false;
     }
-    setFirst(on ? 'practice' : 'off');
+    setWays(start);
+    waysRef.current = start;
+    walkSlugRef.current = on ? slug : '';
     setFirstHint('');
-    if (!on) return;
-    diagEvent('voice', 'first-turn: card up');
+    if (!on) {
+      setFirst('off');
+      return;
+    }
+    diagEvent(
+      'voice',
+      `first-turn: card up (${WAYS.filter((k) => start[k] === 'todo').join(' ')})`
+    );
     // the card's lines are in memory before they are needed (no dead air)
     warmLines(['heard', 'not_heard', 'in', 'mic_denied'], lang);
     // the room warms while they read the card (v0.7 repro: a fast walker held
     // the mic <1s after MAIN opened — the agent was still joining and the
     // turn was captured into an empty room, "nothing transcribed")
     void ensureVoice().catch(() => {});
-    // the mic is asked by its own step — never mid-hold, where the prompt
-    // steals the finger and the turn is lost
+    enterWay(nextWay(start));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug]);
+
+  // the walk survives leaving the page: its progress is kept until it ends
+  // (ref reads: on a slug change this runs before the stale card state goes)
+  useEffect(() => {
+    if (!slug || first === 'off' || walkSlugRef.current !== slug) return;
+    try {
+      if (first === 'in') localStorage.removeItem(TEACH_KEY);
+      else localStorage.setItem(TEACH_KEY, JSON.stringify({ slug, ways: waysRef.current }));
+    } catch {
+      /* private mode: a reload starts the walk over */
+    }
+  }, [slug, first, ways]);
+
+  // type and hold need the composer: a hands-free carried over from an
+  // earlier visit (oz-mode, restored once the room is up) goes back to the
+  // keyboard for them — the walk reaches hands-free by its own tap
+  useEffect(() => {
+    if ((first === 'practice' || first === 'mic') && way !== 'free' && mode === 'free') {
+      diagEvent('voice', `first-turn: way ${way} needs the keyboard — hands-free off`);
+      toggleHandsFree();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [first, way, mode]);
+
+  /** put one way on the card (null = all three walked → "you are in"). The
+   *  voice ways ask for the mic by their own step — never mid-hold, where the
+   *  prompt steals the finger and the turn is lost */
+  function enterWay(w: Way | null) {
+    setFirstHint('');
+    if (!w) {
+      try {
+        // walked (or skipped) to the end: this device is through the door
+        if (!localStorage.getItem(FIRST_TURN_KEY))
+          localStorage.setItem(FIRST_TURN_KEY, String(Date.now()));
+      } catch {
+        /* private mode */
+      }
+      diagEvent('voice', 'first-turn: walk-through done');
+      setFirst('in');
+      return;
+    }
+    setWay(w);
+    wayRef.current = w;
+    setFirst('practice');
+    diagEvent('voice', `first-turn: way ${w}`);
+    if (w === 'type') return;
     navigator.permissions
       ?.query({ name: 'microphone' as PermissionName })
       .then((p) => {
+        if (wayRef.current !== w) return;
         if (p.state === 'prompt') setFirst((f) => (f === 'practice' ? 'mic' : f));
         if (p.state === 'denied') setFirst((f) => (f === 'practice' ? 'denied' : f));
       })
       .catch(() => {});
-  }, [slug]);
+  }
+
+  /** skip: this way stays unwalked, the next one comes up */
+  function skipWay() {
+    unlockLines();
+    const w: Ways = { ...waysRef.current, [way]: 'skip' };
+    setWays(w);
+    waysRef.current = w;
+    diagEvent('voice', `first-turn: way ${way} skipped`);
+    enterWay(nextWay(w));
+  }
+
+  /** ✕: the walk ends here, wherever it is (it can be walked again) */
+  function closeWalk() {
+    stopLine();
+    try {
+      if (!localStorage.getItem(FIRST_TURN_KEY))
+        localStorage.setItem(FIRST_TURN_KEY, String(Date.now()));
+      localStorage.removeItem(TEACH_KEY);
+    } catch {
+      /* private mode */
+    }
+    diagEvent('voice', `first-turn: walk-through closed at ${way}`);
+    walkSlugRef.current = '';
+    setFirst('off');
+  }
 
   async function allowMic() {
     unlockLines(); // this tap is the gesture the later lines need
@@ -1732,20 +1863,44 @@ export default function SessionView({
     }
   }
 
-  /** pttUp (or a typed send), the turn is going out: from here a message
-   *  must land. A typed turn may start before the mic was ever asked for —
-   *  or after it was refused: typing never needs it */
-  function firstSent(typed = false) {
-    const from: FirstTurn[] = typed ? ['practice', 'mic', 'denied'] : ['practice', 'sent'];
+  /** pttUp, a typed send, or a hands-free commit ("over" / the bars): the
+   *  turn is going out, from here a message must land. A typed turn may start
+   *  before the mic was ever asked for — or after it was refused: typing never
+   *  needs it */
+  function firstSent(kind: Way) {
+    const from: FirstTurn[] =
+      kind === 'type'
+        ? ['practice', 'mic', 'denied']
+        : kind === 'free'
+          ? ['practice', 'mic', 'sent']
+          : ['practice', 'sent'];
     if (!from.includes(first)) return;
     const before = [...msgs].reverse().find((m) => m.role === 'user' && !isOnboardPrompt(m.text));
-    firstRef.current = { ...firstRef.current, sentAt: Date.now(), before: before?.time || 0, typed };
-    diagEvent('voice', `first-turn: ${typed ? 'typed' : 'voice'} turn sent`);
+    firstRef.current = {
+      ...firstRef.current,
+      sentAt: Date.now(),
+      before: before?.time || 0,
+      typed: kind === 'type',
+      kind,
+    };
+    diagEvent('voice', `first-turn: ${kind === 'type' ? 'typed' : 'voice'} turn sent (${kind})`);
     setFirstHint('');
     setFirst('sent');
   }
+  // the hands-free commit arrives in an RPC handler bound at connect time —
+  // it calls the CURRENT card through this ref
+  const firstFreeRef = useRef(() => {});
+  firstFreeRef.current = () => {
+    if (first !== 'off' && first !== 'in') firstSent('free');
+  };
 
-  /** the card's "or type it": the composer takes the turn (keyboard up) */
+  // the hands-free way, once in hands-free, says what to do there — a mic
+  // granted by the tap itself (no separate ask) moves the card on too
+  useEffect(() => {
+    if (first === 'mic' && way === 'free' && mode === 'free') setFirst('practice');
+  }, [first, way, mode]);
+
+  /** the card's "type it": the composer takes the turn (keyboard up) */
   function firstType() {
     unlockLines(); // a tap: the card's later lines may play
     diagEvent('voice', 'first-turn: type chosen');
@@ -1783,6 +1938,9 @@ export default function SessionView({
       } catch {
         /* private mode: the card comes back next time, harmless */
       }
+      const w: Ways = { ...waysRef.current, [f.kind]: 'done' };
+      setWays(w);
+      waysRef.current = w;
       setFirst('heard');
       // "heard." is the STT's proof — typed words were never listened for
       if (!f.typed && getSpeech().phase === 'idle') void say('heard', firstLang);
@@ -1790,9 +1948,13 @@ export default function SessionView({
     }
     const t = setTimeout(
       () => {
-        if (f.typed) {
-          // the send itself failed or stalled: the error line says why
-          diagEvent('voice-fail', 'first-turn: typed turn not in the transcript 15s after send');
+        if (f.kind !== 'hold') {
+          // the send itself failed or stalled (typed), or "over" committed
+          // nothing that landed (hands-free): the error line says why
+          diagEvent(
+            'voice-fail',
+            `first-turn: ${f.kind} turn not in the transcript 15s after send`
+          );
           setFirstHint(FT[firstLang].lost);
           setFirst('practice');
           return;
@@ -1808,30 +1970,42 @@ export default function SessionView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [first, msgs]);
 
-  // heard → in: the brain's reply to it, spoken (you talked, it talks back).
+  // heard → the next way: the brain's reply to it (you talked, it talks back).
   // The reply is found by ORDER — the first completed assistant message after
   // the heard one: yggdrasil stamps a prompt and its reply in the same or the
   // next millisecond, so a time comparison can miss it (10-19 referee run)
   useEffect(() => {
     if (first !== 'heard') return;
     const f = firstRef.current;
-    const ui = msgs.findIndex((m) => m.role === 'user' && m.time === f.heardTime && m.text === f.heard);
+    const ui = msgs.findIndex(
+      (m) => m.role === 'user' && m.time === f.heardTime && m.text === f.heard
+    );
     const a =
       ui < 0
         ? undefined
         : [...msgs.slice(ui + 1)].reverse().find((m) => m.role === 'assistant' && m.text.trim());
     if (a && a.done !== false && !busy) {
-      diagEvent('voice', `first-turn: reply ${Date.now() - f.sentAt}ms after ${f.typed ? 'send' : 'release'}`);
-      markHeard(slug, a.time);
-      // you talked, it talks back; you typed, it writes back — the reply is
-      // on screen right above the card (the deck can still speak it)
-      if (!f.typed) startSpeech(a.text, slug);
-      setFirst('in');
+      diagEvent(
+        'voice',
+        `first-turn: reply ${Date.now() - f.sentAt}ms after ${f.typed ? 'send' : 'release'}`
+      );
+      // a held turn: it talks back here. Typed: it writes back (the deck can
+      // still speak it). Hands-free speaks its own replies (the free cycle)
+      if (f.kind === 'hold' && modeRef.current !== 'free') {
+        markHeard(slug, a.time);
+        startSpeech(a.text, slug);
+      } else if (f.kind === 'type') {
+        markHeard(slug, a.time);
+      }
+      enterWay(nextWay(waysRef.current));
       return;
     }
-    // a slow or failed brain: STT is proven anyway, the error channel says
-    // why. Anchored to the heard moment — every poll re-runs this effect
-    const t = setTimeout(() => setFirst('in'), Math.max(0, f.heardAt + 45_000 - Date.now()));
+    // a slow or failed brain: the turn is proven anyway, the error channel
+    // says why. Anchored to the heard moment — every poll re-runs this effect
+    const t = setTimeout(
+      () => enterWay(nextWay(waysRef.current)),
+      Math.max(0, f.heardAt + 45_000 - Date.now())
+    );
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [first, msgs, busy]);
@@ -1943,7 +2117,7 @@ export default function SessionView({
       .map((a) => ({ name: a.name, content: a.content }));
     setAttachments([]);
     stickRef.current = true;
-    if (first !== 'off') firstSent(true); // the door's first turn, typed
+    if (first !== 'off') firstSent('type'); // the walk-through's typed turn
     void sendTextAsync(text, images, files);
   }
 
@@ -2017,11 +2191,12 @@ export default function SessionView({
   }
 
   /** a press that was a TAP — released before the arm, or armed and let go
-   *  under 400ms (see pttUp): the hands-free toggle. On the first turn a tap
-   *  is not a turn, and hands-free ("over") is taught after — say what
-   *  happened instead of switching modes. */
+   *  under 400ms (see pttUp): the hands-free toggle. During the walk's type
+   *  and hold ways a tap is not a turn, and hands-free ("over") is the next
+   *  way — say what happened instead of switching modes. The hands-free way
+   *  is walked BY this tap. */
   function pressTap() {
-    if (first === 'practice' || first === 'sent' || first === 'mic') {
+    if ((first === 'practice' || first === 'sent' || first === 'mic') && way !== 'free') {
       clearHoldArm();
       setFirstHint(FT[firstLang].released);
       diagEvent('ptt', 'first-turn: tap — released, nothing sent');
@@ -2063,6 +2238,7 @@ export default function SessionView({
       // straight through the whole run, with the reply never spoken.
       setFreeCycle('processing');
       await mic(false);
+      firstFreeRef.current(); // the walk's hands-free way: the bars tapped
       // an empty tap (nothing said — or only the phone's own voice, which the
       // echo gate kept out): no turn lands, no run starts, no idle ever comes,
       // and heartbeats keep re-arming the escape — the strip sat on "working
@@ -2499,12 +2675,15 @@ export default function SessionView({
         </div>
       )}
 
-      {/* the door's last step: one real voice turn, then "you are in" */}
+      {/* the door's last step: the walk-through — each way done once, then
+          "you are in". One instruction at a time, pointing at the control
+          below it; the three ways above it say where the walk is */}
       {first !== 'off' && (
         <section
           className="oz-ft"
           data-testid="first-turn"
           data-state={first}
+          data-way={first === 'in' ? undefined : way}
           data-voice={lineVoice}
           aria-live="polite"
         >
@@ -2514,94 +2693,101 @@ export default function SessionView({
             data-s={lineVoice === 'loading' ? 'working' : lineVoice === 'speaking' ? 'speaking' : 'idle'}
             aria-hidden="true"
           />
-          {(first === 'mic' || first === 'practice') && (
+          {first !== 'in' && (
+            <button
+              type="button"
+              className="x"
+              data-testid="first-close"
+              aria-label={FT[firstLang].close}
+              onClick={closeWalk}
+            >
+              <LineIcon name="close" size={11} />
+            </button>
+          )}
+          {isMainSlug(slug) && first !== 'in' && WAYS.every((k) => ways[k] === 'todo') && (
+            <p className="t">{FT[firstLang].planted}</p>
+          )}
+          {first !== 'in' && (
+            <ol className="ways3" data-testid="first-ways">
+              {WAYS.map((k) => (
+                <li key={k} data-way={k} data-s={k === way ? 'now' : ways[k]}>
+                  {FT[firstLang].ways[k]}
+                </li>
+              ))}
+            </ol>
+          )}
+          {first === 'practice' && way === 'type' && (
             <>
-              <p className="t">{FT[firstLang].planted}</p>
-              {/* two first-class ways in: the voice, or the keyboard */}
-              {first === 'mic' ? (
-                <>
-                  <p>{FT[firstLang].mic}</p>
-                  <div className="ways">
-                    <button
-                      type="button"
-                      className="go"
-                      data-testid="first-allow-mic"
-                      onClick={() => void allowMic()}
-                    >
-                      {FT[firstLang].allow}
-                    </button>
-                    <button
-                      type="button"
-                      className="ty"
-                      data-testid="first-type"
-                      onClick={firstType}
-                    >
-                      {FT[firstLang].type}
-                      <small>{FT[firstLang].typeSub}</small>
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <p className={firstHint ? 'hint' : ''}>{firstHint}</p>
-                  <button
-                    type="button"
-                    className="ty"
-                    data-testid="first-type"
-                    onClick={firstType}
-                  >
-                    {FT[firstLang].type}
-                    <small>{FT[firstLang].typeSub}</small>
-                  </button>
-                </>
-              )}
+              <button type="button" className="ty" data-testid="first-type" onClick={firstType}>
+                {FT[firstLang].type}
+                <small>{FT[firstLang].typeSub}</small>
+              </button>
+              {firstHint && <p className="hint">{firstHint}</p>}
             </>
           )}
+          {first === 'practice' && way === 'hold' && (
+            <>
+              <p className="t">{FT[firstLang].hold}</p>
+              <p className="sub">{FT[firstLang].holdSub}</p>
+              {firstHint && <p className="hint">{firstHint}</p>}
+            </>
+          )}
+          {first === 'practice' && way === 'free' && (
+            <>
+              <p className="t">{mode === 'free' ? FT[firstLang].freeOn : FT[firstLang].free}</p>
+              <p className="sub">
+                {mode === 'free' ? FT[firstLang].freeOnSub : FT[firstLang].freeSub}
+              </p>
+              {firstHint && <p className="hint">{firstHint}</p>}
+            </>
+          )}
+          {first === 'mic' && (
+            <>
+              <p>{FT[firstLang].mic}</p>
+              <button
+                type="button"
+                className="go"
+                data-testid="first-allow-mic"
+                onClick={() => void allowMic()}
+              >
+                {FT[firstLang].allow}
+              </button>
+            </>
+          )}
+          {first === 'denied' && <p className="t">{line('mic_denied', firstLang)}</p>}
           {first === 'sent' && (
             <p>{firstRef.current.typed ? FT[firstLang].sentTyped : FT[firstLang].sent}</p>
           )}
           {first === 'heard' && (
             <>
-              <p className="t">{firstRef.current.typed ? FT[firstLang].got : FT[firstLang].heard}</p>
+              <p className="t">
+                {firstRef.current.typed ? FT[firstLang].got : FT[firstLang].heard}
+              </p>
               <blockquote data-testid="first-heard">“{firstRef.current.heard}”</blockquote>
               <p className="sub">{FT[firstLang].answering}</p>
             </>
+          )}
+          {(first === 'practice' || first === 'mic' || first === 'denied') && (
+            <button type="button" className="sk" data-testid="first-skip" onClick={skipWay}>
+              {FT[firstLang].skip}
+            </button>
           )}
           {first === 'in' && (
             <>
               <p className="t" data-testid="first-in">
                 {line('in', firstLang)}
               </p>
-              <dl>
-                {FT[firstLang].now.map(([k, v]) => (
-                  <div key={k}>
-                    <dt>{k}</dt>
-                    <dd>{v}</dd>
-                  </div>
-                ))}
-              </dl>
-              <button type="button" className="go" data-testid="first-ok" onClick={() => setFirst('off')}>
+              <button
+                type="button"
+                className="go"
+                data-testid="first-ok"
+                onClick={() => {
+                  walkSlugRef.current = '';
+                  setFirst('off');
+                }}
+              >
                 {FT[firstLang].ok}
               </button>
-            </>
-          )}
-          {first === 'denied' && (
-            <>
-              <p className="t">{line('mic_denied', firstLang)}</p>
-              <div className="ways">
-                <button
-                  type="button"
-                  className="ty"
-                  data-testid="first-type"
-                  onClick={firstType}
-                >
-                  {FT[firstLang].type}
-                  <small>{FT[firstLang].typeSub}</small>
-                </button>
-                <button type="button" className="go" onClick={() => setFirst('off')}>
-                  {FT[firstLang].ok}
-                </button>
-              </div>
             </>
           )}
         </section>

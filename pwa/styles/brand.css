@@ -242,27 +242,40 @@
     position: absolute; top: calc(10px + env(safe-area-inset-top)); right: 10px; min-height: 36px; padding: 0 12px;
     font-size: 11px; letter-spacing: .12em; color: var(--oz-dim); border: 1px solid var(--oz-border); background: var(--oz-bg);
   }
-  /* first turn — the door's last step, inside MAIN, right above the mic */
+  /* first turn — the door's last step, inside MAIN, right above the mic: the
+     walk-through (UX-CALM) — type · hold · hands-free, one way at a time */
   .oz-ft {
+    position: relative;
     margin: 0 0 8px; padding: 12px 14px; border: 1px solid var(--oz-border); border-left: 2px solid var(--oz-active);
     background: var(--oz-surface); font-size: 12.5px; line-height: 1.6; display: grid; gap: 6px;
+  }
+  .oz-ft > .x {
+    position: absolute; top: 2px; right: 2px; width: 36px; height: 36px;
+    display: grid; place-items: center; color: var(--oz-dim); background: transparent;
+  }
+  /* the three ways: done ✓ green, the one on now amber, the rest dim */
+  .oz-ft .ways3 { display: flex; gap: 14px; font-size: 11px; letter-spacing: .08em; padding-right: 30px; }
+  .oz-ft .ways3 li { color: var(--oz-dim); }
+  .oz-ft .ways3 li[data-s='now'] { color: var(--oz-active); }
+  .oz-ft .ways3 li[data-s='done'] { color: var(--oz-success); }
+  .oz-ft .ways3 li[data-s='done']::before { content: '✓ '; }
+  .oz-ft .ways3 li[data-s='skip'] { text-decoration: line-through; }
+  .oz-ft .sk {
+    justify-self: start; min-height: 32px; padding: 0 2px; color: var(--oz-dim); background: transparent;
+    font-size: 11px; letter-spacing: .12em; text-decoration: underline; text-underline-offset: 3px;
   }
   .oz-ft .ftv { margin: -12px -14px 0; }
   .oz-ft .t { color: var(--oz-text); font-size: 13.5px; }
   .oz-ft[data-state='in'] { border-left-color: var(--oz-success); }
   .oz-ft[data-state='in'] .t { color: var(--oz-success); }
   .oz-ft .hint { color: var(--oz-active); }
-  .oz-ft .sub, .oz-ft dt { color: var(--oz-dim); }
+  .oz-ft .sub { color: var(--oz-dim); }
   .oz-ft blockquote { color: var(--oz-active); }
-  .oz-ft dl { display: grid; gap: 2px; font-size: 11.5px; }
-  .oz-ft dl div { display: flex; gap: 8px; }
-  .oz-ft dt { min-width: 44%; }
   .oz-ft .go {
     justify-self: start; min-height: 40px; padding: 0 16px; border: 1px solid var(--oz-text);
     background: var(--oz-text); color: var(--oz-bg); letter-spacing: .12em; font-size: 11.5px;
   }
-  /* the keyboard way in — first-class next to the voice: same height, outlined */
-  .oz-ft .ways { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+  /* the keyboard way: outlined, the height of the voice buttons */
   .oz-ft .ty {
     justify-self: start; min-height: 40px; padding: 4px 14px; border: 1px solid var(--oz-text);
     color: var(--oz-text); background: transparent; letter-spacing: .08em; font-size: 11.5px;

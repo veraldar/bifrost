@@ -22,23 +22,25 @@ export function voiceTestRedirect(slug: string): string | null {
   return isMainSlug(slug) && voiceTestOn() ? VOICE_TEST_SLUG : null;
 }
 
-/** switch on: the session must exist before the first voice turn (the
- *  session view resolves a slug, it does not create one) */
+/** the test room must exist before its first turn (the session view
+ *  resolves a slug, it does not create one) */
+export async function ensureVoiceTestRoom(): Promise<void> {
+  // the proxy resolves a slug over the whole store (the list is capped)
+  const probe = await fetch(`/api/session/${VOICE_TEST_SLUG}/messages?limit=1`, {
+    cache: 'no-store',
+  });
+  if (probe.ok) return;
+  const r = await fetch('/api/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: VOICE_TEST_SLUG }),
+  });
+  if (!r.ok) throw new Error(`could not create ${VOICE_TEST_SLUG} (${r.status})`);
+}
+
+/** switch on: the room first (see ensureVoiceTestRoom) */
 export async function setVoiceTest(on: boolean): Promise<void> {
-  if (on) {
-    // the proxy resolves a slug over the whole store (the list is capped)
-    const probe = await fetch(`/api/session/${VOICE_TEST_SLUG}/messages?limit=1`, {
-      cache: 'no-store',
-    });
-    if (!probe.ok) {
-      const r = await fetch('/api/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: VOICE_TEST_SLUG }),
-      });
-      if (!r.ok) throw new Error(`could not create ${VOICE_TEST_SLUG} (${r.status})`);
-    }
-  }
+  if (on) await ensureVoiceTestRoom();
   try {
     if (on) localStorage.setItem(VOICE_TEST_KEY, '1');
     else localStorage.removeItem(VOICE_TEST_KEY);

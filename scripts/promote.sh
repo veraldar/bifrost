@@ -210,6 +210,14 @@ switch_to() {  # $1 = release dir name; restarts the live units onto it
 
 gate() { python3 "$REPO/scripts/gate.py"; }
 
+# fleet rule 10-28.4: drift-guard exit 0 blocks every FORWARD ship. Going back (--rollback, or a
+# --switch to PREVIOUS) never waits on it: the safety net must not depend on the worktrees' state.
+drift_gate() {
+  "$REPO/scripts/drift-guard.sh" >/tmp/promote-drift.$$ 2>&1 && { rm -f /tmp/promote-drift.$$; return 0; }
+  cat /tmp/promote-drift.$$ >&2; rm -f /tmp/promote-drift.$$
+  die "drift-guard RED (rule 10-28.4) — port the fix or name the gap in scripts/drift-guard.sh, then promote"
+}
+
 # runs in flight on the brain(s) a switch touches: live's and, given $1, the target release's
 release_brain() { grep -h '^OPENCODE_URL=' "$1/env/live-pwa.env" 2>/dev/null | cut -d= -f2-; }
 in_flight() {
@@ -247,6 +255,7 @@ case "$MODE" in
     backfill_env
     grep -q 'live/env' "$UNITS/lk-pwa.service.d/live.conf" 2>/dev/null || install_units
     to="$(resolve "$TARGET")" || exit 1
+    [[ "releases/$to" == "$(readlink "$BIF/previous" 2>/dev/null)" ]] || drift_gate
     busy="$(in_flight "$RELS/$to")"
     [[ -z "$busy" || $FORCE == 1 ]] || die "run(s) in flight ($busy) — wait, or --force"
     switch_gated "$to"; exit $? ;;
@@ -275,6 +284,7 @@ EOF
   chmod a-w "$REL/RELEASE.json"
   say "built $ID (build of $src, new env $(env_hash "$REL"))"
   ((BUILD_ONLY)) && { say "--build-only: staged, live untouched"; exit 0; }
+  drift_gate
   busy="$(in_flight "$REL")"
   [[ -z "$busy" || $FORCE == 1 ]] || die "run(s) in flight ($busy) — wait, or --force (staged at $REL)"
   switch_gated "$ID"; exit $?
@@ -350,6 +360,7 @@ say "built $ID · build $BUILD_ID · manifest ${MANIFEST:0:12} · env $(env_hash
 ((BUILD_ONLY)) && { say "--build-only: staged, live untouched"; exit 0; }
 
 # --- switch + gate -------------------------------------------------------------
+drift_gate
 busy="$(in_flight "$REL")"
 [[ -z "$busy" || $FORCE == 1 ]] || die "run(s) in flight ($busy) — wait, or --force (staged at $REL)"
 PREV="$(readlink "$BIF/live" 2>/dev/null || true)"

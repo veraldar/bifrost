@@ -1218,6 +1218,7 @@ export default function SessionView({
     // deliberately NOT gated on busy: talking while the agent works queues
     // the turn (opencode serializes per session); stop is the only cancel
     pttWantRef.current = true;
+    holdBeforeRef.current = lastUserTime(); // the walk: a hold's turn is newer than its press
     pttCancelArmRef.current = false;
     setPttCancelArm(false);
     setMicLive(false);
@@ -1901,6 +1902,16 @@ export default function SessionView({
     }
   }
 
+  /** the newest user turn on screen (server time) — "newer than this" is
+   *  how the walk knows a turn landed */
+  function lastUserTime(): number {
+    return [...msgs].reverse().find((m) => m.role === 'user' && !isOnboardPrompt(m.text))?.time || 0;
+  }
+  // a held turn can land BEFORE its release: the agent also commits on a
+  // spoken "over" mid-hold (keyword turn-taking is armed in every room), and
+  // the release then commits nothing — so a hold counts from its press
+  const holdBeforeRef = useRef(0);
+
   /** pttUp, a typed send, or a hands-free commit ("over" / the bars): the
    *  turn is going out, from here a message must land. A typed turn may start
    *  before the mic was ever asked for — or after it was refused: typing never
@@ -1913,11 +1924,11 @@ export default function SessionView({
           ? ['practice', 'mic']
           : ['practice', 'sent'];
     if (!from.includes(first)) return;
-    const before = [...msgs].reverse().find((m) => m.role === 'user' && !isOnboardPrompt(m.text));
+    const before = kind === 'hold' ? holdBeforeRef.current : lastUserTime();
     firstRef.current = {
       ...firstRef.current,
       sentAt: Date.now(),
-      before: before?.time || 0,
+      before,
       typed: kind === 'type',
       kind,
     };

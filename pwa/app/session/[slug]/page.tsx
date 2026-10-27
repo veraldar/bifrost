@@ -2796,10 +2796,14 @@ export default function SessionView({
         data-s={tone}
         {...(mode === 'free' ? { 'data-testid': 'free-phase', 'data-cycle': freeCycle } : {})}
       >
-        <span className="g" aria-hidden="true">
-          {GLYPH[tone]}
-        </span>
-        <span>{words}</span>
+        {words && (
+          <>
+            <span className="g" aria-hidden="true">
+              {GLYPH[tone]}
+            </span>
+            <span>{words}</span>
+          </>
+        )}
       </p>
     </main>
   );

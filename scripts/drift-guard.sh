@@ -28,7 +28,9 @@ FIXES='
 first-turn-tap|pwa/app/session/[slug]/page.tsx|first-turn: tap — released, nothing sent|bifrost
 ghost-click-guard|pwa/app/session/[slug]/page.tsx|freeGhostGuardRef|-
 tap-arm-reinterpret|pwa/app/session/[slug]/page.tsx|pttDownAtRef|-
-theme-dialects|pwa/styles/tokens.css|per-world|bifrost-sandbox
+# theme-dialects: ported to lab/sandbox 10-27 (be67d66, THEME-PORT report).
+# Probe is a value (the aether dialect ground), not the header comment.
+theme-dialects|pwa/styles/tokens.css|oz-bg: #07080e|-
 '
 
 ROOTS=("$@")

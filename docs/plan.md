@@ -151,3 +151,19 @@ coordinator → user confirmation test → the URD row → v0.8 starts.
   teaching line retired (d02e965, rebuilt, restarted).
 - FOLD INTO S2 TRUNK-MERGE: the merge brief cites 10-27/10-28 + runs
   drift-guard as a blocking step; S1's test gaps include the fork-gap class.
+
+## RELEASE + REFLECTION NOTES (10-27, user)
+1. MAC-TOOLS CAUTION (feeds S9 MAC-REVIEW): the Mac tools (Letters, Project,
+   skid workers, Flow) help AI sessions manage background work — but may
+   impose LIMITATIONS on AGI we cannot see from here. S9's brief adds the
+   limitations audit: what does each tool PREVENT or constrain (the cost
+   side), not only what it enables.
+2. THE MULTI-ROOT REFLECTION placement: Q8 (the grove lanes, the third
+   identity lane) gets its essence placed in docs/veraldar-doctrine.md —
+   the sap that syncs to the Mac (workspace-thor/theway/) — so every root
+   shares the same inter-root model before any root builds one.
+3. RELEASE TIMELINE (v0.7 ready → live): user's 3 rulings → S3+S1 waves
+   (~1-2 d) → S2 trunk merge (~0.5 d) → freeze v0.7.0-rc1 → user consent
+   check → soak (72h or 7d) → PROMOTE: GitHub latest + veraldar.org updated
+   same day → v0.8 opens (the bridge + the tokens + the APK). Fastest:
+   ~5-6 days from the rulings; 7d soak: ~10 days.

@@ -1767,8 +1767,9 @@ export default function SessionView({
       // kept from the first frame: dropping ?teach=1 below re-keys the page
       // (Next remounts it on a search-param change) — the remount resumes
       if (on) localStorage.setItem(TEACH_KEY, JSON.stringify({ slug, ways: start }));
-      if (again) {
-        // one walk per ask: a reload resumes it (TEACH_KEY), never restarts it
+      if (on && again) {
+        // one walk per ask: a reload resumes it (TEACH_KEY), never restarts it.
+        // Only once the slug is here — the first pass runs with slug ''
         q.delete('teach');
         const rest = q.toString();
         window.history.replaceState(

@@ -39,6 +39,19 @@ agent-load-inf|agent/agent.py|load_threshold=float\("inf"\)|bifrost-sandbox,lane
 agent-ordered-yield|agent/agent.py|yielding \(ordered|bifrost-sandbox,lane2-merge
 agent-split-brain|agent/agent.py|BRAIN MISMATCH|bifrost-sandbox,lane2-merge
 agent-loopback-http|agent/agent.py|AGENT_HTTP_HOST|bifrost-sandbox,lane2-merge
+# pwa fixes on trunk after the fork (ab00e73), found 10-27 by RULER-V07 diffing live v0.6.1 vs rc1.
+# PORTED onto release/v0.7 (rc2): the TTS generation lock (6405ead, the stutter fix) + the 300 s
+# headersTimeout (40c6037, runs > 5 min died mid-flight). KNOWN-GAP lab/sandbox until release/v0.7
+# merges back (v0.7.1 slice 1). NAMED, not ported tonight (v0.7.1, owner S2 TRUNK-MERGE):
+#   agent-rearm (49a61e6: re-dispatch the agent into an agent-less ready room — client + a route
+#   the fork never had), artifact-black-page (547cb89: md opened directly gets the black page),
+#   bifrost-auth-declared (7572aaa: BIFROST_AUTH replaces the IS_VERCEL_PREVIEW guard; tailnet-only
+#   box, no exposure change). artifact-meta (56730fa) + device pairing (9c0425e) are features, not fixes.
+tts-generation-lock|pwa/app/api/tts/stream/route.ts|withTtsGenerationLock|bifrost-sandbox
+oc-headers-timeout|pwa/lib/oc.ts|headersTimeout|bifrost-sandbox
+agent-rearm|pwa/app/session/[slug]/page.tsx|api/dispatch|bifrost-sandbox,release-v07
+artifact-black-page|pwa/app/api/artifact/[name]/route.ts|sec-fetch-dest|bifrost-sandbox,release-v07
+bifrost-auth-declared|pwa/app/api/token/route.ts|BIFROST_AUTH|bifrost-sandbox,release-v07
 '
 
 ROOTS=("$@")

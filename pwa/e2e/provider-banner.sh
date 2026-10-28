@@ -4,7 +4,7 @@
 #   NEW root :4146 = the provider-wave yggdrasil (YGG_BIN, default the trunk's debug build)
 #   OLD root :4147 = the frozen live binary (read-only copy of ~/.local/share/bifrost/brain/yggdrasil-412a9c4)
 #   PWA :4148 → NEW root, PWA :4149 → OLD root (this worktree's `next build`, `next start`)
-# Never touches :4100 / :8080 / :8090 / :443 / :8443. Usage: e2e/provider-banner.sh [new|old|both|smoke [specs…]]
+# Never touches :4100 / :8080 / :8090 / :443 / :8443. Usage: e2e/provider-banner.sh [new|old|both|frozen-pwa|smoke [specs…]]
 #   smoke = a HEALTHY key on the NEW root: the general specs given (default base/history/states) on
 #   this build — the regression check that error-turn plumbing left normal turns alone.
 set -euo pipefail
@@ -30,8 +30,8 @@ root() { # PORT BIN
     YGG_PROVIDERS=$TMP/none.json YGG_LISTEN=127.0.0.1:$1 YGG_DATA_DIR=$TMP/$1/data \
     YGG_PROJECT_DIR=$TMP/$1/proj YGG_CONTEXT_FILES=$TMP/none.md "$2" 2>$TMP/root-$1.log & PIDS+=($!)
 }
-pwa() { # PORT BRAIN
-  OPENCODE_URL=http://127.0.0.1:$2 PORT=$1 npx next start -p $1 -H 127.0.0.1 >$TMP/pwa-$1.log 2>&1 & PIDS+=($!)
+pwa() { # PORT BRAIN [DIR]
+  (cd "${3:-.}" && OPENCODE_URL=http://127.0.0.1:$2 PORT=$1 exec npx next start -p $1 -H 127.0.0.1) >$TMP/pwa-$1.log 2>&1 & PIDS+=($!)
 }
 wait_up() { for _ in $(seq 100); do curl -sf -o /dev/null "$1" && return; sleep 0.2; done; echo "FAIL: $1 never came up"; exit 1; }
 RC=0
@@ -39,6 +39,17 @@ run() { # ROOTNAME PWAPORT
   echo "=== ROOT=$1 (PWA :$2)"
   ROOT=$1 PW_BASE_URL=http://127.0.0.1:$2 npx playwright test e2e/provider-banner.spec.ts --reporter=list || RC=1
 }
+if [ "$WHICH" = frozen-pwa ]; then
+  # the deploy-order proof: NEW root behind the FROZEN live PWA (a reflink copy, never the release)
+  FROZEN=${FROZEN_PWA:-$HOME/.cache/pw-frozen-pwa}
+  [ -f "$FROZEN/.next/BUILD_ID" ] || { echo "FAIL: no frozen PWA copy at $FROZEN"; exit 1; }
+  root 4146 "$NEW_BIN"; pwa 4148 4146 "$FROZEN"
+  wait_up http://127.0.0.1:4146/session; wait_up http://127.0.0.1:4148/
+  echo "=== frozen PWA $(cat $FROZEN/.next/BUILD_ID) + NEW root"
+  SHOT_DIR=$PWD/../artifacts PW_BASE_URL=http://127.0.0.1:4148 npx playwright test e2e/provider-frozen-pwa.spec.ts --reporter=list || RC=1
+  [ $RC = 0 ] && echo "frozen-pwa: GREEN" || echo "frozen-pwa: RED"
+  exit $RC
+fi
 if [ "$WHICH" = smoke ]; then
   shift || true
   SPECS=${*:-e2e/base.spec.ts e2e/history.spec.ts e2e/states.spec.ts}

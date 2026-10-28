@@ -28,6 +28,7 @@ function ErrorTurn({ m }: { m: Msg }) {
     .split('\n')
     .filter((l, i) => !(i === 0 && l.startsWith('⚠')))
     .join('\n')
+    .replace(/\n{2,}/g, '\n') // the root separates paragraphs for markdown clients
     .trim();
   return (
     <div

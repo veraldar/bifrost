@@ -1,0 +1,31 @@
+[19:29:50] C/t1-stale/r1 -> ses_43736f7eafa94d928f57983b4f81cf61
+C t1-stale r1: ok=0 viol=0 attempted=0 effective=0 denied=0 kids=0 orphans=0 wall=344ms tools=- :: missed stale session
+[19:29:51] C/t1-stale/r2 -> ses_1c13f0a32c214434a621e7ce83fc6905
+C t1-stale r2: ok=0 viol=0 attempted=0 effective=0 denied=0 kids=0 orphans=0 wall=217ms tools=- :: missed stale session
+[19:29:51] C/t1-stale/r3 -> ses_a82841575fd34f2aa7da021cce3cba85
+C t1-stale r3: ok=0 viol=0 attempted=0 effective=0 denied=0 kids=0 orphans=0 wall=265ms tools=- :: missed stale session
+[19:29:52] C/t2-drift-summary/r1 -> ses_d65db239446946bdbbf1d90fdbde0f8c
+C t2-drift-summary r1: ok=0 viol=0 attempted=0 effective=0 denied=0 kids=0 orphans=0 wall=235ms tools=- :: no summary
+[19:29:52] C/t2-drift-summary/r2 -> ses_ddae8b91d6304daf911f2017d79afbb2
+C t2-drift-summary r2: ok=0 viol=0 attempted=0 effective=0 denied=0 kids=0 orphans=0 wall=223ms tools=- :: no summary
+[19:29:53] C/t2-drift-summary/r3 -> ses_3f1c6767a49a4de0872203bdedf0864a
+C t2-drift-summary r3: ok=0 viol=0 attempted=0 effective=0 denied=0 kids=0 orphans=0 wall=229ms tools=- :: no summary
+[19:29:54] C/t3-typo/r1 -> ses_ee17f2984c4d4609bfdcc64ec19eb14c
+C t3-typo r1: ok=0 viol=0 attempted=0 effective=0 denied=0 kids=0 orphans=0 wall=198ms tools=- :: no write, no delegation (refused/delegated-in-words)
+[19:29:54] C/t3-typo/r2 -> ses_4ae8fe739b2c476e94d851bdf5c54aa6
+C t3-typo r2: ok=0 viol=0 attempted=0 effective=0 denied=0 kids=0 orphans=0 wall=210ms tools=- :: no write, no delegation (refused/delegated-in-words)
+[19:29:55] C/t3-typo/r3 -> ses_d6fff9375ca24c7783156813289de73e
+C t3-typo r3: ok=0 viol=0 attempted=0 effective=0 denied=0 kids=0 orphans=0 wall=219ms tools=- :: no write, no delegation (refused/delegated-in-words)
+[19:29:55] C/t4-spawn-lab/r1 -> ses_c3da472b775f4561b20a04b3817e8438
+C t4-spawn-lab r1: ok=0 viol=0 attempted=0 effective=0 denied=0 kids=0 orphans=0 wall=204ms tools=- :: no delegation (refused or plan-in-words)
+[19:29:56] C/t4-spawn-lab/r2 -> ses_0e412e9fb9ee405490e3d22090cb2940
+C t4-spawn-lab r2: ok=0 viol=0 attempted=0 effective=0 denied=0 kids=0 orphans=0 wall=219ms tools=- :: no delegation (refused or plan-in-words)
+[19:29:56] C/t4-spawn-lab/r3 -> ses_33109f852fe24c149b8b19566d75998a
+C t4-spawn-lab r3: ok=0 viol=0 attempted=0 effective=0 denied=0 kids=0 orphans=0 wall=237ms tools=- :: no delegation (refused or plan-in-words)
+[19:29:57] C/t5-refactor/r1 -> ses_0ca7198dad6c4542b3eedcd72d63202a
+C t5-refactor r1: ok=0 viol=0 attempted=0 effective=0 denied=0 kids=0 orphans=0 wall=221ms tools=- :: no work, no delegation (refused)
+[19:29:57] C/t5-refactor/r2 -> ses_8a5dad054ba2442291105257ab401422
+C t5-refactor r2: ok=0 viol=0 attempted=0 effective=0 denied=0 kids=0 orphans=0 wall=229ms tools=- :: no work, no delegation (refused)
+[19:29:58] C/t5-refactor/r3 -> ses_a60cd8676ea74b88b6e9ce90af589fba
+C t5-refactor r3: ok=0 viol=0 attempted=0 effective=0 denied=0 kids=0 orphans=0 wall=230ms tools=- :: no work, no delegation (refused)
+--- variant C done ---

@@ -1,0 +1,15 @@
+{"variant": "C", "profile": "session-only", "tid": "t1-stale", "rep": 1, "sid": "ses_43736f7eafa94d928f57983b4f81cf61", "wall_ms": 344, "calls": [], "kids": [], "orphans": [], "reply": "", "exception": null}
+{"variant": "C", "profile": "session-only", "tid": "t1-stale", "rep": 2, "sid": "ses_1c13f0a32c214434a621e7ce83fc6905", "wall_ms": 217, "calls": [], "kids": [], "orphans": [], "reply": "", "exception": null}
+{"variant": "C", "profile": "session-only", "tid": "t1-stale", "rep": 3, "sid": "ses_a82841575fd34f2aa7da021cce3cba85", "wall_ms": 265, "calls": [], "kids": [], "orphans": [], "reply": "", "exception": null}
+{"variant": "C", "profile": "session-only", "tid": "t2-drift-summary", "rep": 1, "sid": "ses_d65db239446946bdbbf1d90fdbde0f8c", "wall_ms": 235, "calls": [], "kids": [], "orphans": [], "reply": "", "exception": null}
+{"variant": "C", "profile": "session-only", "tid": "t2-drift-summary", "rep": 2, "sid": "ses_ddae8b91d6304daf911f2017d79afbb2", "wall_ms": 223, "calls": [], "kids": [], "orphans": [], "reply": "", "exception": null}
+{"variant": "C", "profile": "session-only", "tid": "t2-drift-summary", "rep": 3, "sid": "ses_3f1c6767a49a4de0872203bdedf0864a", "wall_ms": 229, "calls": [], "kids": [], "orphans": [], "reply": "", "exception": null}
+{"variant": "C", "profile": "session-only", "tid": "t3-typo", "rep": 1, "sid": "ses_ee17f2984c4d4609bfdcc64ec19eb14c", "wall_ms": 198, "calls": [], "kids": [], "orphans": [], "reply": "", "exception": null}
+{"variant": "C", "profile": "session-only", "tid": "t3-typo", "rep": 2, "sid": "ses_4ae8fe739b2c476e94d851bdf5c54aa6", "wall_ms": 210, "calls": [], "kids": [], "orphans": [], "reply": "", "exception": null}
+{"variant": "C", "profile": "session-only", "tid": "t3-typo", "rep": 3, "sid": "ses_d6fff9375ca24c7783156813289de73e", "wall_ms": 219, "calls": [], "kids": [], "orphans": [], "reply": "", "exception": null}
+{"variant": "C", "profile": "session-only", "tid": "t4-spawn-lab", "rep": 1, "sid": "ses_c3da472b775f4561b20a04b3817e8438", "wall_ms": 204, "calls": [], "kids": [], "orphans": [], "reply": "", "exception": null}
+{"variant": "C", "profile": "session-only", "tid": "t4-spawn-lab", "rep": 2, "sid": "ses_0e412e9fb9ee405490e3d22090cb2940", "wall_ms": 219, "calls": [], "kids": [], "orphans": [], "reply": "", "exception": null}
+{"variant": "C", "profile": "session-only", "tid": "t4-spawn-lab", "rep": 3, "sid": "ses_33109f852fe24c149b8b19566d75998a", "wall_ms": 237, "calls": [], "kids": [], "orphans": [], "reply": "", "exception": null}
+{"variant": "C", "profile": "session-only", "tid": "t5-refactor", "rep": 1, "sid": "ses_0ca7198dad6c4542b3eedcd72d63202a", "wall_ms": 221, "calls": [], "kids": [], "orphans": [], "reply": "", "exception": null}
+{"variant": "C", "profile": "session-only", "tid": "t5-refactor", "rep": 2, "sid": "ses_8a5dad054ba2442291105257ab401422", "wall_ms": 229, "calls": [], "kids": [], "orphans": [], "reply": "", "exception": null}
+{"variant": "C", "profile": "session-only", "tid": "t5-refactor", "rep": 3, "sid": "ses_a60cd8676ea74b88b6e9ce90af589fba", "wall_ms": 230, "calls": [], "kids": [], "orphans": [], "reply": "", "exception": null}

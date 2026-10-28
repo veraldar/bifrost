@@ -1,0 +1,25 @@
+build          date    r1: calls=['bash'] grounded=True words=4 wall=8799ms :: 'Wednesday, October 28, 2026.'
+renamed-shell  date    r1: calls=['shell'] grounded=True words=3 wall=9648ms :: 'Today is **Wednesday**.'
+build          count   r1: calls=['bash'] grounded=False words=2 wall=17543ms :: '**Two entries.**'
+renamed-shell  count   r1: calls=['shell'] grounded=True words=6 wall=10032ms :: '**2 entries** in the current directory.'
+build          host    r1: calls=['bash'] grounded=True words=4 wall=6212ms :: 'The hostname is **omarchy**.'
+renamed-shell  host    r1: calls=['shell'] grounded=True words=4 wall=5126ms :: 'The hostname is **omarchy**.'
+build          python  r1: calls=['bash'] grounded=True words=5 wall=8343ms :: 'Python 3.14.7 is installed here.'
+renamed-shell  python  r1: calls=['shell'] grounded=True words=5 wall=8545ms :: 'Python 3.14.7 is installed here.'
+build          kernel  r1: calls=['bash'] grounded=True words=6 wall=5483ms :: 'Running kernel release: **7.2.3-arch1-3** (Arch Linux).'
+renamed-shell  kernel  r1: calls=['shell'] grounded=True words=1 wall=10513ms :: '7.2.3-arch1-3'
+build          date    r2: calls=['bash'] grounded=True words=2 wall=5201ms :: 'Wednesday, 2026-10-28.'
+renamed-shell  date    r2: calls=['shell'] grounded=True words=4 wall=8476ms :: 'Wednesday, October 28, 2026.'
+build          count   r2: calls=['bash'] grounded=True words=8 wall=8159ms :: 'There are 2 entries in the current directory.'
+renamed-shell  count   r2: calls=['shell'] grounded=True words=2 wall=8158ms :: '**2 entries.**'
+build          host    r2: calls=['bash'] grounded=True words=2 wall=5057ms :: 'Hostname: **omarchy**'
+renamed-shell  host    r2: calls=['shell'] grounded=True words=2 wall=8430ms :: 'Hostname: **omarchy**'
+build          python  r2: calls=['bash'] grounded=True words=4 wall=8072ms :: 'Python 3.14.7 is installed.'
+renamed-shell  python  r2: calls=['shell'] grounded=True words=5 wall=8830ms :: 'Python 3.14.7 is installed here.'
+build          kernel  r2: calls=['bash'] grounded=True words=1 wall=8592ms :: '7.2.3-arch1-3'
+renamed-shell  kernel  r2: calls=['shell'] grounded=True words=1 wall=8755ms :: '7.2.3-arch1-3'
+
+| profile | n | first call = exposed shell name | calls to hidden `bash` | grounded answer | within word cap | median wall s |
+|---|---|---|---|---|---|---|
+| build | 10 | 10/10 | 0 | 9/10 | 10/10 | 8.2 |
+| renamed-shell | 10 | 10/10 | 0 | 10/10 | 10/10 | 8.8 |

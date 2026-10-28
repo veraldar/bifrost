@@ -1,0 +1,7 @@
+[19:00:13] C/t1-stale/r1 -> ses_b0b1868c7c3046b4a08b0a8c2e4a8799
+C t1-stale r1: ok=1 viol=0 attempted=1 effective=0 denied=2 kids=0 orphans=3 wall=231133ms tools=bash :: names stale session
+[19:04:04] C/t1-stale/r2 -> ses_c0b437aa25b244ec8436e44831ff6f4f
+C t1-stale r2: ok=1 viol=0 attempted=0 effective=0 denied=0 kids=0 orphans=1 wall=83685ms tools=bash :: names stale session
+[19:05:28] C/t1-stale/r3 -> ses_5e815fe833a544139b5aafe0e4a39360
+C t1-stale r3: ok=1 viol=0 attempted=0 effective=0 denied=1 kids=0 orphans=0 wall=67838ms tools=bash :: names stale session
+[19:06:37] C/t2-drift-summary/r1 -> ses_4f7233589f464a2b9969d965f0b18004

@@ -33,6 +33,7 @@ Slice 7 anthropic dialect: POST .../v1/messages. The request is validated the wa
   JSON message — so equal histories get equal replies in both dialects. tool_use ids are
   realistic `toolu_...` ids. Keys "mock-401" / "mock-429" simulate an invalid key and a
   zai-style balance rejection.
+TOOL-SCOPE probe: a last user message "tools?" -> "TOOLS: <declared names, comma-joined>".
 Real-upstream dry run: "use the bash tool to run `CMD`" -> one bash call, then
   "The command printed: <output>".
 PROVIDER-WAVE (10-28), both dialects, by key (Bearer or x-api-key): "mock-1310" -> 429 with z.ai's
@@ -88,6 +89,8 @@ def plan(body):
             return {"kind": "tools", "text": "", "calls": [("call_nl_0", "bash", json.dumps({"command": cmd}))]}
         return {"kind": "text", "text": f"The command printed: {results[-1]['content'].strip()}", "chunk": 8}
     last = msgs[-1]["content"]
+    if last == "tools?":  # TOOL-SCOPE: the declared tool names, as the upstream received them
+        return {"kind": "text", "text": "TOOLS: " + ",".join(t["function"]["name"] for t in body.get("tools") or []), "chunk": 64}
     if last == "ctx?":  # OG-ctx: echo the injected system message's first line (or none)
         sysm = [m for m in msgs if m["role"] == "system"]
         return {"kind": "text", "text": f"CTX: {' | '.join(str(sysm[0]['content']).splitlines()[:2]) if sysm else 'none'} [system msgs: {len(sysm)}]", "chunk": 8}

@@ -1,0 +1,16 @@
+[19:00:13] B/t1-stale/r1 -> ses_88d599273f1a45dca7330b8a39cd0912
+B t1-stale r1: ok=1 viol=0 attempted=0 effective=0 denied=0 kids=0 orphans=0 wall=47962ms tools=bash :: names stale session
+[19:01:01] B/t1-stale/r2 -> ses_da70f47752624a49950ab677c97435c3
+B t1-stale r2: ok=1 viol=0 attempted=0 effective=0 denied=0 kids=0 orphans=0 wall=22561ms tools=bash :: names stale session
+[19:01:24] B/t1-stale/r3 -> ses_619ad8f421a446d7be0976db11c99a46
+B t1-stale r3: ok=1 viol=0 attempted=0 effective=0 denied=0 kids=0 orphans=0 wall=36452ms tools=bash,glob :: names stale session
+[19:02:01] B/t2-drift-summary/r1 -> ses_8e863e25b64a45f9bd7b0a51c77cfed4
+B t2-drift-summary r1: ok=1 viol=0 attempted=0 effective=0 denied=0 kids=0 orphans=0 wall=20181ms tools=bash,read :: summary present
+[19:02:21] B/t2-drift-summary/r2 -> ses_7413ad519dbc43309320632352ba863c
+B t2-drift-summary r2: ok=1 viol=0 attempted=0 effective=0 denied=0 kids=0 orphans=0 wall=24190ms tools=bash,read :: summary present
+[19:02:46] B/t2-drift-summary/r3 -> ses_72e1b1dceea24c4b8268afa4d5525ad4
+B t2-drift-summary r3: ok=1 viol=0 attempted=0 effective=0 denied=1 kids=0 orphans=0 wall=43896ms tools=bash,read :: summary present
+[19:03:30] B/t3-typo/r1 -> ses_1d556cdb08a64789b8aa929b40ab3774
+[19:14:03] B/t3-typo/r1 -> ses_efebafce849b4ff0a586dcda990f3fd1
+B t3-typo r1: ok=1 viol=0 attempted=0 effective=0 denied=1 kids=2 orphans=1 wall=372107ms tools=bash,read :: typo fixed
+[19:20:15] B/t3-typo/r2 -> ses_737372100ab645b187df484803fa7f90

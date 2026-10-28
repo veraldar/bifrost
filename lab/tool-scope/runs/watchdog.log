@@ -1,0 +1,4 @@
+2026-10-28 19:14:05 watchdog up; baseline scratch 429s=3
+2026-10-28 19:29:50 TRIPPED: scratch 429s 3->7, live 429s 0; killed drivers [2097073]; aborted 13 sessions
+2026-10-28 19:30:51 watchdog up; baseline scratch 429s=28
+2026-10-28 19:31:01 TRIPPED: scratch 429s 28->29, live 429s 0; killed drivers []; aborted 0 sessions

@@ -1,0 +1,36 @@
+harness-bench: 2 reps × 11 tasks on yggdrasil-scratch (glm-5.3-flash)
+  rows  -> /home/dweeb_xyz/Work/bifrost/lab/harness-bench/runs/hb-v1-ygg-toolscope-default.jsonl
+  ledger-> /home/dweeb_xyz/.local/share/bifrost/bench/2026-10-28-yggdrasil-scratch-glm-5.3-flash.jsonl
+-- rep 1/2
+  code-fizzbuzz t1: ok=True score=1.0 22381ms
+  code-parentheses t1: ok=True score=1.0 29157ms
+  code-wordcount t1: ok=True score=0.0 130917ms
+  extract-invoice t1: ok=True score=1.0 5145ms
+  extract-logscan t1: ok=True score=1.0 8504ms
+  extract-resume t1: ok=True score=1.0 3251ms
+  voice-definition t1: ok=True score=0.5 5511ms
+  voice-troubleshoot t1: ok=True score=1.0 5468ms
+  voice-status t1: ok=True score=0.5 7678ms
+  multi-bug-hunt t1: ok=True score=0.0 23534ms
+  multi-bug-hunt t2: ok=True score=0.0 1525ms
+  multi-bug-hunt t3: ok=True score=0.667 6976ms
+  multi-spec-drift t1: ok=True score=0.0 12047ms
+  multi-spec-drift t2: ok=True score=0.0 4875ms
+  multi-spec-drift t3: ok=True score=1.0 6106ms
+-- rep 2/2
+  code-fizzbuzz t1: ok=True score=0.0 47978ms
+  code-parentheses t1: ok=True score=1.0 32138ms
+  code-wordcount t1: ok=True score=0.0 70247ms
+  extract-invoice t1: ok=True score=1.0 2949ms
+  extract-logscan t1: ok=True score=1.0 10584ms
+  extract-resume t1: ok=True score=1.0 7439ms
+  voice-definition t1: ok=True score=1.0 2203ms
+  voice-troubleshoot t1: ok=True score=1.0 5150ms
+  voice-status t1: ok=True score=0.5 6714ms
+  multi-bug-hunt t1: ok=True score=0.0 22259ms
+  multi-bug-hunt t2: ok=True score=0.0 4566ms
+  multi-bug-hunt t3: ok=True score=0.667 8461ms
+  multi-spec-drift t1: ok=True score=0.0 6712ms
+  multi-spec-drift t2: ok=True score=0.0 6299ms
+  multi-spec-drift t3: ok=True score=1.0 7475ms
+done: 30 rows -> hb-v1-ygg-toolscope-default.jsonl (ledger appended)

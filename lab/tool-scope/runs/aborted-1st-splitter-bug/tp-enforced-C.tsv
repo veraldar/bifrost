@@ -1,0 +1,4 @@
+variant	profile	task	rep	success	violations	attempted	effective	denied	delegated	kids	orphans	wall_ms	steps	absorbed_bytes	tools_used	note
+C	session-only	t1-stale	1	1	0	1	0	4	0	0	0	80623	9	3469	bash	names stale session
+C	session-only	t1-stale	2	1	0	0	0	1	0	0	0	38719	3	1628	bash	names stale session
+C	session-only	t1-stale	3	1	0	0	0	3	0	0	0	74126	8	13625	bash	names stale session

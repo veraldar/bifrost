@@ -1,0 +1,8 @@
+variant	profile	task	rep	success	violations	attempted	effective	denied	delegated	kids	orphans	wall_ms	steps	absorbed_bytes	tools_used	note
+B	coordinator	t1-stale	1	1	0	0	0	0	0	0	0	47962	3	1749	bash	names stale session
+B	coordinator	t1-stale	2	1	0	0	0	0	0	0	0	22561	2	1017	bash	names stale session
+B	coordinator	t1-stale	3	1	0	0	0	0	0	0	0	36452	4	1830	bash,glob	names stale session
+B	coordinator	t2-drift-summary	1	1	0	0	0	0	0	0	0	20181	3	1692	bash,read	summary present
+B	coordinator	t2-drift-summary	2	1	0	0	0	0	0	0	0	24190	4	1998	bash,read	summary present
+B	coordinator	t2-drift-summary	3	1	0	0	0	1	0	0	0	43896	5	2307	bash,read	summary present
+B	coordinator	t3-typo	1	1	0	0	0	1	1	2	1	372107	11	4318	bash,read	typo fixed

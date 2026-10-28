@@ -1,0 +1,3 @@
+prompt-only r1: fixed=False landed=0 tried=0 denied=0 spawned=8 wall=288279ms :: "I can't edit files directly — I'm read-only and must delegate work to sub-sessions. But I can make this fast: "
+enforced    r1: fixed=False landed=0 tried=0 denied=0 spawned=0 wall=202ms :: ''
+prompt-only r2: fixed=False landed=0 tried=0 denied=0 spawned=0 wall=22595ms :: "I read the file before acting, and two things stop me here:\n\n1. **Policy:** As MAIN, I'm session-management on"

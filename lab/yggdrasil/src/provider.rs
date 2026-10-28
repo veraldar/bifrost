@@ -615,7 +615,8 @@ impl UpstreamError {
         }
     }
 
-    /// `provider/model: <status/code>: message`.
+    /// `provider/model: <status/code>: message`. A parsed reset is dropped from the provider's
+    /// words: theirs is in THEIR zone (z.ai: UTC+8), the headline already says it in ours.
     pub fn detail(&self) -> String {
         let mut tag = Vec::new();
         if let Some(s) = self.status {
@@ -625,7 +626,8 @@ impl UpstreamError {
             tag.push(format!("code {c}"));
         }
         let tag = if tag.is_empty() { String::new() } else { format!(" ({})", tag.join(", ")) };
-        let mut d = format!("{}/{}{tag}: {}", self.provider, self.model, self.message.chars().take(300).collect::<String>());
+        let words = if self.resets_at.is_some() { drop_reset_clause(&self.message) } else { self.message.clone() };
+        let mut d = format!("{}/{}{tag}: {}", self.provider, self.model, words.chars().take(300).collect::<String>());
         if self.kind == Kind::Auth {
             d.push_str(&format!(" — the key is yours to fix: {}", self.key_source));
         }
@@ -657,6 +659,28 @@ impl UpstreamError {
     pub fn error_name(&self) -> &'static str {
         if self.kind == Kind::Auth { "ProviderAuthError" } else { "APIError" }
     }
+}
+
+/// `Weekly/Monthly Limit Exhausted. Your limit will reset at 2026-10-29 03:44:03` →
+/// `Weekly/Monthly Limit Exhausted.` (the sentence holding the reset moment goes).
+fn drop_reset_clause(m: &str) -> String {
+    let lower = m.to_ascii_lowercase();
+    for marker in ["reset at ", "resets at ", "reset on ", "resets on "] {
+        let Some(i) = lower.find(marker) else { continue };
+        let at = i + marker.len();
+        if parse_datetime(&m[at..], 0).is_none() {
+            continue;
+        }
+        let start = m[..i].rfind(['.', ';', ']']).map_or(0, |p| p + 1);
+        let mut end = (at + 19).min(m.len());
+        while end < m.len() && !m.is_char_boundary(end) {
+            end += 1;
+        }
+        let tail = m[end..].strip_prefix('.').unwrap_or(&m[end..]);
+        let out = format!("{}{}", &m[..start], tail).trim().to_string();
+        return if out.is_empty() { m.to_string() } else { out };
+    }
+    m.to_string()
 }
 
 // ---------------------------------------------------------------------------------------
@@ -1405,6 +1429,7 @@ mod tests {
         assert_eq!(e.message, "Weekly/Monthly Limit Exhausted. Your limit will reset at 2026-10-29 03:44:03");
         assert!(e.headline(1_793_216_643_000 - 3_600_000).starts_with("provider limit exhausted, resets 2026-10-"));
         assert!(e.line().starts_with("upstream 429 Too Many Requests: {"));
+        assert_eq!(e.detail(), "zai/glm-4.6 (429, code 1310): Weekly/Monthly Limit Exhausted.");
         let d = e.data(0);
         assert_eq!(d["resetsAt"], 1_793_216_643_000u64);
         assert_eq!(d["kind"], "quota");

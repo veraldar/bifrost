@@ -20,11 +20,20 @@ const OUT = new Set(['exhausted', 'limited', 'auth', 'down', 'error']);
 
 export async function GET() {
   try {
-    const r = await fetch(`${OC}/provider/health`, { cache: 'no-store', signal: AbortSignal.timeout(4000) });
-    if (!r.ok) return NextResponse.json({ known: false }, { headers: { 'Cache-Control': 'no-store' } });
+    const r = await fetch(`${OC}/provider/health`, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!r.ok)
+      return NextResponse.json({ known: false }, { headers: { 'Cache-Control': 'no-store' } });
     const h = (await r.json()) as {
       model?: string;
-      default?: { status?: string; until?: number; resetsAt?: number; lastError?: { kind?: string; message?: string; code?: string; statusCode?: number } };
+      default?: {
+        status?: string;
+        until?: number;
+        resetsAt?: number;
+        lastError?: { kind?: string; message?: string; code?: string; statusCode?: number };
+      };
       chain?: string[];
     };
     const d = h.default || {};

@@ -14,7 +14,9 @@ test.use({ viewport: { width: 360, height: 780 }, hasTouch: true, isMobile: true
 const NAME = `e2e-provider-${ROOT}-${Date.now().toString(36)}`;
 let sessionId = '';
 
-test(`provider banner (${ROOT} root): 1310 → error turn + "provider limit exhausted, resets …"`, async ({ page }) => {
+test(`provider banner (${ROOT} root): 1310 → error turn + "provider limit exhausted, resets …"`, async ({
+  page,
+}) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'new session', exact: true }).click();
   await page.getByPlaceholder('session name…').fill(NAME);
@@ -40,7 +42,11 @@ test(`provider banner (${ROOT} root): 1310 → error turn + "provider limit exha
   await expect(page.getByText(/no reply — /)).toHaveCount(0);
   // the scratch stack has no LiveKit: its voice-token box is not this test's subject
   const voiceBox = page.getByText(/voice connect failed/);
-  if (await voiceBox.count()) await page.getByText('dismiss', { exact: true }).click().catch(() => {});
+  if (await voiceBox.count())
+    await page
+      .getByText('dismiss', { exact: true })
+      .click()
+      .catch(() => {});
   await page.screenshot({ path: `../artifacts/provider-banner-${ROOT}.png` });
 
   // a second turn: its own error turn — nothing vanishes

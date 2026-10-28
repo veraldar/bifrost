@@ -37,7 +37,8 @@ export type ProviderAlert = {
 };
 
 const QUOTA_CODES = ['1113', '1304', '1308', '1309', '1310', 'insufficient_quota'];
-const QUOTA_WORDS = /limit exhausted|quota|insufficient balance|billing|credit balance|usage limit|recharge|package expired|exceeded your current/i;
+const QUOTA_WORDS =
+  /limit exhausted|quota|insufficient balance|billing|credit balance|usage limit|recharge|package expired|exceeded your current/i;
 
 /** `YYYY-MM-DD HH:MM:SS` printed without a zone; z.ai (codes 1xxx, bracket
  *  envelope) prints Beijing time. */
@@ -46,7 +47,9 @@ function parseReset(text: string, offsetMin: number): number | undefined {
   if (!m) {
     const d = /try again in (\d+(?:\.\d+)?)\s*(ms|s|m|h)\b/i.exec(text);
     if (!d) return undefined;
-    const mult = { ms: 1, s: 1000, m: 60_000, h: 3_600_000 }[d[2].toLowerCase() as 'ms' | 's' | 'm' | 'h'];
+    const mult = { ms: 1, s: 1000, m: 60_000, h: 3_600_000 }[
+      d[2].toLowerCase() as 'ms' | 's' | 'm' | 'h'
+    ];
     return Date.now() + Number(d[1]) * mult;
   }
   const [y, mo, da, h, mi, s] = m.slice(1).map(Number);
@@ -87,23 +90,26 @@ export function alertFromError(err: unknown): ProviderAlert | null {
   // the frozen root / opencode: "upstream 429 Too Many Requests: {json}"
   const sm = /upstream (\d{3})[^:]*:\s*([\s\S]*)$/.exec(message);
   const status = sm ? Number(sm[1]) : typeof d.statusCode === 'number' ? d.statusCode : undefined;
-  let body: any = null;
+  type ErrBody = { code?: unknown; message?: unknown; type?: unknown };
+  let body: (ErrBody & { error?: ErrBody | string }) | null = null;
   try {
     body = JSON.parse(sm ? sm[2] : String(d.responseBody || ''));
   } catch {
     /* not json */
   }
-  const be = body && typeof body.error === 'object' ? body.error : body || {};
+  const be: ErrBody = body && typeof body.error === 'object' ? body.error : body || {};
   const code = be?.code != null ? String(be.code) : undefined;
   const raw = String(be?.message || (sm ? sm[2] : message));
   const etype = String(be?.type || '');
   const zai = /^\[\d{4}\]/.test(raw) || (!!code && /^1\d{3}$/.test(code));
   let kind: AlertKind = 'error';
   if (status === 401 || status === 403 || etype === 'authentication_error') kind = 'auth';
-  else if (status === 402 || (code && QUOTA_CODES.includes(code)) || QUOTA_WORDS.test(raw)) kind = 'quota';
+  else if (status === 402 || (code && QUOTA_CODES.includes(code)) || QUOTA_WORDS.test(raw))
+    kind = 'quota';
   else if (status === 429 || etype === 'rate_limit_error') kind = 'rate_limit';
   else if (status === 529 || status === 503 || etype === 'overloaded_error') kind = 'overloaded';
-  else if (/request failed|connection refused|error sending request/i.test(message)) kind = 'network';
+  else if (/request failed|connection refused|error sending request/i.test(message))
+    kind = 'network';
   else if (/mid-reply|stream ended/i.test(message)) kind = 'stream';
   else if (status && status >= 500) kind = 'server';
   else if (status && status >= 400) kind = 'request';
@@ -118,7 +124,9 @@ export function alertFromError(err: unknown): ProviderAlert | null {
 
 /** A kind that means "the brain's provider is out", not "this request was bad". */
 export function isProviderOut(a: ProviderAlert): boolean {
-  return ['quota', 'rate_limit', 'auth', 'overloaded', 'server', 'network', 'unavailable'].includes(a.kind);
+  return ['quota', 'rate_limit', 'auth', 'overloaded', 'server', 'network', 'unavailable'].includes(
+    a.kind
+  );
 }
 
 const WHAT: Record<AlertKind, string> = {
@@ -154,14 +162,17 @@ export function alertHeadline(a: ProviderAlert, now = Date.now()): string {
  *  ITS zone (z.ai: UTC+8) — beside the headline's local clock it reads as a
  *  contradiction. Dropped once the reset is parsed into `resetsAt`. */
 function dropResetClause(words: string): string {
-  return words.replace(/\s*[^.]*\breset(?:s)? (?:at|on) \d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}\]?\.?/i, '').trim();
+  return words
+    .replace(/\s*[^.]*\breset(?:s)? (?:at|on) \d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}\]?\.?/i, '')
+    .trim();
 }
 
 /** The second line: who said it, in their words. */
 export function alertDetail(a: ProviderAlert): string {
   const clean = (w: string) => (a.resetsAt ? dropResetClause(w) : w);
   // the provider-wave root's message is "headline — provider/model (429, code 1310): words"
-  if (a.message.includes(' — ')) return clean(a.message.split(' — ').slice(1).join(' — ')).slice(0, 260);
+  if (a.message.includes(' — '))
+    return clean(a.message.split(' — ').slice(1).join(' — ')).slice(0, 260);
   const who = a.providerID ? `${a.providerID}${a.modelID ? `/${a.modelID}` : ''}` : '';
   const tag = [a.statusCode, a.code ? `code ${a.code}` : ''].filter(Boolean).join(' · ');
   return [who, tag, clean(a.message)].filter(Boolean).join(' · ').slice(0, 260);

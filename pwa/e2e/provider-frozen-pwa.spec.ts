@@ -23,8 +23,14 @@ test('frozen live PWA + new root: the 1310 stop is visible text, not silence', a
   await expect(page.getByText(/No fallback provider is set/)).toBeVisible();
   await expect(page.getByText(/working… \d+s/)).toHaveCount(0, { timeout: 15_000 });
   const voiceBox = page.getByText(/voice connect failed/);
-  if (await voiceBox.count()) await page.getByText('dismiss', { exact: true }).click().catch(() => {});
-  await page.screenshot({ path: `${process.env.SHOT_DIR || '../artifacts'}/provider-frozen-pwa.png` });
+  if (await voiceBox.count())
+    await page
+      .getByText('dismiss', { exact: true })
+      .click()
+      .catch(() => {});
+  await page.screenshot({
+    path: `${process.env.SHOT_DIR || '../artifacts'}/provider-frozen-pwa.png`,
+  });
 });
 
 test('cleanup: delete the frozen-pwa test session', async ({ request }) => {

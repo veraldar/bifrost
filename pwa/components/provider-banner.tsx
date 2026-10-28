@@ -7,7 +7,13 @@
  *  answering instead. Dismiss hides THIS alert only — a new one shows again. */
 import { useEffect, useState } from 'react';
 import { LineIcon } from '@/components/line-icon';
-import { alertDetail, alertHeadline, alertLive, resetClock, type ProviderAlert } from '@/lib/provider-alert';
+import {
+  type ProviderAlert,
+  alertDetail,
+  alertHeadline,
+  alertLive,
+  resetClock,
+} from '@/lib/provider-alert';
 
 export type BannerState =
   | { mode: 'out'; alert: ProviderAlert; fallback?: string[] }

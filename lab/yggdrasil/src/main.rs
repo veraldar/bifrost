@@ -29,6 +29,20 @@
 //!   YGG_ROLLUP_TOKENS      slice 6b: estimated-token limit for the upstream history (default 100000,
 //!                          `0` = off); over it, older history is summarized (`rollup.rs`)
 //!   YGG_ROLLUP_KEEP_TOKENS recent history kept verbatim at a roll-up (default: limit / 4)
+//!   YGG_PROVIDERS          PROVIDER-WAVE (10-28): opencode-shaped providers file (default
+//!                          `~/.config/yggdrasil/providers.json`, read if present, re-read on change):
+//!                          more providers beside the env one, the default `model`, the `fallback` order
+//!   YGG_FALLBACK           `pid/mid,…` — the degrade order, overrides the file's (`provider.rs`)
+//!
+//! PROVIDER-WAVE (10-28): each upstream call walks the chain (the session's model or the default,
+//! then the fallbacks); a provider that answers quota/rate-limit/auth/overload/down is cooled until
+//! its reset and the call degrades to the next one (`provider.fallback` event, `info.fallback`).
+//! A run that still fails ends as an opencode-shaped error turn: `info.error` (`APIError` /
+//! `ProviderAuthError` with `kind`, `statusCode`, `code`, `resetsAt`) plus a SYNTHETIC text part
+//! (the headline a person reads, never sent upstream), the `session.error` event, and the POST
+//! answers 200 with that message (opencode parity) — a quota stop is never an empty reply.
+//! `GET /config` (`{model}`), `GET /provider`, `GET /provider/health`, `POST /provider/check`;
+//! the CLI: `yggdrasil provider list|check|status|use|fallback|add|remove`.
 //!
 //! Slice 6a: each run is an agent loop — the upstream gets the tool set (`tools.rs`); its
 //! tool_calls are executed serially, fed back as `tool` messages, repeated until a reply
@@ -55,7 +69,7 @@ use std::{
 
 use axum::{
     Json, Router,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::{HeaderMap, StatusCode, header},
     response::{
         IntoResponse, Response,
@@ -70,22 +84,16 @@ use tokio::sync::{Notify, broadcast, mpsc, oneshot};
 use tokio_stream::wrappers::{BroadcastStream, ReceiverStream};
 
 mod anthropic;
+mod provider;
 mod rollup;
 mod tools;
 
-#[derive(Clone, Copy, PartialEq, Debug)]
-enum Dialect {
-    OpenAi,
-    Anthropic,
-}
+use provider::{Dialect, Route, UpstreamError};
 
 struct Config {
-    base_url: String,
-    dialect: Dialect,
     max_tokens: u64,
-    api_key: Option<String>,
-    model: String,
-    catalog: Value,
+    /// `YGG_CATALOG` (display catalog + agents) when set; else the provider registry's.
+    catalog: Option<Value>,
     max_steps: usize,
     tools_enabled: bool,
     rollup_tokens: usize,
@@ -119,6 +127,8 @@ struct AppState {
     config: Arc<Config>,
     http: reqwest::Client,
     tools: Arc<tools::ToolEnv>,
+    /// PROVIDER-WAVE: the provider registry (hot-reloaded) + per-provider health.
+    providers: Arc<provider::Providers>,
 }
 
 #[derive(Deserialize)]
@@ -243,7 +253,18 @@ fn publish(st: &AppState, kind: &str, props: Value) {
 /// it as `session.state`. The opencode events (`session.status` busy, `session.idle`) keep
 /// firing for clients that only know the binary map.
 fn declare(st: &AppState, id: &str, state: &str, reason: Option<&str>, message: Option<&str>) {
+    declare_with(st, id, state, reason, message, Value::Null);
+}
+
+/// `declare` plus extra fields on the state (PROVIDER-WAVE: a provider stop carries `kind`,
+/// `providerID`, `resetsAt`, so a chip/banner can say why and until when without a fetch).
+fn declare_with(st: &AppState, id: &str, state: &str, reason: Option<&str>, message: Option<&str>, extra: Value) {
     let mut v = json!({ "type": state, "since": now_ms() });
+    if let Value::Object(x) = extra {
+        for (k, val) in x {
+            v[k] = val;
+        }
+    }
     if let Some(r) = reason {
         v["reason"] = json!(r);
     }
@@ -436,25 +457,108 @@ async fn abort_session(State(st): State<AppState>, Path(id): Path<String>) -> Re
     }
 }
 
+/// The served catalog: `YGG_CATALOG` when set, else the provider registry's (opencode shape).
+fn catalog(st: &AppState) -> Value {
+    match &st.config.catalog {
+        Some(c) => c.clone(),
+        None => st.providers.current().catalog(),
+    }
+}
+
 /// `GET /config/providers` — `{providers, default}` from the catalog.
 async fn config_providers(State(st): State<AppState>) -> Json<Value> {
-    let c = &st.config.catalog;
+    let c = catalog(&st);
     Json(json!({ "providers": c["providers"], "default": c.get("default").cloned().unwrap_or(json!({})) }))
+}
+
+/// `GET /config` — opencode's global config, the part a client may see: `model` (the default a
+/// turn without a session pick runs on) and the fallback order. Never keys.
+async fn get_config(State(st): State<AppState>) -> Json<Value> {
+    let reg = st.providers.current();
+    Json(json!({ "model": reg.default.show(), "fallback": reg.fallback.iter().map(provider::Ref::show).collect::<Vec<_>>() }))
+}
+
+/// `GET /provider` — opencode's `{all, default, connected}` plus the root's view: the
+/// providers (key SOURCE only), the chain, health, and the last reload error if any.
+async fn get_provider(State(st): State<AppState>) -> Json<Value> {
+    let reg = st.providers.current();
+    let now = now_ms();
+    let cat = reg.catalog();
+    let connected: Vec<&str> =
+        reg.providers.iter().filter(|p| p.key.is_some() || p.key_source == "none").map(|p| p.id.as_str()).collect();
+    let mut v = json!({ "all": cat["providers"], "default": cat["default"], "connected": connected,
+        "root": reg.describe(), "health": st.providers.health.snapshot(&reg, now) });
+    if let Some(e) = st.providers.reload_error.lock().unwrap().clone() {
+        v["reloadError"] = json!(e);
+    }
+    Json(v)
+}
+
+/// `GET /provider/health` — per provider: `status` (ok | exhausted | limited | auth | down |
+/// error | unknown), `until` (skipped until), `resetsAt`, `headline`, `lastError`, `lastOk`.
+/// `default` = the default's provider status, the one a banner reads first.
+async fn provider_health(State(st): State<AppState>) -> Json<Value> {
+    let reg = st.providers.current();
+    let snap = st.providers.health.snapshot(&reg, now_ms());
+    Json(json!({ "model": reg.default.show(), "default": snap[&reg.default.provider], "providers": snap,
+        "chain": reg.chain(None).iter().map(Route::show).collect::<Vec<_>>() }))
+}
+
+/// `POST /provider/check[?deep=1]` — probes every provider (shallow = `GET models`; deep = a
+/// 1-token reply on its chain model, one request of the user's plan). A good probe ends a
+/// cooldown (the user upgraded the plan, fixed the key, started Ollama); a bad one sets it.
+async fn provider_check(State(st): State<AppState>, Query(q): Query<HashMap<String, String>>) -> Json<Value> {
+    let reg = st.providers.current();
+    let deep = q.get("deep").is_some_and(|v| v == "1" || v == "true");
+    let mut targets = reg.chain(None);
+    for p in &reg.providers {
+        if !targets.iter().any(|r| r.provider == p.id) {
+            targets.extend(reg.route(&provider::Ref { provider: p.id.clone(), model: p.models[0].0.clone() }));
+        }
+    }
+    let mut out = serde_json::Map::new();
+    for r in &targets {
+        let res = provider::probe(&st.http, r, deep).await;
+        let now = now_ms();
+        match &res.error {
+            None if res.status == "ok" || deep => {
+                st.providers.health.ok(r, now);
+            }
+            None => st.providers.health.clear(&r.provider), // reachable, key unverified: no verdict
+            Some(e) => st.providers.health.fail(e, now),
+        }
+        publish_provider(&st, &r.provider);
+        out.insert(r.provider.clone(), json!({ "ok": res.ok, "status": res.status, "detail": res.detail, "model": r.model }));
+    }
+    Json(json!({ "deep": deep, "results": out, "health": st.providers.health.snapshot(&reg, now_ms()) }))
+}
+
+/// `provider.status` on the bus: one provider's health changed.
+fn publish_provider(st: &AppState, pid: &str) {
+    let now = now_ms();
+    let v = match st.providers.health.get(pid) {
+        Some(e) => provider::Health::entry_json(&e, now),
+        None => json!({ "status": "unknown" }),
+    };
+    publish(st, "provider.status", json!({ "providerID": pid, "health": v }));
 }
 
 /// `GET /agent` — `[{name, mode, description}]` from the catalog.
 async fn list_agents(State(st): State<AppState>) -> Json<Value> {
-    Json(st.config.catalog["agents"].clone())
+    Json(match &st.config.catalog {
+        Some(c) => c["agents"].clone(),
+        None => default_agents(),
+    })
 }
 
 /// `POST /api/session/:id/model` — v2 switch, `{model:{id, providerID}}` → 204.
-/// The model must exist in the catalog. Recorded on the session; the upstream call
-/// still goes to the one configured upstream model (single-provider relay).
+/// The model must exist in the catalog. PROVIDER-WAVE: the session's model ROUTES its runs
+/// (the chain starts there, then the fallbacks); before, every run went to the one upstream.
 async fn switch_model(State(st): State<AppState>, Path(id): Path<String>, Json(body): Json<Value>) -> Response {
     let (Some(mid), Some(pid)) = (body["model"]["id"].as_str(), body["model"]["providerID"].as_str()) else {
         return bad_request("model needs id + providerID");
     };
-    let known = st.config.catalog["providers"]
+    let known = catalog(&st)["providers"]
         .as_array()
         .into_iter()
         .flatten()
@@ -472,7 +576,11 @@ async fn switch_model(State(st): State<AppState>, Path(id): Path<String>, Json(b
 /// `POST /api/session/:id/agent` — v2 switch, `{agent}` → 204. Must be a catalog agent.
 async fn switch_agent(State(st): State<AppState>, Path(id): Path<String>, Json(body): Json<Value>) -> Response {
     let Some(name) = body["agent"].as_str() else { return bad_request("agent required") };
-    let known = st.config.catalog["agents"].as_array().into_iter().flatten().any(|a| a["name"] == name);
+    let agents = match &st.config.catalog {
+        Some(c) => c["agents"].clone(),
+        None => default_agents(),
+    };
+    let known = agents.as_array().into_iter().flatten().any(|a| a["name"] == name);
     if !known {
         return bad_request(&format!("unknown agent {name}"));
     }
@@ -572,6 +680,8 @@ fn upstream_history(messages: &[Value]) -> Vec<Value> {
         let (mut text, mut calls, mut results) = (String::new(), Vec::new(), Vec::new());
         for p in m["parts"].as_array().into_iter().flatten() {
             match p["type"].as_str() {
+                // an error turn's headline is for the person, never the model
+                Some("text") if p["synthetic"] == true => {}
                 Some("text") => {
                     if !calls.is_empty() {
                         flush(&mut out, &mut text, &mut calls, &mut results);
@@ -628,6 +738,41 @@ struct ToolCall {
 struct Run {
     msg: Value,
     text: String,
+    /// The target that answered the latest step (`info.providerID/modelID`).
+    answered: Option<Route>,
+    /// Degrades taken this run, once per (from, to): `info.fallback`.
+    fallbacks: Vec<Value>,
+}
+
+/// Why a run stopped short. `upstream` = the failed call (the chain's FIRST target's error when
+/// every target failed — the one the user configured), `tried` = the fallbacks that failed too.
+struct RunFail {
+    msg: String,
+    upstream: Option<UpstreamError>,
+    tried: Vec<UpstreamError>,
+}
+
+impl From<String> for RunFail {
+    fn from(msg: String) -> Self {
+        RunFail { msg, upstream: None, tried: Vec::new() }
+    }
+}
+
+/// The error turn's text: what a person reads on the page or hears from the voice agent.
+fn error_turn_text(fail: &RunFail, now: u64) -> String {
+    let Some(u) = &fail.upstream else { return format!("⚠ the run stopped: {}", fail.msg) };
+    let mut t = format!("⚠ {}\n{}", u.headline(now), u.detail());
+    for f in &fail.tried {
+        t.push_str(&format!("\nfallback {}: {} — {}", f.model, f.headline(now), f.message.chars().take(160).collect::<String>()));
+    }
+    if u.kind.degrades() {
+        t.push_str(if fail.tried.is_empty() {
+            "\nNo fallback provider is set, so the turn stopped here. Add one (Ollama, or your own key): `yggdrasil provider add`, then `yggdrasil provider fallback`."
+        } else {
+            "\nEvery provider in the chain failed, so the turn stopped here."
+        });
+    }
+    t
 }
 
 impl Run {
@@ -671,6 +816,17 @@ impl Run {
     }
 }
 
+/// `info.providerID/modelID` = who answered; `info.fallback` = the degrades taken.
+fn stamp_route(run: &mut Run) {
+    if let Some(r) = &run.answered {
+        run.msg["info"]["providerID"] = json!(r.provider);
+        run.msg["info"]["modelID"] = json!(r.model);
+    }
+    if !run.fallbacks.is_empty() {
+        run.msg["info"]["fallback"] = json!(run.fallbacks);
+    }
+}
+
 /// One run, called with the session's run lock held: snapshot history, create the
 /// un-completed assistant placeholder, run the agent loop (abortable), store the
 /// outcome, then `session.idle`. Returns the final assistant message (aborted ones included).
@@ -688,7 +844,7 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<V
 
     let mut msg = placeholder;
     msg["parts"] = json!([]);
-    let mut run = Run { msg, text: String::new() };
+    let mut run = Run { msg, text: String::new(), answered: None, fallbacks: Vec::new() };
     let outcome = {
         let fut = agent_loop(st, id, history, tx, &mut run);
         tokio::select! {
@@ -706,22 +862,54 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<V
     let result = match outcome {
         Some(Ok(())) => {
             run.finish("interrupted");
+            stamp_route(&mut run);
             replace_message(st, id, &run.msg);
             publish(st, "message.updated", json!({ "info": run.msg["info"] }));
             emit(st, tx, "message.completed", run.msg.clone()).await;
             declare(st, id, "idle", None, None);
             Ok(run.msg)
         }
-        Some(Err(e)) => {
+        Some(Err(fail)) => {
+            let e = fail.msg.clone();
             eprintln!("run error: {e}");
+            let now = now_ms();
             // the run stopped and needs the user — the third state, never a silent idle
             let reason = if e.contains("step cap") { "step-cap" } else { "error" };
-            declare(st, id, "blocked", Some(reason), Some(&e));
+            // the error turn (PROVIDER-WAVE): the partial stays, then the headline as a SYNTHETIC
+            // text part — visible on every client (old PWAs read text parts), spoken by the voice
+            // agent (it arrives as a delta before the error event), never sent upstream
+            run.flush_text();
+            let text = error_turn_text(&fail, now);
+            send_delta(st, id, tx, &text).await;
+            run.push_part(json!({ "type": "text", "text": text, "synthetic": true }));
             run.finish(&e);
-            run.msg["info"]["error"] = json!({ "name": "UnknownError", "data": { "message": e } });
+            stamp_route(&mut run);
+            let (name, data, extra) = match &fail.upstream {
+                Some(u) => {
+                    let mut d = u.data(now);
+                    if !fail.tried.is_empty() {
+                        d["tried"] = json!(fail.tried.iter().map(|t| t.data(now)).collect::<Vec<_>>());
+                    }
+                    run.msg["info"]["providerID"] = json!(u.provider);
+                    run.msg["info"]["modelID"] = json!(u.model);
+                    let mut x = json!({ "kind": u.kind.name(), "providerID": u.provider, "headline": u.headline(now) });
+                    if let Some(t) = u.resets_at {
+                        x["resetsAt"] = json!(t);
+                    }
+                    (u.error_name(), d, x)
+                }
+                None => ("UnknownError", json!({ "message": e }), Value::Null),
+            };
+            let shown = data["message"].as_str().unwrap_or(&e).to_string();
+            declare_with(st, id, "blocked", Some(reason), Some(&shown), extra);
+            run.msg["info"]["error"] = json!({ "name": name, "data": data });
             replace_message(st, id, &run.msg);
-            emit(st, tx, "error", json!({ "sessionID": id, "error": e })).await;
-            Err(e)
+            publish(st, "message.updated", json!({ "info": run.msg["info"] }));
+            // opencode's event for a failed run: clients that only listen on /event see it
+            publish(st, "session.error", json!({ "sessionID": id, "error": run.msg["info"]["error"] }));
+            emit(st, tx, "error", json!({ "sessionID": id, "error": e, "info": run.msg["info"] })).await;
+            // opencode parity: the prompt resolves with the (errored) assistant message
+            Ok(run.msg)
         }
         None => {
             // Keep whatever was streamed/executed, flagged the way opencode flags it.
@@ -747,8 +935,9 @@ async fn agent_loop(
     messages: Vec<Value>,
     tx: &mpsc::Sender<Event>,
     run: &mut Run,
-) -> Result<(), String> {
-    let mut convo = rollup_if_needed(st, id, tx, messages).await;
+) -> Result<(), RunFail> {
+    let pick = session_model(st, id);
+    let mut convo = rollup_if_needed(st, id, tx, messages, pick.as_ref()).await;
     if let Some(ctx) = context_prompt(&st.tools.project_dir) {
         convo.insert(0, json!({ "role": "system", "content": ctx }));
     }
@@ -760,7 +949,7 @@ async fn agent_loop(
                 eprintln!("roll-up: pruned {n} old tool output(s) in session {id}");
             }
         }
-        let calls = relay(st, id, &convo, tx, &mut run.text).await?;
+        let calls = relay_chain(st, id, &convo, tx, run, pick.as_ref()).await?;
         let text = run.text.clone();
         run.flush_text();
         if calls.is_empty() {
@@ -786,7 +975,77 @@ async fn agent_loop(
             convo.push(json!({ "role": "tool", "tool_call_id": call.id, "content": output }));
         }
     }
-    Err(format!("agent loop hit the step cap ({max} upstream calls) without a final reply"))
+    Err(format!("agent loop hit the step cap ({max} upstream calls) without a final reply").into())
+}
+
+/// The session's model pick (`POST /api/session/:id/model`), if any.
+fn session_model(st: &AppState, id: &str) -> Option<provider::Ref> {
+    let sessions = st.sessions.lock().unwrap();
+    let m = &sessions.get(id)?.info["model"];
+    Some(provider::Ref { provider: m["providerID"].as_str()?.into(), model: m["id"].as_str()?.into() })
+}
+
+/// One upstream call down the chain (PROVIDER-WAVE). The first target that answers wins. A
+/// target cooling after an earlier failure is skipped without spending a request; a failure
+/// another provider could answer (quota, rate limit, auth, overload, down) that came before
+/// any text of this step cools the provider and the call moves on — a step that already
+/// streamed text is never silently re-asked elsewhere.
+async fn relay_chain(
+    st: &AppState,
+    id: &str,
+    convo: &[Value],
+    tx: &mpsc::Sender<Event>,
+    run: &mut Run,
+    pick: Option<&provider::Ref>,
+) -> Result<Vec<ToolCall>, RunFail> {
+    let reg = st.providers.current();
+    let chain = reg.chain(pick);
+    let mut failed: Vec<UpstreamError> = Vec::new();
+    for route in &chain {
+        if let Some(cached) = st.providers.health.cooling(&route.provider, now_ms()) {
+            eprintln!("upstream {}: skipped, cooling ({})", route.show(), cached.headline(now_ms()));
+            failed.push(UpstreamError { model: route.model.clone(), ..cached });
+            continue;
+        }
+        let before = run.text.len();
+        match relay(st, id, convo, tx, &mut run.text, route).await {
+            Ok(calls) => {
+                if st.providers.health.ok(route, now_ms()) {
+                    publish_provider(st, &route.provider);
+                }
+                if let Some(first) = failed.first() {
+                    let from = format!("{}/{}", first.provider, first.model);
+                    if !run.fallbacks.iter().any(|f| f["from"] == from.as_str() && f["to"] == route.show().as_str()) {
+                        let now = now_ms();
+                        let mut note = json!({ "from": from, "to": route.show(), "kind": first.kind.name(),
+                            "headline": first.headline(now), "at": now });
+                        if let Some(t) = first.resets_at {
+                            note["resetsAt"] = json!(t);
+                        }
+                        eprintln!("session {id}: degraded {from} -> {} ({})", route.show(), first.headline(now));
+                        publish(st, "provider.fallback", json!({ "sessionID": id, "from": from, "to": route.show(),
+                            "error": first.data(now) }));
+                        run.fallbacks.push(note);
+                    }
+                }
+                run.answered = Some(route.clone());
+                return Ok(calls);
+            }
+            Err(e) => {
+                eprintln!("upstream {}: {} [{}]", route.show(), e.line(), e.kind.name());
+                let degrade = e.kind.degrades() && run.text.len() == before;
+                st.providers.health.fail(&e, now_ms());
+                publish_provider(st, &route.provider);
+                failed.push(e);
+                if !degrade {
+                    break;
+                }
+            }
+        }
+    }
+    let mut failed = failed.into_iter();
+    let primary = failed.next().expect("the chain always holds the default");
+    Err(RunFail { msg: primary.line(), upstream: Some(primary), tried: failed.collect() })
 }
 
 /// OG-ctx (opencode parity): the layered AGENTS.md chain as the run's system message, so a
@@ -819,7 +1078,13 @@ fn context_prompt(project_dir: &std::path::Path) -> Option<String> {
 /// Slice 6b. Over the token limit at run start: summarize everything before the recent
 /// tail with one extra upstream call, store the compaction pair in front of the tail, and
 /// return the shortened upstream history. Any failure keeps the full history (logged).
-async fn rollup_if_needed(st: &AppState, id: &str, tx: &mpsc::Sender<Event>, messages: Vec<Value>) -> Vec<Value> {
+async fn rollup_if_needed(
+    st: &AppState,
+    id: &str,
+    tx: &mpsc::Sender<Event>,
+    messages: Vec<Value>,
+    pick: Option<&provider::Ref>,
+) -> Vec<Value> {
     let convo = upstream_history(&messages);
     let limit = st.config.rollup_tokens;
     if limit == 0 || rollup::est_tokens(&convo) <= limit {
@@ -847,7 +1112,7 @@ async fn rollup_if_needed(st: &AppState, id: &str, tx: &mpsc::Sender<Event>, mes
         { "role": "system", "content": rollup::PROMPT },
         { "role": "user", "content": rollup::transcript(&covered) },
     ]);
-    let summary = match summarize(st, &req).await {
+    let summary = match summarize(st, &req, pick).await {
         Ok(s) if !s.trim().is_empty() => s,
         Ok(_) => {
             eprintln!("roll-up {id}: empty summary, keeping full history");
@@ -883,15 +1148,23 @@ async fn rollup_if_needed(st: &AppState, id: &str, tx: &mpsc::Sender<Event>, mes
     convo
 }
 
-/// The roll-up's extra upstream call: no tools, no streaming to the client.
-async fn summarize(st: &AppState, messages: &Value) -> Result<String, String> {
-    let cfg = &st.config;
-    if cfg.dialect == Dialect::Anthropic {
-        return summarize_anthropic(st, messages).await;
+/// The roll-up's extra upstream call: no tools, no streaming to the client. It goes to the
+/// first target of the run's chain that is not cooling.
+async fn summarize(st: &AppState, messages: &Value, pick: Option<&provider::Ref>) -> Result<String, String> {
+    let now = now_ms();
+    let route = st
+        .providers
+        .current()
+        .chain(pick)
+        .into_iter()
+        .find(|r| st.providers.health.cooling(&r.provider, now).is_none())
+        .ok_or("every provider is cooling")?;
+    if route.dialect == Dialect::Anthropic {
+        return summarize_anthropic(st, messages, &route).await;
     }
-    let url = format!("{}/chat/completions", cfg.base_url.trim_end_matches('/'));
-    let mut req = st.http.post(&url).json(&json!({ "model": cfg.model, "messages": messages, "stream": false }));
-    if let Some(key) = &cfg.api_key {
+    let url = format!("{}/chat/completions", route.base_url.trim_end_matches('/'));
+    let mut req = st.http.post(&url).json(&json!({ "model": route.model, "messages": messages, "stream": false }));
+    if let Some(key) = &route.key {
         req = req.bearer_auth(key);
     }
     let resp = req.send().await.map_err(|e| format!("request failed: {e}"))?;
@@ -963,25 +1236,27 @@ async fn relay(
     convo: &[Value],
     tx: &mpsc::Sender<Event>,
     full: &mut String,
-) -> Result<Vec<ToolCall>, String> {
+    route: &Route,
+) -> Result<Vec<ToolCall>, UpstreamError> {
     let cfg = &st.config;
-    if cfg.dialect == Dialect::Anthropic {
-        return relay_anthropic(st, session_id, convo, tx, full).await;
+    if route.dialect == Dialect::Anthropic {
+        return relay_anthropic(st, session_id, convo, tx, full, route).await;
     }
-    let url = format!("{}/chat/completions", cfg.base_url.trim_end_matches('/'));
-    let mut body = json!({ "model": cfg.model, "messages": convo, "stream": true });
+    let url = format!("{}/chat/completions", route.base_url.trim_end_matches('/'));
+    let mut body = json!({ "model": route.model, "messages": convo, "stream": true });
     if cfg.tools_enabled {
         body["tools"] = tools::schemas();
     }
     let mut req = st.http.post(&url).json(&body);
-    if let Some(key) = &cfg.api_key {
+    if let Some(key) = &route.key {
         req = req.bearer_auth(key);
     }
-    let resp = req.send().await.map_err(|e| format!("request failed: {e}"))?;
+    let resp = req.send().await.map_err(|e| UpstreamError::network(route, &e.to_string()))?;
     let status = resp.status();
     if !status.is_success() {
+        let headers = resp.headers().clone();
         let body = resp.text().await.unwrap_or_default();
-        return Err(format!("upstream {status}: {body}"));
+        return Err(UpstreamError::from_response(route, status.as_u16(), &headers, &body, now_ms()));
     }
 
     let mut calls: Vec<ToolCall> = Vec::new();
@@ -991,7 +1266,10 @@ async fn relay(
         .and_then(|v| v.to_str().ok())
         .is_some_and(|ct| ct.starts_with("application/json"));
     if is_json {
-        let v: Value = resp.json().await.map_err(|e| format!("bad json: {e}"))?;
+        let v: Value = resp.json().await.map_err(|e| UpstreamError::stream(route, &format!("bad json: {e}")))?;
+        if v["error"].is_object() {
+            return Err(UpstreamError::from_response(route, status.as_u16(), &reqwest::header::HeaderMap::new(), &v.to_string(), now_ms()));
+        }
         let m = &v["choices"][0]["message"];
         let text = m["content"].as_str().unwrap_or_default();
         full.push_str(text);
@@ -1010,7 +1288,7 @@ async fn relay(
     let mut finished = false; // a choice carried finish_reason (some providers never send [DONE])
     let mut stream = resp.bytes_stream();
     while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|e| format!("stream error: {e}"))?;
+        let chunk = chunk.map_err(|e| UpstreamError::stream(route, &format!("stream error: {e}")))?;
         buf.push_str(&String::from_utf8_lossy(&chunk));
         while let Some(nl) = buf.find('\n') {
             let line: String = buf.drain(..=nl).collect();
@@ -1020,6 +1298,10 @@ async fn relay(
                 return Ok(calls);
             }
             let Ok(v) = serde_json::from_str::<Value>(data) else { continue };
+            // an error object inside the stream (openrouter, vLLM): classified like a response
+            if v["error"].is_object() {
+                return Err(UpstreamError::stream_event(route, &v["error"], now_ms()));
+            }
             finished |= v["choices"][0]["finish_reason"].is_string();
             let delta = &v["choices"][0]["delta"];
             if let Some(text) = delta["content"].as_str() {
@@ -1045,7 +1327,7 @@ async fn relay(
         }
     }
     if !finished {
-        return Err(CUT_OFF.into());
+        return Err(UpstreamError::stream(route, CUT_OFF));
     }
     Ok(calls)
 }
@@ -1057,11 +1339,11 @@ const CUT_OFF: &str = "upstream stream ended mid-reply (the provider dropped the
 
 /// Slice 7: an anthropic-dialect request — `{base}/v1/messages`, the key as both
 /// `x-api-key` and bearer (providers differ), `anthropic-version`.
-fn anthropic_request(st: &AppState, convo: &[Value], tools: Option<&Value>, stream: bool) -> reqwest::RequestBuilder {
-    let cfg = &st.config;
-    let body = anthropic::body(&cfg.model, cfg.max_tokens, convo, tools, stream);
-    let mut req = st.http.post(anthropic::messages_url(&cfg.base_url)).json(&body).header("anthropic-version", anthropic::VERSION);
-    if let Some(key) = &cfg.api_key {
+fn anthropic_request(st: &AppState, route: &Route, convo: &[Value], tools: Option<&Value>, stream: bool) -> reqwest::RequestBuilder {
+    let max_tokens = route.max_tokens.unwrap_or(st.config.max_tokens);
+    let body = anthropic::body(&route.model, max_tokens, convo, tools, stream);
+    let mut req = st.http.post(anthropic::messages_url(&route.base_url)).json(&body).header("anthropic-version", anthropic::VERSION);
+    if let Some(key) = &route.key {
         req = req.header("x-api-key", key).bearer_auth(key);
     }
     req
@@ -1077,14 +1359,20 @@ async fn relay_anthropic(
     convo: &[Value],
     tx: &mpsc::Sender<Event>,
     full: &mut String,
-) -> Result<Vec<ToolCall>, String> {
+    route: &Route,
+) -> Result<Vec<ToolCall>, UpstreamError> {
     let cfg = &st.config;
+    let max_tokens = route.max_tokens.unwrap_or(cfg.max_tokens);
     let tools = cfg.tools_enabled.then(tools::schemas);
-    let resp = anthropic_request(st, convo, tools.as_ref(), true).send().await.map_err(|e| format!("request failed: {e}"))?;
+    let resp = anthropic_request(st, route, convo, tools.as_ref(), true)
+        .send()
+        .await
+        .map_err(|e| UpstreamError::network(route, &e.to_string()))?;
     let status = resp.status();
     if !status.is_success() {
+        let headers = resp.headers().clone();
         let body = resp.text().await.unwrap_or_default();
-        return Err(format!("upstream {status}: {body}"));
+        return Err(UpstreamError::from_response(route, status.as_u16(), &headers, &body, now_ms()));
     }
     let rekey = |calls: Vec<anthropic::Call>| -> Vec<ToolCall> {
         calls.into_iter().map(|c| ToolCall { id: new_id("call"), name: c.name, arguments: c.args }).collect()
@@ -1095,13 +1383,13 @@ async fn relay_anthropic(
         .and_then(|v| v.to_str().ok())
         .is_some_and(|ct| ct.starts_with("application/json"));
     if is_json {
-        let v: Value = resp.json().await.map_err(|e| format!("bad json: {e}"))?;
+        let v: Value = resp.json().await.map_err(|e| UpstreamError::stream(route, &format!("bad json: {e}")))?;
         if v["type"] == "error" {
-            return Err(format!("upstream error: {}", v["error"]));
+            return Err(UpstreamError::from_response(route, status.as_u16(), &reqwest::header::HeaderMap::new(), &v.to_string(), now_ms()));
         }
         let (text, calls, stop) = anthropic::parse_message(&v);
         if stop.as_deref() == Some("max_tokens") {
-            eprintln!("upstream stopped at max_tokens ({}); raise YGG_MAX_TOKENS", cfg.max_tokens);
+            eprintln!("upstream stopped at max_tokens ({max_tokens}); raise YGG_MAX_TOKENS");
         }
         full.push_str(&text);
         send_delta(st, session_id, tx, &text).await;
@@ -1110,10 +1398,13 @@ async fn relay_anthropic(
     let (mut lines, mut dec) = (anthropic::SseLines::default(), anthropic::Stream::default());
     let mut stream = resp.bytes_stream();
     'read: while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|e| format!("stream error: {e}"))?;
+        let chunk = chunk.map_err(|e| UpstreamError::stream(route, &format!("stream error: {e}")))?;
         for data in lines.push(&chunk) {
             let Ok(v) = serde_json::from_str::<Value>(&data) else { continue };
-            if let Some(text) = dec.feed(&v)? {
+            if v["type"] == "error" {
+                return Err(UpstreamError::stream_event(route, &v["error"], now_ms()));
+            }
+            if let Some(text) = dec.feed(&v).map_err(|e| UpstreamError::stream(route, &e))? {
                 full.push_str(&text);
                 send_delta(st, session_id, tx, &text).await;
             }
@@ -1123,18 +1414,18 @@ async fn relay_anthropic(
         }
     }
     if !dec.stopped {
-        return Err(CUT_OFF.into());
+        return Err(UpstreamError::stream(route, CUT_OFF));
     }
     if dec.stop_reason.as_deref() == Some("max_tokens") {
-        eprintln!("upstream stopped at max_tokens ({}); raise YGG_MAX_TOKENS", cfg.max_tokens);
+        eprintln!("upstream stopped at max_tokens ({max_tokens}); raise YGG_MAX_TOKENS");
     }
     Ok(rekey(dec.calls))
 }
 
 /// The roll-up call in the anthropic dialect: the summarizer prompt rides in `system`.
-async fn summarize_anthropic(st: &AppState, messages: &Value) -> Result<String, String> {
+async fn summarize_anthropic(st: &AppState, messages: &Value, route: &Route) -> Result<String, String> {
     let convo = messages.as_array().cloned().unwrap_or_default();
-    let resp = anthropic_request(st, &convo, None, false).send().await.map_err(|e| format!("request failed: {e}"))?;
+    let resp = anthropic_request(st, route, &convo, None, false).send().await.map_err(|e| format!("request failed: {e}"))?;
     let status = resp.status();
     let body = resp.text().await.map_err(|e| format!("read failed: {e}"))?;
     if !status.is_success() {
@@ -1164,36 +1455,38 @@ async fn send_delta(st: &AppState, session_id: &str, tx: &mpsc::Sender<Event>, t
     emit(st, tx, "message.part.delta", json!({ "sessionID": session_id, "text": text })).await;
 }
 
-fn load_catalog(model: &str) -> Value {
-    if let Ok(path) = std::env::var("YGG_CATALOG") {
-        let parsed = std::fs::read(&path)
-            .map_err(|e| e.to_string())
-            .and_then(|b| serde_json::from_slice::<Value>(&b).map_err(|e| e.to_string()));
-        match parsed {
-            Ok(c) => return c,
-            Err(e) => {
-                eprintln!("YGG_CATALOG {path}: {e}");
-                std::process::exit(2);
-            }
+/// `YGG_CATALOG`, when set: a display catalog (+ agents) served as-is (exit 2 if unreadable).
+fn load_catalog() -> Option<Value> {
+    let path = std::env::var("YGG_CATALOG").ok().filter(|p| !p.is_empty())?;
+    let parsed = std::fs::read(&path)
+        .map_err(|e| e.to_string())
+        .and_then(|b| serde_json::from_slice::<Value>(&b).map_err(|e| e.to_string()));
+    match parsed {
+        Ok(c) => Some(c),
+        Err(e) => {
+            eprintln!("YGG_CATALOG {path}: {e}");
+            std::process::exit(2);
         }
     }
-    json!({
-        "providers": [{ "id": "yggdrasil", "name": "yggdrasil", "models": { model: { "id": model, "name": model, "providerID": "yggdrasil" } } }],
-        "default": { "yggdrasil": model },
-        "agents": [
-            { "name": "build", "mode": "primary", "description": "default agent" },
-            { "name": "plan", "mode": "primary", "description": "planning agent" },
-        ],
-    })
+}
+
+fn default_agents() -> Value {
+    json!([
+        { "name": "build", "mode": "primary", "description": "default agent" },
+        { "name": "plan", "mode": "primary", "description": "planning agent" },
+    ])
 }
 
 #[tokio::main]
 async fn main() {
-    let base_url = std::env::var("YGG_UPSTREAM_BASE_URL").ok().filter(|u| !u.is_empty()).unwrap_or_else(|| {
-        eprintln!("YGG_UPSTREAM_BASE_URL is required");
+    let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(String::as_str) == Some("provider") {
+        std::process::exit(provider::cli(args[2..].to_vec()).await);
+    }
+    let providers = provider::Providers::boot().unwrap_or_else(|e| {
+        eprintln!("{e}");
         std::process::exit(2);
     });
-    let model = std::env::var("YGG_UPSTREAM_MODEL").unwrap_or_else(|_| "gpt-4o-mini".into());
     let env_num = |k: &str, default: u64| -> u64 {
         match std::env::var(k) {
             Ok(v) if !v.is_empty() => v.parse().unwrap_or_else(|_| {
@@ -1204,26 +1497,20 @@ async fn main() {
         }
     };
     let rollup_tokens = env_num("YGG_ROLLUP_TOKENS", 100_000);
-    let dialect = match std::env::var("YGG_UPSTREAM_STYLE").unwrap_or_default().to_ascii_lowercase().as_str() {
-        "" | "openai" => Dialect::OpenAi,
-        "anthropic" => Dialect::Anthropic,
-        other => {
-            eprintln!("YGG_UPSTREAM_STYLE: unknown dialect {other:?} (openai | anthropic)");
-            std::process::exit(2);
+    {
+        let reg = providers.current();
+        for r in reg.chain(None) {
+            let url = match r.dialect {
+                Dialect::OpenAi => format!("{}/chat/completions", r.base_url.trim_end_matches('/')),
+                Dialect::Anthropic => anthropic::messages_url(&r.base_url),
+            };
+            eprintln!("upstream: {} — {:?} dialect, POST {url}", r.show(), r.dialect);
         }
-    };
-    let upstream_url = match dialect {
-        Dialect::OpenAi => format!("{}/chat/completions", base_url.trim_end_matches('/')),
-        Dialect::Anthropic => anthropic::messages_url(&base_url),
-    };
-    eprintln!("upstream: {dialect:?} dialect, POST {upstream_url}");
+        eprintln!("providers: {} (default {}, {} fallback)", reg.source, reg.default.show(), reg.fallback.len());
+    }
     let config = Config {
-        base_url,
-        dialect,
         max_tokens: env_num("YGG_MAX_TOKENS", 16_384).max(1),
-        api_key: std::env::var("YGG_UPSTREAM_API_KEY").ok().filter(|k| !k.is_empty()),
-        catalog: load_catalog(&model),
-        model,
+        catalog: load_catalog(),
         max_steps: env_num("YGG_MAX_STEPS", 100).max(1) as usize,
         tools_enabled: std::env::var("YGG_TOOLS").map_or(true, |v| v != "0"),
         rollup_tokens: rollup_tokens as usize,
@@ -1261,6 +1548,7 @@ async fn main() {
         config: Arc::new(config),
         http,
         tools: Arc::new(tool_env),
+        providers: Arc::new(providers),
     };
     for id in &interrupted {
         eprintln!("session {id}: run interrupted by the restart — closed, declared blocked");
@@ -1277,6 +1565,10 @@ async fn main() {
         .route("/api/session/{id}/model", post(switch_model))
         .route("/api/session/{id}/agent", post(switch_agent))
         .route("/config/providers", get(config_providers))
+        .route("/config", get(get_config))
+        .route("/provider", get(get_provider))
+        .route("/provider/health", get(provider_health))
+        .route("/provider/check", post(provider_check))
         .route("/agent", get(list_agents))
         .route("/event", get(events))
         .with_state(state);

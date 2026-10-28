@@ -1,0 +1,24 @@
+{
+  "$comment": "yggdrasil providers (PROVIDER-WAVE 10-28) — opencode's `provider` block + `fallback`. Copy to ~/.config/yggdrasil/providers.json (or point YGG_PROVIDERS at it); the root re-reads it on change. The env provider `yggdrasil` (YGG_UPSTREAM_*) stays in the catalog unless an entry here takes its id. Keys: {env:NAME} or {file:path} — never the key itself in a file you might share.",
+  "model": "yggdrasil/glm-4.6",
+  "fallback": ["ollama/qwen3:8b"],
+  "provider": {
+    "ollama": {
+      "name": "Ollama (this machine)",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": { "baseURL": "http://127.0.0.1:11434/v1" },
+      "models": { "qwen3:8b": { "name": "Qwen3 8B" } }
+    },
+    "anthropic": {
+      "name": "Anthropic (your key)",
+      "npm": "@ai-sdk/anthropic",
+      "options": { "apiKey": "{env:ANTHROPIC_API_KEY}" },
+      "models": { "claude-sonnet-5-5": {} }
+    },
+    "openrouter": {
+      "name": "OpenRouter (your key)",
+      "options": { "apiKey": "{file:~/.config/yggdrasil/openrouter.key}" },
+      "models": { "z-ai/glm-4.6": {} }
+    }
+  }
+}

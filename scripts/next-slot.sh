@@ -14,12 +14,15 @@
 #                                           no push subscriptions). Nothing the user uses is touched.
 #   scripts/next-slot.sh stop               stop the matrix serve
 #   scripts/next-slot.sh on <id|label>      bifrost-sandbox + lk-agent-ygg run the clone (drop-ins),
-#                                           restart both, probe :8090 serves the release's BUILD_ID
+#                                           restart both, probe :8090 serves the release's BUILD_ID.
+#                                           REFUSED when it is live's build (TWO-ROOTS LAW, 10-28:
+#                                           :443 and :8443 always serve different builds — two-roots.sh)
 #   scripts/next-slot.sh off                drop-ins removed, both units back on their worktrees
 #   scripts/next-slot.sh status
 set -euo pipefail
-BIF="$HOME/.local/share/bifrost"; RELS="$BIF/releases"; NEXT="$BIF/next"
-UNITS="$HOME/.config/systemd/user"
+BIF="${BIFROST_HOME:-$HOME/.local/share/bifrost}"; RELS="$BIF/releases"; NEXT="$BIF/next"
+UNITS="${BIFROST_UNITS:-$HOME/.config/systemd/user}"
+HERE="$(cd "$(dirname "$0")" && pwd)"
 SANDBOX="$HOME/Work/bifrost-sandbox/pwa"
 NODE_BIN="${NODE_BIN:-$HOME/.local/share/mise/installs/node/26.8.1/bin}"
 UV="${UV:-$HOME/.local/share/mise/installs/uv/latest/.mise-bins/uv}"
@@ -107,7 +110,10 @@ case "$cmd" in
     say "specs: PW_BASE_URL=http://127.0.0.1:$port PW_SERVER_CWD=$mp" ;;
   stop) systemctl --user stop rc-pwa rc-agent 2>/dev/null || true; say "matrix serve stopped" ;;
   on)
-    id="$(resolve "${1:?release}")"; c="$(clone "$id")"
+    id="$(resolve "${1:?release}")"
+    # TWO-ROOTS LAW (10-28): the next slot carries the NEXT evolution — never the build :443 serves
+    why="$("$HERE/two-roots.sh" guard next "$id")" || die "$why — refused: the next slot never serves live's build (scripts/promote.sh --list for a newer release, or stay off)"
+    c="$(clone "$id")"
     ln -sfn "$id" "$NEXT/current.new" && mv -Tf "$NEXT/current.new" "$NEXT/current"
     mkdir -p "$UNITS/bifrost-sandbox.service.d" "$UNITS/lk-agent-ygg.service.d"
     cat > "$UNITS/bifrost-sandbox.service.d/next-slot.conf" <<'EOF'
@@ -127,18 +133,21 @@ EOF
     systemctl --user daemon-reload
     systemctl --user restart lk-agent-ygg bifrost-sandbox
     wait_build 8090 "$(build_id "$id")" || die ":8090 does not serve $(build_id "$id") — scripts/next-slot.sh off"
-    say "ON: :8443 serves $id (build $(build_id "$id")); agent bifrost-ygg from the clone" ;;
+    say "ON: :8443 serves $id (build $(build_id "$id")); agent bifrost-ygg from the clone"
+    "$HERE/two-roots.sh" check || die "two roots collapsed after 'on' — scripts/next-slot.sh off" ;;
   off)
     rm -f "$UNITS/bifrost-sandbox.service.d/next-slot.conf" "$UNITS/lk-agent-ygg.service.d/next-slot.conf"
     systemctl --user daemon-reload
     systemctl --user restart lk-agent-ygg bifrost-sandbox
-    say "OFF: bifrost-sandbox + lk-agent-ygg back on their worktrees (:8090 serves $(sleep 3; served_build 8090))" ;;
+    say "OFF: bifrost-sandbox + lk-agent-ygg back on their worktrees (:8090 serves $(sleep 3; served_build 8090))"
+    "$HERE/two-roots.sh" check || say "WARNING: the worktree build is live's — rebuild the sandbox tree or 'on' a newer release" ;;
   status)
     echo "current: $(readlink "$NEXT/current" 2>/dev/null || echo none)"
     for u in bifrost-sandbox lk-agent-ygg rc-pwa rc-agent; do
       printf '  %-16s %-9s cwd %s\n' "$u" "$(systemctl --user is-active "$u" 2>/dev/null)" \
         "$(readlink "/proc/$(systemctl --user show "$u" -p MainPID --value)/cwd" 2>/dev/null || echo -)"
     done
-    echo "  :8090 serves $(served_build 8090 || true)" ;;
+    echo "  :8090 serves $(served_build 8090 || true)"
+    echo "  $("$HERE/two-roots.sh" check)" ;;
   *) die "usage: next-slot.sh clone|serve|stop|on|off|status" ;;
 esac

@@ -34,6 +34,8 @@ do_version() {
     local dirty; dirty="$(git -C "$SANDBOX" status --porcelain pwa agent 2>/dev/null | wc -l)"
     [ "$dirty" -gt 0 ] && echo "  sandbox tree has $dirty uncommitted pwa/agent path(s)"
   fi
+  # the TWO-ROOTS LAW (10-28): :443 and :8443 always serve different builds
+  [ -x "$(dirname "$0")/two-roots.sh" ] && echo "  $("$(dirname "$0")/two-roots.sh" check 2>&1)"
   echo "trunk            $(git branch --show-current)@$(git rev-parse --short HEAD) · $(git log -1 --format=%s | cut -c1-70)"
 }
 

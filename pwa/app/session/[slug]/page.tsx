@@ -17,6 +17,8 @@ import { type Msg, SessionMessage, userProse } from '@/components/session-messag
 import { MessageHistory } from '@/components/message-history';
 import { useSwipeX } from '@/lib/use-swipe-x';
 import { ErrorBox } from '@/components/app/error-box';
+import { ProviderBanner, type BannerState } from '@/components/provider-banner';
+import { alertLive, isProviderOut, type ProviderAlert } from '@/lib/provider-alert';
 import {
   getSpeech,
   getSpeechServer,
@@ -941,6 +943,46 @@ export default function SessionView({
     modeRef.current = mode;
   }, [mode]);
 
+  // --- provider banner (PROVIDER-WAVE 10-28): why the tree stopped answering ---
+  // the brain's own view (yggdrasil GET /provider/health via the proxy): out
+  // before this session even sent — another session or the voice agent hit
+  // the limit first. Polled while visible; refreshed on every failure push.
+  const [health, setHealth] = useState<{ out: boolean; alert?: ProviderAlert; fallback?: string[] } | null>(null);
+  const refreshHealth = useCallback(() => {
+    if (document.hidden) return;
+    fetch('/api/provider-health', { cache: 'no-store', signal: AbortSignal.timeout(6000) })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((h) => setHealth(h && h.known ? h : null))
+      .catch(() => {});
+  }, []);
+  useEffect(() => {
+    refreshHealth();
+    const t = setInterval(refreshHealth, 60_000);
+    return () => clearInterval(t);
+  }, [refreshHealth]);
+  const refreshHealthRef = useRef(refreshHealth);
+  refreshHealthRef.current = refreshHealth;
+  // the newest assistant turn decides first: an error turn = out (with the
+  // reset the provider gave), a reply that came via a fallback = degraded;
+  // else the brain's health. A reset in the past ends the banner by itself.
+  const banner = useMemo<BannerState | null>(() => {
+    const now = Date.now();
+    const last = [...msgs].reverse().find((m) => m.role === 'assistant');
+    if (last?.error && isProviderOut(last.error) && alertLive(last.error, now)) {
+      return { mode: 'out', alert: last.error, fallback: health?.fallback };
+    }
+    if (last?.via?.resetsAt && last.via.resetsAt > now) {
+      const kind = (last.via.kind || 'quota') as ProviderAlert['kind'];
+      return {
+        mode: 'degraded',
+        via: last.via.to,
+        alert: { kind, message: '', resetsAt: last.via.resetsAt, providerID: last.via.from },
+      };
+    }
+    if (health?.out && health.alert) return { mode: 'out', alert: health.alert, fallback: health.fallback };
+    return null;
+  }, [msgs, health]);
+
   // --- tts deck handlers ---
   const lastAssistant = useMemo(
     () => [...msgs].reverse().find((m) => m.role === 'assistant' && m.text.trim()),
@@ -1576,11 +1618,16 @@ export default function SessionView({
       if (ev.data.startsWith('error|')) {
         const msg = ev.data.slice('error|'.length);
         diagEvent('busy', `run-error ${slug}: ${msg}`);
+        // a provider stop (session.error from the brain) has its own error
+        // turn + banner — no second "no reply" box; just end the wait now
+        const provider = msg.startsWith('provider ');
         if (busyRef.current) {
           wedgeFiredRef.current = true;
-          setError(`no reply — ${msg}. Send again.`);
+          if (!provider) setError(`no reply — ${msg}. Send again.`);
           setBusy(false);
         }
+        void loadMsgsRef.current();
+        refreshHealthRef.current();
         return;
       }
       // hands-free voice-cycle logic needs the room live; the error channel
@@ -2291,6 +2338,8 @@ export default function SessionView({
           </button>
         </div>
       )}
+
+      <ProviderBanner state={banner} />
 
       {error && (
         <div className="mt-2">

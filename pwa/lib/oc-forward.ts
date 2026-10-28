@@ -7,6 +7,7 @@ import { bustCache } from './oc-cache';
 import { abortedAt, markRunEnd, markRunStart } from './oc-live';
 import { dequeue } from './oc-queue';
 import { emitRunError } from './run-events';
+import { alertDetail, alertFromError, alertHeadline, isProviderOut } from './provider-alert';
 import { pushRunDone } from './push';
 
 export type SendBody = {
@@ -59,6 +60,17 @@ async function runVerified(sid: string, sentText: string): Promise<boolean> {
   }
 }
 
+/** PROVIDER-WAVE: the frozen root answers a provider stop (z.ai 1310) with a
+ *  bare 500 — "opencode 500 on /session/…" says nothing. It did store an
+ *  error turn: read it and push ITS reason ("provider limit exhausted,
+ *  resets 20:44 — …"), which the page routes to the banner. */
+async function providerReason(sid: string): Promise<string | null> {
+  const msgs = (await ocFetch(`/session/${sid}/message`)) as any[];
+  const last = [...(msgs || [])].reverse().find((m: any) => (m.info?.role || m.role) === 'assistant');
+  const a = alertFromError(last?.info?.error);
+  return a && isProviderOut(a) ? `${alertHeadline(a)} — ${alertDetail(a)}` : null;
+}
+
 /** Fire-and-forget one message at opencode. Its end (abort included) is what
  *  lets the next queued message through — the proxy owns queue pickup. */
 export function forward(sid: string, slug: string, body: SendBody, isRetry = false) {
@@ -87,7 +99,8 @@ export function forward(sid: string, slug: string, body: SendBody, isRetry = fal
       console.error(`[oc] async prompt failed for ${sid}: ${e}`);
       // the phone must not sit on "working…" for a prompt opencode rejected —
       // surface it now (2026-09-30: a dead prompt held busy for 15 minutes)
-      emitRunError(sid, `the reply failed: ${String(e).slice(0, 120)}`);
+      const reason = await providerReason(sid).catch(() => null);
+      emitRunError(sid, reason || `the reply failed: ${String(e).slice(0, 120)}`);
     }
     if (refire) {
       forward(sid, slug, body, true); // the retry owns run-end + queue pickup

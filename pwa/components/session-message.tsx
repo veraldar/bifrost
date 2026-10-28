@@ -5,6 +5,7 @@ import { Streamdown } from 'streamdown';
 import { LineIcon } from '@/components/line-icon';
 import { Marked } from '@/components/marked';
 import { useSwipeX } from '@/lib/use-swipe-x';
+import { alertDetail, alertHeadline, type ProviderAlert } from '@/lib/provider-alert';
 
 export type Msg = {
   role: string;
@@ -13,7 +14,33 @@ export type Msg = {
   time: number;
   queued?: boolean;
   done?: boolean; // assistant: run completed (hands-free auto-listen gate)
+  /** PROVIDER-WAVE: the run failed — an error turn, rendered as the brain's notice */
+  error?: ProviderAlert;
+  /** answered by a fallback provider (the default was out) */
+  via?: { to: string; from: string; kind?: string; resetsAt?: number };
 };
+
+/** The error turn: the headline in the phone's clock, then the root's own
+ *  lines (detail + what to do) without its server-formatted first line. */
+function ErrorTurn({ m }: { m: Msg }) {
+  const a = m.error!;
+  const rest = m.text
+    .split('\n')
+    .filter((l, i) => !(i === 0 && l.startsWith('⚠')))
+    .join('\n')
+    .trim();
+  return (
+    <div
+      data-testid="error-turn"
+      data-kind={a.kind}
+      className="oz-box px-2.5 py-1.5 text-xs"
+      style={{ borderColor: 'var(--oz-danger)' }}
+    >
+      <div className="font-medium text-[var(--oz-danger)]">⚠ {alertHeadline(a)}</div>
+      <div className="mt-0.5 whitespace-pre-wrap text-[var(--oz-dim)]">{rest || alertDetail(a)}</div>
+    </div>
+  );
+}
 
 function htmlBlocks(text: string): string[] {
   const out: string[] = [];
@@ -205,7 +232,7 @@ export function SessionMessage({
       {/* "(you)" / "(agent)" — the word list says agent, not assistant */}
       <div className="oz-who">
         <span className={isUser ? 'text-[var(--oz-success)]' : 'text-[var(--oz-dim)]'}>
-          ({isUser ? 'you' : m.role === 'assistant' ? 'agent' : m.role})
+          ({isUser ? 'you' : m.error ? 'brain' : m.role === 'assistant' ? 'agent' : m.role})
         </span>
         {stamp && <time>{stamp}</time>}
         {queued && <span className="oz-breathe text-[10px] text-[var(--oz-success)]">● queued</span>}
@@ -232,8 +259,15 @@ export function SessionMessage({
             </details>
           )
         )
+      ) : m.error ? (
+        <ErrorTurn m={m} />
       ) : (
         <Streamdown>{m.text}</Streamdown>
+      )}
+      {m.via && (
+        <div data-testid="via-note" className="mt-0.5 text-[10px] text-[var(--oz-dim)]">
+          via {m.via.to} — {m.via.from} was out
+        </div>
       )}
 
       {/* html blocks render inline by default (sandbox="" — no scripts, no

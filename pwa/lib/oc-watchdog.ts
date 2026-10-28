@@ -23,6 +23,7 @@ import { isOrphanRun, isRunLive, liveSids, liveSince } from './oc-live';
 import { queuedItems, queuedSids } from './oc-queue';
 import { runEnded } from './oc-forward';
 import { emitRunDone, emitRunError } from './run-events';
+import { alertDetail, alertFromError, alertHeadline } from './provider-alert';
 import { bustCache } from './oc-cache';
 
 /** 10min, not less: opencode emits NO events during a long silent tool call
@@ -238,6 +239,23 @@ function connect() {
             // time.completed also fires at EVERY step end of a multi-step
             // run: that is a 'step' refresh signal, never a speak trigger
             // (req 09-28: speaking per step restarted the audio mid-answer).
+            // PROVIDER-WAVE: the brain says why a run failed (yggdrasil and
+            // opencode both emit session.error) — push it to the page at once,
+            // headline first ("provider limit exhausted, resets 20:44")
+            if (/"type":"session\.error"/.test(block)) {
+              try {
+                const data = block
+                  .split('\n')
+                  .filter((l) => l.startsWith('data:'))
+                  .map((l) => l.slice(5))
+                  .join('');
+                const ev = JSON.parse(data) as { properties?: { error?: unknown } };
+                const a = alertFromError(ev.properties?.error);
+                if (a) emitRunError(m[1], `${alertHeadline(a)} — ${alertDetail(a)}`);
+              } catch {
+                /* malformed block — the transcript still carries the error turn */
+              }
+            }
             const idle = /session\.idle/.test(block);
             if (idle || /"completed":\s*1\d{12}/.test(block)) {
               emitRunDone(m[1], idle ? 'idle' : 'step');

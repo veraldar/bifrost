@@ -11,6 +11,7 @@ import { enqueue, queuedItems } from '@/lib/oc-queue';
 import { bustSearchResults, bustTranscript } from '@/lib/oc-transcript';
 import { ensureWatchdog, lastEventAt } from '@/lib/oc-watchdog';
 import { PENDING_TTL_MS } from '@/lib/pending-ttl';
+import { alertFromError } from '@/lib/provider-alert';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,11 +33,22 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
         .map((p: any) => p.text || '')
         .join('\n')
         .trim();
+      // PROVIDER-WAVE: a failed run is an error TURN — its text may be empty
+      // (the frozen root stored only info.error), so it rides as `error` and
+      // survives the empty-message filter below
+      const role = m.info?.role || m.role;
+      const error = role === 'assistant' ? alertFromError(m.info?.error) : null;
+      const fb = Array.isArray(m.info?.fallback) ? m.info.fallback[m.info.fallback.length - 1] : null;
       // tool-only steps stay invisible on the phone: the busy indicator
       // already shows activity, ⚙ lines were just clutter (user req)
       return {
-        role: m.info?.role || m.role,
+        role,
         text,
+        ...(error ? { error } : {}),
+        // answered by a fallback provider: who answered, and why the first one didn't
+        ...(fb && !error
+          ? { via: { to: String(fb.to), from: String(fb.from), kind: fb.kind, resetsAt: fb.resetsAt } }
+          : {}),
         images: (m.parts || [])
           .filter((p: any) => p.type === 'image' || p.mime?.startsWith('image/'))
           .map((p: any) => p.url || p.data || null),
@@ -49,7 +61,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
           (m.info?.role || m.role) === 'assistant' ? !!m.info?.time?.completed : undefined,
       };
     });
-    const all = out.filter((m: any) => m.text || m.images.length);
+    const all = out.filter((m: any) => m.text || m.images.length || m.error);
     // run state for the busy indicator: opencode emits one assistant message
     // per step, so "an assistant message landed" ≠ "the run is done". The run
     // is done only when the last relevant message is an assistant message with

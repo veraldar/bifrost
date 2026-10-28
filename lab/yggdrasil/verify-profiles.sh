@@ -4,7 +4,7 @@
 # declared tools per profile, denials (tool, bash segment, redirect, path pattern, external),
 # denial message + part metadata + bus event, no-tool profile (calls ignored, next anthropic
 # turn still valid), rename round trip, legacy session under the default, a profile gone at
-# restart (fail closed, blocked), a bad profiles file (exit 2). Ports 18290 / 14196.
+# restart (fail closed, blocked), a bad profiles file (exit 2). Ports 18290 / 14197 (14196 = root-store-backup.sh).
 set -euo pipefail
 cd "$(dirname "$0")"
 source ~/.cargo/env
@@ -12,7 +12,7 @@ cargo build -q
 exec python3 - <<'PY'
 import json, os, shutil, subprocess, sys, tempfile, time, urllib.request, urllib.error
 
-MOCK, PORT = 18290, 14196
+MOCK, PORT = 18290, 14197
 BIN = os.path.abspath("target/debug/yggdrasil")
 TMP = tempfile.mkdtemp(prefix="ygg-profiles-")
 FAILS, PASSES = [], 0

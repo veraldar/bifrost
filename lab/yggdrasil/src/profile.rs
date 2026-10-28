@@ -463,7 +463,7 @@ impl Splitter {
                             }
                             '$' if at(i + 1) == '(' => {
                                 self.cur.push('$');
-                                i = self.subst(c, i + 1);
+                                i = self.subst(c, i + 1, true);
                             }
                             '`' => i = self.backtick(c, i),
                             ch => {
@@ -480,7 +480,7 @@ impl Splitter {
                 '`' => i = self.backtick(c, i),
                 '$' | '<' | '>' if at(i + 1) == '(' => {
                     self.cur.push(c[i]);
-                    i = self.subst(c, i + 1);
+                    i = self.subst(c, i + 1, c[i] == '$');
                 }
                 ';' => {
                     self.end();
@@ -548,34 +548,35 @@ impl Splitter {
         self.end();
     }
 
-    /// `c[i] == '('`: copies the balanced `(…)` into the current text, splits its body.
-    fn subst(&mut self, c: &[char], i: usize) -> usize {
-        let (mut depth, mut j, mut quote) = (0usize, i, None::<char>);
-        while j < c.len() {
-            let ch = c[j];
-            match quote {
-                Some(q) if ch == q => quote = None,
-                Some(_) if ch == '\\' => j += 1,
-                Some(_) => {}
-                None => match ch {
-                    '\'' | '"' => quote = Some(ch),
-                    '\\' => j += 1,
-                    '(' => depth += 1,
-                    ')' => {
-                        depth -= 1;
-                        if depth == 0 {
-                            break;
-                        }
-                    }
-                    _ => {}
-                },
-            }
-            j += 1;
+    /// `c[i] == '('` after `$`, `<` or `>`: copies the balanced `(…)` into the current text and
+    /// splits its body. `$((…))` is arithmetic, not a command (bash's rule: the inner `(` closes
+    /// right before the outer `)`; otherwise it is a command substitution holding a subshell) —
+    /// only the substitutions inside it are split.
+    fn subst(&mut self, c: &[char], i: usize, dollar: bool) -> usize {
+        let end = close_paren(c, i);
+        self.cur.extend(&c[i..(end + 1).min(c.len())]);
+        let body = &c[i + 1..end.min(c.len())];
+        if dollar && c.get(i + 1) == Some(&'(') && end < c.len() && close_paren(c, i + 1) + 1 == end {
+            self.arith(&body[1..body.len() - 1]);
+        } else {
+            self.nested(body);
         }
-        let end = j.min(c.len().saturating_sub(1));
-        self.cur.extend(&c[i..=end]);
-        self.nested(&c[(i + 1).min(end)..end.max(i + 1).min(c.len())]);
         end + 1
+    }
+
+    /// The command substitutions inside an arithmetic expression (the expression is no command).
+    fn arith(&mut self, body: &[char]) {
+        let mut k = 0;
+        while k < body.len() {
+            let mut sub = Splitter::default();
+            k = match body[k] {
+                '$' if body.get(k + 1) == Some(&'(') => sub.subst(body, k + 1, true),
+                '`' => sub.backtick(body, k),
+                _ => k + 1,
+            };
+            self.cmds.extend(sub.cmds);
+            self.writes.extend(sub.writes);
+        }
     }
 
     /// `c[i] == '`'`: copies through the closing backtick, splits the body.
@@ -633,6 +634,33 @@ impl Splitter {
     }
 }
 
+/// Index of the `)` closing the `(` at `c[i]` (quote-aware); `c.len()` if it never closes.
+fn close_paren(c: &[char], i: usize) -> usize {
+    let (mut depth, mut j, mut quote) = (0usize, i, None::<char>);
+    while j < c.len() {
+        let ch = c[j];
+        match quote {
+            Some(q) if ch == q => quote = None,
+            Some(_) if ch == '\\' => j += 1,
+            Some(_) => {}
+            None => match ch {
+                '\'' | '"' => quote = Some(ch),
+                '\\' => j += 1,
+                '(' => depth += 1,
+                ')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return j;
+                    }
+                }
+                _ => {}
+            },
+        }
+        j += 1;
+    }
+    c.len()
+}
+
 /// One shell word starting at `i` (quotes removed for the value). Returns (word, next index).
 fn word_at(c: &[char], mut i: usize) -> (String, usize) {
     let mut w = String::new();
@@ -661,15 +689,21 @@ fn word_at(c: &[char], mut i: usize) -> (String, usize) {
 }
 
 /// A simple command's text with the shell grammar around it removed: leading keywords /
-/// `(` `{` `!`, leading `NAME=value` assignments, a trailing ` )`/` }`. Loop headers, closers
-/// and pure assignments are no command (substitutions inside them were split already).
+/// `(` `{` `!`, leading `NAME=value` assignments, a trailing ` )`/` }`. `for` headers, closers,
+/// arithmetic commands and pure assignments are no command (their substitutions were split
+/// already).
 fn clean(text: &str) -> Option<String> {
     const LEAD: [&str; 10] = ["then", "else", "elif", "do", "if", "while", "until", "time", "!", "{"];
     let mut s = text.trim();
+    if s.starts_with("((") {
+        return None; // an arithmetic command; substitutions inside it were split already
+    }
+    let mut opened = 0; // subshell `(`s stripped in front; their `)`s come off the end
     loop {
         let before = s;
         if let Some(rest) = s.strip_prefix('(') {
             s = rest.trim_start();
+            opened += 1;
         }
         for kw in LEAD {
             if let Some(rest) = s.strip_prefix(kw)
@@ -684,11 +718,18 @@ fn clean(text: &str) -> Option<String> {
         }
     }
     let mut s = s.trim_end();
+    for _ in 0..opened {
+        if let Some(rest) = s.strip_suffix(')') {
+            s = rest.trim_end();
+        }
+    }
     while let Some(rest) = s.strip_suffix(" )").or_else(|| s.strip_suffix(" }")) {
         s = rest.trim_end();
     }
     let first = s.split_whitespace().next().unwrap_or("");
-    if s.is_empty() || matches!(first, "fi" | "done" | "esac" | "}" | ")" | "for" | "case" | "select") {
+    // `for` headers are data (their substitutions were split already); `case` arms are NOT
+    // dropped — `case $x in a) rm f;;` keeps `rm f` inside a command a narrow rule refuses
+    if s.is_empty() || matches!(first, "fi" | "done" | "esac" | "}" | ")" | "for") {
         return None;
     }
     Some(s.to_string())
@@ -855,6 +896,57 @@ mod tests {
         assert_eq!(c, ["[ -f x ]", "cat x", "echo no"]);
         let (c, _) = split_commands("x=$(curl -s u)");
         assert_eq!(c, ["curl -s u"]);
+    }
+
+    #[test]
+    fn arithmetic_is_no_command() {
+        let (c, _) = split_commands("echo $((1+2))");
+        assert_eq!(c, ["echo $((1+2))"]);
+        let (c, _) = split_commands("echo \"$t -> $(date -u -d @$((t/1000)) '+%F')\"");
+        assert_eq!(c, ["date -u -d @$((t/1000)) '+%F'", "echo \"$t -> $(date -u -d @$((t/1000)) '+%F')\""]);
+        let (c, _) = split_commands("echo $(( ($(date +%s) - 5) / 60 ))");
+        assert_eq!(c, ["date +%s", "echo $(( ($(date +%s) - 5) / 60 ))"]);
+        let (c, _) = split_commands("(( n = $(wc -l < f) + 1 )); echo $n");
+        assert_eq!(c, ["wc -l < f", "echo $n"]);
+        // `$((` that is not arithmetic (bash: a command substitution holding a subshell)
+        let (c, _) = split_commands("echo $((rm -f x) ; (ls))");
+        assert_eq!(c, ["rm -f x", "ls", "echo $((rm -f x) ; (ls))"]);
+        // the live trace that tripped the first battery (tool-scope, 10-28)
+        let p = coordinator();
+        let poll = "now=1793209990543; for t in 179 178; do echo \"$t -> $(date -u -d @$((t/1000)) '+%F %T') (age: $(( (now - t) / 3600000 ))h)\"; done";
+        let mut q = p.clone();
+        q.permission.push(rule("bash", "date *", Action::Allow));
+        assert!(check(&q, "bash", json!({"command": poll})).is_ok(), "{:?}", split_commands(poll));
+        let (c, _) = split_commands("case $x in a) rm f;; esac");
+        assert_eq!(c, ["case $x in a) rm f"], "a case arm stays inside a command (fail closed)");
+    }
+
+    #[test]
+    fn splitter_never_panics() {
+        const A: [char; 16] = ['a', ' ', '$', '(', ')', '`', '\'', '"', '\\', '<', '>', '&', '|', ';', '\n', '-'];
+        let mut buf = String::new();
+        for n in 0..=4u32 {
+            for mut k in 0..16usize.pow(n) {
+                buf.clear();
+                for _ in 0..n {
+                    buf.push(A[k % 16]);
+                    k /= 16;
+                }
+                let (cmds, _) = split_commands(&buf);
+                assert!(cmds.iter().all(|c| !c.trim().is_empty()), "{buf:?} -> {cmds:?}");
+            }
+        }
+        let mut x: u64 = 0x9e3779b97f4a7c15;
+        for _ in 0..20_000 {
+            buf.clear();
+            for _ in 0..(x % 48) {
+                x ^= x << 13;
+                x ^= x >> 7;
+                x ^= x << 17;
+                buf.push(A[(x % 16) as usize]);
+            }
+            split_commands(&buf);
+        }
     }
 
     #[test]

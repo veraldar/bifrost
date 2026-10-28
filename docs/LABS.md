@@ -15,7 +15,8 @@ or archived freely. Never mint a `[LAB]` session per battery turn (that was the 
 | **nous-sim** | STANDING HARNESS | `~/Work/bifrost/lab/nous-sim/` | `pwa/artifacts/nous-sim-report.md` (first result: async MAIN 0ms blocked vs 21.8s sync) | fake-nous driver for coordination patterns; rerun on every coordination change |
 | **ygg-sim** | DORMANT (v0.6 pair: app 0.6.0 ↔ sim 0.6.0) | `~/Work/bifrost/lab/ygg-sim/` | VERSIONS.md cycle evidence | the full-cycle simulator; revival owed when the client format changes (trunk-apk finding: sim never tested the artifact the user held) |
 
-## Rules
+## DRAFT RULES — not binding until validated (owner 10-28: "no rules before simulation of gain/loss metric and validation of improvement in the trend")
+Status: hypotheses. Each must state its metric, baseline, target; promotion needs a validated trend, demotion is automatic.
 1. A lab session's LAST message always names: home dir, artifact path, ledger path.
 2. Trends append to the ledger, never overwrite. Scorecards are dated files.
 3. A `[LAB]` that stops iterating gets DORMANT in this file, not deleted — old labs stay

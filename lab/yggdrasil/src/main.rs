@@ -29,6 +29,9 @@
 //!   YGG_ROLLUP_TOKENS      slice 6b: estimated-token limit for the upstream history (default 100000,
 //!                          `0` = off); over it, older history is summarized (`rollup.rs`)
 //!   YGG_ROLLUP_KEEP_TOKENS recent history kept verbatim at a roll-up (default: limit / 4)
+//!   YGG_PROFILES           TOOL-SCOPE (10-28): JSON file `{default_agent?, agent: {name: {permission:
+//!                          [{permission, pattern, action}], override?}}}` — session tool profiles, read
+//!                          once at boot (default: one profile `build` = every tool; `profile.rs`)
 //!
 //! Slice 6a: each run is an agent loop — the upstream gets the tool set (`tools.rs`); its
 //! tool_calls are executed serially, fed back as `tool` messages, repeated until a reply
@@ -40,6 +43,12 @@
 //! keeps the same internal (OpenAI-shaped) conversation; `anthropic.rs` translates it at the
 //! wire, decodes the block SSE back into the same deltas + tool calls, and the relay re-keys
 //! tool-use ids — stored transcripts and client events are identical in both dialects.
+//!
+//! TOOL-SCOPE: `POST /session {profile?}` fixes a session's tool profile (unknown = 400, absent =
+//! the default; `PATCH` cannot change it). Each run declares only the profile's visible tools
+//! (renamed per `override`) and checks every call at dispatch; a refused call is an `error` tool
+//! part whose output tells the model which profile denied what, and what it may use instead
+//! (`state.metadata.denied` for clients). `GET /profile` lists the profiles.
 //!
 //! `POST /session/:id/message` answers like opencode (blocks, returns the final assistant
 //! message as JSON) unless the request sends `Accept: text/event-stream`, which gets the
@@ -71,6 +80,7 @@ use tokio_stream::wrappers::{BroadcastStream, ReceiverStream};
 
 mod anthropic;
 mod rollup;
+mod profile;
 mod tools;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -119,6 +129,8 @@ struct AppState {
     config: Arc<Config>,
     http: reqwest::Client,
     tools: Arc<tools::ToolEnv>,
+    /// Session tool profiles (`YGG_PROFILES`), fixed at boot.
+    profiles: Arc<profile::Profiles>,
 }
 
 #[derive(Deserialize)]
@@ -311,9 +323,20 @@ fn bad_request(msg: &str) -> Response {
     (StatusCode::BAD_REQUEST, Json(json!({ "error": msg }))).into_response()
 }
 
-/// `POST /session` — body `{title?, parentID?}` (opencode accepts an empty body too).
-async fn create_session(State(st): State<AppState>, body: Option<Json<Value>>) -> Json<Value> {
+/// `POST /session` — body `{title?, parentID?, profile?}` (opencode accepts an empty body too).
+/// The profile is fixed for the session's life; an unknown name is refused, never widened to
+/// the default.
+async fn create_session(State(st): State<AppState>, body: Option<Json<Value>>) -> Response {
     let body = body.map(|Json(b)| b).unwrap_or(Value::Null);
+    let profile = match &body["profile"] {
+        Value::Null => st.profiles.default.clone(),
+        Value::String(p) if st.profiles.all.contains_key(p) => p.clone(),
+        other => {
+            let known: Vec<&String> = st.profiles.all.keys().collect();
+            return (StatusCode::BAD_REQUEST, Json(json!({ "error": format!("unknown profile {other}"), "profiles": known })))
+                .into_response();
+        }
+    };
     let id = new_id("ses");
     let now = now_ms();
     let title = body["title"].as_str().filter(|t| !t.is_empty()).unwrap_or("New session");
@@ -321,6 +344,7 @@ async fn create_session(State(st): State<AppState>, body: Option<Json<Value>>) -
     if let Some(parent) = body["parentID"].as_str() {
         info["parentID"] = json!(parent);
     }
+    info["profile"] = json!(profile);
     let session = Session { info: info.clone(), messages: Vec::new(), todo: Vec::new() };
     {
         let mut sessions = st.sessions.lock().unwrap();
@@ -328,7 +352,7 @@ async fn create_session(State(st): State<AppState>, body: Option<Json<Value>>) -
         sessions.insert(id, session);
     }
     publish(&st, "session.created", json!({ "info": info }));
-    Json(info)
+    Json(info).into_response()
 }
 
 /// `GET /session` — newest-updated first, like opencode.
@@ -358,8 +382,11 @@ async fn get_session(State(st): State<AppState>, Path(id): Path<String>) -> Resp
     }
 }
 
-/// `PATCH /session/:id` — `{title}`.
+/// `PATCH /session/:id` — `{title}`. A `profile` is refused out loud: it is fixed at creation.
 async fn patch_session(State(st): State<AppState>, Path(id): Path<String>, Json(body): Json<Value>) -> Response {
+    if body.get("profile").is_some() {
+        return bad_request("profile is fixed at session creation");
+    }
     let info = with_session(&st, &id, |s| {
         if let Some(t) = body["title"].as_str() {
             s.info["title"] = json!(t);
@@ -445,6 +472,11 @@ async fn config_providers(State(st): State<AppState>) -> Json<Value> {
 /// `GET /agent` — `[{name, mode, description}]` from the catalog.
 async fn list_agents(State(st): State<AppState>) -> Json<Value> {
     Json(st.config.catalog["agents"].clone())
+}
+
+/// `GET /profile` — the session tool profiles, `GET /agent` element shape plus `default`.
+async fn list_profiles(State(st): State<AppState>) -> Json<Value> {
+    Json(st.profiles.list())
 }
 
 /// `POST /api/session/:id/model` — v2 switch, `{model:{id, providerID}}` → 204.
@@ -748,6 +780,9 @@ async fn agent_loop(
     tx: &mpsc::Sender<Event>,
     run: &mut Run,
 ) -> Result<(), String> {
+    let stored = st.sessions.lock().unwrap().get(id).and_then(|s| s.info["profile"].as_str().map(String::from));
+    let profile = st.profiles.resolve(stored.as_deref())?;
+    let declared = if st.config.tools_enabled { profile.declare(&tools::schemas()) } else { None };
     let mut convo = rollup_if_needed(st, id, tx, messages).await;
     if let Some(ctx) = context_prompt(&st.tools.project_dir) {
         convo.insert(0, json!({ "role": "system", "content": ctx }));
@@ -760,10 +795,16 @@ async fn agent_loop(
                 eprintln!("roll-up: pruned {n} old tool output(s) in session {id}");
             }
         }
-        let calls = relay(st, id, &convo, tx, &mut run.text).await?;
+        let calls = relay(st, id, &convo, declared.as_ref(), tx, &mut run.text).await?;
         let text = run.text.clone();
         run.flush_text();
         if calls.is_empty() {
+            return Ok(());
+        }
+        if declared.is_none() {
+            // nothing was declared (YGG_TOOLS=0 or a no-tool profile): calls are not run and not
+            // stored — a stored call without declared tools poisons the next anthropic request
+            eprintln!("session {id}: {} tool call(s) with no tools declared — ignored", calls.len());
             return Ok(());
         }
         let calls: Vec<ToolCall> = calls
@@ -782,7 +823,7 @@ async fn agent_loop(
                 "function": { "name": c.name, "arguments": c.arguments } })).collect::<Vec<_>>(),
         }));
         for call in calls {
-            let output = run_tool(st, id, tx, run, &call).await;
+            let output = run_tool(st, id, tx, run, &call, profile).await;
             convo.push(json!({ "role": "tool", "tool_call_id": call.id, "content": output }));
         }
     }
@@ -915,7 +956,14 @@ async fn summarize(st: &AppState, messages: &Value) -> Result<String, String> {
 /// Executes one call: stores a running tool part, emits `message.part.updated`, runs it,
 /// stores + emits the finished part, checkpoints the message to disk. Returns what the
 /// model gets back.
-async fn run_tool(st: &AppState, id: &str, tx: &mpsc::Sender<Event>, run: &mut Run, call: &ToolCall) -> String {
+async fn run_tool(
+    st: &AppState,
+    id: &str,
+    tx: &mpsc::Sender<Event>,
+    run: &mut Run,
+    call: &ToolCall,
+    profile: &profile::Profile,
+) -> String {
     let args = if call.arguments.trim().is_empty() { "{}" } else { call.arguments.as_str() };
     let parsed = serde_json::from_str::<Value>(args).map_err(|e| format!("invalid JSON arguments: {e}"));
     let input = parsed.as_ref().ok().cloned().unwrap_or_else(|| json!({ "raw": call.arguments }));
@@ -928,11 +976,29 @@ async fn run_tool(st: &AppState, id: &str, tx: &mpsc::Sender<Event>, run: &mut R
     replace_message(st, id, &run.msg);
     emit(st, tx, "message.part.updated", json!({ "sessionID": id, "part": part })).await;
 
-    let res = match parsed {
-        Ok(input) => tools::run(&st.tools, &call.name, &input).await,
-        Err(e) => tools::ToolResult { ok: false, title: call.name.clone(), output: e, metadata: json!({}) },
+    // the model calls the name it was shown; the profile maps it back and checks the call
+    let res = match (parsed, profile.canonical(&call.name)) {
+        (Err(e), _) => tools::ToolResult { ok: false, title: call.name.clone(), output: e, metadata: json!({}) },
+        (Ok(_), None) => tools::ToolResult {
+            ok: false,
+            title: call.name.clone(),
+            output: format!("unknown tool: {}", call.name),
+            metadata: json!({}),
+        },
+        (Ok(input), Some(tool)) => match profile.check(tool, &input, &st.tools.project_dir) {
+            Ok(()) => tools::run(&st.tools, tool, &input).await,
+            Err(d) => {
+                eprintln!("session {id}: {} `{}` denied by profile {}", d.permission, d.subject, d.profile);
+                tools::ToolResult {
+                    ok: false,
+                    title: call.name.clone(),
+                    output: d.message(&profile.allowed_summary()),
+                    metadata: json!({ "denied": d.to_json() }),
+                }
+            }
+        },
     };
-    if call.name == "todowrite" && res.ok {
+    if profile.canonical(&call.name) == Some("todowrite") && res.ok {
         let todos = res.metadata["todos"].as_array().cloned().unwrap_or_default();
         with_session(st, id, |s| s.todo = todos.clone());
         publish(st, "todo.updated", json!({ "sessionID": id, "todos": todos }));
@@ -961,17 +1027,18 @@ async fn relay(
     st: &AppState,
     session_id: &str,
     convo: &[Value],
+    tools: Option<&Value>,
     tx: &mpsc::Sender<Event>,
     full: &mut String,
 ) -> Result<Vec<ToolCall>, String> {
     let cfg = &st.config;
     if cfg.dialect == Dialect::Anthropic {
-        return relay_anthropic(st, session_id, convo, tx, full).await;
+        return relay_anthropic(st, session_id, convo, tools, tx, full).await;
     }
     let url = format!("{}/chat/completions", cfg.base_url.trim_end_matches('/'));
     let mut body = json!({ "model": cfg.model, "messages": convo, "stream": true });
-    if cfg.tools_enabled {
-        body["tools"] = tools::schemas();
+    if let Some(t) = tools {
+        body["tools"] = t.clone();
     }
     let mut req = st.http.post(&url).json(&body);
     if let Some(key) = &cfg.api_key {
@@ -1075,12 +1142,12 @@ async fn relay_anthropic(
     st: &AppState,
     session_id: &str,
     convo: &[Value],
+    tools: Option<&Value>,
     tx: &mpsc::Sender<Event>,
     full: &mut String,
 ) -> Result<Vec<ToolCall>, String> {
     let cfg = &st.config;
-    let tools = cfg.tools_enabled.then(tools::schemas);
-    let resp = anthropic_request(st, convo, tools.as_ref(), true).send().await.map_err(|e| format!("request failed: {e}"))?;
+    let resp = anthropic_request(st, convo, tools, true).send().await.map_err(|e| format!("request failed: {e}"))?;
     let status = resp.status();
     if !status.is_success() {
         let body = resp.text().await.unwrap_or_default();
@@ -1244,6 +1311,24 @@ async fn main() {
         http: http.clone(),
     };
     eprintln!("tools {} in {}", if config.tools_enabled { "on" } else { "off" }, tool_env.project_dir.display());
+    let profiles = match std::env::var("YGG_PROFILES") {
+        Ok(path) if !path.is_empty() => {
+            match std::fs::read(&path).map_err(|e| e.to_string()).and_then(|b| profile::Profiles::parse(&b)) {
+                Ok((p, warnings)) => {
+                    for w in warnings {
+                        eprintln!("YGG_PROFILES: {w}");
+                    }
+                    p
+                }
+                Err(e) => {
+                    eprintln!("YGG_PROFILES {path}: {e}");
+                    std::process::exit(2);
+                }
+            }
+        }
+        _ => profile::Profiles::builtin(),
+    };
+    eprintln!("profiles: {} (default {})", profiles.all.keys().cloned().collect::<Vec<_>>().join(", "), profiles.default);
     let listen = std::env::var("YGG_LISTEN").unwrap_or_else(|_| "127.0.0.1:4096".into());
     let data_dir = PathBuf::from(std::env::var("YGG_DATA_DIR").unwrap_or_else(|_| "./data".into()));
     std::fs::create_dir_all(data_dir.join("session")).expect("create YGG_DATA_DIR");
@@ -1261,6 +1346,7 @@ async fn main() {
         config: Arc::new(config),
         http,
         tools: Arc::new(tool_env),
+        profiles: Arc::new(profiles),
     };
     for id in &interrupted {
         eprintln!("session {id}: run interrupted by the restart — closed, declared blocked");
@@ -1278,6 +1364,7 @@ async fn main() {
         .route("/api/session/{id}/agent", post(switch_agent))
         .route("/config/providers", get(config_providers))
         .route("/agent", get(list_agents))
+        .route("/profile", get(list_profiles))
         .route("/event", get(events))
         .with_state(state);
 

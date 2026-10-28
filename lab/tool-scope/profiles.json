@@ -1,0 +1,475 @@
+{
+  "default_agent": "build",
+  "agent": {
+    "build": {
+      "description": "every tool (today's root)",
+      "permission": [
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "allow"
+        }
+      ]
+    },
+    "coordinator": {
+      "description": "tool-policy B: manage sessions over the root's own API, read to answer, never write",
+      "permission": [
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "glob",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "grep",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "todowrite",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "curl *127.0.0.1:*",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "curl *localhost:*",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "sleep *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "echo *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "printf *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "seq *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "[ *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "test *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "true",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "break",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "date *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "jq *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "python3 -m json.tool *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "head *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "tail *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "grep *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "wc *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "sed -n *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "cat *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "ls *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "read *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "cut *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "tr *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "uniq *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "sort *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "basename *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "dirname *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "expr *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "sed *-i*",
+          "action": "deny"
+        },
+        {
+          "permission": "bash",
+          "pattern": "curl * -o *",
+          "action": "deny"
+        },
+        {
+          "permission": "bash",
+          "pattern": "curl * --output *",
+          "action": "deny"
+        },
+        {
+          "permission": "bash",
+          "pattern": "curl * -O*",
+          "action": "deny"
+        },
+        {
+          "permission": "bash",
+          "pattern": "curl * -T *",
+          "action": "deny"
+        },
+        {
+          "permission": "bash",
+          "pattern": "curl * --upload-file *",
+          "action": "deny"
+        },
+        {
+          "permission": "bash",
+          "pattern": "sort *-o*",
+          "action": "deny"
+        },
+        {
+          "permission": "bash",
+          "pattern": "curl * -o /dev/null*",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "curl * -so /dev/null*",
+          "action": "allow"
+        }
+      ]
+    },
+    "session-only": {
+      "description": "tool-policy C: session tools only (the root's own API); everything else is delegated",
+      "permission": [
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "todowrite",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "curl *127.0.0.1:*",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "curl *localhost:*",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "sleep *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "echo *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "printf *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "seq *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "[ *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "test *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "true",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "break",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "date *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "jq *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "python3 -m json.tool *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "head *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "tail *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "grep *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "wc *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "sed -n *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "read *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "cut *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "tr *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "uniq *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "sort *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "basename *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "dirname *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "expr *",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "sed *-i*",
+          "action": "deny"
+        },
+        {
+          "permission": "bash",
+          "pattern": "curl * -o *",
+          "action": "deny"
+        },
+        {
+          "permission": "bash",
+          "pattern": "curl * --output *",
+          "action": "deny"
+        },
+        {
+          "permission": "bash",
+          "pattern": "curl * -O*",
+          "action": "deny"
+        },
+        {
+          "permission": "bash",
+          "pattern": "curl * -T *",
+          "action": "deny"
+        },
+        {
+          "permission": "bash",
+          "pattern": "curl * --upload-file *",
+          "action": "deny"
+        },
+        {
+          "permission": "bash",
+          "pattern": "sort *-o*",
+          "action": "deny"
+        },
+        {
+          "permission": "bash",
+          "pattern": "curl * -o /dev/null*",
+          "action": "allow"
+        },
+        {
+          "permission": "bash",
+          "pattern": "curl * -so /dev/null*",
+          "action": "allow"
+        }
+      ]
+    },
+    "quiet": {
+      "description": "no tools at all (the speech-room shape)",
+      "permission": [
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "deny"
+        }
+      ]
+    },
+    "renamed-shell": {
+      "description": "surface-familiarity mutation 1: bash exposed as `shell`, everything else unchanged",
+      "permission": [
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "allow"
+        }
+      ],
+      "override": {
+        "bash": {
+          "name": "shell"
+        }
+      }
+    },
+    "docs-writer": {
+      "description": "edge: read anything in the project, write only under docs/, no shell, nothing outside",
+      "permission": [
+        {
+          "permission": "*",
+          "pattern": "*",
+          "action": "deny"
+        },
+        {
+          "permission": "read",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "glob",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "grep",
+          "pattern": "*",
+          "action": "allow"
+        },
+        {
+          "permission": "edit",
+          "pattern": "docs/*",
+          "action": "allow"
+        }
+      ]
+    }
+  }
+}

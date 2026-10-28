@@ -161,3 +161,23 @@ taken by something that isn't ours, so we leave it alone. Stores live under
 Branch `lab/tool-scope` (small commits) · this plan · `docs/reviews/tool-scope-report.md`
 (tables plus a **deploy runbook** for :4100, the human-gated step) · bench ledger rows ·
 `/tmp/sub-status.tsv`.
+
+## 5. Addendum — what changed while building (10-28, same session)
+
+- **D4 add:** when nothing is declared upstream (`YGG_TOOLS=0` or a no-tool profile), tool calls the
+  model emits anyway are **not run and not stored** (logged). A stored call without declared tools makes
+  the next anthropic request invalid (G3), and before this change `YGG_TOOLS=0` still *executed* calls.
+  Mock-proven in both dialects (`verify-profiles.sh` B8).
+- **D2 fix (from the first live battery):** `$((…))` is arithmetic, not a command. Bash's rule decides it:
+  the inner `(` closes right before the outer `)`. Only the substitutions inside get checked. Before the
+  fix, date math in a coordinator's polling loop was denied as a command `t/1000)`. That failed closed,
+  but it cost legitimate work. The first B/C battery was stopped, archived under
+  `lab/tool-scope/runs/aborted-1st-splitter-bug/` and rerun on the fixed binary.
+  - Also from the same pass: subshell `(…)` parens are stripped, and `case` arms stay inside a
+    command, so a narrow rule refuses them (fail closed).
+  - A 70k-input fuzz test proves the splitter cannot panic.
+- **Ports:** `verify-profiles.sh` uses 18290/14197. 14196 belongs to `scripts/root-store-backup.sh`.
+- **Scratch profiles** (`lab/tool-scope/profiles.json`) were tuned from the first battery's denials:
+  `read`, `curl -o /dev/null`, text filters. `python3 -c` stays denied on purpose, because it
+  runs arbitrary code.
+- **Deploy candidate:** `lab/yggdrasil/profiles.live.json` = `build` (default) + `coordinator` + `quiet`.

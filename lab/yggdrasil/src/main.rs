@@ -791,17 +791,19 @@ impl From<String> for RunFail {
 }
 
 /// The error turn's text: what a person reads on the page or hears from the voice agent.
+/// Markdown-safe for clients that render replies as markdown (the frozen v0.7.0 PWA): blank
+/// lines between paragraphs (a single newline collapses there), no code spans.
 fn error_turn_text(fail: &RunFail, now: u64) -> String {
     let Some(u) = &fail.upstream else { return format!("⚠ the run stopped: {}", fail.msg) };
-    let mut t = format!("⚠ {}\n{}", u.headline(now), u.detail());
+    let mut t = format!("⚠ {}\n\n{}", u.headline(now), u.detail());
     for f in &fail.tried {
-        t.push_str(&format!("\nfallback {}: {} — {}", f.model, f.headline(now), f.message.chars().take(160).collect::<String>()));
+        t.push_str(&format!("\n\nfallback {}: {} — {}", f.model, f.headline(now), f.message.chars().take(160).collect::<String>()));
     }
     if u.kind.degrades() {
         t.push_str(if fail.tried.is_empty() {
-            "\nNo fallback provider is set, so the turn stopped here. Add one (Ollama, or your own key): `yggdrasil provider add`, then `yggdrasil provider fallback`."
+            "\n\nNo fallback provider is set, so the turn stopped here. Add one (Ollama, or your own key) with: yggdrasil provider add, then yggdrasil provider fallback."
         } else {
-            "\nEvery provider in the chain failed, so the turn stopped here."
+            "\n\nEvery provider in the chain failed, so the turn stopped here."
         });
     }
     t

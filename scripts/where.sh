@@ -26,7 +26,12 @@ do_version() {
   local lb sb
   lb="$(served http://127.0.0.1:8080/)"
   echo "  :8080 serves build ${lb:-?}  (release build $(cat ~/.local/share/bifrost/live/pwa/.next/BUILD_ID 2>/dev/null || echo ?))"
-  if [ -d "$SANDBOX/.git" ] || [ -f "$SANDBOX/.git" ]; then
+  if [ -f "$HOME/.config/systemd/user/bifrost-sandbox.service.d/next-slot.conf" ]; then
+    # next-slot.sh on: :8090 runs a FROZEN release clone, not the sandbox tree (locations-audit C10)
+    local cur; cur="$(readlink "$HOME/.local/share/bifrost/next/current" 2>/dev/null)"
+    echo "next slot (on)   frozen clone $cur ($(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("label",""))' "$HOME/.local/share/bifrost/releases/$cur/RELEASE.json" 2>/dev/null)) · scripts/next-slot.sh status"
+    echo "  :8090 serves build $(served http://127.0.0.1:8090/ || echo ?) · the sandbox tree is the off-fallback only"
+  elif [ -d "$SANDBOX/.git" ] || [ -f "$SANDBOX/.git" ]; then
     sb="$(served http://127.0.0.1:8090/)"
     echo "sandbox (daily)  $(git -C "$SANDBOX" branch --show-current)@$(git -C "$SANDBOX" rev-parse --short HEAD) · app $(sed -n 's/.*"version": "\(.*\)".*/\1/p' "$SANDBOX/pwa/package.json" | head -1) · $(git -C "$SANDBOX" log -1 --format=%cd --date=format:'%m-%d %H:%M')"
     local built; built="$(cat "$SANDBOX/pwa/.next/BUILD_ID" 2>/dev/null)"

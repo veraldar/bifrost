@@ -20,6 +20,13 @@ NEXT_URL="${TWO_ROOTS_NEXT_URL:-http://127.0.0.1:8090}"
 
 served() { curl -s -m 5 "$1/api/build" | python3 -c 'import json,sys; print(json.load(sys.stdin)["id"])' 2>/dev/null; }
 field() { python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get(sys.argv[2],""))' "$1" "$2" 2>/dev/null; }
+# BUILD_ID -> the `created` stamp of the release that carries it ("" = not a release)
+created_of() {
+  local r
+  for r in "$RELS"/*/RELEASE.json; do
+    [[ -f "$r" && "$(field "$r" build_id)" == "$1" ]] && { field "$r" created; return; }
+  done
+}
 # BUILD_ID -> the source commit of the release that carries it ("" = not a release, e.g. a worktree build)
 source_of() {
   local r
@@ -51,6 +58,12 @@ case "${1:-check}" in
     if same "$lb" "$nb"; then
       echo "TWO-ROOTS COLLAPSED: :443 and :8443 serve one build ($lb${nb:+ / $nb}, source $(source_of "$lb")) — move the next slot: scripts/next-slot.sh on <next release> | off"
       exit 1
+    fi
+    # different, but is the next slot the NEXT evolution? An older release there is legal, and loud
+    lc="$(created_of "$lb")"; nc="$(created_of "$nb")"
+    if [[ -n "$lc" && -n "$nc" && "$nc" < "$lc" ]]; then
+      echo "TWO-ROOTS OK: live $lb · next $nb — but the next slot is BEHIND live (built $nc < $lc): no next evolution waits on :8443"
+      exit 0
     fi
     echo "TWO-ROOTS OK: live $lb · next $nb"; exit 0 ;;
   guard)

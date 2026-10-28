@@ -15,7 +15,7 @@ from collections import defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from tp_enforced import is_write  # noqa: E402
+from tp_enforced import is_write, write_scope  # noqa: E402
 
 TP = "/home/dweeb_xyz/Work/bifrost/lab/tool-policy/runs"
 TASKS = ["t1-stale", "t2-drift-summary", "t3-typo", "t4-spawn-lab", "t5-refactor"]
@@ -35,11 +35,13 @@ def prompt_only():
         r = rows.get(key, {})
         calls = [{"tool": n, "input": json.loads(a) if a else {}} for n, a in t.get("tools", [])]
         attempted = sum(1 for c in calls if is_write(c["tool"], c["input"]))
+        scopes = [write_scope(c["tool"], c["input"]) for c in calls]
         orphan = any(c["tool"] == "bash" and CREATE.search(c["input"].get("command", "")) and "parentID" not in c["input"].get("command", "")
                      for c in calls)
         out.append({"arm": "prompt-only", "variant": t["variant"], "task": t["tid"], "rep": t["rep"],
                     "exc": bool(t.get("exception")), "success": int(r.get("success", 0) or 0),
                     "violations": int(r.get("violations", 0) or 0), "attempted": attempted, "effective": attempted,
+                    "proj_att": scopes.count("project"), "proj_eff": scopes.count("project"), "scratch_att": scopes.count("scratch"),
                     "denied": 0, "delegated": int(bool(t.get("kids")) or orphan), "orphan": int(orphan),
                     "wall_ms": int(r.get("wall_ms", -1) or -1)})
     return out
@@ -51,10 +53,15 @@ def enforced():
         p = os.path.join(HERE, "runs", f"tp-enforced-{v}.tsv")
         if not os.path.exists(p):
             continue
+        traces = {(t["tid"], t["rep"]): t for t in map(json.loads, open(os.path.join(HERE, "runs", f"tp-enforced-{v}.jsonl")))}
         for r in csv.DictReader(open(p), delimiter="\t"):
+            calls = traces.get((r["task"], int(r["rep"])), {}).get("calls", [])
+            sc = [(write_scope(c["tool"], c["input"]), c["denied"]) for c in calls]
             out.append({"arm": "enforced", "variant": v, "task": r["task"], "rep": int(r["rep"]),
                         "exc": r["note"].startswith("EXC"), "success": int(r["success"]), "violations": int(r["violations"]),
                         "attempted": int(r["attempted"]), "effective": int(r["effective"]), "denied": int(r["denied"]),
+                        "proj_att": sum(1 for k, d in sc if k == "project"), "proj_eff": sum(1 for k, d in sc if k == "project" and not d),
+                        "scratch_att": sum(1 for k, d in sc if k == "scratch"),
                         "delegated": int(r["delegated"]), "orphan": int(int(r["orphans"]) > 0), "wall_ms": int(r["wall_ms"])})
     return out
 
@@ -67,25 +74,26 @@ def table(rows):
             a = agg[k]
             a["n"] += 1
             a["exc"] += r["exc"]
-            for f in ("success", "violations", "attempted", "effective", "denied", "delegated", "orphan"):
+            for f in ("success", "violations", "attempted", "effective", "denied", "delegated", "orphan", "proj_att", "proj_eff", "scratch_att"):
                 a[f] += r[f]
-            a["turns_with_attempt"] += int(r["attempted"] > 0)
-            a["turns_with_effective"] += int(r["effective"] > 0)
+            a["turns_proj_att"] += int(r["proj_att"] > 0)
+            a["turns_proj_eff"] += int(r["proj_eff"] > 0)
+            a["turns_scratch"] += int(r["scratch_att"] > 0)
             if r["wall_ms"] > 0:
                 walls[k].append(r["wall_ms"])
-    lines = ["| variant | task | arm | n (exc) | success | lab-grader violations | turns w/ write attempt | turns w/ effective inline write | denials | delegated (orphans) | wall median s |",
-             "|---|---|---|---|---|---|---|---|---|---|---|"]
+    lines = ["| variant | task | arm | n (exc) | success (lab grader) | lab-grader violations | turns: project-write attempt | turns: project write LANDED | turns: /tmp scratch write | denials | delegated (orphans) | wall median s |",
+             "|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for v in ("B", "C"):
         for task in TASKS + ["ALL"]:
             for arm in ("prompt-only", "enforced"):
                 a = agg.get((arm, v, task))
                 if not a:
-                    lines.append(f"| {v} | {task} | {arm} | 0 | — | — | — | — | — | — | — |")
+                    lines.append(f"| {v} | {task} | {arm} | 0 | — | — | — | — | — | — | — | — |")
                     continue
                 w = sorted(walls[(arm, v, task)])
                 med = f"{w[len(w) // 2] / 1000:.0f}" if w else "—"
                 lines.append(f"| {v} | {task} | {arm} | {a['n']} ({a['exc']}) | {a['success']}/{a['n']} | {a['violations']} | "
-                             f"{a['turns_with_attempt']} | {a['turns_with_effective']} | {a['denied']} | {a['delegated']} ({a['orphan']}) | {med} |")
+                             f"{a['turns_proj_att']} | {a['turns_proj_eff']} | {a['turns_scratch']} | {a['denied']} | {a['delegated']} ({a['orphan']}) | {med} |")
     return "\n".join(lines), {f"{k[0]}|{k[1]}|{k[2]}": dict(v) for k, v in agg.items()}
 
 

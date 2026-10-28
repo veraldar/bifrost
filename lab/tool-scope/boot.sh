@@ -29,6 +29,7 @@ for sid, t, title in [("ses_staleone", now - 40 * 24 * 3600 * 1000, "old drift s
 PY
 fi
 systemctl --user stop "$UNIT" 2>/dev/null || true
+if ss -ltn | grep -q "127.0.0.1:$PORT "; then echo ":$PORT is held by another process — stop it first"; exit 1; fi
 systemctl --user reset-failed "$UNIT" 2>/dev/null || true
 ENVS=(-E YGG_LISTEN="127.0.0.1:$PORT" -E YGG_DATA_DIR="$DATA" -E YGG_PROJECT_DIR="$PROJ"
       -E YGG_PROFILES="${TS_PROFILES:-$HERE/profiles.json}" -E YGG_MAX_STEPS="${TS_MAX_STEPS:-100}"
@@ -38,6 +39,8 @@ systemd-run --user --unit="$UNIT" --collect -q -p EnvironmentFile="$HOME/.cache/
   -p StandardOutput="append:/tmp/tool-scope-store/$NAME.log" -p StandardError="append:/tmp/tool-scope-store/$NAME.log" \
   "${ENVS[@]}" "$BIN"
 for _ in $(seq 1 50); do
+  # the port must answer AND our unit must be the one alive (a stale root on the port answers too)
+  systemctl --user is-active -q "$UNIT" || { echo "$UNIT died on boot"; tail -3 "/tmp/tool-scope-store/$NAME.log"; exit 1; }
   if curl -sf -m 2 "http://127.0.0.1:$PORT/profile" >/dev/null 2>&1; then
     echo "$UNIT up on :$PORT ($(basename "$BIN"), store $DATA)"; exit 0
   fi

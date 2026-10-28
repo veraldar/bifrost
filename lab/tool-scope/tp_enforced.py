@@ -50,6 +50,24 @@ def is_write(tool: str, args: dict) -> bool:
     return tool in ("bash", "shell") and bash_writes(str((args or {}).get("command", "")))
 
 
+_TARGETS = [re.compile(r">{1,2}\s*([^\s;&|]+)"), re.compile(r"\btee\s+(?:-a\s+)?([^\s;&|]+)")]
+
+
+def write_scope(tool: str, args: dict) -> str | None:
+    """None = no write; "scratch" = every target under /tmp (delegation plumbing, e.g. a JSON body
+    staged for curl); "project" = anything else, or a write whose target can't be read (python,
+    sed -i, cp, ...) — the conservative call. Only "project" is inline work against B/C's policy."""
+    if not is_write(tool, args):
+        return None
+    if tool in ("write", "edit"):
+        return "scratch" if str(args.get("filePath", "")).startswith("/tmp/") else "project"
+    bare = _QUOTED.sub("''", str(args.get("command", "")))
+    if re.search(r"\bsed\b[^|;&]*\s-[a-zA-Z]*i|\bperl\b|\bpython|\b(mv|cp|rm|touch|truncate|install|patch)\s", bare):
+        return "project"
+    targets = [t for rx in _TARGETS for t in rx.findall(bare) if not t.startswith("&")]
+    return "scratch" if targets and all(t.startswith(("/tmp/", "/dev/")) for t in targets) else "project"
+
+
 def attributed(calls: list[dict]) -> tuple[int, int, int]:
     """calls: [{tool, input, denied}] of MAIN's own turn -> (attempted, effective, denied_total)."""
     attempted = sum(1 for c in calls if is_write(c["tool"], c["input"]))

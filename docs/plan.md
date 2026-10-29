@@ -191,3 +191,10 @@ LAWS ADDED:
 WAVE DISPATCHED: the RETROSPECTIVE (sonnet 5.5, deep-dive, all of the above
 + the holiday retrospective + what-stopped-why + the fix plan + the trend
 instrument).
+
+## THE TREE IS THE SURFACE (user law 10-29)
+No external alert channels (no ntfy/email/telegram). The user listens
+through the TREE: the root talks to the trunk, the trunk to the branch,
+the phone sees everything. Several roots = the resilience, more roots
+later. All failure surfaces = the tree's own (the routes, the sessions,
+the error turns). The alert-channel question is DROPED.

@@ -198,3 +198,14 @@ through the TREE: the root talks to the trunk, the trunk to the branch,
 the phone sees everything. Several roots = the resilience, more roots
 later. All failure surfaces = the tree's own (the routes, the sessions,
 the error turns). The alert-channel question is DROPED.
+
+## OLLAMA FALLBACK — the one user step (10-29)
+The provider wave is done; the root runs 885122c with the provider
+catalog + the fallback chain + the error visibility. OLLAMA is not on
+omarchy (the install needs the user's sudo). THE ONE STEP (copy for the
+user):
+  sudo pacman -S --noconfirm ollama && sudo systemctl enable --now ollama
+  ollama pull qwen3:8b
+Then the coordinator adds the ollama provider to the root's config and
+e2e-tests the fallback (the quota stop → the fallback answers). Until
+then the tree runs on zai alone with the honest banner on any stop.

@@ -128,6 +128,17 @@ run_attempt() { # $1 = runid ; sets RC / STALLED / NOTE
   elapsed=$(( $(date +%s) - start_epoch ))
   RC=$exitc; DUR=$elapsed
 
+  # repo-reshape 10-29: a landed lane pushes its branch — no landed mission stays local-only.
+  # Best effort (fails silently with a note); gh/auth downtime never fails a completed run.
+  if [ "$RC" = "0" ] && [ "${AGI_AUTO_PUSH:-1}" = "1" ]; then
+    _push_branch=$(git -C "$PWD" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+    if [ -n "${_push_branch:-}" ] && [ "${_push_branch}" != "HEAD" ]; then
+      if ! git -C "$PWD" push -u origin "$_push_branch" >>"$LOG_DIR/push.log" 2>&1; then
+        echo "push-all note: landed lane '$SESSION' could not push '$_push_branch' (see $LOG_DIR/push.log)" >>"$LOG_DIR/push.log"
+      fi
+    fi
+  fi
+
   # extract human-readable result (last stream-json "result" event)
   python3 - "$out" "$LOG_DIR/outputs/$runid.txt" <<'PYEOF'
 import json, sys

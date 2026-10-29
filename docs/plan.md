@@ -167,3 +167,27 @@ coordinator → user confirmation test → the URD row → v0.8 starts.
    check → soak (72h or 7d) → PROMOTE: GitHub latest + veraldar.org updated
    same day → v0.8 opens (the bridge + the tokens + the APK). Fastest:
    ~5-6 days from the rulings; 7d soak: ~10 days.
+
+## THE USER RETURNS (10-29, after 2w away) — concerns → the retrospective wave
+LAWS ADDED:
+1. MAJORS PARALLEL: every major version runs as its own root//stack,
+   reachable, communicating when needed; the majors' // = the trend
+   instrument. :443 returns to THE STABLE (v0.6 + opencode); v0.7 gets its
+   own port/URL; the next major the next port — promoted only when the
+   user validates (the coordinator profiles, the LLM management, the
+   extensions).
+2. AWAY-MODE: the system must keep working + self-driving while the user
+   cannot access from the phone. The holiday proved the waves die without
+   a driver — the self-driving loop (the scheduler, the chain) is
+   mandatory, not optional.
+3. STORY COHERENCE: veraldar.org (the org + Yggdrasil + root-trunk-branch)
+   vs GitHub (stale 3w, 10-10 last commit) vs omarchy (the mess) — one
+   story everywhere; the GitHub sync + the docs archive (the useless
+  堆积 → archived); the install story (a root install easily + the trunk
+   webrtc ready) must exist or be honestly parked.
+4. THE MAC EXTENSIONS: the scheduled agent-call flows + the project-follow
+   (the global context) — wanted; the Mac access STILL refused (the Remote
+   Login off 2w+). The user asks what access is needed.
+WAVE DISPATCHED: the RETROSPECTIVE (sonnet 5.5, deep-dive, all of the above
++ the holiday retrospective + what-stopped-why + the fix plan + the trend
+instrument).

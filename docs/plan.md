@@ -209,3 +209,12 @@ user):
 Then the coordinator adds the ollama provider to the root's config and
 e2e-tests the fallback (the quota stop → the fallback answers). Until
 then the tree runs on zai alone with the honest banner on any stop.
+
+## THE THREE MAJOR RINGS (10-29, live)
+| ring | URL | version | brain |
+|---|---|---|---|
+| the STABLE | https://omarchy.tail5435b1.ts.net:8445 | v0.6.1 | opencode :4096 |
+| the CURRENT | https://omarchy.tail5435b1.ts.net (:443) | v0.7.0-rc2 | the root :4100 |
+| the NEXT | https://omarchy.tail5435b1.ts.net:8443 | the dev line | the root (the clone) |
+The user validates on :443 (the provider + the session coordination) BEFORE
+any v0.8 testing. The v0.6 ring: always reachable, the emergency door.

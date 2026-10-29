@@ -8,6 +8,7 @@ exec >> nightly.log 2>&1
 export PYTHONUNBUFFERED=1  # a killed cycle still leaves its log lines (10-08: the timeout ate them)
 echo "=== nightly $(date -u +%FT%TZ)"
 flock -n /tmp/worldtree-nightly.lock -c '
+  VERALDAR_GH_CACHE="$PWD/state/gh-cache.json" python3 scripts/github_trend.py  # github.json for the AI EVOLUTION tab (VPS ip is gh-rate-limited; this box is not)
   python3 -m wt fetch
   python3 -m wt run --as-of "$(date -u +%F)" --commit --no-fetch
   python3 -m wt countries --as-of "$(date -u +%F)" --no-commit  # 0.6.0: the atlas is refreshed nightly too (it was only rebuilt by gate runs)

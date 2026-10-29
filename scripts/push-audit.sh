@@ -13,14 +13,17 @@ now=$(date -u +%FT%TZ)
 
 # One row per path. Worktrees share the parent repo's refs — for them we audit the
 # checked-out branch specifically (the meaningful per-worktree number).
+# Format: "path:name" (name is what lands in the ledger).
 repos=(
-  "$HOME/Work/bifrost"
-  "$HOME/Work/lab/yggdrasil"
-  "$HOME/Work/bifrost-sandbox"
+  "$HOME/Work/bifrost:bifrost"
+  "$HOME/Work/yggdrasil:yggdrasil"
+  "$HOME/Work/lab/yggdrasil:lab-yggdrasil-legacy"
+  "$HOME/Work/bifrost-sandbox:bifrost-sandbox"
 )
 
-for repo in "${repos[@]}"; do
-  name=$(basename "$repo")
+for entry in "${repos[@]}"; do
+  repo="${entry%%:*}"
+  name="${entry##*:}"
   if ! git -C "$repo" rev-parse --git-dir >/dev/null 2>&1; then
     printf '{"ts":"%s","repo":"%s","status":"missing","unpushed_commits":-1,"unpushed_branches":-1}\n' "$now" "$name" >>"$LEDGER"
     continue

@@ -1,0 +1,63 @@
+{"label": "B r1 ingest-s1", "wall_ms": 34921, "error": null, "chars": 11, "tools": 0, "reply": "DIGEST-DONE"}
+{"label": "B r1 ingest-s2", "wall_ms": 30082, "error": null, "chars": 113, "tools": 0, "reply": "I'll start by reading all four files in parallel.All four files read. Now writing the complete digest.DIGEST-DONE"}
+{"label": "B s1 r1", "wall_ms": 11034, "error": null, "chars": 36, "tools": 0, "reply": "A1: 2.3.1\nA2: 512\nA3: 9000\nA4: CLOCK"}
+{"label": "B s2 r1", "wall_ms": 5579, "error": null, "chars": 48, "tools": 0, "reply": "A1: kvxctl\nA2: Tuesday 03:00\nA3: Okafor\nA4: 8000"}
+{"label": "B s3 r1", "wall_ms": 10824, "error": null, "chars": 62, "tools": 0, "reply": "A1: 16\nA2: 127.0.0.1:7777\nA3: run/state/flusher.hb\nA4: compact"}
+{"label": "A r1 ingest", "wall_ms": 6043, "error": null, "chars": 9, "tools": 0, "reply": "READ-DONE"}
+{"label": "A s1 r1", "wall_ms": 5088, "error": null, "chars": 37, "tools": 0, "reply": "A1: v2.3.1\nA2: 512\nA3: 9000\nA4: CLOCK"}
+{"label": "A dose s2 r1", "wall_ms": 30624, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+{"label": "A s2 r1", "wall_ms": 5692, "error": null, "chars": 49, "tools": 0, "reply": "A1: kvxctl\nA2: Tuesdays 03:00\nA3: Okafor\nA4: 8000"}
+{"label": "A dose s3 r1", "wall_ms": 6255, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+{"label": "A s3 r1", "wall_ms": 6661, "error": null, "chars": 62, "tools": 0, "reply": "A1: 16\nA2: 127.0.0.1:7777\nA3: run/state/flusher.hb\nA4: compact"}
+{"label": "B r2 ingest-s1", "wall_ms": 18993, "error": null, "chars": 11, "tools": 0, "reply": "DIGEST-DONE"}
+{"label": "B r2 ingest-s2", "wall_ms": 24447, "error": null, "chars": 11, "tools": 0, "reply": "DIGEST-DONE"}
+{"label": "B s1 r2", "wall_ms": 15997, "error": null, "chars": 37, "tools": 0, "reply": "A1: v2.3.1\nA2: 512\nA3: 9000\nA4: CLOCK"}
+{"label": "B s2 r2", "wall_ms": 9678, "error": null, "chars": 48, "tools": 0, "reply": "A1: kvxctl\nA2: Tuesday 03:00\nA3: Okafor\nA4: 8000"}
+{"label": "B s3 r2", "wall_ms": 8795, "error": null, "chars": 62, "tools": 0, "reply": "A1: 16\nA2: 127.0.0.1:7777\nA3: run/state/flusher.hb\nA4: compact"}
+{"label": "A r2 ingest", "wall_ms": 13081, "error": null, "chars": 9, "tools": 0, "reply": "READ-DONE"}
+{"label": "A s1 r2", "wall_ms": 2963, "error": null, "chars": 37, "tools": 0, "reply": "A1: v2.3.1\nA2: 512\nA3: 9000\nA4: CLOCK"}
+{"label": "A dose s2 r2", "wall_ms": 5982, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+{"label": "A s2 r2", "wall_ms": 5912, "error": null, "chars": 49, "tools": 0, "reply": "A1: kvxctl\nA2: Tuesdays 03:00\nA3: Okafor\nA4: 8000"}
+{"label": "A dose s3 r2", "wall_ms": 1109, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+{"label": "A s3 r2", "wall_ms": 4199, "error": null, "chars": 62, "tools": 0, "reply": "A1: 16\nA2: 127.0.0.1:7777\nA3: run/state/flusher.hb\nA4: compact"}
+{"label": "B r3 ingest-s1", "wall_ms": 22895, "error": null, "chars": 11, "tools": 0, "reply": "DIGEST-DONE"}
+{"label": "B r3 ingest-s2", "wall_ms": 22678, "error": null, "chars": 11, "tools": 0, "reply": "DIGEST-DONE"}
+{"label": "B s1 r3", "wall_ms": 13421, "error": null, "chars": 36, "tools": 0, "reply": "A1: 2.3.1\nA2: 512\nA3: 9000\nA4: CLOCK"}
+{"label": "B s2 r3", "wall_ms": 8171, "error": null, "chars": 52, "tools": 0, "reply": "A1: kvxctl\nA2: Tuesdays at 03:00\nA3: Okafor\nA4: 8000"}
+{"label": "B s3 r3", "wall_ms": 8811, "error": null, "chars": 62, "tools": 0, "reply": "A1: 16\nA2: 127.0.0.1:7777\nA3: run/state/flusher.hb\nA4: compact"}
+{"label": "A r3 ingest", "wall_ms": 10768, "error": null, "chars": 9, "tools": 0, "reply": "READ-DONE"}
+{"label": "A s1 r3", "wall_ms": 4366, "error": null, "chars": 37, "tools": 0, "reply": "A1: v2.3.1\nA2: 512\nA3: 9000\nA4: CLOCK"}
+{"label": "A dose s2 r3", "wall_ms": 3988, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+{"label": "A s2 r3", "wall_ms": 7011, "error": null, "chars": 48, "tools": 0, "reply": "A1: kvxctl\nA2: Tuesday 03:00\nA3: Okafor\nA4: 8000"}
+{"label": "A dose s3 r3", "wall_ms": 5835, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+{"label": "A s3 r3", "wall_ms": 2692, "error": null, "chars": 62, "tools": 0, "reply": "A1: 16\nA2: 127.0.0.1:7777\nA3: run/state/flusher.hb\nA4: compact"}
+{"label": "D-B s2 r1", "wall_ms": 8375, "error": null, "chars": 49, "tools": 0, "reply": "A1: kvxctl\nA2: Tuesdays 03:00\nA3: Okafor\nA4: 8000"}
+{"label": "D-A r1 ingest", "wall_ms": 6704, "error": null, "chars": 9, "tools": 0, "reply": "READ-DONE"}
+{"label": "D-A r1 dose@242k", "wall_ms": 26029, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+{"label": "D-A r1 dose@802k", "wall_ms": 14303, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+{"label": "D-A s2 r1 @~802kB", "wall_ms": 3680, "error": null, "chars": 48, "tools": 0, "reply": "A1: kvxctl\nA2: Tuesday 03:00\nA3: Okafor\nA4: 8000"}
+{"label": "D-B s2 r2", "wall_ms": 10894, "error": null, "chars": 52, "tools": 0, "reply": "A1: kvxctl\nA2: Tuesdays at 03:00\nA3: Okafor\nA4: 8000"}
+{"label": "D-A r2 ingest", "wall_ms": 13879, "error": null, "chars": 9, "tools": 0, "reply": "READ-DONE"}
+{"label": "D-A r2 dose@242k", "wall_ms": 4677, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+{"label": "D-A r2 dose@802k", "wall_ms": 2967, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+{"label": "D-A s2 r2 @~802kB", "wall_ms": 4715, "error": null, "chars": 49, "tools": 0, "reply": "A1: kvxctl\nA2: Tuesdays 03:00\nA3: Okafor\nA4: 8000"}
+{"label": "D-B s2 r3", "wall_ms": 14948, "error": null, "chars": 52, "tools": 0, "reply": "A1: kvxctl\nA2: Tuesdays at 03:00\nA3: Okafor\nA4: 8000"}
+{"label": "D-A r3 ingest", "wall_ms": 12444, "error": null, "chars": 9, "tools": 0, "reply": "READ-DONE"}
+{"label": "D-A r3 dose@242k", "wall_ms": 1346, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+{"label": "D-A r3 dose@802k", "wall_ms": 10128, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+{"label": "D-A s2 r3 @~802kB", "wall_ms": 13428, "error": null, "chars": 48, "tools": 0, "reply": "A1: kvxctl\nA2: Tuesday 03:00\nA3: Okafor\nA4: 8000"}
+{"label": "dist ses_68bb6644 d01-ma", "wall_ms": 5692, "error": null, "chars": 87, "tools": 0, "reply": "A1: Tuesdays 03:00\nA2: 8000\nA3: 16\nA4: 9000\nA5: Sundays 04:00\nA6: 7500\nA7: 32\nA8: 12000"}
+{"label": "dist-m r1 ingest", "wall_ms": 6964, "error": null, "chars": 9, "tools": 0, "reply": "READ-DONE"}
+{"label": "dist-m r1 dose@124k", "wall_ms": 4222, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+{"label": "dist-m r1 dose@364k", "wall_ms": 6076, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+{"label": "dist ses_4d23c4e6 d01-ma", "wall_ms": 9845, "error": null, "chars": 85, "tools": 0, "reply": "A1: Tuesday 03:00\nA2: 8000\nA3: 16\nA4: 9000\nA5: Sunday 04:00\nA6: 7500\nA7: 32\nA8: 12000"}
+{"label": "dist ses_7082c8c7 d01-ma", "wall_ms": 4775, "error": null, "chars": 87, "tools": 0, "reply": "A1: Tuesdays 03:00\nA2: 8000\nA3: 16\nA4: 9000\nA5: Sundays 04:00\nA6: 7500\nA7: 32\nA8: 12000"}
+{"label": "dist-m r2 ingest", "wall_ms": 6990, "error": null, "chars": 9, "tools": 0, "reply": "READ-DONE"}
+{"label": "dist-m r2 dose@124k", "wall_ms": 1458, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+{"label": "dist-m r2 dose@364k", "wall_ms": 5343, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+{"label": "dist ses_17991a37 d01-ma", "wall_ms": 5313, "error": null, "chars": 87, "tools": 0, "reply": "A1: Tuesdays 03:00\nA2: 8000\nA3: 16\nA4: 9000\nA5: Sundays 04:00\nA6: 7500\nA7: 32\nA8: 12000"}
+{"label": "dist ses_f7a84fc3 d01-ma", "wall_ms": 4457, "error": null, "chars": 87, "tools": 0, "reply": "A1: Tuesdays 03:00\nA2: 8000\nA3: 16\nA4: 9000\nA5: Sundays 04:00\nA6: 7500\nA7: 32\nA8: 12000"}
+{"label": "dist-m r3 ingest", "wall_ms": 4685, "error": null, "chars": 9, "tools": 0, "reply": "READ-DONE"}
+{"label": "dist-m r3 dose@124k", "wall_ms": 1599, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+{"label": "dist-m r3 dose@364k", "wall_ms": 1490, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+{"label": "dist ses_c0959143 d01-ma", "wall_ms": 4947, "error": null, "chars": 87, "tools": 0, "reply": "A1: Tuesdays 03:00\nA2: 8000\nA3: 16\nA4: 9000\nA5: Sundays 04:00\nA6: 7500\nA7: 32\nA8: 12000"}

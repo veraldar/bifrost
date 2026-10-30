@@ -1,0 +1,20 @@
+deep root up on 4137
+    {"label": "D-B s2 r1", "wall_ms": 8375, "error": null, "chars": 49, "tools": 0, "reply": "A1: kvxctl\nA2: Tuesdays 03:00\nA3: Okafor\nA4: 8000"}
+    {"label": "D-A r1 ingest", "wall_ms": 6704, "error": null, "chars": 9, "tools": 0, "reply": "READ-DONE"}
+    {"label": "D-A r1 dose@242k", "wall_ms": 26029, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+    {"label": "D-A r1 dose@802k", "wall_ms": 14303, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+    {"label": "D-A s2 r1 @~802kB", "wall_ms": 3680, "error": null, "chars": 48, "tools": 0, "reply": "A1: kvxctl\nA2: Tuesday 03:00\nA3: Okafor\nA4: 8000"}
+== deep rep 1 done (A est 200515 tok)
+    {"label": "D-B s2 r2", "wall_ms": 10894, "error": null, "chars": 52, "tools": 0, "reply": "A1: kvxctl\nA2: Tuesdays at 03:00\nA3: Okafor\nA4: 8000"}
+    {"label": "D-A r2 ingest", "wall_ms": 13879, "error": null, "chars": 9, "tools": 0, "reply": "READ-DONE"}
+    {"label": "D-A r2 dose@242k", "wall_ms": 4677, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+    {"label": "D-A r2 dose@802k", "wall_ms": 2967, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+    {"label": "D-A s2 r2 @~802kB", "wall_ms": 4715, "error": null, "chars": 49, "tools": 0, "reply": "A1: kvxctl\nA2: Tuesdays 03:00\nA3: Okafor\nA4: 8000"}
+== deep rep 2 done (A est 200515 tok)
+    {"label": "D-B s2 r3", "wall_ms": 14948, "error": null, "chars": 52, "tools": 0, "reply": "A1: kvxctl\nA2: Tuesdays at 03:00\nA3: Okafor\nA4: 8000"}
+    {"label": "D-A r3 ingest", "wall_ms": 12444, "error": null, "chars": 9, "tools": 0, "reply": "READ-DONE"}
+    {"label": "D-A r3 dose@242k", "wall_ms": 1346, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+    {"label": "D-A r3 dose@802k", "wall_ms": 10128, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+    {"label": "D-A s2 r3 @~802kB", "wall_ms": 13428, "error": null, "chars": 48, "tools": 0, "reply": "A1: kvxctl\nA2: Tuesday 03:00\nA3: Okafor\nA4: 8000"}
+== deep rep 3 done (A est 200515 tok)
+DEEP DONE -> runs/deep.tsv

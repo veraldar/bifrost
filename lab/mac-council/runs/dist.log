@@ -1,0 +1,20 @@
+dist root up on 4138
+    {"label": "dist ses_68bb6644 d01-ma", "wall_ms": 5692, "error": null, "chars": 87, "tools": 0, "reply": "A1: Tuesdays 03:00\nA2: 8000\nA3: 16\nA4: 9000\nA5: Sun
+    {"label": "dist-m r1 ingest", "wall_ms": 6964, "error": null, "chars": 9, "tools": 0, "reply": "READ-DONE"}
+    {"label": "dist-m r1 dose@124k", "wall_ms": 4222, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+    {"label": "dist-m r1 dose@364k", "wall_ms": 6076, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+    {"label": "dist ses_4d23c4e6 d01-ma", "wall_ms": 9845, "error": null, "chars": 85, "tools": 0, "reply": "A1: Tuesday 03:00\nA2: 8000\nA3: 16\nA4: 9000\nA5: Sund
+== dist rep 1 done (marathon ctx ~364kB)
+    {"label": "dist ses_7082c8c7 d01-ma", "wall_ms": 4775, "error": null, "chars": 87, "tools": 0, "reply": "A1: Tuesdays 03:00\nA2: 8000\nA3: 16\nA4: 9000\nA5: Sun
+    {"label": "dist-m r2 ingest", "wall_ms": 6990, "error": null, "chars": 9, "tools": 0, "reply": "READ-DONE"}
+    {"label": "dist-m r2 dose@124k", "wall_ms": 1458, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+    {"label": "dist-m r2 dose@364k", "wall_ms": 5343, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+    {"label": "dist ses_17991a37 d01-ma", "wall_ms": 5313, "error": null, "chars": 87, "tools": 0, "reply": "A1: Tuesdays 03:00\nA2: 8000\nA3: 16\nA4: 9000\nA5: Sun
+== dist rep 2 done (marathon ctx ~364kB)
+    {"label": "dist ses_f7a84fc3 d01-ma", "wall_ms": 4457, "error": null, "chars": 87, "tools": 0, "reply": "A1: Tuesdays 03:00\nA2: 8000\nA3: 16\nA4: 9000\nA5: Sun
+    {"label": "dist-m r3 ingest", "wall_ms": 4685, "error": null, "chars": 9, "tools": 0, "reply": "READ-DONE"}
+    {"label": "dist-m r3 dose@124k", "wall_ms": 1599, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+    {"label": "dist-m r3 dose@364k", "wall_ms": 1490, "error": null, "chars": 6, "tools": 0, "reply": "LOG-OK"}
+    {"label": "dist ses_c0959143 d01-ma", "wall_ms": 4947, "error": null, "chars": 87, "tools": 0, "reply": "A1: Tuesdays 03:00\nA2: 8000\nA3: 16\nA4: 9000\nA5: Sun
+== dist rep 3 done (marathon ctx ~364kB)
+DIST DONE

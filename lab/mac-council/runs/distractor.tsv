@@ -1,0 +1,49 @@
+arm	rep	qid	correct	said
+B	1	d01-maint-base	1	Tuesdays 03:00
+B	1	d02-alert-base	1	8000
+B	1	d03-shards-base	1	16
+B	1	d04-flush-base	1	9000
+B	1	d05-maint-latest	1	Sundays 04:00
+B	1	d06-alert-latest	1	7500
+B	1	d07-shards-latest	1	32
+B	1	d08-flush-latest	1	12000
+A	1	d01-maint-base	1	Tuesday 03:00
+A	1	d02-alert-base	1	8000
+A	1	d03-shards-base	1	16
+A	1	d04-flush-base	1	9000
+A	1	d05-maint-latest	1	Sunday 04:00
+A	1	d06-alert-latest	1	7500
+A	1	d07-shards-latest	1	32
+A	1	d08-flush-latest	1	12000
+B	2	d01-maint-base	1	Tuesdays 03:00
+B	2	d02-alert-base	1	8000
+B	2	d03-shards-base	1	16
+B	2	d04-flush-base	1	9000
+B	2	d05-maint-latest	1	Sundays 04:00
+B	2	d06-alert-latest	1	7500
+B	2	d07-shards-latest	1	32
+B	2	d08-flush-latest	1	12000
+A	2	d01-maint-base	1	Tuesdays 03:00
+A	2	d02-alert-base	1	8000
+A	2	d03-shards-base	1	16
+A	2	d04-flush-base	1	9000
+A	2	d05-maint-latest	1	Sundays 04:00
+A	2	d06-alert-latest	1	7500
+A	2	d07-shards-latest	1	32
+A	2	d08-flush-latest	1	12000
+B	3	d01-maint-base	1	Tuesdays 03:00
+B	3	d02-alert-base	1	8000
+B	3	d03-shards-base	1	16
+B	3	d04-flush-base	1	9000
+B	3	d05-maint-latest	1	Sundays 04:00
+B	3	d06-alert-latest	1	7500
+B	3	d07-shards-latest	1	32
+B	3	d08-flush-latest	1	12000
+A	3	d01-maint-base	1	Tuesdays 03:00
+A	3	d02-alert-base	1	8000
+A	3	d03-shards-base	1	16
+A	3	d04-flush-base	1	9000
+A	3	d05-maint-latest	1	Sundays 04:00
+A	3	d06-alert-latest	1	7500
+A	3	d07-shards-latest	1	32
+A	3	d08-flush-latest	1	12000

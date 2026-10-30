@@ -22,6 +22,7 @@ Probed 10-30, read-only:
 | `[LAB]` sessions still written on :4096 since the import (10-28 15:57) | **exactly one: `[LAB] Veraldar`** (upd 10-29 21:33; ~2,350 messages live vs the 10-28 twin — divergence is real, not hypothetical). Everything else: voice 10-22, the rest ≤ 10-08. (The only other 10-29 writes on :4096 are `e2e-subs-*` junk from the v0.6 ring's own e2e.) | sqlite ro |
 | MAIN (`ses_770b…30c`) | exists **only** in the :4100 store (318 msgs), never on :4096 — already single-homed | store + sqlite |
 | relay client basis | harness-bench adapters for BOTH harnesses are proven against live services (`lab/harness-bench/adapters/opencode.py`, `yggdrasil.py`): POST /session, blocking POST /session/:id/message + global `/event` SSE (oc), per-request SSE (ygg) | `lab/harness-bench/` |
+| **route #1 (first real remote route)** | Mac Studio trunk `https://dweeb-xzys-mac-studio.tail5435b1.ts.net` (tailnet-only), registered in `docs/reviews/locations-audit.md` 10-30. Verified 10-30 from this box, read-only: `/api/session` 200 (50 sessions), `/` 200; **warm TTFB p50 ≈ 51 ms** (dns ~2–3 ms, TLS ~27–38 ms; first request 1.6 s = cold). **Shape caveat: the list body is the trunk's own aggregation schema** (`id, lastAt, lastHasQ, lastRole, msgs, parentId, pending, preview`) — bifrost-proxy-shaped, NOT raw opencode list shape → see Appendix B | curl ×3, 10-30 |
 | root contract clause in tension | §2: the root *"never calls out; it never waits on anything but its own run"*; the dispatcher/relay is ruled EXTENSION ("do NOT land in root") | `docs/reviews/root-contract.md` |
 
 The owner's complaint is already instantiated: `[LAB] Veraldar` has dual existence with live drift.
@@ -215,6 +216,8 @@ that would have caught [LAB] Veraldar's drift the day it happened.
 - Auth between roots (loopback trust domain v1; device-token story rides v0.8).
 - Proxying between two yggdrasil roots as a product path (works mechanically — the relay speaks
   both dialects — but productized later; the route table keeps the door open).
+- **Writes of any kind to route #1** (Mac Studio trunk): sim leg is read-only per owner addendum
+  (10-30) — list/open/latency only; kill-tests never target it (scratch :4135 stays the victim).
 - Write-through caches, speculative prefetch, offline queues.
 - The third ring (:8443) consuming proxies (later; nothing in the design blocks it).
 
@@ -250,6 +253,10 @@ Territory — all scratch, no live writes:
 - **`ygg-relay`** on `:4140` (loopback).
 - Real `:4096` used read-only: list, transcript fetch, latency baselines; a second sim leg
   exercises the opencode dialect against :4096 with the disposable `[RUN]` session.
+- **Route #1 leg (cross-root, the first non-loopback route — read-only per addendum):** the
+  bifrost-shaped list/open/latency flows run against the Mac Studio trunk with measured route RTT
+  as baseline (warm TTFB p50 ≈ 51 ms, Appendix B) — this turns the "added latency" metric into
+  *relay overhead + route RTT vs upstream time*, the number the P95 budget was written for.
 
 Flows (bifrost-shaped):
 
@@ -319,3 +326,22 @@ MAIN-as-coordinator: owns per-session verdicts + migration consent ────�
 - MAIN: only in the :4100 store (318 msgs); absent from :4096 sqlite.
 - No POSTs, no DELETEs, no restarts, no store writes. The mission's no-live-service-changes
   constraint is honored end-to-end.
+
+## Appendix B — route #1 verification (read-only, 10-30, addendum input)
+
+- Registration: `docs/reviews/locations-audit.md` line 313–316 — matches the addendum exactly.
+- Probes from this box (curl ×3): `/api/session` 200/200/200, body = 50 sessions in the
+  **trunk's own aggregation shape** (`id, lastAt, lastHasQ, lastRole, msgs, parentId, pending,
+  preview`); `/` 200; `/api/artifact/<name>` answers JSON `{"error":"not found"}` 404 for names
+  not present on that box (expected — its artifacts dir is its own).
+- **Design consequence (honest):** route #1 is a *trunk* endpoint, not a raw root. The relay's
+  dialect table therefore needs a third entry — `trunk` (thin shim over the bifrost Next API:
+  list/get/message mapped to the trunk's shapes) — or the Mac box later exposes its backing root
+  loopback-side and the relay targets that instead. Sizing impact: P3 stays M; the trunk dialect
+  is a small adapter next to the two existing ones (adapter precedent: harness-bench's
+  `base.Harness` pattern).
+- Latency: warm TTFB p50 ≈ **51 ms** (dns 2–3 ms, TLS 27–38 ms, tailnet WireGuard under it);
+  cold first hit 1.6 s (handshake+warmup). Even doubled by the relay, ~100 ms of route sits far
+  under the model's seconds-scale TTFB — the ≤250 ms p95 budget survives the first real
+  cross-root route with room. These numbers are the sim's route-RTT baseline (§4 route #1 leg).
+- Discipline: no POST/DELETE/kill touched route #1; read-only GETs only, per the addendum.

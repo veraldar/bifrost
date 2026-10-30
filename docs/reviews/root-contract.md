@@ -51,3 +51,36 @@ This surface suffices for: **scheduling** (driver posts turns when events warran
 | 5 | Richer context (wells/grove/federation) as extension: context injected before `POST /message` | L | root API unchanged |
 
 Steps 1–2 relocate or document; 3–5 are additive-external. Nothing above can break the v0.7 gate.
+
+## 5. Surface fence (owner law, 10-30 — binding)
+
+Owner, verbatim: *"the root NEVER grows beyond opencode's feature surface. Whatever the Mac has
+as extensions stays extensions — plugins added/removed at will, never root code. The coordinator
+is a PROFILE, not new root functionality."*
+
+**The law.** opencode parity is the ceiling of the root. Anything beyond what opencode itself is
+— every Mac-grown behavior (voice shaping, letters, dispatch, council-style coordination, …) —
+lives OUTSIDE the root as an extension/plugin on the seam (§3), added and removed at will, never
+root code. A feature that cannot be removed without recompiling the root is not an extension;
+that is the test.
+
+**Fence rules (apply in order to any proposed root change):**
+1. **Parity question first.** Does opencode have this, as shipped behavior? No ⇒ it does not
+   enter the root. Not "opencode could theoretically", not "opencode's ecosystem has it" —
+   opencode itself, as a coding harness, ships it.
+2. **Parity answers are still bounded by §2.** The no-list there (no MAIN, no voice, no letters,
+   no push, no schedules, no timers, no flows, no topics, no rooms, no webhooks) holds even where
+   parity might be argued; §2 remains the review bar.
+3. **Mac inheritance ports as plugins.** Whatever the Mac installation grew — it stays
+   extension-shaped: manifest, seam calls, removable. The coordinator is a PROFILE: role→model
+   maps, tool scopes, spawn discipline are config + an external driver, never new verbs in the
+   root API.
+4. **Exceptions are a registry, not a precedent.** An exception exists only if written in the
+   table below with the owner's name on it. Silence = outside the fence.
+
+**Exceptions already accepted:**
+
+| exception | fence reading | status |
+|---|---|---|
+| Profiles (session tool profiles, D6 / tool-scope plan) | parity with opencode agents — a profile is a named agent config (tools/routing), not new root behavior | accepted |
+| Proxy sessions | route relay — the relay (`ygg-relay`) is an extension; the only root change is a refusal guard on `info.proxy` handles (run/rollup → 409 pointer). The root still never calls out. | under review (owner picks relay placement, plan §2c) |

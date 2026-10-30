@@ -11,7 +11,7 @@
 # (systemd-run, sim-stack.sh pattern, ports defaulting to 8145+) — a "stage", not production.
 #
 # Usage:
-#   scripts/layman-bootstrap.sh [--stage|--fresh-install] [--qr-dir DIR] [--ports BASE]
+#   scripts/layman-bootstrap.sh [--stage|--fresh-install] [--qr-dir DIR] [--print-qr-file PATH] [--ports BASE]
 #
 #     --stage          run ON this box from this checkout (default): stage the already-built
 #                      pwa/.next + prebuilt binaries into a fresh dir, own ports, own state.
@@ -25,12 +25,14 @@ set -euo pipefail
 
 MODE="stage"
 QR_DIR=""
+QR_FILE=""   # --print-qr-file: EXACT png path (win/launcher.bat grabs it deterministically)
 PORT_BASE="${LAYMAN_PORT_BASE:-8145}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --stage) MODE="stage" ;;
     --fresh-install) MODE="fresh" ;;
     --qr-dir) QR_DIR="${2:?}"; shift ;;
+    --print-qr-file) QR_FILE="${2:?}"; shift ;;
     --ports) PORT_BASE="${2:?}"; shift ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
@@ -191,6 +193,10 @@ printf '%s' "$BUILD_JSON" | grep -q '"id"' || fail "device token did not clear /
 # ---------- the QR: everything the phone needs to join, in one scan ----------
 JOIN_URL="http://$IP:$PWA_PORT/bridge?b=http%3A%2F%2F$IP%3A$BRIDGE_HTTP&t=$TOKEN"
 QR_DIR="${QR_DIR:-$STAGE}"
+# --print-qr-file: the png's EXACT path, decided by the caller (the Windows
+# launcher passes a path on the user's Desktop) — qr-dir stays the payload's home.
+QR_PNG="$QR_FILE"
+if [[ -n "$QR_PNG" ]]; then mkdir -p "$(dirname "$QR_PNG")"; else QR_PNG="$QR_DIR/pair-qr.png"; fi
 QR_TXT="$QR_DIR/pair-qr.txt"
 printf '%s' "$JOIN_URL" > "$QR_TXT"
 chmod 600 "$QR_TXT"
@@ -201,10 +207,10 @@ if have npx || [[ -f pwa/node_modules/qrcode/bin/qrcode ]]; then
   # NODE_OPTIONS=--jitless: on hardened boxes (MemoryDenyWriteExecute) plain node aborts.
   QR_CLI=""; [[ -f pwa/node_modules/qrcode/bin/qrcode ]] && QR_CLI="$(command -v node) pwa/node_modules/qrcode/bin/qrcode"
   if [[ -n "$QR_CLI" ]]; then
-    NODE_OPTIONS="--jitless" $QR_CLI -o "$QR_DIR/pair-qr.png" -w 320 "$JOIN_URL" \
+    NODE_OPTIONS="--jitless" $QR_CLI -o "$QR_PNG" -w 320 "$JOIN_URL" \
       && NODE_OPTIONS="--jitless" $QR_CLI --small "$JOIN_URL" || say "WARN: local qrcode render failed — payload is in $QR_TXT"
   elif have npx; then
-    npx --yes qrcode -o "$QR_DIR/pair-qr.png" -w 320 "$JOIN_URL" \
+    npx --yes qrcode -o "$QR_PNG" -w 320 "$JOIN_URL" \
       && npx --yes qrcode -t "$JOIN_URL" || say "WARN: npx qrcode render failed — payload is in $QR_TXT"
   fi
 else
@@ -217,7 +223,7 @@ say "  app    http://$IP:$PWA_PORT   (the phone lands here)"
 say "  root   127.0.0.1:$YGG_PORT    (the brain)"
 say "  trunk  http://$IP:$BRIDGE_HTTP (the bridge; phone joins with the token)"
 say "  token  $TOKEN   (ALSO inside the QR — shown once)"
-say "  QR payload file: $QR_TXT  · png: $QR_DIR/pair-qr.png"
+say "  QR payload file: $QR_TXT  · png: $QR_PNG"
 say "  scan the QR with any camera app → opens /bridge pre-filled → tap Connect → talk."
 say "  teardown: systemctl --user stop layman-mock layman-root layman-app layman-trunk"
 say "-------------------------------------------------------------"

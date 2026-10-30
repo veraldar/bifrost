@@ -5,9 +5,11 @@
 ; hands the user a QR to scan with their phone. The .bat does the work;
 ; this file only lays down files + shortcuts + the uninstaller.
 ;
-; Build (on a box with NSIS — pending on this dev box, see
-; artifacts/win-qr-sim2-report.md):
-;   makensis win/veraldar.nsi          -> win/Veraldar-Setup.exe
+; Build — either of:
+;   makensis win/veraldar.nsi         -> win/Veraldar-Setup.exe
+;   docker run --rm -v "$PWD/win":/src -w /src debian:stable-slim bash -c \
+;     "apt-get update -qq && apt-get install -y --no-install-recommends nsis \
+;      && makensis veraldar.nsi"        (no sudo, no local NSIS — proven win-compile)
 ;
 ; Payload expected next to this script at build time:
 ;   launcher.bat   (win/launcher.bat — bundled verbatim)

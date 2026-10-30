@@ -13,8 +13,9 @@ set "BASE=8195"
 set "BOOTSH=%INSTD%wsl-bootstrap.sh"
 set "WSLBASE=%INSTD%wsl"
 set "QRDIR=%USERPROFILE%\Desktop"
+set "QRFILE=%QRDIR%\Veraldar-Pair-QR.png"
 
-echo [veraldar] starting: stage ports %BASE%-%BASE%+4, QR dir %QRDIR%
+echo [veraldar] starting: stage ports %BASE%-%BASE%+4, QR png %QRFILE%
 
 REM ---- 1. WSL2 present? (first-run gap, stated plainly, no silent death) ----
 wsl.exe --status >nul 2>&1
@@ -29,7 +30,7 @@ if errorlevel 1 (
 REM ---- 2. bootstrap inside WSL2; QR png written straight to the Windows Desktop ----
 REM (%USERPROFILE%\Desktop seen from WSL via the automounted C: drive; the bash
 REM script resolves it to the Linux-side path it can actually write.)
-wsl.exe -- bash -c "chmod +x '%WSLBASE:\=/%/wsl-bootstrap.sh' 2>/dev/null; '%WSLBASE:\=/%/wsl-bootstrap.sh' --qr-dir '%QRDIR:\=/%' --ports %BASE%"
+wsl.exe -- bash -c "chmod +x '%WSLBASE:\=/%/wsl-bootstrap.sh' 2>/dev/null; '%WSLBASE:\=/%/wsl-bootstrap.sh' --qr-dir '%QRDIR:\=/%' --print-qr-file '%QRFILE:\=/%' --ports %BASE%"
 if errorlevel 1 (
   echo [veraldar] bootstrap FAILED - see the log: %WSLBASE%\bootstrap.log
   timeout /t 30 >nul
@@ -43,6 +44,6 @@ echo [veraldar] join URL: %JOINURL%
 REM ---- 4. open it (browser preview on the desktop; the phone scans the QR) ----
 start "" "%JOINURL%"
 
-echo [veraldar] UP. Scan the QR on your Desktop with your phone ^(same Wi-Fi^).
+echo [veraldar] UP. Scan the QR with your phone ^(same Wi-Fi^): %QRFILE%
 timeout /t 20 >nul
 exit /b 0

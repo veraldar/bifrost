@@ -28,3 +28,12 @@ Status: hypotheses. Each must state its metric, baseline, target; promotion need
 4. Bench batteries run as `[RUN]` sessions and may be purged; their numbers live in the
    ledger, not the session list.
 | **mac-council** | DONE v1 (10-30) | `~/Work/bifrost/lab/mac-council/` | report → `docs/reviews/mac-council.md` + `pwa/artifacts/mac-council-report.md` (sandbox copy); raw runs in `lab/mac-council/runs/` | the Mac council study: route #1 read-only extraction (50 sessions; 13/13 single-brief subagents; council inboxes 257–1,834 msgs) + theory review + adoption design (grove-context extension, flow law, letters loop) + tier-3 head-to-head: marathon vs flow-of-fresh on glm-5.3-flash — **accuracy tie at ~46k/200k tok est + interference (36/36, 12/12, 24/24 both arms)**; flow wins cost (-97% ctx/answer, -59% wall) and structural immunity; digest fidelity = the new load-bearing surface. Verdict: adopt the architecture, hold the "always beats" claim as falsified-as-accuracy |
+
+## MAIN initiator duty (owner, 10-30, binding)
+MAIN does not stay silent between owner turns. It surfaces in the live session when: a mission lands
+(one spoken-style line + the decision it needs, if any), a big finding emerges, a sim fails
+interestingly, human hands/review are required, or a question blocks progress. Batched: one message
+per notable event, nothing that doesn't change what the owner knows or does. Coordination includes
+the user. Enforcement: nightly voice-models loop and mission runners append to /tmp/sub-status.tsv;
+MAIN reviews it on every wake AND on a timer via lk-agent idle windows until event-push lands
+(proxy-sessions / letters loop).

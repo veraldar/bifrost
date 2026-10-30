@@ -1,0 +1,17 @@
+[Unit]
+Description=lane-watcher — wake MAIN when a lane lands (default /tmp/sub-status.tsv)
+Documentation=file://%h/Work/bifrost-sandbox/docs/coord/README.md
+After=default.target
+
+[Service]
+ExecStart=%h/Work/bifrost-sandbox/scripts/lane-watcher.sh
+Restart=on-failure
+RestartSec=30
+# sandboxing: it only reads the status file and talks HTTP to the brain
+NoNewPrivileges=yes
+ProtectSystem=full
+ProtectHome=read-only
+# STATUS_FILE may point into $HOME on your box — if so, drop ProtectHome above
+
+[Install]
+WantedBy=default.target

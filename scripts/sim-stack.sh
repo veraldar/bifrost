@@ -61,6 +61,7 @@ up() {
     -E YGG_UPSTREAM_API_KEY=mock-key -E YGG_UPSTREAM_MODEL=glm-5.3-flash \
     -E YGG_LISTEN=$BRAIN -E YGG_DATA_DIR="$SIM/ygg" -E YGG_PROJECT_DIR="$SIM/proj" \
     -E YGG_MAX_TOKENS=16384 -E YGG_VOICE=1 -E YGG_VOICE_MAX_WORDS=60 \
+    ${YGG_PROFILES:+-E YGG_PROFILES="$YGG_PROFILES"} \
     "$YGG_DIR/target/release/yggdrasil"
   # bifrost-sandbox.service's restart policy
   local stall=()

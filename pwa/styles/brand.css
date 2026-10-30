@@ -380,6 +380,11 @@
   .oz-subs { flex: none; font-size: 10px; line-height: 16px; padding: 0 7px; border: 1px solid var(--oz-border); color: var(--oz-dim); }
   .oz-subs.live { color: var(--oz-success); border-color: color-mix(in srgb, var(--oz-success) 50%, transparent); }
   .oz-subs.open { color: var(--oz-text); border-color: color-mix(in srgb, var(--oz-text) 30%, transparent); }
+  /* session tool profile (D6): a quiet amber chip, shown only when the
+     session is NOT on the root's default profile */
+  .oz-prof { flex: none; font-size: 10px; line-height: 16px; padding: 0 7px; border: 1px solid color-mix(in srgb, var(--oz-info) 55%, transparent); color: var(--oz-info); }
+  /* the new-session picker: one quiet select styled like the house fields */
+  .oz-picker { width: 100%; background: var(--oz-surface); border: 1px solid var(--oz-border); color: var(--oz-text); font-size: 13px; padding: 8px 10px; margin-bottom: 2.5px; }
   .oz-kids { margin: 4px 0 0 14px; padding-left: 10px; border-left: 1px var(--oz-rule) var(--oz-border); display: flex; flex-direction: column; gap: 4px; }
 
   /* undo toast — timed escape, the bar is the mercy window */

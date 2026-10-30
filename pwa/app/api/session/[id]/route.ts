@@ -4,6 +4,7 @@ import { slugify } from '@/lib/slug';
 import { MAIN_SLUG } from '@/lib/tree-first';
 import { bustCache } from '@/lib/oc-cache';
 import { brainDefault } from '@/lib/brain-default';
+import { defaultProfile } from '@/lib/profiles';
 import { purgeQueue } from '@/lib/oc-queue';
 
 export const dynamic = 'force-dynamic';
@@ -65,7 +66,8 @@ async function modelRef(providerID: string, raw: string) {
  *  No explicit model (never set — e.g. MAIN before any voice seed) → the
  *  session runs on the brain's default: reported as `defaultModel`, apart
  *  from `model`, so the page shows it AS the default; null = the brain
- *  didn't say (shown as unknown, never guessed). */
+ *  didn't say (shown as unknown, never guessed). `profile` rides along:
+ *  FIXED at creation (D3), never patched — the settings row is read-only. */
 async function summary(s: any) {
   const raw = s.model ? s.model.id || s.model.modelID : null;
   const model = raw ? await modelRef(s.model.providerID, raw) : null;
@@ -76,6 +78,11 @@ async function summary(s: any) {
     agent: s.agent || null,
     model,
     defaultModel: d ? await modelRef(d.providerID, d.modelID) : null,
+    profile: s.profile || null,
+    // is this session on the root's default profile? resolved server-side
+    // (never a UI-hardcoded 'build'); a brain without the feature answers
+    // 'build' from the fallback — sessions then never count as non-default
+    onDefaultProfile: (s.profile || 'build') === (await defaultProfile()),
   };
 }
 
@@ -151,6 +158,16 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       if (!body.agent) return NextResponse.json({ error: 'empty agent' }, { status: 400 });
       const no = await ocWrite(`/api/session/${sid}/agent`, 'POST', { agent: String(body.agent) });
       if (no) return no;
+    }
+
+    if (body.profile !== undefined) {
+      // D3: the profile is FIXED at session creation — no PATCH, ever.
+      // Rejected out loud (the brain itself 400s this; the guard here
+      // keeps a pre-885122c brain from silently swallowing it too).
+      return NextResponse.json(
+        { error: 'profile is fixed at session creation' },
+        { status: 400 }
+      );
     }
 
     bustCache(); // home list reflects a rename on its next poll

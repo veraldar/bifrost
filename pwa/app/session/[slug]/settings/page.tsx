@@ -31,6 +31,10 @@ type SessionInfo = {
   /** what a model-less session runs on — the brain's default (null: the
    *  brain didn't say) */
   defaultModel?: ModelRef | null;
+  /** the session's tool profile (D3): fixed at creation, read-only here */
+  profile?: string | null;
+  /** server-resolved: is this the root's default profile? */
+  onDefaultProfile?: boolean;
 };
 type ProviderRow = {
   id: string;
@@ -479,6 +483,30 @@ export default function SessionSettingsView() {
         )}
         {refused?.block === 'agent' && <Refusal msg={refused.msg} />}
       </section>
+
+      {/* tool profile (D3/D6): FIXED at session creation — no PATCH exists,
+          so this row only names what this session runs under. A default
+          session says so; a pre-profiles brain leaves the row out */}
+      {info?.profile && (
+        <section className="oz-blk">
+          <h2>tool profile</h2>
+          <ul className="oz-kv">
+            <li>
+              <span data-testid="settings-profile-name">{info.profile}</span>
+              <span data-testid="settings-profile-state">
+                {info.onDefaultProfile === false
+                  ? 'fixed — chosen when the session was created'
+                  : 'default — fixed at session creation'}
+              </span>
+              <span />
+            </li>
+          </ul>
+          <p className="note">
+            set at creation, unchangeable — a session never widens its scope. new sessions pick
+            theirs on the front page&apos;s new-session form.
+          </p>
+        </section>
+      )}
 
       <p className="px-0.5 pb-2.5 text-[10.5px] leading-relaxed text-[var(--oz-dim)]">
         changes apply from the next message in this session

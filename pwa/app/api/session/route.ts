@@ -4,7 +4,9 @@
  *
  * Routes:
  *   GET    /api/session                 → enriched session list (title + preview, cached 60s)
- *   POST   /api/session                 → {name} create session (title = name)
+ *   POST   /api/session                 → {name, profile?} create session (title = name;
+ *                                          profile = tool profile, FIXED at creation —
+ *                                          the brain refuses a PATCH; unknown → 400, loud)
  *   GET    /api/session/[id]/messages   → transcript
  *   POST   /api/session/[id]/prompt     → {text, images?: string[](dataURL), files?: {name, content}[]}
  *   DELETE /api/session/[id]            → delete
@@ -92,6 +94,9 @@ export async function GET() {
             // sub-sessions (created by an agent task inside another session)
             // carry the parent link — the home list nests them under it
             parentId: s.parentID || null,
+            // the session's tool profile, FIXED at creation (D3) — the badge
+            // shows it only when it differs from the root's default
+            profile: s.profile || null,
             updated: s.time?.updated || 0,
             preview: lastText.slice(0, 80),
             lastRole,
@@ -125,6 +130,7 @@ export async function GET() {
             id: s.id,
             title: s.title || s.id,
             parentId: s.parentID || null,
+            profile: s.profile || null,
             updated: s.time?.updated || 0,
             preview: '',
             lastRole: '',
@@ -151,19 +157,31 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { name } = await req.json();
+    const { name, profile } = await req.json();
     const title = String(name || '').slice(0, 80) || 'session';
     // slug `main` is reserved for THE MAIN session (/api/onboard creates it)
     if (slugify(title) === MAIN_SLUG) {
       return NextResponse.json({ error: 'the name "main" is reserved' }, { status: 409 });
     }
+    // tool profile, FIXED at creation (D3): pass-through when asked. The
+    // brain fails closed on an unknown name (400 + the list of known ones)
+    // — that 400 is forwarded as-is: a session that asked for a narrow
+    // profile must never silently get the default.
+    const body: Record<string, unknown> = { title };
+    if (profile !== undefined && profile !== null) body.profile = String(profile);
     const s = await ocFetch('/session', {
       method: 'POST',
-      body: JSON.stringify({ title }),
+      body: JSON.stringify(body),
     });
     bustCache();
-    return NextResponse.json({ id: s.id, title: s.title });
+    return NextResponse.json({ id: s.id, title: s.title, profile: s.profile });
   } catch (e) {
+    // the brain's own refusal (unknown profile → 400) keeps its status and
+    // message; everything else (gone root, outage) stays a 500
+    const m = /opencode (\d{3}) on \/session/.exec(String(e));
+    if (m && m[1].startsWith('4')) {
+      return NextResponse.json({ error: String(e) }, { status: Number(m[1]) });
+    }
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

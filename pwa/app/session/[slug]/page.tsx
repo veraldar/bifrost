@@ -238,6 +238,12 @@ export default function SessionView({
   const [mode, setMode] = useState<Mode>('text');
   const [busy, setBusy] = useState(false);
   const [busySecs, setBusySecs] = useState(0);
+  // this session's tool profile (D3): FIXED at creation — fetched once per
+  // navigation, never polled, never changed by any UI
+  const [sessProfile, setSessProfile] = useState<{
+    name: string | null;
+    onDefault: boolean;
+  }>({ name: null, onDefault: true });
   const [holding, setHolding] = useState(false);
   // the held mic is really capturing (UX-BATCH #3, 10-23): "heard" is said
   // only from here — the device re-acquire + track unmute take 200-600 ms
@@ -503,6 +509,19 @@ export default function SessionView({
       }
       setVoiceTest_(p.slug === VOICE_TEST_SLUG && voiceTestOn());
       setSlug(p.slug);
+      // the tool profile is FIXED at creation (D3): fetched once per
+      // navigation, never polled — a session cannot grow out of its profile,
+      // so nothing here has to track it over time
+      setSessProfile({ name: null, onDefault: true });
+      fetch(`/api/session/${p.slug}`, { cache: 'no-store' })
+        .then((r) => r.json())
+        .then((d: { profile?: string | null; onDefaultProfile?: boolean }) =>
+          setSessProfile({
+            name: d.profile ?? null,
+            onDefault: d.onDefaultProfile !== false,
+          })
+        )
+        .catch(() => setSessProfile({ name: null, onDefault: true }));
       echoesRef.current = [];
       seenRef.current = 0;
       setLimit(60);
@@ -2204,6 +2223,17 @@ export default function SessionView({
           className="min-w-0 flex-1 truncate text-[13px] hover:opacity-80"
         >
           {slug}
+          {!sessProfile.onDefault && sessProfile.name && (
+            // the tool-profile chip (D6): only off-default sessions — the
+            // chip IS the statement "this session is scoped" (info.profile)
+            <span
+              className="oz-prof ml-2 align-middle"
+              data-testid="header-profile-badge"
+              title={sessProfile.name}
+            >
+              {sessProfile.name}
+            </span>
+          )}
           {busy && (
             <span className="oz-breathe ml-2 text-[var(--oz-success)]" aria-label="working">
               ●

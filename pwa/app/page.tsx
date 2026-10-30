@@ -13,6 +13,7 @@ import type { ArtifactEntry } from '@/lib/artifacts';
 import { countUnseen, seenInit } from '@/lib/artifact-read';
 import { lastRead, markRead } from '@/lib/read';
 import { slugify } from '@/lib/slug';
+import type { Profile } from '@/lib/profiles';
 import { DOOR_KEY, MAIN_SLUG, isMainSlug, isOnboardPrompt } from '@/lib/tree-first';
 import { VOICE_TEST_SLUG, voiceTestOn } from '@/lib/voice-test';
 
@@ -31,6 +32,10 @@ type Sess = {
   lastAt?: number;
   lastHasQ?: boolean;
   msgs?: number;
+  // the session's tool profile, FIXED at creation (D3) — the list shows a
+  // quiet chip only when it differs from the root's default; absent on
+  // pre-profiles brains and old sessions (no chip, no change)
+  profile?: string | null;
   pending?: boolean;
 };
 
@@ -188,6 +193,13 @@ export default function SessionsPage() {
   const [unseenArts, setUnseenArts] = useState(0);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
+  // the new-session tool-profile picker (D6): null = not loaded yet /
+  // brain has no profiles (default-only); [] = feature present, none to
+  // show (picker hidden); def rides the same fetch — the brain's actual
+  // default name, so the first option reads it, never a hardcoded 'build'
+  const [profiles, setProfiles] = useState<Profile[] | null>(null);
+  const [profilesDef, setProfilesDef] = useState('build');
+  const [newProfile, setNewProfile] = useState('');
   const [loading, setLoading] = useState(true);
   const loadInFlightRef = useRef(false);
   // undo window: row (and its sub-tree) vanishes instantly, but the DELETE
@@ -384,17 +396,45 @@ export default function SessionsPage() {
     };
   }, [load]);
 
+  // profiles feed: one fetch on mount (GET /api/profile — {profiles:null}
+  // on a pre-profiles brain → default-only UI; the server memoizes the
+  // brain's default name per process). Feeds BOTH the list badge's
+  // default-comparison and the new-session picker; failure = default-only,
+  // never a blocked or broken list.
+  useEffect(() => {
+    let stop = false;
+    fetch('/api/profile', { cache: 'no-store', signal: AbortSignal.timeout(5000) })
+      .then((r) => r.json())
+      .then((d: { profiles: Profile[] | null; default?: string | null }) => {
+        if (stop) return;
+        setProfiles(d.profiles || []);
+        if (d.default) setProfilesDef(d.default);
+      })
+      .catch(() => !stop && setProfiles([]));
+    return () => {
+      stop = true;
+    };
+  }, []);
+
   async function create() {
     const title = name.trim() || `session ${new Date().toLocaleString()}`;
     const r = await fetch('/api/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: title }),
+      body: JSON.stringify({ name: title, profile: newProfile || undefined }),
     });
     const s = await r.json();
+    if (!r.ok) {
+      // the brain refused (unknown profile → 400, MAIN reserved → 409): said
+      // where the user tapped, with the brain's own reason — never silent,
+      // never a session silently widened to the default
+      alert(s.error || `create failed (${r.status})`);
+      return;
+    }
     if (s.id) router.push(`/session/${slugify(s.title)}?id=${s.id}`);
     setCreating(false);
     setName('');
+    setNewProfile('');
   }
 
   function fireDelete(id: string) {
@@ -512,7 +552,10 @@ export default function SessionsPage() {
 
         <div className="mb-2 flex items-stretch gap-1.5">
           <button
-            onClick={() => setCreating(true)}
+            onClick={() => {
+              setNewProfile(''); // a re-open never inherits the last pick
+              setCreating(true);
+            }}
             className="oz-k ok h-11 flex-1 justify-start px-3 text-[13px]"
           >
             <LineIcon name="plus" size={14} /> new session
@@ -538,6 +581,27 @@ export default function SessionsPage() {
               placeholder="session name…"
               className="oz-field mb-2.5"
             />
+            {profiles && profiles.length > 0 && (
+              // tool profile (D3/D6): FIXED at creation — shown at the
+              // moment it's chosen, because nothing can change it later
+              <select
+                aria-label="tool profile"
+                data-testid="profile-picker"
+                value={newProfile}
+                onChange={(e) => setNewProfile(e.target.value)}
+                className="oz-picker mb-2.5"
+              >
+                <option value="">
+                  profile: {profilesDef} (default) — fixed once created
+                </option>
+                {profiles.map((p) => (
+                  <option key={p.name} value={p.name}>
+                    profile: {p.name}
+                    {p.default ? ' (default)' : ''} — fixed once created
+                  </option>
+                ))}
+              </select>
+            )}
             <div className="flex gap-1.5">
               <button onClick={create} className="oz-k ok flex-1">
                 create & open
@@ -668,6 +732,16 @@ export default function SessionsPage() {
                       {!s.pending && openQ && <span aria-label="open question">○</span>}
                       {!s.pending && unread && !openQ && <span aria-label="unread">●</span>}
                       <span className="t">{s.title || s.id}</span>
+                      {!s.pending &&
+                        s.profile &&
+                        s.profile !== profilesDef && (
+                          // the tool-profile chip (D6): only when the
+                          // session is NOT on the root's default — a list
+                          // where nothing differs renders nothing new
+                          <span className="oz-prof" data-testid="list-profile-badge" title={s.profile}>
+                            {s.profile}
+                          </span>
+                        )}
                       {kids.length > 0 && (
                         // tap target for the sub-tree only — the row itself
                         // still opens the session; a live sub shows green so

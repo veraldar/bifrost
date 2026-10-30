@@ -223,8 +223,16 @@ export default function BridgePage() {
   }, [send]);
 
   useEffect(() => {
-    setToken(localStorage.getItem('bifrost_device') || '');
-    setBridgeUrl(localStorage.getItem('bifrost_bridge') || '');
+    // QR / pre-filled link pickup: /bridge?t=<token>&b=<bridge-url> (the QR
+    // layman-bootstrap.sh prints encodes exactly this). Params win over
+    // localStorage — a re-scan must re-pair, not resurrect a stale token.
+    const q = new URLSearchParams(window.location.search);
+    const qToken = q.get('t');
+    const qBridge = q.get('b');
+    if (qToken) localStorage.setItem('bifrost_device', qToken);
+    if (qBridge) localStorage.setItem('bifrost_bridge', qBridge);
+    setToken(qToken || localStorage.getItem('bifrost_device') || '');
+    setBridgeUrl(qBridge || localStorage.getItem('bifrost_bridge') || '');
   }, []);
 
   return (

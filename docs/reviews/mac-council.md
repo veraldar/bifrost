@@ -275,6 +275,23 @@ route #1 aggregation + the relay's dialect table handles both). The migration sh
 | context audit + digest-quality grader | S | grove-context | the pilot miss was a digest miss — measure the distiller |
 | Mac-adopts-root path | L (later, v0.8-era) | bridge + device tokens | seidr skill + trunk dialect; council never pauses |
 
+### 3f. Surface-fence conformance (per §5 of the root contract, owner law 10-30 — binding, landed while this lab ran)
+
+The scope-fence session (5606555) audited this mission before its files landed; this lab
+self-audits against the finished fence:
+
+| proposed item | fence reading | verdict |
+|---|---|---|
+| grove-context store + distiller + recall injection | extension on the §3 seam (injects parts before `POST /message`, subscribes `/event`); removable without recompiling the root — passes the removal test | **in-fence** (matches migration row 5 verbatim) |
+| flow-step runner | external driver, dispatcher family; steps are just CRUD sessions + posts | **in-fence** |
+| letters ← terminal events | letters are already extension-owned (root only emits); this adds a subscriber | **in-fence** |
+| session tool-allowlist (S) | rides the **accepted profiles exception**: opencode ships per-agent tool configs (`AgentConfig.tools`), so a session-scoped allowlist is parity, not new behavior — it enters as profile config, never as a new verb | **in-fence via registry** |
+| flow chaining via `parentID` | scope-fence flag 1: `parent` is a root schema change that must ride the profiles exception (opencode task/agents parity) **or live driver-side**. This lab takes no position on which; the flow runner works either way (parentID is an optimization for lineage display, not a flow dependency) | **deferred to the owner's coordinator-as-profile call** |
+| Mac-adopts-root path | the root arrives as a seidr-registered skill/extension; council behavior unchanged; single-home law via the existing proxy design | **in-fence** |
+
+Nothing in this report asks the root to grow beyond opencode parity. The one root-adjacent ask
+(the allowlist) is explicitly routed through the exceptions registry.
+
 ---
 
 ## 4 · SIMULATION (tier-3, docs/TESTING.md) — the owner's thesis, head-to-head
@@ -341,19 +358,20 @@ interference. All four are cheap follow-ups on this exact harness.
 1. **Adopt the architecture, not the metaphysics:** fresh profiled sessions + a context-node
    store (grove-context, extension) + artifacts-as-the-only-inter-step-channel + letters on
    terminal events. All of it rides the existing root contract with **zero root changes** beyond
-   the already-proposed S-sized tool allowlist.
+   the allowlist, which enters via the accepted profiles exception (§3f).
 2. **Hold the owner's thesis to its weak form** — which is the form his own system actually
    uses: flows for decomposable work, long inboxes for identity/coordination, workspaces for
    memory, distillation as the load-bearing product. Our sim says this is right for cost,
    parallelism and auditability; it does not need the accuracy claim to be true.
 3. **Enforce scope; never request it** — the tool-policy B-vs-B2 result is the gate the
    coordinator persona must pass before the owner's "coordinator with only session tools"
-   idea ships.
+   idea ships; and per the fence, the coordinator is a PROFILE + external driver, never root
+   functionality.
 4. **Measure the distiller** — the moment context recall becomes load-bearing, digest quality
    is a product surface with its own grader (context-audit row in §3e).
 5. **Do not copy the Mac's extension zoo.** One context extension, one flow runner, one letter
-   loop — each S/M-sized, each contract-clean. The Mac's 1,768 pending receipts are what
-   un-audited automation scale looks like.
+   loop — each S/M-sized, each contract-clean and fence-clean. The Mac's 1,768 pending receipts
+   are what un-audited automation scale looks like.
 
 ## Appendix A — probe log (read-only, 10-30)
 

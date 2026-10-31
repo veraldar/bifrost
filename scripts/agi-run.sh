@@ -48,6 +48,16 @@ if [ -z "$PROMPT" ] && [ -n "$PROMPT_FILE" ]; then PROMPT="$(cat "$PROMPT_FILE")
 if [ -z "$PROMPT" ] && [ ! -t 0 ]; then PROMPT="$(cat)"; fi
 [ -z "$PROMPT" ] && { echo "agi-run: no prompt given (arg, -f FILE, or stdin)" >&2; exit 2; }
 
+# --- canon header (owner [RUN] canon-enforce 10-31) ------------------------------------------
+# Every MAIN brief carries the construct contract (docs/CONSTRUCT.md, 10-30) as its first
+# lines. Sha pins the canon file — bump it whenever CONSTRUCT.md changes (canon-check.sh
+# verifies trees against the same sha). Idempotent: never double-inject.
+CANON_SHA="3a37c2945973b2e0cc56f29cd22e3d04d6f35f3d6c91de96e2fb22e681f7e76e"
+_canon="CANON: Veraldar=org, Yggdrasil=product (root=brain, trunk=private line, branch=app; bifrost=first branch). Canon file: docs/CONSTRUCT.md sha256=${CANON_SHA}. Naming/structure work without this contract = refuse. Every report you land carries one canon line: run scripts/canon-check.sh and paste its CANON row."
+case "$PROMPT" in *"CANON: Veraldar=org"*) : ;; *) PROMPT="${_canon}
+
+${PROMPT}" ;; esac
+
 # --- one door, outside the caller's cgroup (S4): re-exec under systemd-run -------------------
 # The prompt travels via a file so quoting/stdin survive the hop. AGI_IN_UNIT marks the child.
 if [ "${AGI_SYSTEMD:-1}" = "1" ] && [ -z "${AGI_IN_UNIT:-}" ] && command -v systemd-run >/dev/null 2>&1; then

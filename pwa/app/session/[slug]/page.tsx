@@ -367,6 +367,9 @@ export default function SessionView({
   // replacement and storm LiveKit (seen 2026-09-25: ~5 reconnects/sec)
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectFailsRef = useRef(0);
+  // mic-norefresh2: one-shot reconnect watchdog state (armed once, never loops)
+  const norefreshOnceRef = useRef(false);
+  const watchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // PTT intent survives an async room connect: if the finger lifted before
   // the room was ready, the mic must not be left hot by connectVoice
   const pttWantRef = useRef(false);
@@ -930,6 +933,7 @@ export default function SessionView({
     return () => {
       unmountedRef.current = true;
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      if (watchTimerRef.current) clearTimeout(watchTimerRef.current);
       clearHoldArm();
       roomRef.current?.disconnect();
       roomRef.current = null;
@@ -1034,16 +1038,39 @@ export default function SessionView({
         ensureVoice()
           .then((r) => {
             reconnectFailsRef.current = 0;
+            // NOREFRESH4: do NOT reset norefreshOnceRef here — the guard must
+            // survive the reconnect itself. Only user-driven re-arms (exitFree/
+            // switchMode) reset it; automatic reconnects never do, so QUIET-ALIVE
+            // sessions (room present, agent thinking 30-90s) stop after ONE
+            // self-heal instead of looping teardown+rejoin every 15s forever.
             if (modeRef.current === 'free') return mic(true, r);
             return undefined;
           })
           .catch(() => {
             reconnectFailsRef.current += 1; // next attempt waits longer
-            reconnectVoice();
+            if (!norefreshOnceRef.current) {
+              // mic-norefresh2: the ONE auto retry — a second failure hands
+              // the loss to the user as busy instead of looping forever
+              norefreshOnceRef.current = true;
+              reconnectVoice();
+              return;
+            }
+            norefreshOnceRef.current = false;
+            setBusy(true);
+            setError('voice connection lost — reconnect failed. Hold the mic to retry.');
           });
       },
       Math.min(4_000, 250 * 2 ** reconnectFailsRef.current)
     );
+  }
+
+  /** norefresh3: the hands-free silence watchdog (armed inside connectVoice)
+   *  is disarmed the moment hands-free ends — exitFree/switchMode call this,
+   *  so the stale `free` closure can never fire it in text mode
+   *  (e2e/base.spec.ts:74: endless teardown+rejoin loop froze the composer). */
+  function disarmVoiceWatch() {
+    if (watchTimerRef.current) clearTimeout(watchTimerRef.current);
+    watchTimerRef.current = null;
   }
 
   async function connectVoice(): Promise<Room> {
@@ -1085,6 +1112,48 @@ export default function SessionView({
         if (!unmountedRef.current && wantsVoice) reconnectVoice();
       });
       room.on(RoomEvent.MediaDevicesError, (e: Error) => diagEvent('voice-fail', String(e)));
+      // mic-norefresh2: a room can die WITHOUT a Disconnected reaching us
+      // (server killed mid-hold, socket wedged) — the pill keeps saying ready
+      // on a corpse. One heartbeat + one armed retry, both only in free mode.
+      // norefresh3 (regression from integ-validate): this timer must be
+      // ONE-SHOT per silence window and FULLY owned by hands-free — re-arming
+      // itself on its own reconnect's events looped teardown+rejoin forever
+      // (e2e/base.spec.ts:74), and the stale `free` closure kept it firing
+      // after the exit click lost the race to the 400ms ghost guard. So: the
+      // timer is nulled when it fires or is cleared, expiry re-checks
+      // `modeRef.current === 'free'` LIVE, exit paths disarm it, retry once.
+      const armWatch = () => {
+        if (watchTimerRef.current) clearTimeout(watchTimerRef.current);
+        watchTimerRef.current = setTimeout(
+          () => {
+            watchTimerRef.current = null; // one-shot: never re-arms itself
+            if (
+              roomRef.current === room &&
+              modeRef.current === 'free' &&
+              !norefreshOnceRef.current // the one retry is armed — no loop
+            ) {
+              norefreshOnceRef.current = true;
+              diagEvent('voice-fail', 'room silent 15s while hands-free — one reconnect');
+              roomRef.current = null;
+              voicePromiseRef.current = null;
+              setVoiceState('off');
+              void room.disconnect();
+              reconnectVoice();
+            }
+          },
+          15_000
+        );
+      };
+      const lastEvt = () => {
+        if (roomRef.current === room && modeRef.current === 'free') armWatch();
+      };
+      room.on(RoomEvent.Connected, lastEvt);
+      room.on(RoomEvent.SignalConnected, lastEvt);
+      room.on(RoomEvent.ParticipantConnected, lastEvt);
+      room.on(RoomEvent.ParticipantDisconnected, lastEvt);
+      room.on(RoomEvent.ActiveSpeakersChanged, lastEvt);
+      room.on(RoomEvent.DataReceived, lastEvt);
+      armWatch();
       diagEvent('voice', 'connecting signal…');
       await withTimeout(room.connect(d.serverUrl, d.participantToken), 12_000, 'signal');
       diagEvent('voice', 'connected, mic stays muted until a mode/handler turns it on');
@@ -1145,6 +1214,8 @@ export default function SessionView({
     modeRef.current = 'text';
     setMode('text');
     setFreeCycle('listening');
+    disarmVoiceWatch(); // norefresh3: leaving hands-free disarms the watchdog — the stale closure must never fire it in text mode (e2e/base.spec.ts:74)
+    norefreshOnceRef.current = false; // and its one retry is spendable again on the next hands-free arm
     try {
       localStorage.setItem('oz-mode', 'text');
     } catch {
@@ -1163,6 +1234,8 @@ export default function SessionView({
     // asynchronously and the self-heal must already see the new mode, or it
     // reconnects a room the user just left (socket that never closes)
     modeRef.current = next;
+    disarmVoiceWatch(); // norefresh3: any explicit mode switch disarms the hands-free watchdog (its expiry re-checks modeRef live, this just kills the pending timer)
+    if (next === 'free') norefreshOnceRef.current = false; // fresh arm = fresh single retry
     // survive refresh: mode is component state, a reload silently dropped
     // hands-free to keyboard (req 09-29 'it switching from hf to keyboard')
     try {

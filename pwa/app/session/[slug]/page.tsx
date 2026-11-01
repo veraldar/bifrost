@@ -370,6 +370,11 @@ export default function SessionView({
   // mic-norefresh2: one-shot reconnect watchdog state (armed once, never loops)
   const norefreshOnceRef = useRef(false);
   const watchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // NOREFRESH4: the watchdog's own room.disconnect() fires Disconnected —
+  // this flag tells that handler the teardown is deliberate (it calls
+  // reconnectVoice() itself), so the ONE-reconnect budget is never
+  // double-spent by the teardown's own event
+  const watchdogTeardownRef = useRef(false);
   // PTT intent survives an async room connect: if the finger lifted before
   // the room was ready, the mic must not be left hot by connectVoice
   const pttWantRef = useRef(false);
@@ -1109,7 +1114,21 @@ export default function SessionView({
         // (2026-09-25 veraldar-org---home). Explicit reconnectVoice() callers
         // (stale-turn recovery in pttUp) bypass this gate on purpose.
         const wantsVoice = modeRef.current !== 'text' || pttWantRef.current;
-        if (!unmountedRef.current && wantsVoice) reconnectVoice();
+        if (!unmountedRef.current && wantsVoice && !watchdogTeardownRef.current) {
+          // (watchdogTeardownRef: the silence watchdog nulls roomRef, sets
+          // the flag, disconnects and reconnects ITSELF — this handler must
+          // not double-spend the one-reconnect budget on that event)
+          if (!norefreshOnceRef.current) {
+            // NOREFRESH4: the ONE self-heal per armed session — same budget
+            // the silence watchdog spends, never refilled automatically. The
+            // next failure is the user's call (busy below / hold to retry).
+            norefreshOnceRef.current = true;
+            reconnectVoice();
+          } else {
+            setBusy(true);
+            setError('voice connection lost — reconnect failed. Hold the mic to retry.');
+          }
+        }
       });
       room.on(RoomEvent.MediaDevicesError, (e: Error) => diagEvent('voice-fail', String(e)));
       // mic-norefresh2: a room can die WITHOUT a Disconnected reaching us
@@ -1125,14 +1144,38 @@ export default function SessionView({
       const armWatch = () => {
         if (watchTimerRef.current) clearTimeout(watchTimerRef.current);
         watchTimerRef.current = setTimeout(
-          () => {
+          async () => {
             watchTimerRef.current = null; // one-shot: never re-arms itself
             if (
               roomRef.current === room &&
               modeRef.current === 'free' &&
               !norefreshOnceRef.current // the one retry is armed — no loop
             ) {
+              // NOREFRESH4: QUIET-ALIVE is not a corpse. 15s with no events
+              // is NORMAL hands-free while the brain works a run (30–90s) —
+              // the room is up and the agent is in it. Only a room with no
+              // agent is SILENT-DEAD: wait one grace window for a laggy join
+              // / dispatch, then (and only then) spend the ONE reconnect.
+              // A quiet room with its agent never gets torn down.
+              const alive = await agentInRoom(room, 5_000);
+              if (
+                alive &&
+                roomRef.current === room &&
+                modeRef.current === 'free'
+              ) {
+                diagEvent('voice', 'room quiet 15s but agent present — staying put');
+                return;
+              }
+              if (norefreshOnceRef.current) {
+                // the one reconnect is already spent — no loop, and no lying
+                // pill: surface the loss (same message as the reconnect path)
+                diagEvent('voice-fail', 'room dead and reconnect already spent');
+                setBusy(true);
+                setError('voice connection lost — reconnect failed. Hold the mic to retry.');
+                return;
+              }
               norefreshOnceRef.current = true;
+              watchdogTeardownRef.current = true; // the disconnect below is OURS
               diagEvent('voice-fail', 'room silent 15s while hands-free — one reconnect');
               roomRef.current = null;
               voicePromiseRef.current = null;

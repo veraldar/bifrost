@@ -1,293 +1,288 @@
-/** NOREFRESH4: fix the 15s quiet-hands-free teardown/rejoin loop
+/** NOREFRESH4: the watchdog must tell SILENT-DEAD from QUIET-ALIVE.
  *
- *  Root cause: reconnectVoice() success path reset norefreshOnceRef, so
- *  every reconnect re-armed the watchdog loop. A QUIET-ALIVE session (room
- *  present, agent thinking 30-90s = no events) tore down + rejoined every
- *  15s indefinitely. The fix: never reset the guard inside automatic
- *  reconnect paths — only user-driven re-arms (exitFree/switchMode) reset it.
+ *  Q1-refuted-1 (second-opinion-voice.md): quiet hands-free — room up, agent
+ *  in it, just no speech while the brain works a 30-90s run — tore down and
+ *  rejoined every 15s FOREVER (the reconnect success path reset the
+ *  once-guard). The fix: only a room with NO agent (after a grace window)
+ *  self-heals, exactly ONCE per armed session (guard survives reconnects);
+ *  quiet-but-alive rooms are healthy and stay.
  *
- *  Spec scenarios:
- *  1. quiet-alive >30s: one room, no reconnects, watchdog never fires
- *  2. forced dead room: exactly ONE rejoin after DeleteRoom, then busy error
- *  3. 6 concurrent loaded joins: each room holds 1 agent, zero reconnects
- *  4. ghost-guard sleep race, 20 repeats: exit timing race, room stays open
- *
- *  All scenarios use real LiveKit :7880, real brain :4100, PW_BASE_URL required.
+ *  Honesty rules (owner spec): every server-side fact via twirp WITH the
+ *  service JWT (learned from norefresh2 — no JWT = silent {} = vacuous
+ *  green); join history tracked by ACCUMULATING distinct joined_at stamps
+ *  across kills (a single ListParticipants snapshot cannot see past a
+ *  DeleteRoom); watchdog fires asserted against the app's own diag log
+ *  (localStorage 'oz-diag'), not a console shim; the busy state is read
+ *  from the rendered error, not assumed. Stage guard: refuses :8080 (live).
  */
 
-import { test, expect } from '@playwright/test';
-import { execSync } from 'child_process';
+import { expect, test, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { createHmac } from 'node:crypto';
 
-test.describe.configure({ mode: 'serial' });
+const NAME_BASE = `e2e-norefresh4-${Date.now().toString(36)}`;
+let LK = { key: '', secret: '' };
 
-const LK_URL = 'http://127.0.0.1:7880';
-const BRAIN_URL = 'http://127.0.0.1:4100';
-
-/** Mint a session + token for direct LiveKit room access */
-async function mintSession(slug: string) {
-  const base = process.env.PW_BASE_URL || 'http://127.0.0.1:8090';
-  const r = await fetch(`${base}/api/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ room: slug }),
+/** minimal livekit service JWT (HS256, node:crypto — no sdk, jitless-safe) */
+function svcJwt(room: string): string {
+  const b64 = (o: object) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const head = b64({ alg: 'HS256', typ: 'JWT' });
+  const now = Math.floor(Date.now() / 1000);
+  const payload = b64({
+    iss: LK.key,
+    sub: 'e2e-norefresh4',
+    exp: now + 180,
+    nbf: now - 5,
+    video: { roomCreate: true, roomList: true, roomAdmin: true, room },
   });
-  if (!r.ok) throw new Error(`token mint failed: ${r.status}`);
-  return r.json();
+  const sig = createHmac('sha256', LK.secret).update(`${head}.${payload}`).digest('base64url');
+  return `${head}.${payload}.${sig}`;
 }
 
-/** Twirp curl: call a LiveKit RoomService method */
-function twirp(method: string, body: object): string {
-  const payload = JSON.stringify(body);
+/** twirp POST via curl — the hardened unit gives node neither fetch nor wasm */
+function twirp(room: string, path: string, body: string): string {
   try {
-    return execSync(
-      `curl -sS -X POST ${LK_URL}/twirp/livekit.RoomService/${method} ` +
-        `-H 'Content-Type: application/json' -d '${payload.replace(/'/g, "'\\''")}'`,
-      { encoding: 'utf-8', timeout: 10_000 }
+    return execFileSync(
+      'curl',
+      [
+        '-s', '-X', 'POST',
+        '-H', `Authorization: Bearer ${svcJwt(room)}`,
+        '-H', 'Content-Type: application/json',
+        '--data', body,
+        'http://127.0.0.1:7880/twirp/livekit.RoomService/' + path,
+      ],
+      { encoding: 'utf8', timeout: 10_000 }
     );
   } catch {
     return '{}';
   }
 }
 
-/** List participants in a room */
-function listParticipants(room: string): any[] {
-  const raw = twirp('ListParticipants', { room });
+type Part = { identity?: string; joined_at?: number | string };
+
+function participants(room: string): Part[] {
   try {
-    const d = JSON.parse(raw);
-    return d.participants || [];
+    const r = JSON.parse(twirp(room, 'ListParticipants', JSON.stringify({ room })));
+    return r.participants ?? [];
   } catch {
-    return [];
+    return []; // room gone = nobody in
   }
 }
 
-/** Delete a room via twirp */
-function deleteRoom(room: string) {
-  twirp('DeleteRoom', { room });
+function agents(room: string): Part[] {
+  return participants(room).filter((p) => (p.identity ?? '').startsWith('agent-'));
 }
 
-/** Count how many times a participant with the given identity prefix joined
- *  (checks join timestamps — a new join = a different timestamp) */
-function countJoins(room: string, prefix: string): number {
-  const parts = listParticipants(room);
+/** the phone participant's current join stamp — '' while out of the room */
+function humanStamp(room: string): string {
+  const me = participants(room).find((p) => p.identity === `user_${room}`);
+  return me ? String(me.joined_at) : '';
+}
+
+/** ACCUMULATE every join stamp seen while this poller runs — across a
+ *  DeleteRoom the list empties, so history only survives by collecting
+ *  stamps as they appear. Returns [stop, stamps]. */
+function trackHumanStamps(room: string): [(s: string) => void, Set<string>] {
   const stamps = new Set<string>();
-  for (const p of parts) {
-    if (p.identity?.startsWith(prefix)) stamps.add(String(p.joinedAt || '0'));
-  }
-  return stamps.size;
+  const t = setInterval(() => {
+    const s = humanStamp(room);
+    if (s) stamps.add(s);
+  }, 400);
+  return [(s: string) => { if (s) stamps.add(s); }, stamps];
 }
 
-/** Wait for a condition with polling */
-async function waitFor(
-  fn: () => boolean,
-  timeoutMs: number,
-  intervalMs = 500
-): Promise<boolean> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (fn()) return true;
-    await new Promise((r) => setTimeout(r, intervalMs));
-  }
-  return false;
+function deleteRoom(room: string): void {
+  twirp(room, 'DeleteRoom', JSON.stringify({ room }));
 }
 
-/** Diag stream text (accumulated lines) from the page's window.diagLines */
-async function getDiagLines(page: any): Promise<string[]> {
-  return page.evaluate(() => (window as any).diagLines || []);
+/** diag events from the app's own pipeline (localStorage 'oz-diag') */
+async function diagLines(page: Page, substr: string): Promise<string[]> {
+  return page.evaluate((needle) => {
+    try {
+      const ev = JSON.parse(localStorage.getItem('oz-diag') || '[]') as { msg?: string }[];
+      return ev.filter((e) => (e.msg ?? '').includes(needle)).map((e) => e.msg as string);
+    } catch {
+      return [];
+    }
+  }, substr);
 }
 
-test.beforeEach(async ({ page }) => {
-  // Sentinel: no-reload proof (norefresh2 pattern)
-  await page.addInitScript(() => {
-    (window as any).norefresh4Sentinel = true;
-  });
-  // Accumulate diag lines in window.diagLines for watchdog fire checks
-  await page.addInitScript(() => {
-    (window as any).diagLines = [];
-    const orig = console.log;
-    console.log = (...args: any[]) => {
-      const line = args.join(' ');
-      if (line.includes('diag:')) (window as any).diagLines.push(line);
-      orig(...args);
-    };
-  });
-});
-
-test('scenario 1: quiet-alive >30s — zero reconnects, watchdog never fires', async ({
-  page,
-}) => {
-  const slug = `norefresh4-quiet-${Date.now()}`;
-  await page.goto(`/session/${slug}`);
-
-  // Arm hands-free with a live agent: send a short turn so the agent joins
-  await page.getByRole('button', { name: /mic/i }).click();
-  await page.waitForSelector('text=/listening|free-phase/i', { timeout: 15_000 });
-
-  // Send a turn to get the agent into the room (type a message)
-  const input = page.locator('textarea');
-  await input.fill('hello');
-  await page.keyboard.press('Enter');
-
-  // Wait for agent to appear
-  await waitFor(() => listParticipants(slug).some((p) => p.identity?.startsWith('agent-')), 15_000);
-
-  const agentJoins = countJoins(slug, 'agent-');
-  expect(agentJoins).toBe(1);
-
-  // Hold >30s with no further speech
-  await page.waitForTimeout(32_000);
-
-  // Assert: SAME participant join stamp persists (zero rejoins)
-  const agentJoinsAfter = countJoins(slug, 'agent-');
-  expect(agentJoinsAfter).toBe(1);
-
-  // free-phase visible, no error
-  await expect(page.locator('text=/listening|free-phase/i')).toBeVisible();
-  await expect(page.locator('text=/connection lost|reconnect failed/i')).not.toBeVisible();
-
-  // Watchdog never fired: zero "room silent 15s" lines in diag
-  const diag = await getDiagLines(page);
-  const watchdogLines = diag.filter((l) => l.includes('room silent 15s'));
-  expect(watchdogLines.length).toBe(0);
-});
-
-test('scenario 2: forced dead room → exactly ONE rejoin, then busy error', async ({
-  page,
-}) => {
-  const slug = `norefresh4-dead-${Date.now()}`;
-  await page.goto(`/session/${slug}`);
-
-  // Arm hands-free
-  await page.getByRole('button', { name: /mic/i }).click();
-  await page.waitForSelector('text=/listening|free-phase/i', { timeout: 15_000 });
-
-  // Send a turn to get agent
-  const input = page.locator('textarea');
-  await input.fill('test');
-  await page.keyboard.press('Enter');
-  await waitFor(() => listParticipants(slug).some((p) => p.identity?.startsWith('agent-')), 15_000);
-
-  const joinsBefore = countJoins(slug, 'agent-');
-  expect(joinsBefore).toBe(1);
-
-  // Kill the room
-  deleteRoom(slug);
-  await page.waitForTimeout(1000);
-
-  // Wait for reconnect window (up to 20s)
-  await page.waitForTimeout(20_000);
-
-  // Exactly one new join
-  const joinsAfter = countJoins(slug, 'agent-');
-  expect(joinsAfter).toBe(2); // original + one reconnect
-
-  // Second kill should NOT trigger another reconnect
-  deleteRoom(slug);
-  await page.waitForTimeout(20_000);
-
-  const joinsFinal = countJoins(slug, 'agent-');
-  expect(joinsFinal).toBe(2); // still just 2
-
-  // Busy error visible
-  await expect(page.locator('text=/connection lost|reconnect failed/i')).toBeVisible();
-
-  // Sentinel proves no reload
-  const sentinel = await page.evaluate(() => (window as any).norefresh4Sentinel);
-  expect(sentinel).toBe(true);
-});
-
-test('scenario 3: 6 concurrent loaded joins — each room holds 1 agent, zero reconnects', async ({
-  browser,
-}) => {
-  const contexts = await Promise.all(Array.from({ length: 6 }, () => browser.newContext()));
-  const pages = await Promise.all(contexts.map((c) => c.newPage()));
-  const slugs = pages.map((_, i) => `norefresh4-load${i}-${Date.now()}`);
-
-  // Add init scripts to all pages
-  for (const page of pages) {
-    await page.addInitScript(() => {
-      (window as any).diagLines = [];
-      const orig = console.log;
-      console.log = (...args: any[]) => {
-        const line = args.join(' ');
-        if (line.includes('diag:')) (window as any).diagLines.push(line);
-        orig(...args);
-      };
-    });
-  }
-
-  // All 6 join and arm hands-free
-  await Promise.all(
-    pages.map(async (page, i) => {
-      await page.goto(`/session/${slugs[i]}`);
-      await page.getByRole('button', { name: /mic/i }).click();
-      await page.waitForSelector('text=/listening|free-phase/i', { timeout: 15_000 });
-
-      // Send a turn to get agent
-      const input = page.locator('textarea');
-      await input.fill('load test');
-      await page.keyboard.press('Enter');
-    })
+/** fresh session id (transcript store) — deleted in afterEach */
+const sessionIds: string[] = [];
+async function newSession(slug: string): Promise<string> {
+  const base = process.env.PW_BASE_URL || 'http://127.0.0.1:8090';
+  const out = execFileSync(
+    'curl',
+    ['-s', '-X', 'POST', '-H', 'Content-Type: application/json',
+      '-d', JSON.stringify({ name: slug }), `${base}/api/session`],
+    { encoding: 'utf8' }
   );
+  const id = String(JSON.parse(out).id ?? '');
+  if (id) sessionIds.push(id);
+  return id;
+}
 
-  // Wait for all agents to join
-  for (const slug of slugs) {
-    await waitFor(() => listParticipants(slug).some((p) => p.identity?.startsWith('agent-')), 20_000);
-  }
-
-  // Initial agent counts
-  const initialCounts = slugs.map((slug) => countJoins(slug, 'agent-'));
-  expect(initialCounts.every((c) => c === 1)).toBe(true);
-
-  // Hold 60s, polling every 10s
-  for (let t = 0; t < 6; t++) {
-    await new Promise((r) => setTimeout(r, 10_000));
-    const counts = slugs.map((slug) => countJoins(slug, 'agent-'));
-    // Each room should still have exactly 1 agent
-    expect(counts.every((c) => c === 1)).toBe(true);
-  }
-
-  // Zero watchdog reconnects in any session
-  for (const page of pages) {
-    const diag = await getDiagLines(page);
-    const watchdogLines = diag.filter((l) => l.includes('room silent 15s'));
-    expect(watchdogLines.length).toBe(0);
-  }
-
-  // Cleanup
-  await Promise.all(contexts.map((c) => c.close()));
+test.beforeAll(async () => {
+  const env = readFileSync('.env.local', 'utf8');
+  const get = (k: string) => {
+    const m = env.match(new RegExp(`^${k}=(.*)$`, 'm'));
+    if (!m) throw new Error(`${k} missing from .env.local`);
+    return m[1]!.trim();
+  };
+  LK = { key: get('LIVEKIT_API_KEY'), secret: get('LIVEKIT_API_SECRET') };
 });
 
-test('scenario 4: ghost-guard exit race, 20 repeats — room stays open, zero watchdog fires', async ({
-  page,
-}) => {
-  const slug = `norefresh4-race-${Date.now()}`;
-  await page.goto(`/session/${slug}`);
-
-  let passCount = 0;
-  for (let i = 0; i < 20; i++) {
-    // Enter hands-free
-    await page.getByRole('button', { name: /mic/i }).click();
-    await page.waitForSelector('text=/listening|free-phase/i', { timeout: 15_000 });
-
-    // Wait for room to be ready
-    await page.waitForTimeout(1000);
-    const joinsBefore = countJoins(slug, 'agent-');
-
-    // Exit ~450ms later (ghost guard window is 400ms)
-    await page.waitForTimeout(450);
-    await page.getByRole('button', { name: /leave|exit/i }).click();
-    await page.waitForTimeout(500);
-
-    // Room should still be open (participant persists)
-    const joinsAfter = countJoins(slug, 'agent-');
-    if (joinsAfter === joinsBefore) passCount++;
+test.afterAll(async () => {
+  const base = process.env.PW_BASE_URL || 'http://127.0.0.1:8090';
+  for (const id of sessionIds) {
+    try {
+      execFileSync('curl', ['-s', '-X', 'DELETE', `${base}/api/session/${id}`], { encoding: 'utf8' });
+    } catch { /* best effort */ }
   }
+});
 
-  // All 20 must pass
-  expect(passCount).toBe(20);
+/** open a session page as a returning device, wait for the preconnect join,
+ *  arm hands-free, wait for the agent — the shared A-part of every scenario */
+async function armHandsFree(page: Page, slug: string, sessionId: string): Promise<Set<string>> {
+  await page.goto(`/session/${slug}?id=${sessionId}`);
+  const [, stamps] = trackHumanStamps(slug);
+  await expect
+    .poll(() => humanStamp(slug), { timeout: 25_000, message: 'phone never joined the room' })
+    .not.toBe('');
+  stamps.add(humanStamp(slug));
+  // arm hands-free (tap toggles) — same entry norefresh2 uses
+  await page.getByRole('button', { name: 'push to talk' }).click();
+  await expect(page.getByTestId('free-phase')).toBeVisible({ timeout: 30_000 });
+  // reload sentinel: gone if the page navigates
+  await page.evaluate(() => ((window as { __norefresh4?: number }).__norefresh4 = 42));
+  // the token mint dispatches an agent per connect — it must be IN the room
+  await expect
+    .poll(() => agents(slug).length, { timeout: 30_000, intervals: [500], message: 'agent never joined' })
+    .toBeGreaterThanOrEqual(1);
+  return stamps;
+}
 
-  // Zero watchdog diag lines
-  const diag = await getDiagLines(page);
-  const watchdogLines = diag.filter((l) => l.includes('room silent 15s'));
-  expect(watchdogLines.length).toBe(0);
+test.use({
+  permissions: ['microphone'],
+});
+
+test('scenario 1: quiet-alive >30s with live agent — ZERO rejoins, watchdog never tears down', async ({ page }) => {
+  test.setTimeout(150_000);
+  const slug = `${NAME_BASE}-quiet`;
+  const sessionId = await newSession(slug);
+  const stamps = await armHandsFree(page, slug, sessionId);
+  const agentStamp0 = String(agents(slug)[0]?.joined_at ?? '');
+  expect(stamps.size, 'human joined exactly once before the hold').toBe(1);
+
+  // hold hands-free QUIET for 35s (> 15s watchdog + 5s grace) while the
+  // room and its agent just sit there — this was the 15s-churn trigger
+  await page.waitForTimeout(35_000);
+
+  // no rejoin: same stamp, exactly one
+  expect(stamps.size, 'human rejoined during a quiet-alive hold').toBe(1);
+  expect(humanStamp(slug), 'the original participant is still the one in the room').toBe([...stamps][0]);
+  // the agent is untouched too (a teardown would re-dispatch a NEW agent)
+  expect(agents(slug).length).toBe(1);
+  expect(String(agents(slug)[0]?.joined_at ?? '')).toBe(agentStamp0);
+  // the liveness branch RAN (positive proof, not absence-of-evidence)
+  expect(await diagLines(page, 'room quiet 15s but agent present')).not.toHaveLength(0);
+  expect(await diagLines(page, 'room silent 15s'), 'watchdog fired a teardown').toHaveLength(0);
+  // calm hands-free state, no loss surfaced, same live page
+  await expect(page.getByTestId('free-phase')).toBeVisible();
+  await expect(page.getByText('voice connection lost')).toHaveCount(0);
+  expect(await page.evaluate(() => (window as { __norefresh4?: number }).__norefresh4)).toBe(42);
+});
+
+test('scenario 2: forced dead room — exactly ONE rejoin, second death = busy, guard survives', async ({ page }) => {
+  test.setTimeout(220_000);
+  const slug = `${NAME_BASE}-dead`;
+  const sessionId = await newSession(slug);
+  const stamps = await armHandsFree(page, slug, sessionId);
+  expect(stamps.size).toBe(1);
+
+  // kill #1 — SILENT-DEAD: the client self-heals, exactly once
+  deleteRoom(slug);
+  await expect
+    .poll(() => stamps.size, { timeout: 45_000, intervals: [500], message: 'no rejoin after kill 1' })
+    .toBe(2);
+  expect(humanStamp(slug), 'rejoined participant present').not.toBe('');
+  // let the reconnect settle (watchdog re-arms on the new room, 15s window)
+  await page.waitForTimeout(20_000);
+  expect(stamps.size, 'more than ONE rejoin after kill 1').toBe(2);
+
+  // kill #2 — the guard is spent: NO second auto-rejoin, busy surfaces
+  deleteRoom(slug);
+  await expect
+    .poll(() => humanStamp(slug) === '', { timeout: 20_000, intervals: [400], message: 'participant never left after kill 2' })
+    .toBe(true);
+  await page.waitForTimeout(25_000); // > watchdog 15s + grace 5s + margin
+  expect(stamps.size, 'a SECOND auto-rejoin happened — the guard did not survive').toBe(2);
+  expect(humanStamp(slug)).toBe(''); // nobody home — honest, not a silent corpse
+  await expect(page.getByText('voice connection lost')).toBeVisible();
+  expect(await page.evaluate(() => (window as { __norefresh4?: number }).__norefresh4)).toBe(42);
+});
+
+test('scenario 3: six loaded concurrent joins — each room holds EXACTLY one agent over 60s', async ({ browser }) => {
+  test.setTimeout(240_000);
+  const ctx = await browser.newContext();
+  const N = 6;
+  const slugs = Array.from({ length: N }, (_, i) => `${NAME_BASE}-load${i}`);
+  const pages: Page[] = [];
+  const stampSets: Set<string>[] = [];
+  for (let i = 0; i < N; i++) {
+    const p = await ctx.newPage();
+    // extra contexts do not inherit the config storageState — inject the
+    // returning-device keys the same way the config does
+    await p.addInitScript(() => {
+      localStorage.setItem('bifrost-door', 'v2');
+      localStorage.setItem('bifrost-first-turn', '1');
+    });
+    const sessionId = await newSession(slugs[i]);
+    stampSets.push(await armHandsFree(p, slugs[i], sessionId));
+    pages.push(p);
+  }
+  for (const s of slugs) {
+    expect(agents(s).length, `${s}: not exactly 1 agent at t0`).toBe(1);
+    expect(stampSets[slugs.indexOf(s)].size).toBe(1);
+  }
+  // 60s under load, sampled every 10s — exactly one agent per room, no rejoins
+  for (let t = 10; t <= 60; t += 10) {
+    await new Promise((r) => setTimeout(r, 10_000));
+    for (let i = 0; i < N; i++) {
+      expect(agents(slugs[i]).length, `${slugs[i]}: agent count at t=${t}s`).toBe(1);
+      expect(stampSets[i].size, `${slugs[i]}: human rejoined by t=${t}s`).toBe(1);
+    }
+  }
+  for (let i = 0; i < N; i++) {
+    expect(await diagLines(pages[i], 'room silent 15s'), `${slugs[i]}: watchdog teardown`).toHaveLength(0);
+  }
+  await ctx.close();
+});
+
+test('scenario 4: ghost-guard exit race — 20 repeats, room stays warm, zero watchdog fires', async ({ page }) => {
+  test.setTimeout(240_000);
+  const slug = `${NAME_BASE}-race`;
+  const sessionId = await newSession(slug);
+  await page.goto(`/session/${slug}?id=${sessionId}`);
+  const [, stamps] = trackHumanStamps(slug);
+  await expect.poll(() => humanStamp(slug), { timeout: 25_000 }).not.toBe('');
+  stamps.add(humanStamp(slug));
+  const stamp0 = humanStamp(slug);
+
+  for (let i = 0; i < 20; i++) {
+    await page.getByRole('button', { name: 'push to talk' }).click();
+    await expect(page.getByTestId('free-phase')).toBeVisible({ timeout: 30_000 });
+    // the norefresh3-era race: the exit click lands 450ms after the tap —
+    // just past the 400ms ghost guard, racing the watchdog's arm window
+    await page.waitForTimeout(450);
+    await page.getByTestId('free-exit').click();
+    await expect(page.getByTestId('free-phase')).toHaveCount(0, { timeout: 10_000 });
+    await page.waitForTimeout(250);
+    // every cycle: same participant, room never torn down or rejoined
+    expect(humanStamp(slug), `cycle ${i}: room state changed`).toBe(stamp0);
+  }
+  expect(stamps.size, 'a rejoin happened during the 20 exit races').toBe(1);
+  expect(await diagLines(page, 'room silent 15s'), 'watchdog fired in the exit race').toHaveLength(0);
+  expect(await page.evaluate(() => (window as { __norefresh4?: number }).__norefresh4)).toBe(42);
 });

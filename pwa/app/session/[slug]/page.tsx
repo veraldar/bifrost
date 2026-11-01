@@ -1155,6 +1155,11 @@ export default function SessionView({
               // / dispatch, then (and only then) spend the ONE reconnect.
               // A quiet room with its agent never gets torn down.
               const alive = await agentInRoom(room, 5_000);
+              // re-review N1: the grace await is a 5s window — the SDK may
+              // have delivered Disconnected (spending the guard there), or
+              // the user may have left hands-free. Only the still-current
+              // hands-free room may act on the probe's verdict.
+              if (roomRef.current !== room || modeRef.current !== 'free') return;
               if (
                 alive &&
                 roomRef.current === room &&

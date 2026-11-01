@@ -339,13 +339,19 @@ test('scenario 5 (SILENT-DEAD): agent removed, room kept — watchdog heals EXAC
   // no reload — the same page healed itself
   expect(await page.evaluate(() => (window as { __norefresh4?: number }).__norefresh4)).toBe(42);
 
-  // second death, budget spent: NO second heal, busy surfaces
-  deleteRoom(slug);
+  // second SILENT-DEATH, room KEPT, budget spent: the watchdog's own
+  // spent-guard branch must answer (no Disconnected exists to do it):
+  // diag 'room dead and reconnect already spent' ×1, NO third stamp,
+  // and the honest error on screen (re-review round-2 GO-path item 2)
+  twirp(slug, 'RemoveParticipant', JSON.stringify({ room: slug, identity: agents(slug)[0]!.identity }));
   await expect
-    .poll(() => humanStamp(slug) === '', { timeout: 20_000, intervals: [400], message: 'participant never left after the second death' })
-    .toBe(true);
-  await page.waitForTimeout(30_000); // > fire 15s + grace 5s + margin
-  expect(stamps.size, 'a second auto-heal happened — budget was spent').toBe(2);
-  expect(humanStamp(slug)).toBe('');
+    .poll(() => agents(slug).length, { timeout: 15_000, intervals: [400], message: 'agent never left (2nd death)' })
+    .toBe(0);
+  await expect
+    .poll(() => diagLines(page, 'room dead and reconnect already spent').length, { timeout: 40_000, intervals: [500], message: 'the watchdog spent-guard branch never fired' })
+    .toBe(1);
+  await page.waitForTimeout(5_000);
+  expect(stamps.size, 'a second silent-dead heal happened — budget was spent').toBe(2);
+  expect(humanStamp(slug), 'the healed participant must still be in the kept room').not.toBe('');
   await expect(page.getByText('voice connection lost')).toBeVisible();
 });

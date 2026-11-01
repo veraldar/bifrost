@@ -310,6 +310,11 @@ test('scenario 5 (SILENT-DEAD): agent removed, room kept — watchdog heals EXAC
   const stamps = trackHumanStamps(slug, 3);
   await armHandsFree(page, slug, sessionId);
   expect(stamps.size).toBe(1);
+  // isolate the watchdog: block /api/dispatch so the pre-existing 10s
+  // honesty check CANNOT re-dispatch the agent (first full run: rearm
+  // healed the room seamlessly and the watchdog rightly stayed put —
+  // that heal tier is real, but it masks the teardown path under test)
+  await page.route('**/api/dispatch', (route) => route.fulfill({ status: 500, body: 'blocked for S5' }));
 
   // SILENT-DEAD: remove the agent, KEEP the room — the client sees only
   // ParticipantDisconnected, then pure silence

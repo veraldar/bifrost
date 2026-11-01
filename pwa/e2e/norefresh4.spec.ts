@@ -82,14 +82,19 @@ function humanStamp(room: string): string {
 
 /** ACCUMULATE every join stamp seen while this poller runs — across a
  *  DeleteRoom the list empties, so history only survives by collecting
- *  stamps as they appear. Returns [stop, stamps]. */
-function trackHumanStamps(room: string): [(s: string) => void, Set<string>] {
+ *  stamps as they appear. Auto-stops at `cap` distinct stamps (re-review:
+ *  the 400ms curl poll must not leak past the scenario's needs).
+ *  Returns stamps (read stamps.size / [...stamps]). */
+function trackHumanStamps(room: string, cap = 4): Set<string> {
   const stamps = new Set<string>();
   const t = setInterval(() => {
     const s = humanStamp(room);
-    if (s) stamps.add(s);
+    if (s) {
+      stamps.add(s);
+      if (stamps.size >= cap) clearInterval(t);
+    }
   }, 400);
-  return [(s: string) => { if (s) stamps.add(s); }, stamps];
+  return stamps;
 }
 
 function deleteRoom(room: string): void {
@@ -146,7 +151,7 @@ test.afterAll(async () => {
  *  arm hands-free, wait for the agent — the shared A-part of every scenario */
 async function armHandsFree(page: Page, slug: string, sessionId: string): Promise<Set<string>> {
   await page.goto(`/session/${slug}?id=${sessionId}`);
-  const [, stamps] = trackHumanStamps(slug);
+  const stamps = trackHumanStamps(slug);
   await expect
     .poll(() => humanStamp(slug), { timeout: 25_000, message: 'phone never joined the room' })
     .not.toBe('');
@@ -268,7 +273,7 @@ test('scenario 4: ghost-guard exit race — 20 repeats, room stays warm, zero wa
   const slug = `${NAME_BASE}-race`;
   const sessionId = await newSession(slug);
   await page.goto(`/session/${slug}?id=${sessionId}`);
-  const [, stamps] = trackHumanStamps(slug);
+  const stamps = trackHumanStamps(slug);
   await expect.poll(() => humanStamp(slug), { timeout: 25_000 }).not.toBe('');
   stamps.add(humanStamp(slug));
   const stamp0 = humanStamp(slug);
@@ -290,4 +295,52 @@ test('scenario 4: ghost-guard exit race — 20 repeats, room stays warm, zero wa
   expect(stamps.size, 'a rejoin happened during the 20 exit races').toBe(1);
   expect(await diagLines(page, 'room silent 15s'), 'watchdog fired in the exit race').toHaveLength(0);
   expect(await page.evaluate(() => (window as { __norefresh4?: number }).__norefresh4)).toBe(42);
+});
+
+test('scenario 5 (SILENT-DEAD): agent removed, room kept — watchdog heals EXACTLY once, second death = busy', async ({ page }) => {
+  // re-review demand: every prior kill used DeleteRoom, which delivers
+  // Disconnected (the SDK's own heal path). This scenario kills ONLY the
+  // agent (RemoveParticipant, room stays) — no Disconnected reaches the
+  // client, so the 15s silence watchdog itself must fire: liveness probe
+  // finds no agent → grace → ONE teardown+rejoin (fresh agent), then a
+  // second death with the budget spent surfaces the honest busy error.
+  test.setTimeout(220_000);
+  const slug = `${NAME_BASE}-silentdead`;
+  const sessionId = await newSession(slug);
+  const stamps = trackHumanStamps(slug, 3);
+  await armHandsFree(page, slug, sessionId);
+  expect(stamps.size).toBe(1);
+
+  // SILENT-DEAD: remove the agent, KEEP the room — the client sees only
+  // ParticipantDisconnected, then pure silence
+  twirp(slug, 'RemoveParticipant', JSON.stringify({ room: slug, identity: agents(slug)[0]!.identity }));
+  await expect
+    .poll(() => agents(slug).length, { timeout: 15_000, intervals: [400], message: 'agent never left' })
+    .toBe(0);
+  // the watchdog's fire window: lastEvt re-armed on ParticipantDisconnected
+  // → 15s + 5s grace + reconnect backoff. NO Disconnected arrives — only
+  // the watchdog can heal this.
+  await expect
+    .poll(() => stamps.size, { timeout: 40_000, intervals: [500], message: 'watchdog never healed the silent-dead room' })
+    .toBe(2);
+  await expect
+    .poll(() => agents(slug).length, { timeout: 30_000, intervals: [500], message: 'no fresh agent after the heal' })
+    .toBeGreaterThanOrEqual(1);
+  expect(await diagLines(page, 'room silent 15s while hands-free'), 'the watchdog, not the SDK, must log this heal').toHaveLength(1);
+  expect(await diagLines(page, 'room dead and reconnect already spent')).toHaveLength(0);
+  // the healed room settles with exactly one agent (fresh dispatch)
+  await page.waitForTimeout(3_000);
+  expect(agents(slug).length, 'duplicate agents after the heal').toBe(1);
+  // no reload — the same page healed itself
+  expect(await page.evaluate(() => (window as { __norefresh4?: number }).__norefresh4)).toBe(42);
+
+  // second death, budget spent: NO second heal, busy surfaces
+  deleteRoom(slug);
+  await expect
+    .poll(() => humanStamp(slug) === '', { timeout: 20_000, intervals: [400], message: 'participant never left after the second death' })
+    .toBe(true);
+  await page.waitForTimeout(30_000); // > fire 15s + grace 5s + margin
+  expect(stamps.size, 'a second auto-heal happened — budget was spent').toBe(2);
+  expect(humanStamp(slug)).toBe('');
+  await expect(page.getByText('voice connection lost')).toBeVisible();
 });

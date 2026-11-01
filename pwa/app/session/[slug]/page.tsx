@@ -370,11 +370,6 @@ export default function SessionView({
   // mic-norefresh2: one-shot reconnect watchdog state (armed once, never loops)
   const norefreshOnceRef = useRef(false);
   const watchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // NOREFRESH4: the watchdog's own room.disconnect() fires Disconnected —
-  // this flag tells that handler the teardown is deliberate (it calls
-  // reconnectVoice() itself), so the ONE-reconnect budget is never
-  // double-spent by the teardown's own event
-  const watchdogTeardownRef = useRef(false);
   // PTT intent survives an async room connect: if the finger lifted before
   // the room was ready, the mic must not be left hot by connectVoice
   const pttWantRef = useRef(false);
@@ -1060,7 +1055,9 @@ export default function SessionView({
               reconnectVoice();
               return;
             }
-            norefreshOnceRef.current = false;
+            // NOREFRESH4 (re-review): the guard stays SPENT here — no
+            // automatic path ever refills it (the old reset made every
+            // third failure re-arm a fresh retry pair)
             setBusy(true);
             setError('voice connection lost — reconnect failed. Hold the mic to retry.');
           });
@@ -1101,6 +1098,13 @@ export default function SessionView({
       room.on(RoomEvent.Connected, () => diagEvent('voice', 'room connected'));
       room.on(RoomEvent.Disconnected, () => {
         diagEvent('voice', 'room disconnected');
+        // NOREFRESH4 (re-review): only the CURRENT room's death may act —
+        // every deliberate teardown (silence watchdog, stale-turn recovery,
+        // unmount) nulls roomRef BEFORE disconnecting, so its own event
+        // lands here as not-current and is ignored (no double-spend of the
+        // one-reconnect budget, and a late disconnect of an OLD room can
+        // never drop the NEW room's refs). An organic death still matches.
+        if (roomRef.current !== room) return;
         // the room's join token is stale now — reconnecting with it just 401s
         // ("token is expired"). Drop it so the next connect mints a fresh one.
         roomRef.current = null;
@@ -1114,10 +1118,7 @@ export default function SessionView({
         // (2026-09-25 veraldar-org---home). Explicit reconnectVoice() callers
         // (stale-turn recovery in pttUp) bypass this gate on purpose.
         const wantsVoice = modeRef.current !== 'text' || pttWantRef.current;
-        if (!unmountedRef.current && wantsVoice && !watchdogTeardownRef.current) {
-          // (watchdogTeardownRef: the silence watchdog nulls roomRef, sets
-          // the flag, disconnects and reconnects ITSELF — this handler must
-          // not double-spend the one-reconnect budget on that event)
+        if (!unmountedRef.current && wantsVoice) {
           if (!norefreshOnceRef.current) {
             // NOREFRESH4: the ONE self-heal per armed session — same budget
             // the silence watchdog spends, never refilled automatically. The
@@ -1146,11 +1147,7 @@ export default function SessionView({
         watchTimerRef.current = setTimeout(
           async () => {
             watchTimerRef.current = null; // one-shot: never re-arms itself
-            if (
-              roomRef.current === room &&
-              modeRef.current === 'free' &&
-              !norefreshOnceRef.current // the one retry is armed — no loop
-            ) {
+            if (roomRef.current === room && modeRef.current === 'free') {
               // NOREFRESH4: QUIET-ALIVE is not a corpse. 15s with no events
               // is NORMAL hands-free while the brain works a run (30–90s) —
               // the room is up and the agent is in it. Only a room with no
@@ -1168,14 +1165,14 @@ export default function SessionView({
               }
               if (norefreshOnceRef.current) {
                 // the one reconnect is already spent — no loop, and no lying
-                // pill: surface the loss (same message as the reconnect path)
+                // pill: surface the loss (re-review: this branch must stay
+                // REACHABLE — it is the honest answer to a second silent death)
                 diagEvent('voice-fail', 'room dead and reconnect already spent');
                 setBusy(true);
                 setError('voice connection lost — reconnect failed. Hold the mic to retry.');
                 return;
               }
               norefreshOnceRef.current = true;
-              watchdogTeardownRef.current = true; // the disconnect below is OURS
               diagEvent('voice-fail', 'room silent 15s while hands-free — one reconnect');
               roomRef.current = null;
               voicePromiseRef.current = null;

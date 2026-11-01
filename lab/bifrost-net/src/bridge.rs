@@ -106,6 +106,13 @@ enum Outcome {
         text: String,
         pcm48: Vec<i16>,
     },
+    /// trunk-v2: room broadcast — one JSON message to every OTHER peer
+    /// (`outcome.rs`-equivalent of relay.rs's media fan-out; control plane
+    /// stays star, only this op fans out).
+    Room {
+        from: usize,
+        json: String,
+    },
 }
 
 /// The `app` channel contract (JSON; every request carries "req", every
@@ -127,6 +134,10 @@ enum ClientOp {
     VoiceCommit { id: String, ms: u64 },
     #[serde(rename = "ping")]
     Ping { t: u64 },
+    /// trunk-v2 room broadcast: say something to every OTHER peer in the room
+    /// (control plane stays star; only this op fans out — relay.rs wiring)
+    #[serde(rename = "room.say")]
+    RoomSay { text: String },
 }
 
 pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
@@ -290,10 +301,15 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
                             })
                             .unwrap_or_default();
                         let mut rtc = Rtc::new(Instant::now());
-                        // advertise a REAL ip: first pinned candidate, else
-                        // loopback (0.0.0.0 is not a valid ICE candidate —
-                        // this panic'd the signaling thread once already)
-                        let advertise = candidates
+                        // advertise a REAL ip: public/first pinned candidate
+                        // FIRST (str0m nominates the highest-priority pair —
+                        // the public path must be first, not an afterthought),
+                        // else loopback (0.0.0.0 is not a valid ICE candidate
+                        // — this panic'd the signaling thread once already)
+                        let mut pinned: Vec<IpAddr> = candidates.clone();
+                        pinned.retain(|ip| !ip.is_loopback());
+                        pinned.sort_by_key(|ip| if ip.is_loopback() { 1 } else { 0 });
+                        let advertise = pinned
                             .first()
                             .copied()
                             .unwrap_or(IpAddr::from([127, 0, 0, 1]));
@@ -322,12 +338,22 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
                                 continue;
                             }
                         };
+                        // trickle AFTER accept_offer: str0m rejects remote
+                        // candidates on an Rtc in signaling-stable state, and
+                        // the answer must already exist before the browser can
+                        // pair — this ordering is the ICE make-or-break
                         for c in &trickle {
                             match str0m::Candidate::from_sdp_string(c) {
                                 Ok(cand) => rtc.add_remote_candidate(cand),
                                 Err(_) => {} // malformed trickle lines are ignored
                             }
                         }
+                        eprintln!(
+                            "bridge: /offer answered — advertised {}:{} + {} remote candidate(s)",
+                            advertise,
+                            media_addr.port(),
+                            trickle.len()
+                        );
                         let body = serde_json::to_string(&answer).expect("answer json");
                         if admit_tx.send(rtc).is_err() {
                             break;
@@ -408,6 +434,21 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
                                 p.write_all(&notice.to_string());
                             }
                         }
+                        Outcome::Room { from, json } => {
+                            // trunk-v2 room fan-out: every peer EXCEPT the
+                            // sender gets the message (relay.rs semantics —
+                            // never echo back to the origin)
+                            let targets: Vec<usize> = peers
+                                .keys()
+                                .copied()
+                                .filter(|id| *id != from)
+                                .collect();
+                            for id in targets {
+                                if let Some(p) = peers.get_mut(&id) {
+                                    p.write_all(&json);
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -453,7 +494,11 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
                     }
                 }
 
-                // per-peer timers + events
+                // per-peer timers + events; audio inbound is ALSO relayed
+                // cross-peer (trunk-v2 room broadcast, relay.rs semantics:
+                // collect per-origin here, fan out after the loop so the
+                // peers map isn't borrowed twice)
+                let mut room_audio: Vec<(usize, MediaData)> = vec![];
                 for (id, p) in peers.iter_mut() {
                     let _ = p.rtc.handle_input(Input::Timeout(now));
                     loop {
@@ -470,12 +515,15 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
                                 }
                                 Event::MediaData(d) => {
                                     p.pt = Some(d.pt);
+                                    // trunk-v2: keep feeding the owner's voice
+                                    // pipeline AND relay to the room
                                     if p.capturing {
                                         p.voice_buf.push(d.data.to_vec());
                                         if p.voice_buf.len() > 3000 {
                                             p.voice_buf.remove(0);
                                         }
                                     }
+                                    room_audio.push((*id, d));
                                 }
                                 Event::ChannelOpen(cid, _) => p.channels.push(cid),
                                 Event::ChannelData(cd) => {
@@ -492,6 +540,23 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
                                 _ => {}
                             },
                             Err(_) => break,
+                        }
+                    }
+                }
+
+                // trunk-v2 room relay: every peer's audio → all OTHER peers
+                // (byte-forwarded Opus, no decode/re-encode; sender excluded
+                // so nobody hears themselves)
+                for (origin, d) in &room_audio {
+                    let pt = d.params.pt();
+                    for (id, p) in peers.iter_mut() {
+                        if *id == *origin {
+                            continue; // never echo back to the sender
+                        }
+                        if let Some(mid) = p.mid {
+                            if let Some(w) = p.rtc.writer(mid) {
+                                let _ = w.write(pt, d.network_time, d.time, d.data.clone());
+                            }
                         }
                     }
                 }
@@ -624,6 +689,15 @@ fn handle_req(
             reply_to,
             serde_json::json!({ "pong": t }),
         )),
+        ClientOp::RoomSay { text } => Ok(Outcome::Room {
+            from: client,
+            json: serde_json::json!({
+                "op": "room.msg",
+                "from": client,
+                "text": text,
+            })
+            .to_string(),
+        }),
         ClientOp::VoiceCommit { .. } => unreachable!("routed as Job::Voice"),
     }
 }

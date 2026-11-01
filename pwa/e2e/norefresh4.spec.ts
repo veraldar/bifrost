@@ -224,19 +224,22 @@ test('scenario 2: forced dead room — exactly ONE rejoin, second death = busy, 
 });
 
 test('scenario 3: six loaded concurrent joins — each room holds EXACTLY one agent over 60s', async ({ browser }) => {
-  test.setTimeout(240_000);
-  const ctx = await browser.newContext();
+  test.setTimeout(420_000);
   const N = 6;
   const slugs = Array.from({ length: N }, (_, i) => `${NAME_BASE}-load${i}`);
   const pages: Page[] = [];
   const stampSets: Set<string>[] = [];
   for (let i = 0; i < N; i++) {
-    const p = await ctx.newPage();
-    // extra contexts do not inherit the config storageState — inject the
-    // returning-device keys the same way the config does
+    // OWN context per room: a shared context spills localStorage oz-mode='free'
+    // into later pages (auto-armed hands-free → no push-to-talk button), and
+    // raw contexts need the mic permission granted explicitly
+    const c = await browser.newContext();
+    await c.grantPermissions(['microphone']);
+    const p = await c.newPage();
     await p.addInitScript(() => {
       localStorage.setItem('bifrost-door', 'v2');
       localStorage.setItem('bifrost-first-turn', '1');
+      localStorage.setItem('oz-mode', 'text');
     });
     const sessionId = await newSession(slugs[i]);
     stampSets.push(await armHandsFree(p, slugs[i], sessionId));
@@ -257,7 +260,7 @@ test('scenario 3: six loaded concurrent joins — each room holds EXACTLY one ag
   for (let i = 0; i < N; i++) {
     expect(await diagLines(pages[i], 'room silent 15s'), `${slugs[i]}: watchdog teardown`).toHaveLength(0);
   }
-  await ctx.close();
+  for (const p of pages) await p.context().close();
 });
 
 test('scenario 4: ghost-guard exit race — 20 repeats, room stays warm, zero watchdog fires', async ({ page }) => {
@@ -269,6 +272,8 @@ test('scenario 4: ghost-guard exit race — 20 repeats, room stays warm, zero wa
   await expect.poll(() => humanStamp(slug), { timeout: 25_000 }).not.toBe('');
   stamps.add(humanStamp(slug));
   const stamp0 = humanStamp(slug);
+  // reload sentinel: gone if the page navigates mid-race
+  await page.evaluate(() => ((window as { __norefresh4?: number }).__norefresh4 = 42));
 
   for (let i = 0; i < 20; i++) {
     await page.getByRole('button', { name: 'push to talk' }).click();

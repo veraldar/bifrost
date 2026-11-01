@@ -115,6 +115,7 @@ async function diagLines(page: Page, substr: string): Promise<string[]> {
 
 /** fresh session id (transcript store) — deleted in afterEach */
 const sessionIds: string[] = [];
+const rooms: string[] = [];
 async function newSession(slug: string): Promise<string> {
   const base = process.env.PW_BASE_URL || 'http://127.0.0.1:8090';
   const out = execFileSync(
@@ -140,6 +141,10 @@ test.beforeAll(async () => {
 
 test.afterAll(async () => {
   const base = process.env.PW_BASE_URL || 'http://127.0.0.1:8090';
+  // reap rooms too — a leftover room keeps an agent job bound (voice-stab's
+  // drain lesson): leaked jobs from killed runs starved S5's post-heal
+  // dispatch of a worker slot and broke the heal's fresh-agent wait
+  for (const r of rooms) deleteRoom(r);
   for (const id of sessionIds) {
     try {
       execFileSync('curl', ['-s', '-X', 'DELETE', `${base}/api/session/${id}`], { encoding: 'utf8' });
@@ -150,6 +155,7 @@ test.afterAll(async () => {
 /** open a session page as a returning device, wait for the preconnect join,
  *  arm hands-free, wait for the agent — the shared A-part of every scenario */
 async function armHandsFree(page: Page, slug: string, sessionId: string): Promise<Set<string>> {
+  rooms.push(slug);
   await page.goto(`/session/${slug}?id=${sessionId}`);
   const stamps = trackHumanStamps(slug);
   await expect
@@ -307,9 +313,7 @@ test('scenario 5 (SILENT-DEAD): agent removed, room kept — watchdog heals EXAC
   test.setTimeout(220_000);
   const slug = `${NAME_BASE}-silentdead`;
   const sessionId = await newSession(slug);
-  const stamps = trackHumanStamps(slug, 3);
   await armHandsFree(page, slug, sessionId);
-  expect(stamps.size).toBe(1);
   // isolate the watchdog: block /api/dispatch so the pre-existing 10s
   // honesty check CANNOT re-dispatch the agent (first full run: rearm
   // healed the room seamlessly and the watchdog rightly stayed put —
@@ -317,7 +321,10 @@ test('scenario 5 (SILENT-DEAD): agent removed, room kept — watchdog heals EXAC
   await page.route('**/api/dispatch', (route) => route.fulfill({ status: 500, body: 'blocked for S5' }));
 
   // SILENT-DEAD: remove the agent, KEEP the room — the client sees only
-  // ParticipantDisconnected, then pure silence
+  // ParticipantDisconnected, then pure silence. Stamp history across the
+  // heal is read at PHASE BOUNDARIES only (the room is kept, so the
+  // rejoined participant persists — no tracker race on the heal window).
+  const stampAfterArm = humanStamp(slug);
   twirp(slug, 'RemoveParticipant', JSON.stringify({ room: slug, identity: agents(slug)[0]!.identity }));
   await expect
     .poll(() => agents(slug).length, { timeout: 15_000, intervals: [400], message: 'agent never left' })
@@ -326,8 +333,9 @@ test('scenario 5 (SILENT-DEAD): agent removed, room kept — watchdog heals EXAC
   // → 15s + 5s grace + reconnect backoff. NO Disconnected arrives — only
   // the watchdog can heal this.
   await expect
-    .poll(() => stamps.size, { timeout: 40_000, intervals: [500], message: 'watchdog never healed the silent-dead room' })
-    .toBe(2);
+    .poll(() => humanStamp(slug) !== stampAfterArm && humanStamp(slug) !== '', { timeout: 45_000, intervals: [500], message: 'watchdog never healed the silent-dead room' })
+    .toBe(true);
+  const stampAfterHeal = humanStamp(slug);
   await expect
     .poll(() => agents(slug).length, { timeout: 30_000, intervals: [500], message: 'no fresh agent after the heal' })
     .toBeGreaterThanOrEqual(1);
@@ -348,10 +356,9 @@ test('scenario 5 (SILENT-DEAD): agent removed, room kept — watchdog heals EXAC
     .poll(() => agents(slug).length, { timeout: 15_000, intervals: [400], message: 'agent never left (2nd death)' })
     .toBe(0);
   await expect
-    .poll(() => diagLines(page, 'room dead and reconnect already spent').length, { timeout: 40_000, intervals: [500], message: 'the watchdog spent-guard branch never fired' })
+    .poll(async () => (await diagLines(page, 'room dead and reconnect already spent')).length, { timeout: 40_000, intervals: [500], message: 'the watchdog spent-guard branch never fired' })
     .toBe(1);
   await page.waitForTimeout(5_000);
-  expect(stamps.size, 'a second silent-dead heal happened — budget was spent').toBe(2);
-  expect(humanStamp(slug), 'the healed participant must still be in the kept room').not.toBe('');
+  expect(humanStamp(slug), 'the healed participant must still be in the kept room (no second heal)').toBe(stampAfterHeal);
   await expect(page.getByText('voice connection lost')).toBeVisible();
 });

@@ -25,6 +25,8 @@ pub struct TokenStore {
 struct Cache {
     loaded_at: std::time::Instant,
     valid: std::collections::HashSet<String>,
+    /// v4: token_hash → root allowlist claim (missing = empty list)
+    roots: std::collections::HashMap<String, Vec<String>>,
 }
 
 impl TokenStore {
@@ -34,6 +36,7 @@ impl TokenStore {
             cache: std::sync::Mutex::new(Cache {
                 loaded_at: std::time::Instant::now() - Duration::from_secs(3600),
                 valid: Default::default(),
+                roots: Default::default(),
             }),
         }
     }
@@ -41,9 +44,15 @@ impl TokenStore {
     /// Validate a raw bearer token against the CURRENT file (mtime-aware,
     /// re-reads at most once per second so revocation lands within seconds).
     pub fn validate(&self, raw: &str) -> bool {
+        self.claims(raw).is_some()
+    }
+
+    /// Validate + return the device's root-allowlist claim (v4 TOKEN LAW).
+    /// Empty list = anonymous-class device: the public/local root only.
+    pub fn claims(&self, raw: &str) -> Option<Vec<String>> {
         let raw = raw.trim();
         if raw.len() < 16 {
-            return false;
+            return None;
         }
         let hash = hash_token(raw);
         let mut cache = self.cache.lock().unwrap();
@@ -52,17 +61,21 @@ impl TokenStore {
         if reload {
             cache.loaded_at = std::time::Instant::now();
             cache.valid.clear();
+            cache.roots.clear();
             if let Ok(txt) = std::fs::read_to_string(&self.path) {
                 if let Ok(v) = serde_json::from_str::<TokenFile>(&txt) {
                     for d in v.devices {
                         if !d.revoked {
-                            cache.valid.insert(d.token_hash);
+                            cache.valid.insert(d.token_hash.clone());
+                            cache.roots.insert(d.token_hash, d.roots);
                         }
                     }
                 }
             }
         }
-        cache.valid.contains(&hash)
+        cache.valid.contains(&hash).then(|| {
+            cache.roots.get(&hash).cloned().unwrap_or_default()
+        })
     }
 }
 
@@ -79,6 +92,10 @@ struct DeviceEntry {
     token_hash: String,
     #[serde(default)]
     revoked: bool,
+    /// v4 TOKEN LAW: roots this device may name on a branch request.
+    /// Missing = empty = local (public) root only.
+    #[serde(default)]
+    roots: Vec<String>,
 }
 
 fn mtime_newer(path: &Path, at: std::time::Instant) -> bool {

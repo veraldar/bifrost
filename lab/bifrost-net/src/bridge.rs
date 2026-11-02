@@ -24,6 +24,7 @@ use str0m::media::{MediaData, MediaKind, MediaTime};
 use str0m::net::{Protocol, Receive};
 use str0m::{Candidate, Event, Input, Output, Rtc};
 
+use crate::cand;
 use crate::opencode::OpencodeClient;
 use crate::speech::{resample_to_48k, Pcm, SpeechClient};
 use crate::tokens::{bearer, TokenStore};
@@ -169,13 +170,25 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
     // the address we ADVERTISE (pinned candidate or loopback) — 0.0.0.0 is a
     // bind address, never a candidate, and str0m drops STUN whose Receive
     // destination doesn't match a local candidate
-    let advertise_addr = SocketAddr::new(
-        cfg.candidates
-            .first()
-            .copied()
-            .unwrap_or(IpAddr::from([127, 0, 0, 1])),
-        media_addr.port(),
-    );
+    // the address we ADVERTISE — v2c hygiene: loopback/CGNAT/link-local are
+    // NEVER advertised (the v2b scar: stale 127.0.0.1:8239 in the SDP made
+    // browsers race a dead pair). 0.0.0.0 is a bind address, never a
+    // candidate, and str0m drops STUN whose Receive destination doesn't match
+    // a local candidate. Filtered candidates only; loopback kept solely as
+    // dev/selftest fallback when config pins nothing usable.
+    let (advertise_ips, dropped_ips) = cand::filter_advertised(&cfg.candidates);
+    if !dropped_ips.is_empty() {
+        eprintln!(
+            "bridge: candidate hygiene — refused to advertise {} forbidden ip(s): {}",
+            dropped_ips.len(),
+            dropped_ips
+                .iter()
+                .map(|i| i.to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+    }
+    let advertise_addr = SocketAddr::new(advertise_ips[0], media_addr.port());
 
     // blocking workers: opencode + speaches never run on the RTC loop
     let job_rx = Arc::new(Mutex::new(job_rx));
@@ -218,7 +231,7 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
     // signaling thread: POST /offer + Bearer device token
     {
         let stop = stop.clone();
-        let candidates = cfg.candidates.clone();
+        let candidates = advertise_ips.clone();
         let tokens = tokens.clone();
         std::thread::spawn(move || {
             while !stop.load(Ordering::SeqCst) {
@@ -470,7 +483,18 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
                     );
                 }
 
-                // socket drain once, demux per datagram
+                // socket drain once, demux per datagram.
+                //
+                // v2c LEARN-FROM-SOURCE law: `source` is the address the
+                // packet ACTUALLY arrived from — never a remembered session
+                // address. str0m's ICE agent (is crate) accepts the STUN
+                // binding request against the ufrag/password and creates a
+                // peer-reflexive REMOTE candidate from req.source, so the
+                // media path re-anchors on the real source even when every
+                // remembered address (trickle/SDP) was stale. Forbidden-class
+                // remembered addresses are already purged at ingestion above;
+                // packet sources are never filtered here — a valid STUN from
+                // anywhere the phone actually is IS the peer address.
                 loop {
                     match media_sock.recv_from(&mut buf) {
                         Ok((n, source)) => {

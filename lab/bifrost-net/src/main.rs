@@ -11,6 +11,7 @@
 
 mod bridge;
 mod bridge_main;
+mod cand;
 mod config;
 mod echo;
 mod opencode;

@@ -21,6 +21,8 @@ use str0m::media::{MediaData, MediaKind, Mid, Pt};
 use str0m::net::{Protocol, Receive};
 use str0m::{Candidate, Event, Input, Output, Rtc};
 
+use crate::cand;
+
 pub struct RelayConfig {
     pub signaling: SocketAddr,
     pub media: SocketAddr,
@@ -63,20 +65,29 @@ pub fn start(cfg: RelayConfig) -> Result<RelayHandle, String> {
 
     let (new_rtc_tx, new_rtc_rx): (SyncSender<Rtc>, Receiver<Rtc>) = sync_channel(8);
 
-    // advertised address (pinned candidate or loopback) — 0.0.0.0 is never a
-    // valid ICE candidate and str0m drops STUN with mismatched destinations
-    let advertise_addr = SocketAddr::new(
-        cfg.candidates
-            .first()
-            .copied()
-            .unwrap_or(IpAddr::from([127, 0, 0, 1])),
-        media_addr.port(),
-    );
+    // v2c candidate hygiene: filter the configured list at emission —
+    // loopback/CGNAT/link-local are never advertised when a real IP exists
+    // (loopback stays only as dev/selftest fallback). Same law as bridge.rs;
+    // the livekit.yaml scar made auto-detect lie, v2b made stale state lie:
+    // only filtered config + packet source are trusted.
+    let (advertise_ips, dropped_ips) = cand::filter_advertised(&cfg.candidates);
+    if !dropped_ips.is_empty() {
+        eprintln!(
+            "relay: candidate hygiene — refused to advertise {} forbidden ip(s): {}",
+            dropped_ips.len(),
+            dropped_ips
+                .iter()
+                .map(|i| i.to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+    }
+    let advertise_addr = SocketAddr::new(advertise_ips[0], media_addr.port());
 
     // signaling thread: POST /offer -> build Rtc -> answer -> hand to media loop
     {
         let stop = stop.clone();
-        let candidates = cfg.candidates.clone();
+        let candidates = advertise_ips.clone();
         std::thread::spawn(move || {
             while !stop.load(Ordering::SeqCst) {
                 match server.recv_timeout(Duration::from_millis(100)) {
@@ -100,10 +111,14 @@ pub fn start(cfg: RelayConfig) -> Result<RelayHandle, String> {
                             }
                         };
                         let mut rtc = Rtc::new(Instant::now());
+                        // v2c emission: ONLY filtered candidates (public
+                        // first), never loopback/CGNAT/link-local alongside
+                        let advertise = candidates[0];
                         let host =
-                            Candidate::host(media_addr, "udp").expect("media candidate");
+                            Candidate::host(SocketAddr::new(advertise, media_addr.port()), "udp")
+                                .expect("media candidate");
                         let _ = rtc.add_local_candidate(host);
-                        for ip in &candidates {
+                        for ip in candidates.iter().skip(1) {
                             let ca = SocketAddr::new(*ip, media_addr.port());
                             if let Ok(c) = Candidate::host(ca, "udp") {
                                 let _ = rtc.add_local_candidate(c);

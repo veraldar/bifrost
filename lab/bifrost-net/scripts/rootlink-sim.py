@@ -23,8 +23,20 @@ asserts the whole law:
                after the result, the slot frees and turns flow again
   T8 mint      `rootlink mint` CLI smoke: capsule sig + claims + jti
                verified against the Python HMAC reference
+  T9 dial-exec THE REAL root-dial.py runs the link: its health pongs are
+               EARNED by a trivial exec of the agent (probe-exec), a
+               multi-minute root.job does NOT starve the read loop
+               (probe keeps flowing, exec-leg answer arrives after),
+               and a takeover-displaced conn reconnects with its NEXT
+               file token; an empty token file exits LOUDLY
+  T10 guard    root-dial.py REFUSES plaintext ws to a non-private host
+               unless --allow-public (probe never connects)
+
+LAW: the health probe is AGENT-level — root-dial must EXEC the agent
+to earn each root.pong; a dial script that pongs without exec is a
+LIE the trunk would believe.
 """
-import base64, hashlib, hmac, json, os, queue, socket, struct, subprocess, sys, tempfile, time
+import base64, hashlib, hmac, json, os, queue, shutil, socket, struct, subprocess, sys, tempfile, time
 import http.client, threading
 
 BIN = os.path.join(os.path.dirname(__file__), "..", "target", "release", "bifrost-net")
@@ -176,6 +188,75 @@ class WedgedRoot:
     def close(self):
         self.alive = False
         try: self.ws.s.close()
+        except Exception: pass
+
+REAL_DIAL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "root-dial.py")
+
+def fake_probe(dir_, tag):
+    """Stand-in AGENT for probe-exec: exit 0 ONLY while <dir>/probe-ok
+    exists — the trivial exec each root.pong must EARN."""
+    p = os.path.join(dir_, f"probe-{tag}.sh")
+    with open(p, "w") as f:
+        f.write(f'#!/bin/sh\n[ -f "{dir_}/probe-ok" ] || {{ echo probe-refused >&2; exit 42; }}\necho agent-probe-ok\n')
+    os.chmod(p, 0o755)
+    return p
+
+def fake_agent(dir_, tag, holdfile):
+    """Stand-in AGENT for --exec: logs the turn text, sleeps the CURRENT
+    value of `holdfile` (the sim retunes it mid-run), echoes it back."""
+    p = os.path.join(dir_, f"agent-{tag}.sh")
+    with open(p, "w") as f:
+        f.write(f'#!/bin/sh\necho "$1" >> "{dir_}/agent-{tag}.log"\n'
+                f'sleep "$(cat "{holdfile}" 2>/dev/null || echo 0.2)"\necho "echo:$1"\n')
+    os.chmod(p, 0o755)
+    return p
+
+class RealRootDial:
+    """The REAL scripts/root-dial.py as a subprocess against the live
+    trunk — the exec-leg contract under test. Its pongs are earned by
+    executing the probe binary; its jobs run the agent on the exec leg;
+    its read loop must never stall. The TRUNK is the judge: health
+    probes that stop being earned show up as 'unhealthy'/'not linked'
+    at the turn boundary."""
+    def __init__(self, token_file, dir_, tag, holdfile):
+        self.proc = subprocess.Popen(
+            [sys.executable, REAL_DIAL, "--host", "127.0.0.1",
+             "--port", str(WS_PORT), "--token-file", token_file,
+             "--exec", fake_agent(dir_, tag, holdfile),
+             "--probe-exec", fake_probe(dir_, tag)],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, bufsize=1)
+        self.links = []                      # every "linked:" line, in order
+        threading.Thread(target=self._pump, daemon=True).start()
+
+    def _pump(self):
+        for line in self.proc.stdout:
+            line = line.strip()
+            if line.startswith("linked:"):
+                self.links.append(line)
+
+    def wait_link(self, n, timeout=10):
+        """the n-th (1-based) successful link of this dial process"""
+        end = time.time() + timeout
+        while time.time() < end:
+            if len(self.links) >= n:
+                return self.links[n - 1]
+            if self.proc.poll() is not None:
+                raise RuntimeError(f"dial died before link #{n}: rc={self.proc.returncode}")
+            time.sleep(0.05)
+        raise RuntimeError(f"dial never made link #{n}")
+
+    def wait_death(self, timeout=10):
+        """after an exhaust-exit: the process must be DEAD (loud-exit law)"""
+        end = time.time() + timeout
+        while time.time() < end:
+            if self.proc.poll() is not None:
+                return self.proc.returncode
+            time.sleep(0.05)
+        return None
+
+    def close(self):
+        try: self.proc.kill()
         except Exception: pass
 
 def branch(body, token=None):
@@ -386,8 +467,103 @@ max_inflight = 1
                               "--ttl", "60", "--secret", secret.decode()], capture_output=True, text=True)
         expect(st2.returncode != 0, "'local' is never mintable")
 
-        print("ROOTLINK-SIM: ALL 8 GREEN (routing, single-use, takeover, anonymous-refused, close-reap, "
-              "wedged-unlink, in-flight-cap, mint-cli)")
+        # ---- T9 (sim3 GAP-B fix): THE REAL root-dial.py under the trunk ----
+        raw_d = "bfnd-" + b64url(os.urandom(18))
+        devices.append({"id": "dev_d", "name": "d", "tokenHash": hashlib.sha256(raw_d.encode()).hexdigest(),
+                        "created": "now", "revoked": False, "roots": ["mac-d"]})
+        with open(os.path.join(dir_, "devices.json"), "w") as f:
+            json.dump({"devices": devices}, f)
+        tfile = os.path.join(dir_, "dial-tokens.txt")
+        with open(tfile, "w") as f:
+            f.write(f"{mint_link_token(secret, 'mac-d', 'dev_d')}\n"
+                    f"{mint_link_token(secret, 'mac-d', 'dev_d')}\n")
+        open(os.path.join(dir_, "probe-ok"), "w").close()      # agent healthy
+        hold = os.path.join(dir_, "hold.txt")                  # job sleep, sim-tunable
+        with open(hold, "w") as f:
+            f.write("0.2")
+        d = RealRootDial(tfile, dir_, "d", hold)
+        linked = d.wait_link(1)
+        expect("linked: mac-d" in linked and "gen_no=6" in linked, f"REAL root-dial linked as mac-d: {linked}")
+
+        def dial_turn(text):
+            h = branch_async({"op": "prompt", "id": "s", "text": text, "root": "mac-d"}, raw_d)
+            while "res" not in h:
+                time.sleep(0.05)
+            return wait_res(h)
+
+        # (a) probe-exec: trunk pings every 3s; if pongs were NOT exec-earned
+        # the probe-refused agent would leave probe_fails>0 and this turn
+        # (dispatch probe) would fail 'unhealthy' — it must be 200.
+        st, out = dial_turn("dial-turn-1")
+        expect(st == 200 and out.get("root") == "mac-d" and "echo:dial-turn-1" in json.dumps(out),
+               f"turn over the REAL dial: exec-leg result rode back: {st} {out}")
+
+        # (b) job > 3×ping: read loop must keep earning probes DURING exec.
+        with open(hold, "w") as f:
+            f.write("14")
+        h = branch_async({"op": "prompt", "id": "s", "text": "long-run", "root": "mac-d"}, raw_d)
+        time.sleep(16)                          # ≥3 probes pass DURING the job
+        with open(hold, "w") as f:
+            f.write("0.2")                      # let the job finish now
+        st, out = wait_res(h)
+        elapsed = time.time() - h["start"]
+        expect(st == 200 and "echo:long-run" in json.dumps(out),
+               f"14s job survived: probes answered DURING exec, result rode back: {st} {out}")
+        expect(elapsed < RESULT_WAIT + 5, f"long job stayed under the reap horizon ({elapsed:.1f}s)")
+
+        # (c) takeover-displacement → fresh-token reconnect: the sim opens a
+        # NEW conn with a fresh token for the same root id (the takeover
+        # law) — trunk kills the dial's conn, its read loop dies, and the
+        # dial must re-link on its NEXT file token; then a turn is served
+        # over the re-established link.
+        tok_e = mint_link_token(secret, "mac-d", "dev_d")
+        tkm = Ws(WS_PORT)                     # takeover displacer conn
+        tkm.send_text(json.dumps({"op": "root-link", "token": tok_e}))
+        tack = json.loads(tkm.recv_msg())
+        expect(tack.get("op") == "root-link.ok", f"takeover displacer linked: {tack.get('op')}")
+        time.sleep(0.5)
+        linked2 = d.wait_link(2)
+        expect("gen_no=8" in linked2, f"dial re-linked after takeover displacement: {linked2}")
+        st, out = dial_turn("dial-turn-2")
+        expect(st == 200 and "echo:dial-turn-2" in json.dumps(out),
+               "post-reconnect turn served over the re-linked dial")
+
+        # (e) loud-exhaust: with the file spent, the next displacement leaves
+        # the dial hunting for a token — it must EXIT loudly, never spin.
+        tok_f = mint_link_token(secret, "mac-d", "dev_d")
+        tkm2 = Ws(WS_PORT)
+        tkm2.send_text(json.dumps({"op": "root-link", "token": tok_f}))
+        tack2 = json.loads(tkm2.recv_msg())
+        expect(tack2.get("op") == "root-link.ok", "second displacer linked")
+        rc = d.wait_death(timeout=10)
+        err = d.proc.stderr.read() if d.proc.stderr else ""
+        expect(rc is not None and "token file exhausted" in err,
+               f"dial exits LOUD on exhausted tokens (rc={rc}): {err.strip()[-90:]}")
+
+        # ---- T10 (sim3 GAP-B 4): plaintext-ws public-range guard ----
+        # host 1.2.3.4 is public (ipaddress: is_private False, no DNS
+        # dependency); the guard must exit BEFORE any connection. The
+        # --allow-public leg gets a FRESH token so its failure is
+        # downstream (the connect), never the guard.
+        guard_tf = os.path.join(dir_, "guard-tokens.txt")
+        with open(guard_tf, "w") as f:
+            f.write(mint_link_token(secret, "mac-d", "dev_d") + "\n")
+        guard = subprocess.run([sys.executable, REAL_DIAL, "--host", "1.2.3.4",
+                                "--port", "9999", "--token-file", guard_tf],
+                               capture_output=True, text=True, timeout=20)
+        expect(guard.returncode != 0 and "refusing plaintext ws" in guard.stderr,
+               f"public host refused BEFORE connecting: rc={guard.returncode} {guard.stderr.strip()[:80]}")
+        guard_ok = subprocess.run([sys.executable, REAL_DIAL, "--host", "1.2.3.4",
+                                   "--port", "9999", "--token-file", guard_tf,
+                                   "--allow-public"],
+                                  capture_output=True, text=True, timeout=20)
+        expect(guard_ok.returncode != 0 and "refusing" not in guard_ok.stderr
+               and "refusing" not in guard_ok.stdout
+               and "connect failed" in guard_ok.stderr,
+               f"--allow-public passes the guard, fails at the connect: rc={guard_ok.returncode} {guard_ok.stderr.strip()[-60:]}")
+
+        print("ROOTLINK-SIM: ALL 10 GREEN (routing, single-use, takeover, anonymous-refused, close-reap, "
+              "wedged-unlink, in-flight-cap, mint-cli, dial-exec, public-guard)")
         return 0
     finally:
         proc.terminate()

@@ -36,7 +36,11 @@ theme-dialects|pwa/styles/tokens.css|oz-bg: #07080e|-
 # DRAINED 10-27 (DRAIN-DRIFT): lab/sandbox now carries all four (139109f, verbatim from release/v0.7 ca990ca).
 # KNOWN-GAP lane2-merge only: its agent/ tree is not what ships (rc1 = release/v0.7);
 # lane2-merge/agent still SERVES the next slot (lk-agent-ygg) until the next slot runs a release.
-agent-load-inf|agent/agent.py|load_threshold=float\("inf"\)|lane2-merge
+# NAMED 10-30 (MIC-TEST): release-v07 = frozen line (user decides its fate, policy above);
+# lab/sandbox regressed after the 10-27 drain (predates this session) — port pending.
+# Found 10-30 alongside a gate-blinding drop-in lk-agent.service.d/idle.conf (disguised argv,
+# _load_threshold=2.0) — drop-in disabled 10-30; that hack existed to fake this fix on live.
+agent-load-inf|agent/agent.py|load_threshold=float\("inf"\)|lane2-merge,bifrost-sandbox,release-v07
 agent-ordered-yield|agent/agent.py|yielding \(ordered|lane2-merge
 agent-split-brain|agent/agent.py|BRAIN MISMATCH|lane2-merge
 agent-loopback-http|agent/agent.py|AGENT_HTTP_HOST|lane2-merge

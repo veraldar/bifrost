@@ -6,6 +6,9 @@ Target: `/lore`, linked from the landing footer as "lore". Style rules:
 `brand.md` (prose capitals; Midgard/Asgard allowed on this page only; terse,
 honest, terminal-native). Backdrop note for the builder: per `visual.md` —
 dim it or drop it on prose sections.*
+*10-30: rewritten to `docs/CONSTRUCT.md` (binding) — root = the brain, trunk
+= the private line, branch = the app. The 09-30 map (roots = the private
+network) is dead; Midgard/Asgard remain lore-only garnish.*
 
 ---
 
@@ -15,37 +18,35 @@ dim it or drop it on prose sections.*
 
 the names are old. the code is new.
 
-**Veraldar** — old norse, "the world". the brand, and the org behind it. we
-build self-hosted tools you own outright, name them from the old myths, and
-release everything AGPL-3.0, free for everyone. the world holds everything
-else on this page.
+**Veraldar** — old norse, "the world". the organization. it holds the
+products, and products can be anything — hardware or software. we build
+self-hosted tools you own outright, name them from the old myths, and
+release everything AGPL-3.0, free for everyone.
 
-**Yggdrasil** — the world trees. one per machine: an agent core each. today
-the core is opencode; a lighter one-click core is growing. the mark draws
-the tree as circuit traces, because that's what it is.
+**Yggdrasil** — a veraldar product: the tree. one per machine. it contains
+three parts. **root** — the brain: thinks, remembers; installable on any
+computer. **trunk** — the private line between the roots and you; tailscale
+today, webrtc next, wireguard after. **branch** — the app in your hand.
 
-**Bifrost** — our first product. the bridges. in the myths the bridge
-connects midgard, where humans live, to asgard, where the gods work. here:
-midgard is your phone in your pocket; each bridge reaches a tree — your
-machines, your keys, agents working on them. as many bridges as you want,
-one swipe apart. you talk across a bridge; the work stays on its tree.
+**Bifrost** — the branch of the tree; a veraldar product. in the myths the
+bridge connects midgard, where humans live, to asgard, where the gods work.
+here: the bridge is the app that reaches your tree — your machine, your
+keys, the agent working on it. you talk across the branch; the work stays
+on the tree.
 
-**the roots** — one private network (tailscale or its open twin) under all
-of it. everything travels the roots. nothing goes public.
-
-one phone. one network. many trees. the machine by the tv turns on movies.
-the machine at the desk creates games. the machine in the rack builds a
-company. one phone drives them all.
+one phone. one tree. one private line. the machine by the tv turns on
+movies. the machine at the desk creates games. the machine in the rack
+builds a company. one phone drives them all.
 
 in the myths, bifrost shatters at ragnarök. ours won't — but we'll still tell
 you every limit up front. a bridge you can't trust isn't a bridge.
 
 ```
-veraldar — the world
-  the roots — one private network: carries
-  yggdrasil — the trees: host
-  bifrost   — the bridges: a veraldar product
-  midgard   — one phone: swipe between worlds
+veraldar              the world: the org — holds the products
+└── yggdrasil         one product: the tree
+    ├── root          the brain: thinks, remembers
+    ├── trunk         the private line: carries — tailscale → webrtc → wireguard
+    └── branch        the app in your hand: bifrost
 ```
 
 that's the whole map. no mythology in the code — just names that say what a

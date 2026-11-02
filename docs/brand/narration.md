@@ -2,7 +2,11 @@
 
 *BRAND session, 2026-10-02. Words and structure now; visuals come later,
 after the Opus design pass. Voice: terse, honest, terminal-native. Loyalty
-clause binds: the machines serve, they never feel. Read time ~75–90s.*
+clause binds: the machines serve, they never feel. Read time ~75–90s.
+10-30: scenes 1–2, 4–5 and the interlude rewritten to the canon
+(`docs/CONSTRUCT.md`): root = the brain, trunk = the private line, branch =
+the app. The 09-30 map (roots = the network) is dead; "one phone. one
+network. many trees." becomes "one phone. one tree. one private line."*
 
 ## Manifesto (canonical)
 
@@ -13,7 +17,7 @@ candidate tagline for the brand and the opening line of the lore page.
 
 ## The story in one breath
 
-One phone. One network. Many trees. As many bridges as you want.
+One phone. One tree. One private line. The branch in your hand is bifrost.
 
 ## Scene structure
 
@@ -23,29 +27,30 @@ One phone. One network. Many trees. As many bridges as you want.
 - narration:
 
 ```
-one phone. one network. many trees.
+one phone. one tree. one private line.
 ```
 
-### SCENE 1 — midgard (the phone)
+### SCENE 1 — the branch (the phone)
 
-- visual (later): the bifrost PWA; a swipe between bridges.
+- visual (later): the bifrost PWA; the app in your hand.
 - narration:
 
 ```
-this is midgard. where you stand.
-one app. every bridge you own, side by side.
-swipe — and you are on another world.
+this is the branch. where you stand.
+the tree's app, in your hand — bifrost, first of its name.
+you talk. the tree works.
 ```
 
-### SCENE 2 — the roots
+### SCENE 2 — the trunk
 
-- visual (later): the network as roots under everything, unseen until now.
+- visual (later): the private line from the phone into the tree — the only
+  road anything travels.
 - narration:
 
 ```
-underneath it all, one private network. the roots.
-tailscale — or its open twin.
-everything travels the roots.
+between you and the tree: the trunk. one private line.
+tailscale today. webrtc next. wireguard after.
+everything travels the trunk.
 nothing goes public. ever.
 ```
 
@@ -56,35 +61,36 @@ nothing goes public. ever.
 - narration:
 
 ```
-every machine grows a yggdrasil. an agent core.
-today the core is opencode. a lighter one-click core is growing.
+every machine grows a yggdrasil — the tree.
+its root is the brain: thinks, remembers, installable on any computer.
+today the root is opencode. a lighter root is growing.
 the machine by the tv turns on movies.
 the machine at the desk creates games.
 the machine in the rack builds a company.
 one phone drives them all.
 ```
 
-### SCENE 4 — the bridges
+### SCENE 4 — the branch, many trees
 
-- visual (later): arcs of light from the phone to each tree — bifrost.
+- visual (later): arcs of light from the phone to each tree — one branch,
+  many trees.
 - narration:
 
 ```
-bifrost is every arc from your hand to a tree.
-as many as you want. one swipe apart.
+the branch is every arc from your hand to a tree.
+as many trees as you want. one swipe apart.
 you talk. it works. the work stays on your hardware.
 ```
 
 ### SCENE 5 — the world
 
-- visual (later): pull back. the whole grove, the roots, the phone — one
-  world. the circuit-trace tree resolves into the brand mark.
+- visual (later): pull back. the trees, the trunk, the branch, the phone —
+  one world. the circuit-trace tree resolves into the brand mark.
 - narration:
 
 ```
-the trees host. the bridges connect. the roots carry.
-the world holds them all.
-that world is veraldar.
+the trees host. the trunk carries. the branch is where you are.
+the world that holds them all is veraldar — the org behind it.
 agpl-3.0. free for everyone. your hardware, your words.
 ```
 
@@ -106,15 +112,13 @@ The terminal map, typed live — the same diagram the site and README carry:
 
 ```
 $ tree veraldar
-veraldar/                # the world
-└── yggdrasil/           # your boxes — each grows a tree
-    ├── llm key          # yours, bring it
-    ├── speech models    # local, on your LAN
-    └── bifrost ─────┐   # connects
+veraldar/                # the org — it holds the products
+└── yggdrasil/           # the tree — one per box
+    ├── root             # the brain — yours, bring it
+    ├── trunk            # the private line — never public
+    └── branch           # bifrost — the app in your hand
                      │
-       the roots     │   # one private network, never public
-                     │
-                  phone  # you talk; they work
+                  phone   # you talk; the tree works
 ```
 
 ## Production rules

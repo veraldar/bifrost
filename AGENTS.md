@@ -93,3 +93,6 @@ a privilege-escalation payload. RULES:
 "box" is NOT a glossary word. Say "this tree", "omarchy", or name the
 machine/root. The glossary is binding: veraldar, yggdrasil (the ALL),
 roots, trunk (bifrost), branches, wells (mimir/urd/hvergelmir).
+Structure canon (10-30): `docs/CONSTRUCT.md` — veraldar = the org;
+yggdrasil = the tree; root = the brain; trunk = the private line
+(tailscale → webrtc → wireguard); branch = the end-user app (bifrost).

@@ -368,3 +368,11 @@ An invitation to the user is written only when nothing remains open.
 - *Counterfactual:* a REST turn is right for the user's own conversation and for product tests of
   the dispatcher itself (they go through the proxy like the phone, as the PWA specs do).
 - *Done-check:* a week of coordinator logs with zero REST turns into machine sessions.
+
+## Rule 10-11 — AGI RULES, THE USER ANSWERS CONTEXT (user, 10-27)
+The user does not make tool-level rulings. AGI (opus) rules; if it cannot,
+it is missing CONTEXT — it asks the user for context, never for the ruling.
+The user's remaining gates: the consent check on finished product (Rule
+10-10) and direction. Speed law: the user moves fast; days-long soaks need
+evidence-based waiver (the sandbox serving-time counts as stability
+evidence; the one-restart rollback is the safety net).

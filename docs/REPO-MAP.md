@@ -1,6 +1,8 @@
-# REPO-MAP (10-29, repo-reshape) — where the construct lives in git
+# REPO-MAP (10-29, repo-reshape; 10-30 canon note) — where the construct lives in git
 
-Owner's construct, now enforced by repo layout:
+Owner's construct, now enforced by repo layout. Canon: `docs/CONSTRUCT.md`
+(10-30) — veraldar = the org, yggdrasil = the tree (root/trunk/branch),
+bifrost = the branch app.
 
 ```
 veraldar                      (GitHub org — the world)

@@ -1,9 +1,12 @@
 # The naming ladder: one meaning per name, earned in order
 
 *FILM-NAMING session, 2026-10-22. Proposed; the user may veto. Public copy on
-veraldar.org, both doors and both films follows this file. The lore table in
-`brand.md` §1 is the original 09-30 map (there, roots = the network). This
-file supersedes it for public copy until the user decides.*
+veraldar.org, both doors and both films follows this file. 10-30: the owner
+made the structure binding — `docs/CONSTRUCT.md`. This file now carries
+canon, not a proposal: the construct is org (veraldar) → tree (yggdrasil) →
+root (the brain) / trunk (the private line) / branch (the app). The old
+09-30 map in `brand.md` §1 (roots = the network) is dead; the teaching order
+below stands unchanged.*
 
 ## The rule
 

@@ -309,3 +309,9 @@ Context read: `AGENTS.md`, `docs/STABLE.md`, `bifrost-sandbox/AGENTS.md` (Sandbo
 `scripts/where.sh`, `docs/claims.md`, `live/pwa/app/api/onboard/route.ts`, `lab/yggdrasil/src/provider.rs`, `lab/worldtree-data/wt/gitops.py`.
 Drift during the audit: trunk moved 8bfd54f → 42d1263, wave/provider-banner 6e4ee9c → 5e6b1e7, `/tmp/pw-merge` was removed by its owner lane, two
 staged brain binaries appeared at 21:19. No injected instructions were found in the files read.
+
+## Route: Mac Studio trunk (registered 10-30)
+- URL https://dweeb-xzys-mac-studio.tail5435b1.ts.net (tailnet-only, no SSH needed)
+- Kind: bifrost Next PWA + opencode-shaped backend (owner: "current trunk under v0.6/v0.7")
+- Verified 10-30: `/api/session` 200 (opencode list shape), `/api/artifact` 200
+- Role: parallel route #1 — proxy-sessions target + potential fallback route. READ-ONLY until owner says otherwise.

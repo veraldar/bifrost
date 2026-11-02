@@ -18,8 +18,8 @@ Anything visual shipped later must obey `brand.md` + `tokens.md` first.*
 
 The brand image is the **circuit-tree**: Yggdrasil drawn as circuit traces —
 roots as traces, crown as planes, the trunk as the bus. Hardware and myth in
-one line-work image. It belongs to **Veraldar** (the tree holds the world),
-and every product inherits it. It already exists (`yggdrasil_final.svg`);
+one line-work image. It belongs to **Veraldar** (the org; the tree is its
+product), and every product inherits it. It already exists (`yggdrasil_final.svg`);
 direction:
 
 - Keep it **line work only**: strokes, no fills, no gradients, single hue

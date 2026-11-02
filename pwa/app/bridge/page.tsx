@@ -90,7 +90,35 @@ export default function BridgePage() {
       const url = bridgeUrl.trim() || `http://${location.hostname}:18080`;
       localStorage.setItem('bifrost_bridge', url);
 
-      const pc = new RTCPeerConnection({ iceServers: [] });
+      // vps-turn-tcp: TURN creds come with the /api/ice fetch (device token),
+      // or were minted inline by /api/pair — both cached in localStorage by
+      // the param-pickup effect below. Empty/absent = direct-only (old flow).
+      let iceServers: RTCIceServer[] = [];
+      try {
+        type Ice = { iceServers?: (RTCIceServer & { username?: string })[] };
+        const cached = JSON.parse(localStorage.getItem('bifrost_ice') || 'null') as Ice | null;
+        const first = cached?.iceServers?.[0];
+        const expiry = Number(first?.username || 0);
+        const fresh = expiry > Date.now() / 1000 + 30; // username IS the unix expiry
+        if (cached?.iceServers?.length && fresh) iceServers = cached.iceServers;
+        else if (cached?.iceServers?.length && !fresh) localStorage.removeItem('bifrost_ice');
+        else {
+          // /api/ice lives on the PWA origin (this page), not the bridge host
+          const r = await fetch(`${location.origin}/api/ice`, {
+            headers: { Authorization: `Bearer ${t}` },
+          });
+          if (r.ok) {
+            const v = (await r.json()) as { iceServers?: RTCIceServer[] };
+            if (v.iceServers?.length) {
+              iceServers = v.iceServers;
+              localStorage.setItem('bifrost_ice', JSON.stringify(v));
+            }
+          }
+        }
+      } catch {
+        /* TURN is optional: fall back to direct candidates */
+      }
+      const pc = new RTCPeerConnection({ iceServers });
       pcRef.current = pc;
 
       // audio up: mic (Playwright drives it with a real-speech WAV fixture)

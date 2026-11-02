@@ -43,6 +43,9 @@ export default function PairPage() {
       }
       const j = await r.json();
       setToken(j.token);
+      // vps-turn-tcp: pair response may carry time-limited TURN creds — cache
+      // them for the bridge page (empty urls[] = seam inert, no TURN yet).
+      if (j.iceServers?.length) localStorage.setItem('bifrost_ice', JSON.stringify({ iceServers: j.iceServers }));
     } catch (e) {
       setError(String(e));
     } finally {

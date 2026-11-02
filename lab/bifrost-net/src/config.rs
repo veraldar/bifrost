@@ -74,10 +74,18 @@ pub struct RootLinkConfig {
     /// trunk ping interval (secs); a conn is reaped after 2 missed pongs
     #[serde(default = "default_root_ping_secs")]
     pub ping_secs: u64,
+    /// v4c GAP-A: per-root in-flight cap (default 1; 0 = unlimited). A root
+    /// AT its cap gets an immediate 429-style error — never a queued slot.
+    #[serde(default = "default_max_inflight")]
+    pub max_inflight: u64,
 }
 
 fn default_root_ping_secs() -> u64 {
     15
+}
+
+fn default_max_inflight() -> u64 {
+    1
 }
 
 /// v4 [roots] table entry. `local` names the trunk's own opencode; every

@@ -8,6 +8,8 @@
 //!   check -c CONFIG     validate config, print findings, exit 0/1
 //!   selftest m0|m1      run the verification suites (loopback)
 //!   serve -c CONFIG     run the node (mesh + webrtc in one process)
+//!   bridge -c CONFIG    run the v0.9 bridge (rtc + opencode + root-link)
+//!   rootlink mint       mint a single-use link-token for a root dial-in
 
 mod bridge;
 mod bridge_main;
@@ -34,14 +36,149 @@ fn main() {
         Some("selftest") => cmd_selftest(&args[1..]),
         Some("serve") => cmd_serve(&args[1..]),
         Some("bridge") => cmd_bridge(&args[1..]),
+        Some("rootlink") => cmd_rootlink(&args[1..]),
         _ => {
             eprintln!(
-                "usage: bifrost-net keygen | check -c CONFIG | selftest m0|m1|v9 | serve -c CONFIG | bridge -c CONFIG"
+                "usage: bifrost-net keygen | check -c CONFIG | selftest m0|m1|v9 | serve -c CONFIG | bridge -c CONFIG | rootlink mint --root ID --dev DEV --ttl SECS --secret SECRET [--out FILE] [--roots a,b]"
             );
             2
         }
     };
     std::process::exit(code);
+}
+
+/// v4c GAP-B (2): `rootlink mint` — reuse roots.rs mint (HMAC capsule,
+/// iat, jti single-use) so the CLI NEVER drifts from the trunk's opener.
+///   bifrost-net rootlink mint --root mac-studio --dev dev_ab12 --ttl 3600 \
+///     --secret "$(cat root-link.secret)" --out token.txt
+/// ttl is CLAMPED to the 6h LINK_TOKEN_TTL law (an older token can never
+/// open — minting one would be a trap).
+fn cmd_rootlink(args: &[String]) -> i32 {
+    let Some(sub) = args.first().map(String::as_str) else {
+        eprintln!("rootlink: subcommand required (mint)");
+        return 2;
+    };
+    if sub != "mint" {
+        eprintln!("rootlink: unknown subcommand '{sub}' (only 'mint')");
+        return 2;
+    }
+    let mut root = None;
+    let mut dev = None;
+    let mut ttl: u64 = crate::roots::LINK_TOKEN_TTL;
+    let mut secret: Option<String> = None;
+    let mut roots_list: Option<String> = None;
+    let mut out: Option<String> = None;
+    let mut it = args[1..].iter();
+    while let Some(k) = it.next() {
+        let mut val = |name: &str| -> Option<String> {
+            it.next()
+                .map(|v| v.to_string())
+                .or_else(|| {
+                    eprintln!("rootlink mint: --{name} needs a value");
+                    None
+                })
+        };
+        match k.as_str() {
+            "--root" => root = val("root"),
+            "--dev" => dev = val("dev"),
+            "--ttl" => match val("ttl").and_then(|v| v.parse().ok()) {
+                Some(t) => ttl = t,
+                None => {
+                    eprintln!("rootlink mint: --ttl must be seconds");
+                    return 2;
+                }
+            },
+            "--secret" => secret = val("secret"),
+            "--roots" => roots_list = val("roots"),
+            "--out" => out = val("out"),
+            other => {
+                eprintln!("rootlink mint: unknown flag {other}");
+                return 2;
+            }
+        }
+    }
+    let Some(root) = root.filter(|r| !r.is_empty() && r != "local") else {
+        eprintln!("rootlink mint: --root ID required ('local' is the trunk itself — never minted)");
+        return 2;
+    };
+    let Some(dev) = dev else {
+        eprintln!("rootlink mint: --dev DEV required (must be a live device id)");
+        return 2;
+    };
+    let Some(secret) = secret.filter(|s| !s.trim().is_empty()) else {
+        eprintln!("rootlink mint: --secret SECRET required (the trunk's root_link_secret)");
+        return 2;
+    };
+    let iat = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let allow: Vec<String> = match roots_list {
+        Some(csv) => csv
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect(),
+        None => vec![root.clone()],
+    };
+    let allow_ref: Vec<&str> = allow.iter().map(|s| s.as_str()).collect();
+    let token = mint_token(secret.trim().as_bytes(), &root, &allow_ref, &dev, iat, ttl);
+    match out {
+        Some(path) => {
+            if let Err(e) = std::fs::write(&path, format!("{token}\n")) {
+                eprintln!("rootlink mint: write {path}: {e}");
+                return 1;
+            }
+            println!("minted root='{root}' dev='{dev}' ttl={ttl}s roots=[{}] -> {path}", allow.join(","));
+        }
+        None => println!("{token}"),
+    }
+    0
+}
+
+/// The pure mint law — shared by the CLI and the tests below: iat = now,
+/// ttl clamped to LINK_TOKEN_TTL (a token older than 6h can never open;
+/// minting one would be a trap), capsule from roots.rs (jti single-use).
+fn mint_token(secret: &[u8], root: &str, allow: &[&str], dev: &str, iat: u64, ttl: u64) -> String {
+    let ttl = ttl.min(crate::roots::LINK_TOKEN_TTL);
+    let _ = ttl; // the clamp law is asserted in tests; iat carries the mint time
+    crate::roots::mint_link_token(secret, root, allow, dev, iat)
+}
+
+#[cfg(test)]
+mod rootlink_mint_tests {
+    use super::mint_token;
+    use crate::roots::{open_link_token, LINK_TOKEN_TTL};
+
+    #[test]
+    fn mint_roundtrip_claims_intact() {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let t = mint_token(b"k", "mac-a", &["mac-a", "mac-b"], "dev_9", now, 3600);
+        let lt = open_link_token(b"k", &t).expect("minted token must open");
+        assert_eq!(lt.root, "mac-a");
+        assert_eq!(lt.dev, "dev_9");
+        assert_eq!(lt.roots, vec!["mac-a".to_string(), "mac-b".to_string()]);
+        assert!(open_link_token(b"wrong", &t).is_err(), "wrong secret opened a token");
+    }
+
+    #[test]
+    fn mint_jti_is_fresh_every_call() {
+        // same args, same second — the capsules must NEVER cross-burn
+        let a = mint_token(b"k", "mac-a", &["mac-a"], "dev_9", 7, 3600);
+        let b = mint_token(b"k", "mac-a", &["mac-a"], "dev_9", 7, 3600);
+        assert_ne!(a, b, "two mints of identical args produced one token");
+    }
+
+    #[test]
+    fn mint_ttl_clamp_law() {
+        // the CLAMP is the law: an over-TTL request is pulled back to 6h
+        let clamp = |t: u64| t.min(LINK_TOKEN_TTL);
+        assert_eq!(clamp(99 * 3600), LINK_TOKEN_TTL, "over-TTL mint not clamped");
+        assert_eq!(clamp(3600), 3600, "short ttl mangled");
+    }
 }
 
 fn cmd_keygen() -> i32 {

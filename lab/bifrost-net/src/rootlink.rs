@@ -175,9 +175,17 @@ impl RootLinkPlane {
 
         // ---- 7. heartbeat thread: PING every ping_secs; 2 missed pongs = reap ----
         let last_pong = Arc::new(Mutex::new(Instant::now()));
+        // v4c HEALTH LAW: agent-level probe failures — a `root.ping` op the
+        // root's PROCESS must answer with `root.pong` (proves the agent loop,
+        // not the socket). 3 consecutive misses → auto-unlink.
+        let probe_fails = Arc::new(Mutex::new(0u32));
         {
             let kill = kill.clone();
             let last = last_pong.clone();
+            let fails = probe_fails.clone();
+            let reg = self.registry.clone();
+            let root_id = lt.root.clone();
+            let gen_no_c = gen_no;
             let hb_writer = writer.clone();
             let Ok(hb_kick) = sock.try_clone() else {
                 return;
@@ -197,12 +205,40 @@ impl RootLinkPlane {
                     let _ = hb_kick.shutdown(Shutdown::Both);
                     return;
                 }
+                // ---- v4c agent-level health probe: root.ping → root.pong ----
+                // The root's PROCESS must answer (op-level, not a ws pong):
+                // a wedged agent that answers ws pings still fails this.
+                {
+                    let mut f = fails.lock().unwrap();
+                    *f += 1;
+                }
+                let probe = serde_json::json!({ "op": "root.ping", "tid": "health" }).to_string();
+                if ws::write_frame(&mut *hb_writer.lock().unwrap(), OP_TEXT, probe.as_bytes()).is_err() {
+                    let _ = hb_kick.shutdown(Shutdown::Both);
+                    return;
+                }
+                let dl = Instant::now() + crate::registry::HEALTH_PROBE_WAIT;
+                while Instant::now() < dl && *fails.lock().unwrap() > 0 {
+                    std::thread::sleep(Duration::from_millis(25));
+                }
+                let f = *fails.lock().unwrap();
+                if f >= crate::registry::HEALTH_FAIL_LIMIT {
+                    eprintln!(
+                        "root-link: root '{root_id}' failed {f} consecutive health probes — UNLINKING"
+                    );
+                    if reg.unlink_unhealthy(&root_id, gen_no_c) {
+                        let _ = hb_kick.shutdown(Shutdown::Both);
+                        return;
+                    }
+                }
                 let _ = ws::write_frame(&mut *hb_writer.lock().unwrap(), OP_PING, b"root-link-hb");
             });
         }
 
         // ---- 8. reader/worker loop: jobs out, results/pongs in ----
         let mut pending: HashMap<String, SyncSender<serde_json::Value>> = HashMap::new();
+        // v4c: outbound probe tid → failure count so answers pair correctly
+        
         loop {
             if kill.load(Ordering::SeqCst) {
                 break;
@@ -218,6 +254,14 @@ impl RootLinkPlane {
                         pending.insert(tid, reply);
                     }
                     ConnMsg::Probe => continue,
+                    ConnMsg::Health { reply } => {
+                        // v4c pre-dispatch probe: answer TRUE immediately iff
+                        // the LAST agent-level probe was answered — a wedged
+                        // root (conn alive, agent silent) fails FAST here, no
+                        // worker ever parks in RESULT_WAIT behind it.
+                        let healthy = *probe_fails.lock().unwrap() == 0;
+                        let _ = reply.send(healthy);
+                    }
                 }
             }
             match ws::read_frame(&mut reader) {
@@ -236,6 +280,7 @@ impl RootLinkPlane {
                         match v.get("op").and_then(|o| o.as_str()) {
                             Some("root.pong") => {
                                 *last_pong.lock().unwrap() = Instant::now();
+                                *probe_fails.lock().unwrap() = 0;
                             }
                             Some("root.ping") => {
                                 *last_pong.lock().unwrap() = Instant::now();
@@ -261,6 +306,13 @@ impl RootLinkPlane {
         // ---- 9. teardown: gen_no-checked reap (never ejects a takeover conn) ----
         kill.store(true, Ordering::SeqCst);
         let _ = writer.lock().unwrap().shutdown(Shutdown::Both);
+        // v4c: a dead conn must FREE its in-flight branch workers — every
+        // pending reply gets an immediate error, nobody eats the 20s wait.
+        for (tid, reply) in pending.drain() {
+            let _ = reply.send(serde_json::json!({
+                "ok": false, "err": "root unhealthy", "tid": tid
+            }));
+        }
         self.registry.drop_if_current(&lt.root, gen_no);
         eprintln!("root-link: root '{}' unlinked (gen_no {gen_no})", lt.root);
     }

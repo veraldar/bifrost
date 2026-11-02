@@ -53,6 +53,8 @@ pub struct BridgeConfig {
     pub root_link_listen: Option<String>,
     /// v4 trunk ping interval (secs); 2 missed pongs = reap
     pub root_link_ping_secs: u64,
+    /// v4c GAP-A: per-root in-flight cap (default 1; 0 = unlimited)
+    pub root_link_max_inflight: u64,
 }
 
 pub struct BridgeHandle {
@@ -194,6 +196,11 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
     let tokens = Arc::new(TokenStore::open(cfg.tokens_file.clone()));
     let oc = Arc::new(OpencodeClient::new(cfg.opencode_url.clone()));
     let roots_reg = Arc::new(Registry::new());
+    // v4c GAP-A: per-root in-flight cap (config [root-link].max_inflight)
+    roots_reg.max_inflight.store(
+        if cfg.root_link_max_inflight == 0 { 0 } else { cfg.root_link_max_inflight },
+        Ordering::SeqCst,
+    );
 
     let (job_tx, job_rx): (SyncSender<Job>, Receiver<Job>) = sync_channel(64);
     let speech = Arc::new(SpeechClient::new(
@@ -319,6 +326,26 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
         });
     }
 
+    // ---- v4c: /branch worker pool ----
+    // /branch turns BLOCK on a root (RESULT_WAIT, health probes). Handling
+    // them on the signaling accept thread let ONE wedged root freeze every
+    // /offer and /branch accept. Pool of 4: the signaling thread only
+    // splices; turns block here, off the accept path.
+    let (branch_tx, branch_rx): (SyncSender<tiny_http::Request>, Receiver<tiny_http::Request>) =
+        sync_channel(64);
+    let branch_rx = Arc::new(Mutex::new(branch_rx));
+    for _ in 0..4 {
+        let branch_rx = branch_rx.clone();
+        let tokens_b = tokens.clone();
+        let roots_reg_b = roots_reg.clone();
+        let oc_b = oc.clone();
+        std::thread::spawn(move || loop {
+            let request = branch_rx.lock().unwrap().recv();
+            let Ok(request) = request else { return };
+            handle_branch(request, &tokens_b, &roots_reg_b, &oc_b);
+        });
+    }
+
     // signaling thread: POST /offer + Bearer device token
     {
         let stop = stop.clone();
@@ -329,6 +356,7 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
         // refusal here makes the architecture explicit instead of silent.
         let roots_reg = roots_reg.clone();
         let oc = oc.clone();
+        let branch_tx = branch_tx.clone();
         std::thread::spawn(move || loop {
             let Ok(Some(request)) = server.recv_timeout(Duration::from_millis(100)) else {
                 continue;
@@ -341,6 +369,14 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
                     )
                     .with_status_code(426),
                 );
+                continue;
+            }
+            // v4c: /branch turns BLOCK on a root — splice to the branch
+            // pool so /offer + health checks stay live during a root wait.
+            let is_branch = request.url().trim_end_matches('/') == "/branch"
+                && request.method() != &tiny_http::Method::Options;
+            if is_branch {
+                let _ = branch_tx.send(request);
                 continue;
             }
             // ---- existing branch signaling (unchanged law) ----
@@ -851,7 +887,14 @@ fn handle_branch(
             ).with_status_code(500)));
         }
         Err(e) => {
-            let code = if e == "root not linked" { 404 } else { 502 };
+            let code = if e == "root not linked" {
+                404
+            } else if e.contains("unhealthy") || e.contains("busy") {
+                // v4c: cap = 429-style, unhealthy = 503-style — both FAST
+                429
+            } else {
+                502
+            };
             let _ = request.respond(cors(tiny_http::Response::from_string(
                 serde_json::json!({"ok": false, "err": e}).to_string(),
             ).with_status_code(code)));
@@ -1103,23 +1146,41 @@ fn root_turn(
     if !roots.is_linked(root) {
         return Err("root not linked".to_string());
     }
+    // v4c HEALTH LAW — BEFORE RESULT_WAIT: the trunk probes the root's
+    // AGENT loop (root.ping op → root.pong). Wedged agent = fast
+    // 'root unhealthy', never a 20s worker eat.
+    if let Err(e) = roots.probe_health(root) {
+        return Err(e);
+    }
     let tid_owned = crate::bridge::dispatch_tid();
     let (reply_tx, pending) = crate::registry::new_pending();
-    if !roots.send_job(root, &tid_owned, kind, body, reply_tx) {
-        return Err("root not linked".to_string());
+    // v4c CAP LAW — per-root in-flight cap: a root AT its cap gets an
+    // immediate 429-style refusal, never a queued worker slot.
+    let cap_err = roots.send_job_capped(root, &tid_owned, kind, body, reply_tx);
+    if let Err(e) = cap_err {
+        return Err(e);
     }
     let result = pending
         .rx
-        .recv_timeout(RESULT_WAIT)
-        .map_err(|_| format!("root '{root}' did not answer in time"))?;
+        .recv_timeout(RESULT_WAIT);
+    // the slot is freed on result OR timeout — the cap never sticks
+    roots.release_inflight(&tid_owned);
+    let result = result.map_err(|_| format!("root '{root}' did not answer in time"))?;
     let ok = result.get("ok").and_then(|o| o.as_bool()).unwrap_or(false);
+    // v4c: a conn-death drain reply carries err="root unhealthy" (no text) —
+    // surface THAT to the branch, never an empty "refused the turn".
     let text = result
         .get("text")
         .and_then(|t| t.as_str())
+        .or_else(|| result.get("err").and_then(|e| e.as_str()))
         .unwrap_or_default()
         .to_string();
     if !ok {
-        return Err(format!("root '{root}' refused the turn: {text}"));
+        return Err(if text == "root unhealthy" {
+            "root unhealthy".to_string()
+        } else {
+            format!("root '{root}' refused the turn: {text}")
+        });
     }
     let value: serde_json::Value = serde_json::from_str(&text)
         .unwrap_or_else(|_| serde_json::json!({ "text": text }));
@@ -1355,6 +1416,7 @@ pub fn bridge_test() -> Result<(), String> {
         root_link_enabled: false,
         root_link_listen: None,
         root_link_ping_secs: 15,
+        root_link_max_inflight: 1,
     })
     .map_err(|e| e.to_string())?;
 

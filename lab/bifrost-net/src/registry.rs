@@ -22,6 +22,14 @@ pub type RootId = String;
 /// How long a branch turn may wait for the root's `root.result`.
 pub const RESULT_WAIT: Duration = Duration::from_secs(20);
 
+/// GAP-A fix (v4c): before RESULT_WAIT, the trunk probes the root's AGENT
+/// loop — `root.ping` must be answered with `root.pong` by the root's
+/// process (not the ws library). This many consecutive failures = the root
+/// is unhealthy → auto-unlinked; branches get 'root unhealthy', never a
+/// 20s worker eat.
+pub const HEALTH_PROBE_WAIT: Duration = Duration::from_secs(3);
+pub const HEALTH_FAIL_LIMIT: u32 = 3;
+
 /// One message on a conn's inbound queue.
 pub enum ConnMsg {
     /// dispatch a job frame; the reply slot receives the root's result JSON
@@ -32,6 +40,22 @@ pub enum ConnMsg {
     },
     /// liveness probe from `Registry::live`
     Probe,
+    /// v4c pre-dispatch health probe: the conn thread sends a `root.ping`
+    /// op and reports whether the root's process answered `root.pong`
+    /// within HEALTH_PROBE_WAIT (true = healthy).
+    Health {
+        reply: SyncSender<bool>,
+    },
+}
+
+impl std::fmt::Display for ConnMsg {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConnMsg::Job { .. } => write!(f, "Job"),
+            ConnMsg::Probe => write!(f, "Probe"),
+            ConnMsg::Health { .. } => write!(f, "Health"),
+        }
+    }
 }
 
 /// The v4 registry conn (old shape kept: bridge's takeover logging + tests).
@@ -71,6 +95,10 @@ pub struct RootHandle {
 pub struct Registry {
     inner: Arc<Mutex<HashMap<RootId, RootHandle>>>,
     gen_no: Arc<AtomicU64>,
+    /// GAP-A: per-root in-flight job count (tid → root id) — the CAP law
+    inflight: Arc<Mutex<HashMap<String, RootId>>>,
+    /// config [root-link].max_inflight; default 1 (0 = cap OFF, unlimited)
+    pub max_inflight: Arc<AtomicU64>,
 }
 
 impl Registry {
@@ -78,6 +106,8 @@ impl Registry {
         Registry {
             inner: Arc::new(Mutex::new(HashMap::new())),
             gen_no: Arc::new(AtomicU64::new(1)),
+            inflight: Arc::new(Mutex::new(HashMap::new())),
+            max_inflight: Arc::new(AtomicU64::new(1)),
         }
     }
 
@@ -110,6 +140,104 @@ impl Registry {
         }
     }
 
+    /// v4c CAP LAW: a root AT its in-flight cap gets an immediate
+    /// 429-style error — NEVER a queued worker slot. Bookkeeping is
+    /// atomic under one lock: reserve → send → release.
+    /// Returns Ok(()) = dispatched (slot reserved; caller MUST
+    /// `release_inflight` when done), Err(msg) = refused (worker free).
+    pub fn send_job_capped(
+        &self,
+        root: &str,
+        tid: &str,
+        kind: &str,
+        body: serde_json::Value,
+        reply: SyncSender<serde_json::Value>,
+    ) -> Result<(), String> {
+        let frame = crate::roots::job_frame(root, tid, kind, body);
+        let cap = self.max_inflight.load(Ordering::SeqCst);
+        let mut map = self.inner.lock().unwrap();
+        let mut flying = self.inflight.lock().unwrap();
+        let live = match map.get(root) {
+            Some(c) if !c.kill.load(Ordering::SeqCst) => c,
+            _ => {
+                // dying/gone conn: sweep the ghost so state stays honest
+                map.remove(root);
+                return Err("root not linked".to_string());
+            }
+        };
+        if cap > 0 && flying.values().filter(|r| r.as_str() == root).count() >= cap as usize {
+            eprintln!("root-link: root '{root}' at in-flight cap {cap} — immediate 429-style refusal");
+            return Err(format!("root '{root}' busy (in-flight cap {cap} reached), retry shortly"));
+        }
+        let sent = live
+            .tx
+            .send(ConnMsg::Job {
+                frame,
+                tid: tid.to_string(),
+                reply,
+            })
+            .is_ok();
+        if sent {
+            flying.insert(tid.to_string(), root.to_string());
+        }
+        sent.then_some(()).ok_or_else(|| "root not linked".to_string())
+    }
+
+    /// Release one in-flight slot (by tid) — on result OR on timeout.
+    pub fn release_inflight(&self, tid: &str) {
+        self.inflight.lock().unwrap().remove(tid);
+    }
+
+    /// v4c HEALTH LAW: after `HEALTH_FAIL_LIMIT` consecutive probe
+    /// failures the conn is auto-unlinked. Returns true if it ejected.
+    pub fn unlink_unhealthy(&self, root: &str, gen_no: u64) -> bool {
+        let mut map = self.inner.lock().unwrap();
+        if map.get(root).map(|c| c.gen_no) == Some(gen_no) {
+            let conn = map.remove(root).expect("just checked");
+            conn.kill.store(true, Ordering::SeqCst);
+            let _ = conn.kick.shutdown(std::net::Shutdown::Both);
+            eprintln!("root-link: root '{root}' UNHEALTHY — auto-unlinked (gen_no {gen_no})");
+            true
+        } else {
+            false
+        }
+    }
+
+    /// The generation of the conn currently registered for a root.
+    pub fn gen_of(&self, root: &str) -> Option<u64> {
+        self.inner.lock().unwrap().get(root).map(|c| c.gen_no)
+    }
+
+    /// v4c agent-level pre-dispatch probe: round-trip a health check
+    /// through the conn thread — true iff the LAST trunk-driven agent
+    /// probe was answered (no new wire probe; the heartbeat loop owns
+    /// the cadence). A gen-verified re-check under the SAME lock as the
+    /// channel send keeps the dying-conn race honest: a conn that is
+    /// GONE is 'root not linked', never 'unhealthy'.
+    pub fn probe_health(&self, root: &str) -> Result<(), String> {
+        let (tx, rx) = sync_channel(1);
+        {
+            let mut map = self.inner.lock().unwrap();
+            let conn = match map.get(root) {
+                Some(c) if !c.kill.load(Ordering::SeqCst) => c,
+                _ => {
+                    // also sweep the ghost out so the next check is clean
+                    map.remove(root);
+                    return Err("root not linked".to_string());
+                }
+            };
+            if conn.tx.send(ConnMsg::Health { reply: tx }).is_err() {
+                map.remove(root);
+                return Err("root not linked".to_string());
+            }
+        }
+        match rx.recv_timeout(HEALTH_PROBE_WAIT) {
+            Ok(true) => Ok(()),
+            Ok(false) => Err(format!("root '{root}' unhealthy (health probe failed)")),
+            Err(_) => Err(format!("root '{root}' unhealthy (health probe timed out)")),
+        }
+    }
+
     /// Legacy-shaped insert (bridge.rs selftests) — wraps RootHandle with a
     /// dummy kick socket.
     pub fn insert_conn(&self, conn: RootConn) -> u64 {
@@ -135,8 +263,8 @@ impl Registry {
         self.inner.lock().unwrap().keys().cloned().collect()
     }
 
-    /// Queue one job frame at a linked root. False = root not linked (or
-    /// already dying) — the branch gets a clean error, never a hang.
+    /// Queue one job frame at a linked root (UNCAPPED legacy path — kept
+    /// for the selftest surface; /branch dispatch uses `send_job_capped`).
     pub fn send_job(
         &self,
         root: &str,
@@ -211,5 +339,51 @@ mod tests {
         let reg = Registry::new();
         let (rtx, _rrx) = sync_channel(1);
         assert!(!reg.send_job("ghost", "t1", "prompt", serde_json::json!({}), rtx));
+    }
+
+    #[test]
+    fn cap_law_immediate_429_never_queued() {
+        let reg = Registry::new();
+        reg.max_inflight.store(1, Ordering::SeqCst);
+        let (tx, _rx) = sync_channel(4);
+        reg.insert(handle("mac-a", Arc::new(AtomicBool::new(false)), tx));
+        let (r1, p1) = new_pending();
+        assert!(reg.send_job_capped("mac-a", "t1", "prompt", serde_json::json!({}), r1).is_ok());
+        // second turn while t1 flies = IMMEDIATE 429-style refusal
+        let (r2, _p2) = new_pending();
+        let err = reg
+            .send_job_capped("mac-a", "t2", "prompt", serde_json::json!({}), r2)
+            .unwrap_err();
+        assert!(err.contains("busy") && err.contains("cap 1"), "wrong refusal: {err}");
+        // release t1 → the slot frees
+        reg.release_inflight("t1");
+        let (r3, _p3) = new_pending();
+        assert!(reg.send_job_capped("mac-a", "t3", "prompt", serde_json::json!({}), r3).is_ok(),
+            "slot did not free after release_inflight");
+    }
+
+    #[test]
+    fn cap_zero_is_unlimited() {
+        let reg = Registry::new();
+        reg.max_inflight.store(0, Ordering::SeqCst);
+        let (tx, _rx) = sync_channel(16);
+        reg.insert(handle("mac-a", Arc::new(AtomicBool::new(false)), tx));
+        for i in 1..=5 {
+            let (r, _p) = new_pending();
+            assert!(reg.send_job_capped("mac-a", &format!("t{i}"), "prompt", serde_json::json!({}), r).is_ok());
+        }
+    }
+
+    #[test]
+    fn health_unlink_is_gen_checked_and_kills() {
+        let reg = Registry::new();
+        let kill = Arc::new(AtomicBool::new(false));
+        let (tx, _rx) = sync_channel(4);
+        let gen_no = reg.insert(handle("mac-a", kill.clone(), tx));
+        assert!(!reg.unlink_unhealthy("mac-a", gen_no + 999), "stale gen ejected a live conn");
+        assert!(reg.is_linked("mac-a"));
+        assert!(reg.unlink_unhealthy("mac-a", gen_no));
+        assert!(!reg.is_linked("mac-a"), "unhealthy root stayed linked");
+        assert!(kill.load(Ordering::SeqCst), "unlink did not kill the conn loop");
     }
 }

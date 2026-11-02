@@ -15,12 +15,16 @@ mod cand;
 mod config;
 mod echo;
 mod opencode;
+mod registry;
+mod rootlink;
+mod roots;
 mod speech;
 mod tokens;
 mod keys;
 mod mesh;
 mod relay;
 mod serve;
+mod ws;
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();

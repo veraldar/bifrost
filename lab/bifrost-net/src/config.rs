@@ -48,6 +48,10 @@ pub struct BridgeConfigSection {
     /// DISABLED — fail closed; no secret, no dial-in).
     #[serde(default)]
     pub root_link_secret: Option<String>,
+    /// v4: optional [bridge.root-link] dial-in plane config (absent or
+    /// enabled=false = OFF — fail closed).
+    #[serde(default, rename = "root-link")]
+    pub root_link: Option<RootLinkConfig>,
     /// v4: root ids this trunk accepts ([roots] table + "local" implicit)
     #[serde(default)]
     pub root_ids: Vec<String>,
@@ -55,6 +59,25 @@ pub struct BridgeConfigSection {
     /// Remote entries carry NO endpoint: link-token dial-in only.
     #[serde(default)]
     pub roots: Vec<RootEntry>,
+}
+
+/// v4 [bridge.root-link] — the root dial-in ws plane (rootlink.rs).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RootLinkConfig {
+    /// dial-in is OFF unless explicitly true (fail closed)
+    #[serde(default)]
+    pub enabled: bool,
+    /// ws listen for root dial-in (default: bridge http port + 1)
+    #[serde(default)]
+    pub listen: Option<String>,
+    /// trunk ping interval (secs); a conn is reaped after 2 missed pongs
+    #[serde(default = "default_root_ping_secs")]
+    pub ping_secs: u64,
+}
+
+fn default_root_ping_secs() -> u64 {
+    15
 }
 
 /// v4 [roots] table entry. `local` names the trunk's own opencode; every

@@ -795,6 +795,15 @@ struct Run {
     /// Reviewer metric gap closed: ms from run start to the first streamed
     /// content delta — the REAL time-to-first-sound the voice user feels.
     first_delta_ms: Option<u64>,
+    /// SPEED LAW (11-05, owner [RUN]): upstream calls this run made, how many
+    /// needed a resilience retry, and where the first token came from. These
+    /// ride the one-line latency log and the message's info.time.
+    upstream_calls: u32,
+    retries: u32,
+    /// true when the FIRST content token arrived — a run whose first step
+    /// streamed zero text but later steps did is exactly the slow shape
+    /// the 31s-fallback bug wore.
+    first_token_seen: bool,
 }
 
 impl Run {
@@ -842,6 +851,35 @@ impl Run {
         }
         self.msg["info"]["time"]["completed"] = json!(now);
     }
+
+    /// SPEED LAW one-line log + info.time latency fields. `phase` is the end
+    /// state ("ok" / "aborted" / the error string). The brain-side numbers are
+    /// queuing → upstream-connect → first-token → total; STT/TTS/transport
+    /// land in the FULL-STACK breakdown (e2e + agent logs) and are joined in
+    /// the LATENCY-BREAKDOWN artifact. msg_parts notes a zero-text first step
+    /// (tool-only) — the shape that hid the 31s fallback.
+    fn lat_log(&mut self, phase: &str) {
+        let total = self.started.elapsed().as_millis() as u64;
+        let ttfb = self.first_delta_ms.unwrap_or(0);
+        let steps = self.msg["parts"].as_array().map(|p| p.len()).unwrap_or(0);
+        let tool_steps = self
+            .msg["parts"]
+            .as_array()
+            .map(|p| p.iter().filter(|x| x["type"] == "tool").count())
+            .unwrap_or(0);
+        eprintln!(
+            "LAT phase={} total_ms={} ttfb_ms={} steps={} tool_steps={} msg_parts={} calls={} retries={} first_token={}",
+            phase, total, ttfb, steps, tool_steps, steps, self.upstream_calls, self.retries, self.first_token_seen
+        );
+        self.msg["info"]["time"]["latency"] = json!({
+            "total_ms": total,
+            "ttfb_ms": ttfb,
+            "upstream_calls": self.upstream_calls,
+            "retries": self.retries,
+            "first_token": self.first_token_seen,
+            "phase": phase,
+        });
+    }
 }
 
 /// One run, called with the session's run lock held: snapshot history, create the
@@ -860,7 +898,15 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<V
 
     let mut msg = placeholder;
     msg["parts"] = json!([]);
-    let mut run = Run { msg, text: String::new(), started: std::time::Instant::now(), first_delta_ms: None };
+    let mut run = Run {
+        msg,
+        text: String::new(),
+        started: std::time::Instant::now(),
+        first_delta_ms: None,
+        upstream_calls: 0,
+        retries: 0,
+        first_token_seen: false,
+    };
     let outcome = {
         let fut = agent_loop(st, id, history, tx, &mut run);
         tokio::select! {
@@ -881,6 +927,7 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<V
                 run.msg["info"]["time"]["first_delta"] = json!(ms);
             }
             run.finish("interrupted");
+            run.lat_log("ok");
             replace_message(st, id, &run.msg);
             publish(st, "message.updated", json!({ "info": run.msg["info"] }));
             emit(st, tx, "message.completed", run.msg.clone()).await;
@@ -889,6 +936,7 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<V
         Some(Err(e)) => {
             eprintln!("run error: {e}");
             run.finish(&e);
+            run.lat_log(&format!("error: {}", &e[..e.len().min(120)]));
             run.msg["info"]["error"] = json!({ "name": "UnknownError", "data": { "message": e } });
             replace_message(st, id, &run.msg);
             emit(st, tx, "error", json!({ "sessionID": id, "error": e })).await;
@@ -897,6 +945,7 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<V
         None => {
             // Keep whatever was streamed/executed, flagged the way opencode flags it.
             run.finish("aborted");
+            run.lat_log("aborted");
             run.msg["info"]["error"] = json!({ "name": "MessageAbortedError", "data": { "message": "aborted" } });
             replace_message(st, id, &run.msg);
             publish(st, "message.updated", json!({ "info": run.msg["info"] }));
@@ -936,7 +985,18 @@ async fn agent_loop(
                 eprintln!("roll-up: pruned {n} old tool output(s) in session {id}");
             }
         }
-        let calls = relay(st, id, &convo, tx, &mut run.text, run.started, &mut run.first_delta_ms).await?;
+        let calls = relay(st, id, &convo, tx, run).await?;
+        if run.first_delta_ms.is_none() && calls.is_empty() {
+            // SPEED LAW, loud: the final upstream step returned ZERO content
+            // tokens — the exact shape that once hid a slow fallback behind
+            // a tool-only first step. Never silent.
+            eprintln!(
+                "LAT-NO-TOKEN upstream_final_no_content total_ms={} ttfb_ms=0 calls={} retries={} first_token=false phase=error-text-empty",
+                run.started.elapsed().as_millis(),
+                run.upstream_calls,
+                run.retries
+            );
+        }
         let text = run.text.clone();
         run.flush_text(Some((st.config.voice, st.config.voice_max_words)));
         if calls.is_empty() {
@@ -1043,7 +1103,8 @@ async fn summarize(st: &AppState, messages: &Value) -> Result<String, String> {
     if let Some(key) = &cfg.api_key {
         req = req.bearer_auth(key);
     }
-    let resp = send_with_retry(&req).await?;
+    let mut orphan_retries = 0u32;
+    let resp = send_with_retry(&req, &mut orphan_retries).await?;
     let status = resp.status();
     let body = resp.text().await.map_err(|e| format!("read failed: {e}"))?;
     if !status.is_success() {
@@ -1106,7 +1167,7 @@ async fn run_tool(st: &AppState, id: &str, tx: &mpsc::Sender<Event>, run: &mut R
 /// cost real turns). One retry, 1.8s apart, ONLY on transient upstream states
 /// (529 overloaded / 503 unavailable). 429 balance and 401 fail immediately —
 /// a real account problem must not hide behind a retry.
-async fn send_with_retry(req: &reqwest::RequestBuilder) -> Result<reqwest::Response, String> {
+async fn send_with_retry(req: &reqwest::RequestBuilder, retries: &mut u32) -> Result<reqwest::Response, String> {
     let resp = req
         .try_clone()
         .ok_or("request not cloneable")?
@@ -1115,8 +1176,9 @@ async fn send_with_retry(req: &reqwest::RequestBuilder) -> Result<reqwest::Respo
         .map_err(|e| format!("request failed: {e}"))?;
     let code = resp.status().as_u16();
     if code == 529 || code == 503 {
+        *retries += 1;
         tokio::time::sleep(std::time::Duration::from_millis(1800)).await;
-        eprintln!("upstream {code} — retrying once after 1.8s");
+        eprintln!("LAT-RETRY upstream {code} — transient, retrying once after 1.8s (retry #{retries})");
         return req
             .try_clone()
             .ok_or("request not cloneable")?
@@ -1136,13 +1198,14 @@ async fn relay(
     session_id: &str,
     convo: &[Value],
     tx: &mpsc::Sender<Event>,
-    full: &mut String,
-    started: std::time::Instant,
-    first_delta_ms: &mut Option<u64>,
+    run: &mut Run,
 ) -> Result<Vec<ToolCall>, String> {
+    let started = run.started;
+    let first_delta_ms = &mut run.first_delta_ms;
+    let full = &mut run.text;
     let cfg = &st.config;
     if cfg.dialect == Dialect::Anthropic {
-        return relay_anthropic(st, session_id, convo, tx, full, started, first_delta_ms).await;
+        return relay_anthropic(st, session_id, convo, tx, run).await;
     }
     let url = format!("{}/chat/completions", cfg.base_url.trim_end_matches('/'));
     let mut body = json!({ "model": cfg.model, "messages": convo, "stream": true });
@@ -1153,10 +1216,22 @@ async fn relay(
     if let Some(key) = &cfg.api_key {
         req = req.bearer_auth(key);
     }
-    let resp = send_with_retry(&req).await?;
+    let t_req = std::time::Instant::now();
+    let resp = send_with_retry(&req, &mut run.retries).await?;
+    run.upstream_calls += 1;
     let status = resp.status();
     if !status.is_success() {
         let body = resp.text().await.unwrap_or_default();
+        // SPEED LAW: a fast-failing upstream must be LOUD — a silent or
+        // quiet fallback here was the 31s-every-commit bug's escape hatch.
+        eprintln!(
+            "LAT-FAIL upstream_connect total_ms={} ttfb_ms=0 calls={} retries={} first_token=false phase=error upstream {} : {}",
+            t_req.elapsed().as_millis(),
+            run.upstream_calls,
+            run.retries,
+            status,
+            body.chars().take(300).collect::<String>()
+        );
         return Err(format!("upstream {status}: {body}"));
     }
 
@@ -1171,6 +1246,9 @@ async fn relay(
         let m = &v["choices"][0]["message"];
         let text = m["content"].as_str().unwrap_or_default();
         full.push_str(text);
+        if !text.is_empty() {
+            run.first_token_seen = true;
+        }
         if first_delta_ms.is_none() && !text.is_empty() {
             *first_delta_ms = Some(started.elapsed().as_millis() as u64);
         }
@@ -1201,6 +1279,9 @@ async fn relay(
             let delta = &v["choices"][0]["delta"];
             if let Some(text) = delta["content"].as_str() {
                 full.push_str(text);
+                if !text.is_empty() {
+                    run.first_token_seen = true;
+                }
                 if first_delta_ms.is_none() && !text.is_empty() {
                     *first_delta_ms = Some(started.elapsed().as_millis() as u64);
                 }
@@ -1248,16 +1329,29 @@ async fn relay_anthropic(
     session_id: &str,
     convo: &[Value],
     tx: &mpsc::Sender<Event>,
-    full: &mut String,
-    started: std::time::Instant,
-    first_delta_ms: &mut Option<u64>,
+    run: &mut Run,
 ) -> Result<Vec<ToolCall>, String> {
     let cfg = &st.config;
+    let started = run.started;
+    let first_delta_ms = &mut run.first_delta_ms;
+    let full = &mut run.text;
     let tools = cfg.tools_enabled.then(tools::schemas);
-    let resp = anthropic_request(st, convo, tools.as_ref(), true).send().await.map_err(|e| format!("request failed: {e}"))?;
+    let req = anthropic_request(st, convo, tools.as_ref(), true);
+    let t_req = std::time::Instant::now();
+    let resp = send_with_retry(&req, &mut run.retries).await?;
+    run.upstream_calls += 1;
     let status = resp.status();
     if !status.is_success() {
         let body = resp.text().await.unwrap_or_default();
+        // SPEED LAW: loud upstream failure (same contract as the OpenAI relay).
+        eprintln!(
+            "LAT-FAIL upstream_connect total_ms={} ttfb_ms=0 calls={} retries={} first_token=false phase=error upstream {} : {}",
+            t_req.elapsed().as_millis(),
+            run.upstream_calls,
+            run.retries,
+            status,
+            body.chars().take(300).collect::<String>()
+        );
         return Err(format!("upstream {status}: {body}"));
     }
     let rekey = |calls: Vec<anthropic::Call>| -> Vec<ToolCall> {
@@ -1278,6 +1372,9 @@ async fn relay_anthropic(
             eprintln!("upstream stopped at max_tokens ({}); raise YGG_MAX_TOKENS", cfg.max_tokens);
         }
         full.push_str(&text);
+        if !text.is_empty() {
+            run.first_token_seen = true;
+        }
         if first_delta_ms.is_none() && !text.is_empty() {
             *first_delta_ms = Some(started.elapsed().as_millis() as u64);
         }
@@ -1292,6 +1389,7 @@ async fn relay_anthropic(
             let Ok(v) = serde_json::from_str::<Value>(&data) else { continue };
             if let Some(text) = dec.feed(&v)? {
                 full.push_str(&text);
+                run.first_token_seen = true;
                 if first_delta_ms.is_none() && !text.is_empty() {
                     *first_delta_ms = Some(started.elapsed().as_millis() as u64);
                 }
@@ -1524,5 +1622,66 @@ mod time_awareness_tests {
         assert!(convo[0]["content"].as_str().unwrap().starts_with("[clock "));
         // the header is injected per turn — the CALLER's history (which gets
         // stored) is untouched by construction: apply takes &mut convo only
+    }
+}
+
+/// SPEED LAW unit tests (11-05): the latency log fields and the format
+/// helpers are pure; the loud-lines (LAT-FAIL / LAT-NO-TOKEN) and the
+/// <10s fast-fail are proven end-to-end by mock/latency-sim.sh.
+#[cfg(test)]
+mod speed_law_tests {
+    use super::*;
+
+    fn test_run() -> Run {
+        Run {
+            msg: make_message("s", "assistant", vec![]),
+            text: String::new(),
+            started: std::time::Instant::now(),
+            first_delta_ms: None,
+            upstream_calls: 1,
+            retries: 0,
+            first_token_seen: false,
+        }
+    }
+
+    #[test]
+    fn lat_log_ok_row_has_all_fields() {
+        let mut run = test_run();
+        run.first_delta_ms = Some(1234);
+        run.first_token_seen = true;
+        run.msg["parts"] = json!([
+            { "type": "text", "text": "hi" },
+            { "type": "tool", "state": { "status": "completed" } },
+        ]);
+        run.lat_log("ok");
+        let lat = &run.msg["info"]["time"]["latency"];
+        assert_eq!(lat["ttfb_ms"], json!(1234));
+        assert!(lat["total_ms"].as_u64().unwrap() >= 0);
+        assert_eq!(lat["upstream_calls"], json!(1));
+        assert_eq!(lat["retries"], json!(0));
+        assert_eq!(lat["first_token"], json!(true));
+        assert_eq!(lat["phase"], json!("ok"));
+    }
+
+    #[test]
+    fn lat_log_error_row_carries_phase() {
+        let mut run = test_run();
+        run.lat_log("error: upstream 400 Bad Request: {\"error\":{}}");
+        let lat = &run.msg["info"]["time"]["latency"];
+        assert_eq!(lat["ttfb_ms"], json!(0));
+        assert_eq!(lat["first_token"], json!(false));
+        assert!(lat["phase"].as_str().unwrap().starts_with("error:"));
+    }
+
+    #[test]
+    fn lat_log_no_token_row_is_the_31s_shape() {
+        // zero-text first step (tool-only): ttfb_ms=0 AND first_token=false —
+        // the exact signature the model-400 fallback wore for weeks.
+        let mut run = test_run();
+        run.msg["parts"] = json!([{ "type": "tool", "state": { "status": "completed" } }]);
+        run.lat_log("ok");
+        let lat = &run.msg["info"]["time"]["latency"];
+        assert_eq!(lat["ttfb_ms"], json!(0));
+        assert_eq!(lat["first_token"], json!(false));
     }
 }

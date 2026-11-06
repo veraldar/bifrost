@@ -79,7 +79,12 @@ def plan(body):
             reply = f"MOCK-REPLY: you said '{msgs[-1]['content']}' ({len(msgs)} msgs)"
         else:  # fallback: default shape, but never a meanwhile-preamble
             reply = f"MOCK-REPLY: you said '{msgs[-1]['content']}' ({len(msgs)} msgs)"
-        return {"kind": "text", "text": reply, "chunk": 8}
+        # slice-3 nap honored here too: the brain ALWAYS injects the clock
+        # header, so this branch is the main path — "sleep N" must still
+        # delay the first chunk (latency-sim slow leg).
+        nap = re.search(r"\bsleep (\d+)", msgs[-1]["content"])
+        return {"kind": "text", "text": reply, "chunk": 8,
+                "nap": int(nap.group(1)) if nap else 0}
     if users and msgs[users[-1]]["content"].startswith("tool:"):
         return tool_plan(body, users[-1])
     if users and NL_TOOL.search(msgs[users[-1]]["content"]):
@@ -274,6 +279,9 @@ class H(BaseHTTPRequestHandler):
             return self.json(401, {"type": "error", "error": {"type": "authentication_error", "message": "invalid x-api-key"}})
         if key == "mock-429":
             return self.json(429, {"error": {"code": "1113", "message": "Insufficient balance or no resource package. Please recharge."}})
+        if key == "mock-400":
+            return self.json(400, {"type": "error", "error": {"type": "invalid_request_error",
+                                                             "message": "model needs id + providerID (mocked)"}})
         errs = validate(body, self.headers)
         if errs:
             CALLS["a_rejected"] += 1

@@ -185,6 +185,21 @@ fn fmt_gap(gap_secs: i64) -> String {
     if h >= 48 { format!("{}d", h / 24) } else if h >= 1 { format!("{}h{}m", h, m) } else { format!("{}m", m.max(1)) }
 }
 
+/// "2026-11-05T15:42:07Z" → unix seconds (None = unparseable).
+/// Test/sim helper: the two-turn gap sim re-parses a tampered stamp.
+fn parse_stamp(s: &str) -> Option<i64> {
+    let (d, tm) = s.strip_suffix('Z')?.split_once('T')?;
+    let mut di = d.split('-');
+    let y = di.next()?.parse::<i32>().ok()?;
+    let mo = di.next()?.parse::<u32>().ok()?;
+    let da = di.next()?.parse::<u32>().ok()?;
+    let mut ti = tm.split(':');
+    let h = ti.next()?.parse::<u32>().ok()?;
+    let mi = ti.next()?.parse::<u32>().ok()?;
+    let se = ti.next().and_then(|x| x.parse::<u32>().ok()).unwrap_or(0);
+    Some(civil_to_unix(y, mo, da, h, mi, se))
+}
+
 /// THE HEADER — one compact line (plus ≤3 meanwhile lines when the gap is
 /// long). Rules live inside the header text so the model reads them with the
 /// data, once per turn.
@@ -208,8 +223,28 @@ fn clock_header(now_unix: i64, last_user_unix: Option<i64>) -> String {
 }
 
 /// Injected per turn, AFTER roll-up sizing — exempt from the 200k ceiling.
-fn apply_clock_header(convo: &mut Vec<Value>, last_user_unix: Option<i64>) {
+/// YGG_CLOCK_EPOCH_MS / YGG_CLOCK_SHIFT_SECS: TEST/SIM ONLY (the MOCK_LATENCY
+/// precedent) — a frozen "now" or a synthetic shift so the two-turn gap sim
+/// can produce a REAL server-side 26h gap; absent in production.
+fn clock_now_unix() -> i64 {
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
+    if let Ok(e) = std::env::var("YGG_CLOCK_EPOCH_MS") {
+        if let Ok(ms) = e.parse::<i64>() {
+            if ms > 0 {
+                return ms / 1000;
+            }
+        }
+    }
+    if let Ok(s) = std::env::var("YGG_CLOCK_SHIFT_SECS") {
+        if let Ok(sh) = s.parse::<i64>() {
+            return now + sh;
+        }
+    }
+    now
+}
+
+fn apply_clock_header(convo: &mut Vec<Value>, last_user_unix: Option<i64>) {
+    let now = clock_now_unix();
     convo.insert(0, json!({ "role": "system", "content": clock_header(now, last_user_unix) }));
 }
 

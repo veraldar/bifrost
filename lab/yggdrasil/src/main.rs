@@ -67,6 +67,158 @@ mod anthropic;
 mod rollup;
 mod tools;
 
+// ── TIME-AWARENESS (owner ADD to the 200k context-cap slice, 11-05) ─────────
+// Every turn carries a compact clock header to the upstream model: current
+// UTC time, the gap since the session's last USER turn, and (gap > 4h) a
+// capped ≤3-line meanwhile summary of what landed since (lane-watcher lines
+// from /tmp/sub-status.tsv + artifact mtimes). Adaptation rules ride INSIDE
+// the header, stated once: <1h continuous flow · 1–24h brief re-anchor if
+// state changed · >24h lead with a meanwhile-summary and re-anchor stale
+// state. Injected per turn (never stored), AFTER roll-up sizing — it does not
+// count against the 200k ceiling.
+struct Utc { year: i64, month: u32, day: u32, hour: u32, min: u32, sec: u32 }
+
+/// Days-from-civil algorithm (Howard Hinnant): pure-std UTC from unix seconds.
+fn utc_from_unix(secs: i64) -> Utc {
+    let days = secs.div_euclid(86_400);
+    let sod = secs.rem_euclid(86_400);
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let m = (if mp < 10 { mp + 3 } else { mp - 9 }) as u32;
+    Utc { year: if m <= 2 { y + 1 } else { y }, month: m, day: d, hour: (sod / 3600) as u32, min: (sod % 3600 / 60) as u32, sec: (sod % 60) as u32 }
+}
+
+/// "2026-11-05T15:42:07Z" — compact, machine-additive, one line.
+fn utc_stamp(unix: i64) -> String {
+    let t = utc_from_unix(unix);
+    format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", t.year, t.month, t.day, t.hour, t.min, t.sec)
+}
+
+/// ≤3 newest `done`-ish lane lines from the coordinator's sub-status TSV,
+/// newest first (the file appends; older lines stay at the top).
+fn watcher_lines(capped_at: i64, max: usize) -> Vec<String> {
+    let mut out = Vec::new();
+    if let Ok(s) = std::fs::read_to_string("/tmp/sub-status.tsv") {
+        for line in s.lines().rev() {
+            if out.len() >= max { break; }
+            if let Some(ts) = line.rsplit('\t').next().and_then(|t| {
+                // last TSV field is "YYYY-MM-DDTHH:MM:SS+01:00" or "YYYY-MM-DD"
+                let (d, tm) = match t.split_once('T') {
+                    Some((d, tm)) => (d, Some(tm)),
+                    None => (t, None),
+                };
+                let mut it = d.split('-');
+                let (y, mo, da) = (it.next()?.parse::<i32>().ok()?, it.next()?.parse::<u32>().ok()?, it.next()?.parse::<u32>().ok()?);
+                let (h, mi, se) = match tm {
+                    Some(tm) => {
+                        let tm = tm.trim_end_matches(&format!("+{:02}:00", fixed_offset_hours()));
+                        let mut it = tm.split(':');
+                        (it.next()?.parse::<u32>().ok()?, it.next()?.parse::<u32>().ok()?, it.next().and_then(|x| x.parse::<u32>().ok()).unwrap_or(0))
+                    }
+                    None => (0, 0, 0),
+                };
+                Some(civil_to_unix(y, mo, da, h, mi, se))
+            }) {
+                if ts > capped_at {
+                    let l = line.trim();
+                    if !l.is_empty() { out.push(l.chars().take(160).collect()); }
+                }
+            }
+        }
+    }
+    out
+}
+
+fn fixed_offset_hours() -> i32 {
+    // local timestamps in the TSV carry a fixed +HH:00 offset; parse lazily
+    // from TZ once per call — the box never changes zones mid-run
+    1 // Europe/Stockholm/Oslo CET (+01:00) — the TSV writer's fixed offset
+}
+
+fn civil_to_unix(y: i32, m: u32, d: u32, h: u32, mi: u32, se: u32) -> i64 {
+    let days = civil_days(y as i64, m, d);
+    days * 86_400 + h as i64 * 3600 + mi as i64 * 60 + se as i64
+}
+
+fn civil_days(y: i64, m: u32, d: u32) -> i64 {
+    let yy = if m <= 2 { y - 1 } else { y };
+    let era = if yy >= 0 { yy } else { yy - 399 } / 400;
+    let yoe = yy - era * 400;
+    let mp = if m > 2 { m - 3 } else { m + 9 } as i64;
+    let doy = (153 * mp + 2) / 5 + d as i64 - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146_097 + doe - 719_468
+}
+
+/// Newest-first artifact names (files in ~/Work/bifrost/artifacts, capped at
+/// `capped_at`); the names alone carry the lane story for a meanwhile summary.
+fn artifact_names(capped_at: i64, max: usize) -> Vec<String> {
+    let mut out: Vec<(i64, String)> = Vec::new();
+    if let Ok(rd) = std::fs::read_dir("/home/dweeb_xyz/Work/bifrost/artifacts") {
+        for e in rd.flatten() {
+            if let Ok(md) = e.metadata() {
+                if let Ok(t) = md.modified() {
+                    let ts = t.duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+                    if ts > capped_at {
+                        if let Some(name) = e.file_name().to_str() {
+                            out.push((ts, name.to_string()));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    out.sort_by(|a, b| b.0.cmp(&a.0));
+    out.truncate(max);
+    out.into_iter().map(|(_, n)| n).collect()
+}
+
+fn fmt_gap(gap_secs: i64) -> String {
+    let h = gap_secs / 3600;
+    let m = (gap_secs % 3600) / 60;
+    if h >= 48 { format!("{}d", h / 24) } else if h >= 1 { format!("{}h{}m", h, m) } else { format!("{}m", m.max(1)) }
+}
+
+/// THE HEADER — one compact line (plus ≤3 meanwhile lines when the gap is
+/// long). Rules live inside the header text so the model reads them with the
+/// data, once per turn.
+fn clock_header(now_unix: i64, last_user_unix: Option<i64>) -> String {
+    let mut hdr = format!("[clock {}]", utc_stamp(now_unix));
+    if let Some(last) = last_user_unix {
+        let gap = (now_unix - last).max(0);
+        hdr.push_str(&format!(" [gap since last user turn {}]", fmt_gap(gap)));
+        if gap >= 4 * 3600 {
+            hdr.push_str(" [rules: <1h continuous flow; 1-24h brief re-anchor if state changed; >24h lead with a meanwhile-summary of what changed and re-anchor stale state]");
+            let mut lines = watcher_lines(now_unix, 3);
+            lines.extend(artifact_names(now_unix, 3));
+            let take: Vec<String> = lines.into_iter().take(3).collect();
+            if !take.is_empty() {
+                hdr.push_str(" [meanwhile]");
+                for l in take { hdr.push_str(&format!("\n[clock] {l}")); }
+            }
+        }
+    }
+    hdr
+}
+
+/// Injected per turn, AFTER roll-up sizing — exempt from the 200k ceiling.
+fn apply_clock_header(convo: &mut Vec<Value>, last_user_unix: Option<i64>) {
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
+    convo.insert(0, json!({ "role": "system", "content": clock_header(now, last_user_unix) }));
+}
+
+fn last_user_unix(messages: &[Value]) -> Option<i64> {
+    // newest user message: m["info"]["time"]["created"] is unix ms
+    messages.iter().rev().find(|m| m["info"]["role"] == "user")
+        .and_then(|m| m["info"]["time"]["created"].as_i64().map(|ms| ms / 1000))
+}
+
 #[derive(Clone, Copy, PartialEq, Debug)]
 enum Dialect {
     OpenAi,
@@ -731,9 +883,15 @@ async fn agent_loop(
     tx: &mpsc::Sender<Event>,
     run: &mut Run,
 ) -> Result<(), String> {
+    // capture BEFORE roll-up consumes the history (info.time.created, ms)
+    let last_user = last_user_unix(&messages);
     let mut convo = rollup_if_needed(st, id, tx, messages).await;
+    // TIME-AWARENESS: the header is measured against the POST-ROLL-UP convo
+    // (pruning happens inside agent_loop each step, after this) — it is added
+    // per turn and never stored, so it cannot count against the ceiling.
+    apply_clock_header(&mut convo, last_user);
     if st.config.voice {
-        convo.insert(0, json!({ "role": "system", "content": VOICE_PROMPT }));
+        convo.insert(1, json!({ "role": "system", "content": VOICE_PROMPT }));
     }
     let max = st.config.max_steps;
     for _ in 0..max {
@@ -1263,4 +1421,73 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(&listen).await.expect("bind");
     eprintln!("yggdrasil listening on {listen}");
     axum::serve(listener, app).await.unwrap();
+}
+
+#[cfg(test)]
+mod time_awareness_tests {
+    use super::*;
+
+    #[test]
+    fn utc_roundtrip_known_instants() {
+        // 2026-11-05T15:42:07Z and leap-year edge 2024-02-29T23:59:59Z
+        let t1 = civil_to_unix(2026, 11, 5, 15, 42, 7);
+        let s1 = utc_stamp(t1);
+        assert_eq!(s1, "2026-11-05T15:42:07Z");
+        let t2 = civil_to_unix(2024, 2, 29, 23, 59, 59);
+        assert_eq!(utc_stamp(t2), "2024-02-29T23:59:59Z");
+        // unix epoch
+        assert_eq!(utc_stamp(0), "1970-01-01T00:00:00Z");
+        // roundtrip via utc_from_unix
+        let t3 = civil_to_unix(2026, 1, 1, 0, 0, 1);
+        let u = utc_from_unix(t3);
+        assert_eq!((u.year, u.month, u.day, u.hour, u.min, u.sec), (2026, 1, 1, 0, 0, 1));
+    }
+
+    #[test]
+    fn short_gap_no_rules_no_meanwhile() {
+        let now = civil_to_unix(2026, 11, 5, 16, 0, 0);
+        let last = now - 120; // 2min gap
+        let h = clock_header(now, Some(last));
+        assert!(h.starts_with("[clock 2026-11-05T16:00:00Z] [gap since last user turn 2m]"));
+        assert!(!h.contains("rules:"), "no adaptation rules under 4h");
+        assert!(!h.contains("meanwhile"));
+        assert_eq!(h.lines().count(), 1, "compact single line under 4h");
+    }
+
+    #[test]
+    fn long_gap_has_rules_and_meanwhile_capped() {
+        let now = civil_to_unix(2026, 11, 5, 16, 0, 0);
+        let last = now - 26 * 3600; // 26h synthetic gap
+        let h = clock_header(now, Some(last));
+        assert!(h.contains("gap since last user turn 26h0m"), "gap rendered: {h}");
+        assert!(h.contains("rules: <1h continuous flow; 1-24h brief re-anchor if state changed; >24h lead with a meanwhile-summary of what changed and re-anchor stale state"));
+        // meanwhile lines are capped ≤3 total
+        let extra = h.lines().count() - 1;
+        assert!(extra <= 3, "meanwhile lines ≤3, got {extra}");
+    }
+
+    #[test]
+    fn first_turn_header_has_clock_only() {
+        let now = civil_to_unix(2026, 11, 5, 16, 0, 0);
+        let h = clock_header(now, None);
+        assert!(h.starts_with("[clock 2026-11-05T16:00:00Z]"));
+        assert!(!h.contains("gap"));
+        assert_eq!(h.lines().count(), 1);
+    }
+
+    #[test]
+    fn apply_clock_header_prepends_without_store_side_effects() {
+        let now = civil_to_unix(2026, 11, 5, 16, 0, 0);
+        let last = now - 120;
+        let mut convo = vec![
+            json!({"role": "user", "content": "hello"}),
+            json!({"role": "assistant", "content": "hi"}),
+        ];
+        apply_clock_header(&mut convo, Some(last));
+        assert_eq!(convo.len(), 3);
+        assert_eq!(convo[0]["role"], "system");
+        assert!(convo[0]["content"].as_str().unwrap().starts_with("[clock "));
+        // the header is injected per turn — the CALLER's history (which gets
+        // stored) is untouched by construction: apply takes &mut convo only
+    }
 }

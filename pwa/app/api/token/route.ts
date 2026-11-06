@@ -8,7 +8,7 @@ import {
 } from 'livekit-server-sdk';
 
 // must match agent/agent.py: @server.rtc_session(agent_name=...)
-const AGENT_NAME = 'bifrost';
+const AGENT_NAME = process.env.AGENT_NAME || process.env.AGENT_DISPATCH_NAME || 'bifrost';
 
 type ConnectionDetails = {
   serverUrl: string;
@@ -87,7 +87,19 @@ export async function POST(req: Request) {
         'http$1:'
       );
       const dispatchClient = new AgentDispatchClient(apiHost, API_KEY, API_SECRET);
-      await dispatchClient.createDispatch(roomName, AGENT_NAME);
+      // the worker's availability flaps with its load metric (seen live:
+      // "at full capacity" windows of a few seconds) — retry the dispatch
+      // through those windows instead of silently dropping voice
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await dispatchClient.createDispatch(roomName, AGENT_NAME);
+          break;
+        } catch (e) {
+          if (attempt === 3) throw e;
+          console.warn(`[token] dispatch attempt ${attempt} failed (${String(e).slice(0, 80)}), retrying`);
+          await new Promise((r) => setTimeout(r, 2000));
+        }
+      }
     } catch (dispatchError) {
       console.error(`agent dispatch failed for room ${roomName}:`, dispatchError);
     }

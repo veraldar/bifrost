@@ -850,7 +850,7 @@ async fn summarize(st: &AppState, messages: &Value) -> Result<String, String> {
     if let Some(key) = &cfg.api_key {
         req = req.bearer_auth(key);
     }
-    let resp = req.send().await.map_err(|e| format!("request failed: {e}"))?;
+    let resp = send_with_retry(&req).await?;
     let status = resp.status();
     let body = resp.text().await.map_err(|e| format!("read failed: {e}"))?;
     if !status.is_success() {
@@ -909,6 +909,31 @@ async fn run_tool(st: &AppState, id: &str, tx: &mpsc::Sender<Event>, run: &mut R
     content
 }
 
+/// Provider resilience (measured: three 529-overloaded incidents in one night
+/// cost real turns). One retry, 1.8s apart, ONLY on transient upstream states
+/// (529 overloaded / 503 unavailable). 429 balance and 401 fail immediately —
+/// a real account problem must not hide behind a retry.
+async fn send_with_retry(req: &reqwest::RequestBuilder) -> Result<reqwest::Response, String> {
+    let resp = req
+        .try_clone()
+        .ok_or("request not cloneable")?
+        .send()
+        .await
+        .map_err(|e| format!("request failed: {e}"))?;
+    let code = resp.status().as_u16();
+    if code == 529 || code == 503 {
+        tokio::time::sleep(std::time::Duration::from_millis(1800)).await;
+        eprintln!("upstream {code} — retrying once after 1.8s");
+        return req
+            .try_clone()
+            .ok_or("request not cloneable")?
+            .send()
+            .await
+            .map_err(|e| format!("request failed: {e}"));
+    }
+    Ok(resp)
+}
+
 /// One upstream call with `stream: true` (and the tool set): forwards each content delta
 /// as an SSE event, accumulating it into `full` (an abort keeps the partial text), and
 /// assembles streamed `tool_calls` fragments by index. Also accepts a non-streaming
@@ -935,7 +960,7 @@ async fn relay(
     if let Some(key) = &cfg.api_key {
         req = req.bearer_auth(key);
     }
-    let resp = req.send().await.map_err(|e| format!("request failed: {e}"))?;
+    let resp = send_with_retry(&req).await?;
     let status = resp.status();
     if !status.is_success() {
         let body = resp.text().await.unwrap_or_default();

@@ -64,23 +64,45 @@ unpend() { [ -f "$STATUS_FILE.pending" ] || return 0; grep -vxF "$1" "$STATUS_FI
 # here too delivered it twice (station-sim case 5); a closed will's leftovers are dropped
 unpend_will() { [ -f "$STATUS_FILE.pending" ] || return 0; grep -vF "LANE-WILL (auto-watch): $(basename "$1" .will): " "$STATUS_FILE.pending" >"$STATUS_FILE.pending.next" 2>/dev/null; mv "$STATUS_FILE.pending.next" "$STATUS_FILE.pending"; }
 
-post_lane_line() { # $1 = full text; returns 0 when the brain acknowledged (2xx)
-  local sid attempt code
+# ---------- delivered registry (dup-wake root fixes, owner report 3x, 11-09) ----------
+# $STATUS_FILE.delivered = tsv key<TAB>time<TAB>note. A landing is posted AT MOST once per key:
+# key = sha1(artifact path + commit/branch hash from the line), fallback sha1(whole line).
+# Every post goes through post_lane_line, so the landing path, flush_pending and will_nudge are
+# all covered; a key already in the registry is skipped (callers then unpend it).
+DELIVERED="$STATUS_FILE.delivered"
+MARKER="AUTO-VERDICT REQUEST: "
+line_key() { python3 - "$1" <<'PY'
+import hashlib, re, sys
+t = sys.argv[1]
+art = re.search(r'[^\s"\']+\.(?:md|txt|json|html)\b', t)
+h = next((m for m in re.findall(r'\b[0-9a-f]{7,40}\b', t) if re.search(r'\d', m) and re.search(r'[a-f]', m)), None)
+print(hashlib.sha1(((art.group(0) + h) if art and h else t).encode()).hexdigest())
+PY
+}
+delivered_has() { grep -q "^$1	" "$DELIVERED" 2>/dev/null; }
+delivered_add() { delivered_has "$1" || printf '%s\t%s\t%s\n' "$1" "$(date -Iseconds)" "$2" >>"$DELIVERED"; }
+
+post_lane_line() { # $1 = full text; returns 0 when delivered (2xx), already delivered, or assumed delivered (timeout)
+  local sid code rc key text
+  text="${1//"$MARKER"/}"                        # exactly ONE marker, added below (replay-path guard)
+  key=$(line_key "$text")
+  delivered_has "$key" && return 0               # already announced — skip, caller unpends
   sid="${SES_ID:-$(resolve_main)}"
   [ -n "$sid" ] || return 1
-  python3 - "$1" <<'PY' > "$WAKE_JSON"
+  python3 - "$text" "$MARKER" <<'PY' > "$WAKE_JSON"
 import json, sys
-print(json.dumps({"parts": [{"type": "text", "text": "AUTO-VERDICT REQUEST: " + sys.argv[1]}]}))
+print(json.dumps({"parts": [{"type": "text", "text": sys.argv[2] + sys.argv[1]}]}))
 PY
-  for attempt in 1 2 3; do
-    code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BRAIN_URL/session/$sid/message" \
-      -H 'content-type: application/json' -d @"$WAKE_JSON" --max-time 90) || code=000
-    case "$code" in 2*) return 0 ;; esac
-    # ONE attempt per poll cycle, not 3 in a burst: a MAIN mid-turn holds the run lock,
-    # so a short client timeout "fails" while the brain still runs the turn server-side —
-    # rapid retries then create duplicate wakes (3x identical landings seen 11-09 20:10).
-    return 1
-  done
+  [ "$(grep -o 'AUTO-VERDICT REQUEST:' "$WAKE_JSON" | wc -l)" = 1 ] || return 1
+  code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BRAIN_URL/session/$sid/message" \
+    -H 'content-type: application/json' -d @"$WAKE_JSON" --max-time "${POST_MAX_TIME:-90}"); rc=$?
+  case "$code" in 2*) delivered_add "$key" "2xx"; return 0 ;; esac
+  # curl timeout (28) = delivered-unknown: a MAIN mid-turn holds the run lock, the brain keeps
+  # the queued message and completes the turn after the client gave up. Reposting made 3-6
+  # identical landings — record it as assumed-delivered instead (a refused connection or a
+  # 5xx is a real failure and stays pending).
+  if [ "$rc" = 28 ]; then delivered_add "$key" "unconfirmed-timeout (assumed delivered)"; return 0; fi
+  return 1       # ONE attempt per poll cycle
 }
 
 flush_pending() {

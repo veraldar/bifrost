@@ -39,6 +39,7 @@ pub fn prune(convo: &mut [Value], limit: usize) -> usize {
     if est <= limit {
         return 0;
     }
+    let limit = limit * 3 / 4; // headroom: don't re-cross the limit every step
     let latest_step = convo.iter().rposition(|m| m["role"] == "assistant" && m.get("tool_calls").is_some());
     let end = latest_step.unwrap_or(convo.len());
     let mut n = 0;

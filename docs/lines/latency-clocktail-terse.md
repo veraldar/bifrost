@@ -4,7 +4,7 @@ purpose: [RUN] latency round 1 per artifacts/latency-fix-round1.md brief — (1)
 from position-0 system → tail of the message array (INSIDE the last user turn; convert()
 hoists system roles into the top-level system string, so a tail system message still
 breaks the provider prefix-cache), with a fully static SYSTEM_PREAMBLE at position 0;
-prior turns' headers reconstructed byte-stably from stored timestamps so turn-2 requests
+prior turns' headers derived as a pure function of stored created timestamps (header = f(created, previous user's created); nothing written back) so turn-2 requests
 stay append-only → provider cache.read > 0; (2) LAT log landed in the brain working tree
 (already code-ready from dfda8dcf) — deployed at the next standard brain deploy, NOT
 restarted now; (3) terse one-liner in the static preamble (answers 2-4× longer than the

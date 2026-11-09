@@ -58,7 +58,7 @@ def plan(body):
         return {"kind": "summary", "text": f"MOCK-SUMMARY: {head} | {len(tr)} chars"}
     users = [i for i, m in enumerate(msgs) if m["role"] == "user"]
     # TIME-AWARENESS sim, cache-law edition: the header rides INSIDE the
-    # FIRST user turn (static system preamble sits at position 0). Same gap
+    # LAST user turn (users[-1]; static system preamble sits at position 0). Same gap
     # logic as before: >4h → acknowledge + refresh; ≤60m → no preamble.
     hdr = None
     if users and str(msgs[users[-1]]["content"]).startswith("[clock "):

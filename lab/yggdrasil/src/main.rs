@@ -200,44 +200,59 @@ fn parse_stamp(s: &str) -> Option<i64> {
     Some(civil_to_unix(y, mo, da, h, mi, se))
 }
 
+/// Meanwhile lines for a user message whose previous user turn was `prev_ms`:
+/// ≤3 lines, only for gaps ≥4h, newer than the previous turn. Called ONCE at
+/// message creation; the result is stored on the message
+/// (`info.time.meanwhile`) and never recomputed at render time.
+fn meanwhile_for(prev_ms: Option<i64>) -> Vec<String> {
+    let Some(prev) = prev_ms else { return Vec::new() };
+    let last = prev / 1000;
+    if (clock_now_ms() / 1000 - last).max(0) < 4 * 3600 {
+        return Vec::new();
+    }
+    let mut lines = watcher_lines(last, 3);
+    lines.extend(artifact_names(last, 3));
+    lines.truncate(3);
+    lines
+}
+
 /// THE HEADER — one compact line (plus ≤3 meanwhile lines when the gap is
 /// long). Rules live inside the header text so the model reads them with the
-/// data, once per turn.
-fn clock_header(now_unix: i64, last_user_unix: Option<i64>) -> String {
+/// data, once per turn. Pure: the meanwhile lines are INPUT (frozen on the
+/// stored message at creation), never read from live state here.
+fn clock_header(now_unix: i64, last_user_unix: Option<i64>, meanwhile: &[String]) -> String {
     let mut hdr = format!("[clock {}]", utc_stamp(now_unix));
     if let Some(last) = last_user_unix {
         let gap = (now_unix - last).max(0);
         hdr.push_str(&format!(" [gap since last user turn {}]", fmt_gap(gap)));
         if gap >= 4 * 3600 {
             hdr.push_str(" [rules: <1h continuous flow; 1-24h brief re-anchor if state changed; >24h lead with a meanwhile-summary of what changed and re-anchor stale state]");
-            let mut lines = watcher_lines(now_unix, 3);
-            lines.extend(artifact_names(now_unix, 3));
-            let take: Vec<String> = lines.into_iter().take(3).collect();
-            if !take.is_empty() {
+            if !meanwhile.is_empty() {
                 hdr.push_str(" [meanwhile]");
-                for l in take { hdr.push_str(&format!("\n[clock] {l}")); }
+                for l in meanwhile.iter().take(3) { hdr.push_str(&format!("\n[clock] {l}")); }
             }
         }
     }
     hdr
 }
 
-/// Injected per turn, AFTER roll-up sizing — exempt from the 200k ceiling.
+/// Stamps `info.time.created` of new messages — the headers derive from it.
 /// YGG_CLOCK_EPOCH_MS / YGG_CLOCK_SHIFT_SECS: TEST/SIM ONLY (the MOCK_LATENCY
 /// precedent) — a frozen "now" or a synthetic shift so the two-turn gap sim
-/// can produce a REAL server-side 26h gap; absent in production.
-fn clock_now_unix() -> i64 {
-    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
+/// can produce a REAL server-side 26h gap; absent in production. They write
+/// into stored `created`, so main() warns loudly when either is set.
+fn clock_now_ms() -> i64 {
+    let now = now_ms() as i64;
     if let Ok(e) = std::env::var("YGG_CLOCK_EPOCH_MS") {
         if let Ok(ms) = e.parse::<i64>() {
             if ms > 0 {
-                return ms / 1000;
+                return ms;
             }
         }
     }
     if let Ok(s) = std::env::var("YGG_CLOCK_SHIFT_SECS") {
         if let Ok(sh) = s.parse::<i64>() {
-            return now + sh;
+            return now + sh * 1000;
         }
     }
     now
@@ -247,57 +262,48 @@ fn clock_now_unix() -> i64 {
 /// byte prefix; any mutating content before the tail invalidates the key.
 /// Two rules keep the prefix append-only across turns:
 /// 1. The STATIC system preamble sits at position 0 (terse rule included);
-///    the clock header rides INSIDE the last user turn (a tail-position
-///    system message would be hoisted into the top-level `system` string by
+///    the clock header rides INSIDE each user turn (a tail-position system
+///    message would be hoisted into the top-level `system` string by
 ///    `convert()` and break the key all the same).
-/// 2. Prior turns keep the headers they were sent with — the EXACT sent
-///    bytes are stored on the message (`info.time.sent_hdr`) at send time
-///    and replayed for history; restart fallback reconstructs from
-///    `time.created` (gap 0). (Old behavior: the position-0 header vanished
-///    from turn 1's slice on turn 2 — a hidden cache-killer on every
-///    multi-turn session.)
-const CLOCK_MARK: &str = "[clock ";
-const SYSTEM_PREAMBLE: &str = "You are the brain of a personal assistant stack. Answer in the fewest words the question allows — short and direct unless the question itself is broad. Keep the user's language.";
+/// 2. Every header is a PURE FUNCTION of stored data: for a user message,
+///    `clock_header(created_s, created_s of the previous non-compaction user
+///    message, stored meanwhile)`. `upstream_history` marks those messages with
+///    private `_ts` / `_prev` / `_mw` fields (so the chain survives a compaction
+///    boundary); nothing is written back at render time, so headers are
+///    byte-identical across turns, restarts and old sessions — including the
+///    meanwhile lines, which are computed once at message creation and frozen
+///    on the record (`info.time.meanwhile`; old sessions lack it and render
+///    none). The private fields are stripped before send.
+/// Editing this constant resets every session's provider cache once.
+const SYSTEM_PREAMBLE: &str = "You are the brain of a personal assistant stack. Answer in the fewest words the question allows — short and direct unless the question itself is broad. Keep the user's language. Applies to prose replies, not to tool arguments, code, or file contents.";
 
-fn apply_clock_header(convo: &mut Vec<Value>, hdr: &str) {
+/// Prepends the static preamble, then the derived header to every user message
+/// carrying `_ts` (compaction asks carry none), then strips every `_`-prefixed
+/// key so nothing private rides upstream (either dialect).
+fn apply_clock_headers(convo: &mut Vec<Value>) {
     convo.insert(0, json!({ "role": "system", "content": SYSTEM_PREAMBLE }));
-    if let Some(last) = convo.iter().rposition(|m| m["role"] == "user") {
-        let c = convo[last]["content"].as_str().unwrap_or("").to_string();
-        convo[last]["content"] = json!(format!("{hdr}\n{c}"));
-    }
-}
-
-/// The header turn-N was SENT with (deterministic reconstruction): rollup
-/// sizing notes (`roll-up: pruned …`) were trimmed before this fn in every
-/// observed case; later steps may append assistant/tool content AFTER the
-/// user turn — those don't touch the user-turn bytes, so the strip-marker +
-/// timestamp re-render is stable across turns.
-fn clock_header_sent_at(msg_unix_ms: i64) -> String {
-    clock_header(msg_unix_ms / 1000, Some(msg_unix_ms / 1000))
-}
-
-/// History stability: every user slice except the LAST carries the header it
-/// was SENT with — exact stored bytes (`info.time.sent_hdr`) when present,
-/// deterministic reconstruction from `time.created` as the restart fallback.
-/// The last user slice already has the fresh header from apply_clock_header.
-fn apply_clock_header_history(convo: &mut Vec<Value>) {
-    let n = convo.len();
-    for (i, m) in convo.iter_mut().enumerate() {
-        if m["role"] != "user" || i + 1 == n { continue; }
-        if m["content"].as_str().map_or(false, |c| c.contains(CLOCK_MARK)) { continue; }
-        let hdr = m["_hdr"].as_str().map(|s| s.to_string()).or_else(|| {
-            m["_ts"].as_i64().map(|ts| clock_header_sent_at(ts))
-        });
-        if let (Some(h), Some(c)) = (hdr, m["content"].as_str()) {
-            m["content"] = json!(format!("{h}\n{c}"));
+    for m in convo.iter_mut() {
+        if m["role"] != "user" { continue; }
+        let Some(ts) = m["_ts"].as_i64() else { continue };
+        let mw: Vec<String> = m["_mw"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .unwrap_or_default();
+        let hdr = clock_header(ts / 1000, m["_prev"].as_i64().map(|p| p / 1000), &mw);
+        if let Some(c) = m["content"].as_str() {
+            m["content"] = json!(format!("{hdr}\n{c}"));
         }
     }
+    strip_private(convo);
 }
 
-fn last_user_unix(messages: &[Value]) -> Option<i64> {
-    // newest user message: m["info"]["time"]["created"] is unix ms
-    messages.iter().rev().find(|m| m["info"]["role"] == "user")
-        .and_then(|m| m["info"]["time"]["created"].as_i64().map(|ms| ms / 1000))
+/// Removes every `_`-prefixed key from the top level of each message.
+fn strip_private(convo: &mut [Value]) {
+    for m in convo.iter_mut() {
+        if let Some(o) = m.as_object_mut() {
+            o.retain(|k, _| !k.starts_with('_'));
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -438,7 +444,7 @@ fn make_message(session_id: &str, role: &str, parts: Vec<Value>) -> Value {
         })
         .collect();
     json!({
-        "info": { "id": id, "sessionID": session_id, "role": role, "time": { "created": now_ms() } },
+        "info": { "id": id, "sessionID": session_id, "role": role, "time": { "created": clock_now_ms() } },
         "parts": parts,
     })
 }
@@ -723,8 +729,22 @@ async fn post_message(
         .is_some_and(|a| a.contains("text/event-stream"));
 
     // The user message lands at once (a stacked prompt is visible while it waits its turn).
-    let user_msg = make_message(&id, "user", parts);
-    if with_session(&st, &id, |s| s.messages.push(user_msg.clone())).is_none() {
+    let mut user_msg = make_message(&id, "user", parts);
+    let stored = with_session(&st, &id, |s| {
+        // Freeze the meanwhile lines at creation (same moment as `created`).
+        let prev = s
+            .messages
+            .iter()
+            .filter(|m| m["info"]["role"] == "user" && !is_compaction(m))
+            .filter_map(|m| m["info"]["time"]["created"].as_i64())
+            .last();
+        let mw = meanwhile_for(prev);
+        if !mw.is_empty() {
+            user_msg["info"]["time"]["meanwhile"] = json!(mw);
+        }
+        s.messages.push(user_msg.clone());
+    });
+    if stored.is_none() {
         return not_found(&id);
     }
     publish(&st, "message.updated", json!({ "info": user_msg["info"] }));
@@ -769,16 +789,31 @@ fn upstream_history(messages: &[Value]) -> Vec<Value> {
         text.clear();
     }
     let mut out = Vec::new();
-    for m in &messages[last_compaction(messages)..] {
+    let start = last_compaction(messages);
+    // previous non-compaction user message's created ms; the chain runs over
+    // the whole stored session so it survives the compaction boundary
+    let mut prev: Option<i64> = None;
+    for (i, m) in messages.iter().enumerate() {
         let role = m["info"]["role"].as_str().unwrap_or("user");
+        let compaction = is_compaction(m);
+        let created = m["info"]["time"]["created"].as_i64();
+        let this_prev = prev;
+        if role == "user" && !compaction && created.is_some() {
+            prev = created;
+        }
+        if i < start {
+            continue;
+        }
         if role != "assistant" {
-            let text = if is_compaction(m) { rollup::COMPACTION_ASK.to_string() } else { message_text(m) };
+            let text = if compaction { rollup::COMPACTION_ASK.to_string() } else { message_text(m) };
             if !text.is_empty() {
                 let mut u = json!({ "role": role, "content": text });
-                // CACHE LAW vehicle: _ts/_hdr ride to apply_clock_header_history
-                // and are dropped by anthropic::convert (unknown fields ignored).
-                if let Some(ts) = m["info"]["time"]["created"].as_i64() { u["_ts"] = json!(ts); }
-                if let Some(h) = m["info"]["time"]["sent_hdr"].as_str() { u["_hdr"] = json!(h); }
+                // Private header vehicle for apply_clock_headers (stripped before send).
+                if role == "user" && !compaction {
+                    if let Some(ts) = created { u["_ts"] = json!(ts); }
+                    if let Some(p) = this_prev { u["_prev"] = json!(p); }
+                    if let Some(mw) = m["info"]["time"].get("meanwhile") { u["_mw"] = mw.clone(); }
+                }
                 out.push(u);
             }
             continue;
@@ -1014,26 +1049,16 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<V
 async fn agent_loop(
     st: &AppState,
     id: &str,
-    mut messages: Vec<Value>,
+    messages: Vec<Value>,
     tx: &mpsc::Sender<Event>,
     run: &mut Run,
 ) -> Result<(), String> {
-    // capture BEFORE roll-up consumes the history (info.time.created, ms)
-    let last_user = last_user_unix(&messages);
-    // CACHE LAW: the header is computed ONCE per run and stored on the user
-    // message (info.time.sent_hdr) — history replays these exact bytes on
-    // later turns; two clock_now_unix() calls could straddle a second.
-    let hdr_now = clock_header(clock_now_unix(), last_user);
-    if let Some(l) = messages.iter_mut().rev().find(|m| m["info"]["role"] == "user") {
-        l["info"]["time"]["sent_hdr"] = json!(hdr_now);
-    }
     let mut convo = rollup_if_needed(st, id, tx, messages).await;
     // TIME-AWARENESS + CACHE LAW: static preamble at position 0; each user
-    // turn carries the clock header it was sent with (current turn = now,
-    // earlier turns = reconstructed from stored time.created). Byte-stable
-    // history keeps the provider prefix-cache key alive across turns.
-    apply_clock_header(&mut convo, &hdr_now);
-    apply_clock_header_history(&mut convo);
+    // turn carries a header derived purely from stored created timestamps
+    // (this turn's message was stamped ≈ now), so history is byte-stable.
+    // Private `_` fields are stripped here, before ANY dialect sends.
+    apply_clock_headers(&mut convo);
     if st.config.voice {
         convo.insert(1, json!({ "role": "system", "content": VOICE_PROMPT }));
     }
@@ -1524,6 +1549,11 @@ fn load_catalog(model: &str) -> Value {
 
 #[tokio::main]
 async fn main() {
+    for k in ["YGG_CLOCK_EPOCH_MS", "YGG_CLOCK_SHIFT_SECS"] {
+        if std::env::var_os(k).is_some() {
+            eprintln!("WARNING: {k} is set — TEST/SIM ONLY; it writes synthetic times into stored message `created`. Unset it in production.");
+        }
+    }
     let base_url = std::env::var("YGG_UPSTREAM_BASE_URL").ok().filter(|u| !u.is_empty()).unwrap_or_else(|| {
         eprintln!("YGG_UPSTREAM_BASE_URL is required");
         std::process::exit(2);
@@ -1640,7 +1670,7 @@ mod time_awareness_tests {
     fn short_gap_no_rules_no_meanwhile() {
         let now = civil_to_unix(2026, 11, 5, 16, 0, 0);
         let last = now - 120; // 2min gap
-        let h = clock_header(now, Some(last));
+        let h = clock_header(now, Some(last), &[]);
         assert!(h.starts_with("[clock 2026-11-05T16:00:00Z] [gap since last user turn 2m]"));
         assert!(!h.contains("rules:"), "no adaptation rules under 4h");
         assert!(!h.contains("meanwhile"));
@@ -1651,7 +1681,7 @@ mod time_awareness_tests {
     fn long_gap_has_rules_and_meanwhile_capped() {
         let now = civil_to_unix(2026, 11, 5, 16, 0, 0);
         let last = now - 26 * 3600; // 26h synthetic gap
-        let h = clock_header(now, Some(last));
+        let h = clock_header(now, Some(last), &[]);
         assert!(h.contains("gap since last user turn 26h0m"), "gap rendered: {h}");
         assert!(h.contains("rules: <1h continuous flow; 1-24h brief re-anchor if state changed; >24h lead with a meanwhile-summary of what changed and re-anchor stale state"));
         // meanwhile lines are capped ≤3 total
@@ -1662,58 +1692,152 @@ mod time_awareness_tests {
     #[test]
     fn first_turn_header_has_clock_only() {
         let now = civil_to_unix(2026, 11, 5, 16, 0, 0);
-        let h = clock_header(now, None);
+        let h = clock_header(now, None, &[]);
         assert!(h.starts_with("[clock 2026-11-05T16:00:00Z]"));
         assert!(!h.contains("gap"));
         assert_eq!(h.lines().count(), 1);
     }
 
-    #[test]
-    fn apply_clock_header_prepends_without_store_side_effects() {
-        let now = civil_to_unix(2026, 11, 5, 16, 0, 0);
-        let last = now - 120;
-        let hdr = clock_header(now, Some(last));
-        let mut convo = vec![
-            json!({"role": "user", "content": "hello"}),
-            json!({"role": "assistant", "content": "hi"}),
-        ];
-        apply_clock_header(&mut convo, &hdr);
-        assert_eq!(convo.len(), 3);
-        assert_eq!(convo[0]["role"], "system");
-        assert_eq!(convo[0]["content"], SYSTEM_PREAMBLE, "position 0 = STATIC preamble (terse rule lives here)");
-        assert!(convo[1]["content"].as_str().unwrap().starts_with("[clock "), "header rides INSIDE the last user turn");
-        // the header is injected per turn — the CALLER's history (which gets
-        // stored) is untouched by construction: apply takes &mut convo only
+    fn stored(role: &str, text: &str, created_ms: i64) -> Value {
+        let mut m = make_message("s", role, vec![text_part(text)]);
+        m["info"]["time"]["created"] = json!(created_ms);
+        m
+    }
+
+    /// What agent_loop sends for a stored session (without the roll-up call).
+    fn request_for(stored: &[Value]) -> Vec<Value> {
+        let mut convo = upstream_history(stored);
+        apply_clock_headers(&mut convo);
+        convo
     }
 
     #[test]
-    fn cache_law_history_replays_stored_sent_hdr() {
-        let sent1 = "[clock 2026-11-05T15:58:00Z] [gap since last user turn 0s]";
-        let sent2 = "[clock 2026-11-05T16:00:00Z] [gap since last user turn 2m]";
-        let mut convo = vec![
-            json!({"role": "user", "content": "hello", "_hdr": sent1}),
-            json!({"role": "assistant", "content": "hi", "_ts": 1}),
-            json!({"role": "user", "content": "and now?"}),
+    fn headers_derive_from_stored_chain_not_from_now() {
+        let t0 = civil_to_unix(2026, 11, 5, 16, 0, 0) * 1000;
+        let msgs = vec![
+            stored("user", "hello", t0),
+            stored("assistant", "hi", t0 + 500),
+            stored("user", "and now?", t0 + 120_000),
         ];
-        apply_clock_header(&mut convo, sent2);
-        apply_clock_header_history(&mut convo);
-        assert_eq!(
-            convo[1]["content"].as_str().unwrap().split_once('\n').unwrap().0,
-            sent1,
-            "turn-1 slice replays the EXACT sent bytes (prefix-cache stability)"
-        );
-        assert!(convo[1]["content"].as_str().unwrap().contains("hello"));
+        let c = request_for(&msgs);
+        assert_eq!(c.len(), 4);
+        assert_eq!(c[0]["content"], SYSTEM_PREAMBLE, "position 0 = STATIC preamble");
+        assert_eq!(c[1]["content"], format!("{}\nhello", clock_header(t0 / 1000, None, &[])));
+        assert_eq!(c[3]["content"], format!("{}\nand now?", clock_header(t0 / 1000 + 120, Some(t0 / 1000), &[])));
     }
 
     #[test]
-    fn cache_law_no_double_header_on_replay() {
-        let mut convo = vec![
-            json!({"role": "user", "content": "[clock 2026-11-05T15:58:00Z] [gap since last user turn 0s]\nhello"}),
-            json!({"role": "assistant", "content": "hi"}),
-            json!({"role": "user", "content": "next"}),
+    fn cache_law_three_turns_real_store_path_prefix_stable() {
+        // Non-zero gaps; turn 3 lands across a second boundary vs turn 2.
+        let t1 = civil_to_unix(2026, 11, 5, 16, 0, 0) * 1000 + 400;
+        let t2 = t1 + 90_700;
+        let t3 = t2 + 61_900; // .4 + .7 + .9 crosses seconds
+        let mut store: Vec<Value> = Vec::new();
+        let mut reqs: Vec<Vec<Value>> = Vec::new();
+        for (i, (t, q)) in [(t1, "one"), (t2, "two"), (t3, "three")].into_iter().enumerate() {
+            store.push(stored("user", q, t));
+            reqs.push(request_for(&store));
+            store.push(stored("assistant", &format!("a{i}"), t + 300));
+        }
+        for n in 0..2 {
+            let (a, b) = (&reqs[n], &reqs[n + 1]);
+            assert!(b.len() > a.len());
+            assert_eq!(serde_json::to_string(a).unwrap(), serde_json::to_string(&b[..a.len()]).unwrap(),
+                "request {n} must be a byte-prefix of request {}", n + 1);
+        }
+        assert!(reqs[2][3]["content"].as_str().unwrap().contains("[gap since last user turn 1m]"), "{:?}", reqs[2][3]);
+    }
+
+    #[test]
+    fn meanwhile_is_frozen_at_creation_and_prefix_stable_across_a_long_gap() {
+        let t1 = civil_to_unix(2026, 11, 5, 8, 0, 0) * 1000;
+        let t2 = t1 + 26 * 3600 * 1000; // turn 2 lands 26h after turn 1
+        let t3 = t2 + 60_000;
+        let mut store = vec![stored("user", "one", t1), stored("assistant", "a0", t1 + 300)];
+        // What post_message does at creation: freeze the lines on the record.
+        let mut two = stored("user", "two", t2);
+        two["info"]["time"]["meanwhile"] = json!(["lane A done", "report.md"]);
+        store.push(two);
+        store.push(stored("assistant", "a1", t2 + 300));
+        // (a) render
+        let a = request_for(&store);
+        let hdr2 = a[3]["content"].as_str().unwrap();
+        assert!(hdr2.contains(" [meanwhile]\n[clock] lane A done\n[clock] report.md"), "{hdr2}");
+        // (b) live watcher/artifact state changes — header rendering never reads it
+        //     (clock_header takes the lines as input; nothing here touches the files).
+        // (c) turn 3 arrives, render again
+        store.push(stored("user", "three", t3));
+        let c = request_for(&store);
+        // (d) request (a) is a per-message byte-prefix of request (c)
+        assert!(c.len() > a.len());
+        for (i, m) in a.iter().enumerate() {
+            assert_eq!(serde_json::to_string(m).unwrap(), serde_json::to_string(&c[i]).unwrap(), "message {i}");
+        }
+        // old sessions (no stored field) render no meanwhile lines, stably
+        let mut old = store.clone();
+        old[2]["info"]["time"].as_object_mut().unwrap().remove("meanwhile");
+        assert!(!request_for(&old)[3]["content"].as_str().unwrap().contains("[meanwhile]"));
+    }
+
+    #[test]
+    fn headers_survive_compaction_boundary_and_skip_compaction_ask() {
+        let t0 = civil_to_unix(2026, 11, 5, 16, 0, 0) * 1000;
+        let mut ask = make_message("s", "user", vec![json!({ "type": "compaction", "auto": true })]);
+        ask["info"]["time"]["created"] = json!(t0 + 1000);
+        let msgs = vec![
+            stored("user", "old", t0),
+            stored("assistant", "old-a", t0 + 100),
+            ask,
+            stored("assistant", "SUMMARY", t0 + 1100),
+            stored("user", "new", t0 + 60_000),
         ];
-        apply_clock_header_history(&mut convo);
-        assert_eq!(convo[0]["content"].as_str().unwrap().matches("[clock ").count(), 1, "no double-header on already-stamped slices");
+        let c = request_for(&msgs);
+        assert_eq!(c.len(), 4); // preamble, ask, summary, new
+        assert_eq!(c[1]["content"], rollup::COMPACTION_ASK, "compaction ask gets no header");
+        assert_eq!(c[3]["content"], format!("{}\nnew", clock_header(t0 / 1000 + 60, Some(t0 / 1000), &[])),
+            "prev chain crosses the compaction boundary");
+    }
+
+    #[test]
+    fn empty_text_user_does_not_shift_headers() {
+        let t0 = civil_to_unix(2026, 11, 5, 16, 0, 0) * 1000;
+        let msgs = vec![
+            stored("user", "a", t0),
+            stored("user", "", t0 + 60_000),
+            stored("user", "b", t0 + 120_000),
+        ];
+        let c = request_for(&msgs);
+        assert_eq!(c.len(), 3);
+        assert_eq!(c[2]["content"], format!("{}\nb", clock_header(t0 / 1000 + 120, Some(t0 / 1000 + 60), &[])));
+    }
+
+    #[test]
+    fn non_string_user_content_is_not_erased() {
+        let mut convo = vec![json!({"role": "user", "content": [{"type": "text", "text": "x"}], "_ts": 1000})];
+        apply_clock_headers(&mut convo);
+        assert_eq!(convo[1]["content"], json!([{"type": "text", "text": "x"}]));
+    }
+
+    #[test]
+    fn no_private_keys_reach_either_dialect() {
+        let t0 = civil_to_unix(2026, 11, 5, 16, 0, 0) * 1000;
+        let msgs = vec![
+            stored("user", "hello", t0),
+            stored("assistant", "hi", t0 + 500),
+            stored("user", "again", t0 + 5000),
+        ];
+        let convo = request_for(&msgs);
+        // OpenAI dialect: `convo` is serialized raw as body["messages"].
+        for m in &convo {
+            let keys: Vec<&String> = m.as_object().unwrap().keys().collect();
+            assert!(keys.iter().all(|k| !k.starts_with('_')), "private key rides upstream: {keys:?}");
+        }
+        // Anthropic dialect: converted output.
+        let (system, out) = anthropic::convert(&convo);
+        let wire = serde_json::to_string(&(system, out)).unwrap();
+        assert!(!wire.contains("\"_ts\"") && !wire.contains("\"_prev\""), "{wire}");
+        // and the sources really did carry them before the strip
+        assert!(upstream_history(&msgs)[0].get("_ts").is_some());
     }
 }
 

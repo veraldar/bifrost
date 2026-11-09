@@ -328,6 +328,17 @@ struct Config {
     voice_max_words: usize,
 }
 
+/// PER-TURN voice note (voice-turn-brevity): appended as the tail of every
+/// stored user message with `info.modality == "voice"` when the upstream
+/// conversation is built. Never in the system prompt / position 0 (cache law:
+/// text turns and the cached prefix stay byte-identical). Independent of the
+/// brain-wide YGG_VOICE / VOICE_PROMPT path below. Editing resets caches once.
+const VOICE_TURN_NOTE: &str = "[voice turn] This reply will be spoken aloud: answer in 2 to 4 short, concrete sentences of plain speech, leading with the answer, with no lists, bullets, tables, headers, markdown, or code.";
+
+fn is_voice_turn(msg: &Value) -> bool {
+    msg["info"]["modality"] == "voice"
+}
+
 const VOICE_PROMPT: &str = "You are answering by voice. Answer in at most two short sentences. One thought per reply. No markdown, no emoji, no lists, no parentheses, no offers of more help. Plain words only.";
 
 /// Voice mode: shape model text for SPEECH — strip markdown, emoji and
@@ -421,6 +432,10 @@ struct AppState {
 struct PostMessage {
     #[serde(default)]
     parts: Vec<Value>,
+    /// Per-turn modality of the sender ("voice" = the reply will be spoken).
+    /// Absent/anything else = plain text turn.
+    #[serde(default)]
+    modality: Option<String>,
 }
 
 fn now_ms() -> u64 {
@@ -714,6 +729,7 @@ async fn post_message(
     headers: HeaderMap,
     Json(body): Json<PostMessage>,
 ) -> Response {
+    let modality = body.modality.clone();
     // Text parts go upstream; file parts (data: URLs) are stored so the transcript keeps them.
     let parts: Vec<Value> = body
         .parts
@@ -730,6 +746,11 @@ async fn post_message(
 
     // The user message lands at once (a stacked prompt is visible while it waits its turn).
     let mut user_msg = make_message(&id, "user", parts);
+    if modality.as_deref() == Some("voice") {
+        // stored on the message: the note renders from history on EVERY later
+        // turn too, so the cached prefix never changes (see VOICE_TURN_NOTE)
+        user_msg["info"]["modality"] = json!("voice");
+    }
     let stored = with_session(&st, &id, |s| {
         // Freeze the meanwhile lines at creation (same moment as `created`).
         let prev = s
@@ -805,7 +826,13 @@ fn upstream_history(messages: &[Value]) -> Vec<Value> {
             continue;
         }
         if role != "assistant" {
-            let text = if compaction { rollup::COMPACTION_ASK.to_string() } else { message_text(m) };
+            let mut text = if compaction { rollup::COMPACTION_ASK.to_string() } else { message_text(m) };
+            if role == "user" && !compaction && !text.is_empty() && is_voice_turn(m) {
+                // last text block of the stored voice turn; a pure function of
+                // stored history, so earlier bytes never change (cache law)
+                text.push('\n');
+                text.push_str(VOICE_TURN_NOTE);
+            }
             if !text.is_empty() {
                 let mut u = json!({ "role": role, "content": text });
                 // Private header vehicle for apply_clock_headers (stripped before send).
@@ -890,6 +917,8 @@ struct Run {
     /// streamed zero text but later steps did is exactly the slow shape
     /// the 31s-fallback bug wore.
     first_token_seen: bool,
+    /// the turn being answered carried VOICE_TURN_NOTE (LAT voice_note=0|1)
+    voice_note: bool,
 }
 
 impl Run {
@@ -954,8 +983,9 @@ impl Run {
             .map(|p| p.iter().filter(|x| x["type"] == "tool").count())
             .unwrap_or(0);
         eprintln!(
-            "LAT phase={} total_ms={} ttfb_ms={} steps={} tool_steps={} msg_parts={} calls={} retries={} first_token={}",
-            phase, total, ttfb, steps, tool_steps, steps, self.upstream_calls, self.retries, self.first_token_seen
+            "LAT phase={} total_ms={} ttfb_ms={} steps={} tool_steps={} msg_parts={} calls={} retries={} first_token={} voice_note={}",
+            phase, total, ttfb, steps, tool_steps, steps, self.upstream_calls, self.retries, self.first_token_seen,
+            self.voice_note as u8
         );
         self.msg["info"]["time"]["latency"] = json!({
             "total_ms": total,
@@ -984,6 +1014,11 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<V
 
     let mut msg = placeholder;
     msg["parts"] = json!([]);
+    let voice_note = history
+        .iter()
+        .rev()
+        .find(|m| m["info"]["role"] == "user" && !is_compaction(m))
+        .is_some_and(is_voice_turn);
     let mut run = Run {
         msg,
         text: String::new(),
@@ -992,6 +1027,7 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<V
         upstream_calls: 0,
         retries: 0,
         first_token_seen: false,
+        voice_note,
     };
     let outcome = {
         let fut = agent_loop(st, id, history, tx, &mut run);
@@ -1857,6 +1893,7 @@ mod speed_law_tests {
             upstream_calls: 1,
             retries: 0,
             first_token_seen: false,
+            voice_note: false,
         }
     }
 
@@ -1899,5 +1936,85 @@ mod speed_law_tests {
         let lat = &run.msg["info"]["time"]["latency"];
         assert_eq!(lat["ttfb_ms"], json!(0));
         assert_eq!(lat["first_token"], json!(false));
+    }
+}
+
+/// voice-turn-brevity: the per-turn note is rendered from STORED modality, at
+/// the tail of the voice user message only, and never disturbs earlier bytes.
+#[cfg(test)]
+mod voice_turn_tests {
+    use super::*;
+
+    fn stored(role: &str, text: &str, created_ms: i64, voice: bool) -> Value {
+        let mut m = make_message("s", role, vec![text_part(text)]);
+        m["info"]["time"]["created"] = json!(created_ms);
+        if voice {
+            m["info"]["modality"] = json!("voice");
+        }
+        m
+    }
+
+    fn request_for(stored: &[Value]) -> Vec<Value> {
+        let mut convo = upstream_history(stored);
+        apply_clock_headers(&mut convo);
+        convo
+    }
+
+    fn content(convo: &[Value], i: usize) -> String {
+        convo[i]["content"].as_str().unwrap().to_string()
+    }
+
+    #[test]
+    fn voice_message_carries_note_at_tail() {
+        let msgs = vec![stored("user", "how do I reset my router?", 1_000_000, true)];
+        let c = request_for(&msgs);
+        let u = content(&c, 1);
+        assert!(u.ends_with(VOICE_TURN_NOTE), "note is the last block: {u}");
+        assert!(u.contains("how do I reset my router?\n[voice turn]"));
+        // never in the system preamble
+        assert!(!content(&c, 0).contains("[voice turn]"));
+    }
+
+    #[test]
+    fn text_message_carries_no_note() {
+        let msgs = vec![stored("user", "how do I reset my router?", 1_000_000, false)];
+        let c = request_for(&msgs);
+        assert!(!content(&c, 1).contains("[voice turn]"));
+    }
+
+    #[test]
+    fn mixed_session_notes_only_voice_turns_and_prefix_is_byte_stable() {
+        let t0 = civil_to_unix(2026, 11, 5, 16, 0, 0) * 1000;
+        let mut msgs = vec![
+            stored("user", "voice one", t0, true),
+            stored("assistant", "reply one", t0 + 500, false),
+        ];
+        let before = request_for(&msgs);
+        msgs.push(stored("user", "typed two", t0 + 60_000, false));
+        let after = request_for(&msgs);
+        // earlier positions keep identical bytes once the next turn is appended
+        assert_eq!(before.len() + 1, after.len());
+        for i in 0..before.len() {
+            assert_eq!(before[i], after[i], "position {i} changed");
+        }
+        assert!(content(&after, 1).ends_with(VOICE_TURN_NOTE));
+        assert!(!content(&after, 3).contains("[voice turn]"));
+        // a second render of the same history is byte-identical
+        assert_eq!(after, request_for(&msgs));
+    }
+
+    #[test]
+    fn lat_row_reports_voice_note() {
+        let mut run = Run {
+            msg: make_message("s", "assistant", vec![]),
+            text: String::new(),
+            started: std::time::Instant::now(),
+            first_delta_ms: None,
+            upstream_calls: 1,
+            retries: 0,
+            first_token_seen: false,
+            voice_note: true,
+        };
+        run.lat_log("ok"); // the eprintln row ends voice_note=1; must not panic
     }
 }

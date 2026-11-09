@@ -243,9 +243,55 @@ fn clock_now_unix() -> i64 {
     now
 }
 
-fn apply_clock_header(convo: &mut Vec<Value>, last_user_unix: Option<i64>) {
-    let now = clock_now_unix();
-    convo.insert(0, json!({ "role": "system", "content": clock_header(now, last_user_unix) }));
+/// CACHE LAW (latency round 1, 11-08): the provider prefix-caches by exact
+/// byte prefix; any mutating content before the tail invalidates the key.
+/// Two rules keep the prefix append-only across turns:
+/// 1. The STATIC system preamble sits at position 0 (terse rule included);
+///    the clock header rides INSIDE the last user turn (a tail-position
+///    system message would be hoisted into the top-level `system` string by
+///    `convert()` and break the key all the same).
+/// 2. Prior turns keep the headers they were sent with — the EXACT sent
+///    bytes are stored on the message (`info.time.sent_hdr`) at send time
+///    and replayed for history; restart fallback reconstructs from
+///    `time.created` (gap 0). (Old behavior: the position-0 header vanished
+///    from turn 1's slice on turn 2 — a hidden cache-killer on every
+///    multi-turn session.)
+const CLOCK_MARK: &str = "[clock ";
+const SYSTEM_PREAMBLE: &str = "You are the brain of a personal assistant stack. Answer in the fewest words the question allows — short and direct unless the question itself is broad. Keep the user's language.";
+
+fn apply_clock_header(convo: &mut Vec<Value>, hdr: &str) {
+    convo.insert(0, json!({ "role": "system", "content": SYSTEM_PREAMBLE }));
+    if let Some(last) = convo.iter().rposition(|m| m["role"] == "user") {
+        let c = convo[last]["content"].as_str().unwrap_or("").to_string();
+        convo[last]["content"] = json!(format!("{hdr}\n{c}"));
+    }
+}
+
+/// The header turn-N was SENT with (deterministic reconstruction): rollup
+/// sizing notes (`roll-up: pruned …`) were trimmed before this fn in every
+/// observed case; later steps may append assistant/tool content AFTER the
+/// user turn — those don't touch the user-turn bytes, so the strip-marker +
+/// timestamp re-render is stable across turns.
+fn clock_header_sent_at(msg_unix_ms: i64) -> String {
+    clock_header(msg_unix_ms / 1000, Some(msg_unix_ms / 1000))
+}
+
+/// History stability: every user slice except the LAST carries the header it
+/// was SENT with — exact stored bytes (`info.time.sent_hdr`) when present,
+/// deterministic reconstruction from `time.created` as the restart fallback.
+/// The last user slice already has the fresh header from apply_clock_header.
+fn apply_clock_header_history(convo: &mut Vec<Value>) {
+    let n = convo.len();
+    for (i, m) in convo.iter_mut().enumerate() {
+        if m["role"] != "user" || i + 1 == n { continue; }
+        if m["content"].as_str().map_or(false, |c| c.contains(CLOCK_MARK)) { continue; }
+        let hdr = m["_hdr"].as_str().map(|s| s.to_string()).or_else(|| {
+            m["_ts"].as_i64().map(|ts| clock_header_sent_at(ts))
+        });
+        if let (Some(h), Some(c)) = (hdr, m["content"].as_str()) {
+            m["content"] = json!(format!("{h}\n{c}"));
+        }
+    }
 }
 
 fn last_user_unix(messages: &[Value]) -> Option<i64> {
@@ -728,7 +774,12 @@ fn upstream_history(messages: &[Value]) -> Vec<Value> {
         if role != "assistant" {
             let text = if is_compaction(m) { rollup::COMPACTION_ASK.to_string() } else { message_text(m) };
             if !text.is_empty() {
-                out.push(json!({ "role": role, "content": text }));
+                let mut u = json!({ "role": role, "content": text });
+                // CACHE LAW vehicle: _ts/_hdr ride to apply_clock_header_history
+                // and are dropped by anthropic::convert (unknown fields ignored).
+                if let Some(ts) = m["info"]["time"]["created"].as_i64() { u["_ts"] = json!(ts); }
+                if let Some(h) = m["info"]["time"]["sent_hdr"].as_str() { u["_hdr"] = json!(h); }
+                out.push(u);
             }
             continue;
         }
@@ -963,17 +1014,26 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<V
 async fn agent_loop(
     st: &AppState,
     id: &str,
-    messages: Vec<Value>,
+    mut messages: Vec<Value>,
     tx: &mpsc::Sender<Event>,
     run: &mut Run,
 ) -> Result<(), String> {
     // capture BEFORE roll-up consumes the history (info.time.created, ms)
     let last_user = last_user_unix(&messages);
+    // CACHE LAW: the header is computed ONCE per run and stored on the user
+    // message (info.time.sent_hdr) — history replays these exact bytes on
+    // later turns; two clock_now_unix() calls could straddle a second.
+    let hdr_now = clock_header(clock_now_unix(), last_user);
+    if let Some(l) = messages.iter_mut().rev().find(|m| m["info"]["role"] == "user") {
+        l["info"]["time"]["sent_hdr"] = json!(hdr_now);
+    }
     let mut convo = rollup_if_needed(st, id, tx, messages).await;
-    // TIME-AWARENESS: the header is measured against the POST-ROLL-UP convo
-    // (pruning happens inside agent_loop each step, after this) — it is added
-    // per turn and never stored, so it cannot count against the ceiling.
-    apply_clock_header(&mut convo, last_user);
+    // TIME-AWARENESS + CACHE LAW: static preamble at position 0; each user
+    // turn carries the clock header it was sent with (current turn = now,
+    // earlier turns = reconstructed from stored time.created). Byte-stable
+    // history keeps the provider prefix-cache key alive across turns.
+    apply_clock_header(&mut convo, &hdr_now);
+    apply_clock_header_history(&mut convo);
     if st.config.voice {
         convo.insert(1, json!({ "role": "system", "content": VOICE_PROMPT }));
     }
@@ -1612,16 +1672,48 @@ mod time_awareness_tests {
     fn apply_clock_header_prepends_without_store_side_effects() {
         let now = civil_to_unix(2026, 11, 5, 16, 0, 0);
         let last = now - 120;
+        let hdr = clock_header(now, Some(last));
         let mut convo = vec![
             json!({"role": "user", "content": "hello"}),
             json!({"role": "assistant", "content": "hi"}),
         ];
-        apply_clock_header(&mut convo, Some(last));
+        apply_clock_header(&mut convo, &hdr);
         assert_eq!(convo.len(), 3);
         assert_eq!(convo[0]["role"], "system");
-        assert!(convo[0]["content"].as_str().unwrap().starts_with("[clock "));
+        assert_eq!(convo[0]["content"], SYSTEM_PREAMBLE, "position 0 = STATIC preamble (terse rule lives here)");
+        assert!(convo[1]["content"].as_str().unwrap().starts_with("[clock "), "header rides INSIDE the last user turn");
         // the header is injected per turn — the CALLER's history (which gets
         // stored) is untouched by construction: apply takes &mut convo only
+    }
+
+    #[test]
+    fn cache_law_history_replays_stored_sent_hdr() {
+        let sent1 = "[clock 2026-11-05T15:58:00Z] [gap since last user turn 0s]";
+        let sent2 = "[clock 2026-11-05T16:00:00Z] [gap since last user turn 2m]";
+        let mut convo = vec![
+            json!({"role": "user", "content": "hello", "_hdr": sent1}),
+            json!({"role": "assistant", "content": "hi", "_ts": 1}),
+            json!({"role": "user", "content": "and now?"}),
+        ];
+        apply_clock_header(&mut convo, sent2);
+        apply_clock_header_history(&mut convo);
+        assert_eq!(
+            convo[1]["content"].as_str().unwrap().split_once('\n').unwrap().0,
+            sent1,
+            "turn-1 slice replays the EXACT sent bytes (prefix-cache stability)"
+        );
+        assert!(convo[1]["content"].as_str().unwrap().contains("hello"));
+    }
+
+    #[test]
+    fn cache_law_no_double_header_on_replay() {
+        let mut convo = vec![
+            json!({"role": "user", "content": "[clock 2026-11-05T15:58:00Z] [gap since last user turn 0s]\nhello"}),
+            json!({"role": "assistant", "content": "hi"}),
+            json!({"role": "user", "content": "next"}),
+        ];
+        apply_clock_header_history(&mut convo);
+        assert_eq!(convo[0]["content"].as_str().unwrap().matches("[clock ").count(), 1, "no double-header on already-stamped slices");
     }
 }
 

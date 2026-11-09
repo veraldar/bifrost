@@ -57,12 +57,13 @@ def plan(body):
         head = next((l for l in tr.splitlines() if l.startswith("USER: ")), "")
         return {"kind": "summary", "text": f"MOCK-SUMMARY: {head} | {len(tr)} chars"}
     users = [i for i, m in enumerate(msgs) if m["role"] == "user"]
-    # TIME-AWARENESS sim (owner ADD): the FIRST system message is the brain's
-    # clock header. gap >4h → acknowledge the gap and refresh stale state;
-    # gap ≤60m → NO meanwhile-preamble (don't narrate continuity when
-    # continuous). Chunks the reply so SSE text-delta capture works.
-    if first["role"] == "system" and str(first["content"]).startswith("[clock "):
-        hdr = str(first["content"])
+    # TIME-AWARENESS sim, cache-law edition: the header rides INSIDE the
+    # FIRST user turn (static system preamble sits at position 0). Same gap
+    # logic as before: >4h → acknowledge + refresh; ≤60m → no preamble.
+    hdr = None
+    if users and str(msgs[users[-1]]["content"]).startswith("[clock "):
+        hdr = str(msgs[users[-1]]["content"])  # CURRENT turn's header (last user slice)
+    if hdr:
         m = re.search(r"\[gap since last user turn ([^]]+)\]", hdr)
         gap = m.group(1).strip() if m else None
         units = re.findall(r"(\d+)d", gap or "")

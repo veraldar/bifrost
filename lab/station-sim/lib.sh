@@ -32,7 +32,7 @@ brain_start() { spawn python3 "$SIM_HERE/mock/brain.py" "$PORT" "$CD/brain"; BRA
 brain_stop() { kill "$BRAIN_PID" 2>/dev/null; wait "$BRAIN_PID" 2>/dev/null; }
 brain_mode() { echo "$1" >"$CD/brain/mode"; }
 
-watcher_start() { spawn "$REPO/scripts/watch-landings.sh"; WATCH_PID=$SPID; }
+watcher_start() { spawn "${WATCH_SCRIPT:-$REPO/scripts/watch-landings.sh}"; WATCH_PID=$SPID; }   # WATCH_SCRIPT = pre-fix comparison
 watcher_stop() { kill -TERM -- "-$WATCH_PID" 2>/dev/null; }
 
 dispatch() { # $1 session  $2 artifact (as given to -a)  $3 budget min (default 30); cwd = work/

@@ -3,7 +3,9 @@
 GET /session  -> $BRAIN_DIR/sessions.json (default: one "[MAIN]" session)
 POST /session/<id>/message -> logs one JSON line to $BRAIN_DIR/posts.log with the HTTP code
 returned; $BRAIN_DIR/mode = "ok" (default, 200) or "503" (flip per case). "Down" = the case
-stops/starts this process."""
+stops/starts this process. Marker-aware: a post whose text starts "AUTO-VERDICT REQUEST:" also
+logs an owner-verdict event to $BRAIN_DIR/verdicts.log (what the real brain turns into an
+assessment). $BRAIN_DIR/delay = seconds to hold the 2xx (MAIN mid-run, run_lock queue)."""
 import json, os, sys, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -35,6 +37,11 @@ class H(BaseHTTPRequestHandler):
         sid = self.path.split("/")[2] if self.path.count("/") >= 3 else "?"
         with open(os.path.join(BD, "posts.log"), "a") as f:
             f.write(json.dumps({"t": time.time(), "sid": sid, "code": code, "text": text}) + "\n")
+        if text.startswith("AUTO-VERDICT REQUEST:"):
+            with open(os.path.join(BD, "verdicts.log"), "a") as f:
+                f.write(json.dumps({"t": time.time(), "event": "owner-verdict", "text": text}) + "\n")
+        try: time.sleep(float(open(os.path.join(BD, "delay")).read().strip() or 0))
+        except (OSError, ValueError): pass
         self._send(code)
 
 ThreadingHTTPServer(("127.0.0.1", PORT), H).serve_forever()

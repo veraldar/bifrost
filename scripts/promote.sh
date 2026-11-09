@@ -22,13 +22,18 @@
 #   scripts/promote.sh --rollback            live <-> previous (run it twice = back again)
 #   scripts/promote.sh --install-units       point lk-pwa/lk-agent at the live release (once)
 #   flags: --build-only (stage, don't switch)   --force (switch with runs in flight)
+#          --next <label|off>  where the next slot (:8443) moves after the switch — REQUIRED when the
+#                              release being promoted is what :8443 serves (the consent flow): the
+#                              TWO-ROOTS LAW (10-28) keeps :443 and :8443 on different builds
+#                              (scripts/two-roots.sh). A rollback is never blocked, only reported.
 set -uo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-BIF="$HOME/.local/share/bifrost"
+BIF="${BIFROST_HOME:-$HOME/.local/share/bifrost}"
 RELS="$BIF/releases"
 ENV_DIR="$HOME/.config/bifrost/env"
-UNITS="$HOME/.config/systemd/user"
+UNITS="${BIFROST_UNITS:-$HOME/.config/systemd/user}"
+SANDBOX_PWA="${BIFROST_SANDBOX_PWA:-$HOME/Work/bifrost-sandbox/pwa}"
 NODE_BIN="${NODE_BIN:-$HOME/.local/share/mise/installs/node/26.8.1/bin}"
 UV="${UV:-$HOME/.local/share/mise/installs/uv/latest/.mise-bins/uv}"
 STATE_LINKS=(.diag .push-subs.json .oc-live.json .oc-queue.json .devices.json)
@@ -36,7 +41,7 @@ STATE_LINKS=(.diag .push-subs.json .oc-live.json .oc-queue.json .devices.json)
 say() { echo "[promote] $*"; }
 die() { echo "[promote] FAIL: $*" >&2; exit 1; }
 
-REF="" SNAP=0 ENV_ONLY=0 LABEL="" BUILD_ONLY=0 FORCE=0 MODE=release TARGET=""
+REF="" SNAP=0 ENV_ONLY=0 LABEL="" BUILD_ONLY=0 FORCE=0 MODE=release TARGET="" NEXT_TARGET=""
 while (($#)); do
   case "$1" in
     --snapshot) SNAP=1 ;;
@@ -47,6 +52,7 @@ while (($#)); do
     --build-only) BUILD_ONLY=1 ;;
     --force) FORCE=1 ;;
     --rollback) MODE=rollback ;;
+    --next) NEXT_TARGET="${2:-}"; [[ -n "$NEXT_TARGET" ]] || die "--next needs <label|off>"; shift ;;
     --install-units) MODE=units ;;
     -*) die "unknown flag $1" ;;
     *) REF="$1" ;;
@@ -175,6 +181,7 @@ switch_gated() {
   if switch_to "$to" && gate; then
     [[ -n "$from" ]] && ln -sfn "$from" "$BIF/previous.new" && mv -Tf "$BIF/previous.new" "$BIF/previous"
     say "OK — live = $to (previous: ${from#releases/})"
+    two_roots_post
     return 0
   fi
   say "gate RED on $to — back to ${from#releases/}"
@@ -210,9 +217,55 @@ switch_to() {  # $1 = release dir name; restarts the live units onto it
 
 gate() { python3 "$REPO/scripts/gate.py"; }
 
+# TWO-ROOTS LAW (the user's order, 10-28): :443 and :8443 always serve different builds — the next
+# slot holds the next evolution for consent. It collapsed on 10-27: rc2 was the consent build on
+# :8443 and this script switched :443 to it. Before a FORWARD switch: if the target is what :8443
+# serves, --next must say where the next slot goes (a different release, or `off` = the sandbox
+# worktree build), checked BEFORE anything moves. After every switch: the next slot moves (if asked)
+# and the law is checked out loud. A rollback is the safety net: never refused here, only reported.
+two_roots_pre() {  # $1 = target release id
+  local why nb
+  why="$("$REPO/scripts/two-roots.sh" guard live "$1")" && {
+    [[ -z "${PROMOTE_PRECHECK_ONLY:-}" ]] || { say "precheck only: $1 is not what :8443 serves"; exit 0; }
+    return 0
+  }
+  [[ -n "$NEXT_TARGET" ]] || die "$why — promote with --next <label> (the next candidate takes :8443) or --next off (the sandbox worktree build)"
+  if [[ "$NEXT_TARGET" == off ]]; then
+    nb="$(cat "$SANDBOX_PWA/.next/BUILD_ID" 2>/dev/null)"
+    [[ -n "$nb" ]] || die "--next off: the sandbox worktree has no build ($SANDBOX_PWA/.next/BUILD_ID)"
+    "$REPO/scripts/two-roots.sh" same "$nb" "$1" && die "--next off: the sandbox worktree build $nb is $1's build too — pick --next <label>"
+  else
+    resolve "$NEXT_TARGET" >/dev/null || exit 1
+    "$REPO/scripts/two-roots.sh" same "$NEXT_TARGET" "$1" && die "--next $NEXT_TARGET is the release being promoted — the next slot needs a different build"
+  fi
+  say "two-roots: $1 leaves :8443 for :443 — the next slot moves to '$NEXT_TARGET' after a GREEN switch"
+  # scripts/test-two-roots.sh: stop right after the law's verdict — nothing switches, nothing restarts
+  [[ -z "${PROMOTE_PRECHECK_ONLY:-}" ]] || { say "precheck only: the two-roots law passes for $1"; exit 0; }
+}
+two_roots_post() {
+  if [[ -n "$NEXT_TARGET" ]]; then
+    if [[ "$NEXT_TARGET" == off ]]; then "$REPO/scripts/next-slot.sh" off; else "$REPO/scripts/next-slot.sh" on "$NEXT_TARGET"; fi \
+      || say "WARNING: the next slot did not move to '$NEXT_TARGET' — scripts/next-slot.sh status"
+  fi
+  "$REPO/scripts/two-roots.sh" check || say "RED (TWO-ROOTS LAW): live is right, the next slot is not — move it: scripts/next-slot.sh on <newer> | off"
+}
+
+# fleet rule 10-28.4: drift-guard exit 0 blocks every FORWARD ship. Going back (--rollback, or a
+# --switch to PREVIOUS) never waits on it: the safety net must not depend on the worktrees' state.
+drift_gate() {
+  "$REPO/scripts/drift-guard.sh" >/tmp/promote-drift.$$ 2>&1 && { rm -f /tmp/promote-drift.$$; return 0; }
+  cat /tmp/promote-drift.$$ >&2; rm -f /tmp/promote-drift.$$
+  die "drift-guard RED (rule 10-28.4) — port the fix or name the gap in scripts/drift-guard.sh, then promote"
+}
+
+# runs in flight on the brain(s) a switch touches: live's and, given $1, the target release's
+release_brain() { grep -h '^OPENCODE_URL=' "$1/env/live-pwa.env" 2>/dev/null | cut -d= -f2-; }
 in_flight() {
-  curl -s -m 5 http://127.0.0.1:4096/session/status | python3 -c \
-    'import json,sys; print(" ".join(k for k,v in json.load(sys.stdin).items() if (v or {}).get("type")=="busy"))' 2>/dev/null
+  local b
+  for b in $( { release_brain "$BIF/live"; [[ -n "${1:-}" ]] && release_brain "$1"; } | sort -u); do
+    curl -s -m 5 "$b/session/status" | python3 -c \
+      'import json,sys; print(" ".join(k for k,v in json.load(sys.stdin).items() if (v or {}).get("type")=="busy"))' 2>/dev/null
+  done | xargs
 }
 
 unmigrate() {
@@ -242,7 +295,9 @@ case "$MODE" in
     backfill_env
     grep -q 'live/env' "$UNITS/lk-pwa.service.d/live.conf" 2>/dev/null || install_units
     to="$(resolve "$TARGET")" || exit 1
-    busy="$(in_flight)"
+    # forward (not back to PREVIOUS): drift-guard + the two-roots law first
+    [[ "releases/$to" == "$(readlink "$BIF/previous" 2>/dev/null)" ]] || { two_roots_pre "$to"; drift_gate; }
+    busy="$(in_flight "$RELS/$to")"
     [[ -z "$busy" || $FORCE == 1 ]] || die "run(s) in flight ($busy) — wait, or --force"
     switch_gated "$to"; exit $? ;;
 esac
@@ -270,7 +325,8 @@ EOF
   chmod a-w "$REL/RELEASE.json"
   say "built $ID (build of $src, new env $(env_hash "$REL"))"
   ((BUILD_ONLY)) && { say "--build-only: staged, live untouched"; exit 0; }
-  busy="$(in_flight)"
+  drift_gate
+  busy="$(in_flight "$REL")"
   [[ -z "$busy" || $FORCE == 1 ]] || die "run(s) in flight ($busy) — wait, or --force (staged at $REL)"
   switch_gated "$ID"; exit $?
 fi
@@ -306,6 +362,8 @@ else
   git archive --format=tar "$BASE" pwa agent scripts | tar -x -C "$REL" || die "archive failed"
 fi
 for f in "${STATE_LINKS[@]}"; do ln -sfn "$REPO/pwa/$f" "$REL/pwa/$f"; done
+# env/ before the build: pwa/.env.local -> ../env/live-pwa.env must resolve (next build stats it)
+freeze_env "$REL" || die "env copy failed"
 link_artifacts "$REL"
 
 LOG="$REL/build.log"
@@ -318,7 +376,10 @@ LOG="$REL/build.log"
   GIT_CEILING_DIRECTORIES="$BIF" PATH="$NODE_BIN:$PATH" "$NODE_BIN/npm" run build
   cd "$REL/agent"
   "$UV" sync --frozen
-) > "$LOG" 2>&1 || die "build failed — see $LOG (live untouched)"
+) > "$LOG" 2>&1
+# (never `( set -e … ) || die`: bash ignores set -e inside an || list — a failed next build was staged as built)
+(($? == 0)) || die "build failed — see $LOG (live untouched)"
+[[ -s "$REL/pwa/.next/BUILD_ID" ]] || die "no .next/BUILD_ID — see $LOG (live untouched)"
 
 BUILD_ID="$(cat "$REL/pwa/.next/BUILD_ID")"
 # freeze the source (manifest catches any later edit; read-only says "don't")
@@ -335,13 +396,14 @@ json.dump({
 }, open(sys.argv[1], "w"), indent=1)
 EOF
 chmod a-w "$REL/RELEASE.json"
-freeze_env "$REL" || die "env copy failed"
 link_artifacts "$REL"
 say "built $ID · build $BUILD_ID · manifest ${MANIFEST:0:12} · env $(env_hash "$REL")"
 ((BUILD_ONLY)) && { say "--build-only: staged, live untouched"; exit 0; }
 
 # --- switch + gate -------------------------------------------------------------
-busy="$(in_flight)"
+two_roots_pre "$ID"
+drift_gate
+busy="$(in_flight "$REL")"
 [[ -z "$busy" || $FORCE == 1 ]] || die "run(s) in flight ($busy) — wait, or --force (staged at $REL)"
 PREV="$(readlink "$BIF/live" 2>/dev/null || true)"
 backfill_env
@@ -349,6 +411,7 @@ grep -q 'live/env' "$UNITS/lk-pwa.service.d/live.conf" 2>/dev/null && grep -q 'l
 if switch_to "$ID" && gate; then
   [[ -n "$PREV" && "$PREV" != "releases/$ID" ]] && ln -sfn "$PREV" "$BIF/previous.new" && mv -Tf "$BIF/previous.new" "$BIF/previous"
   say "OK — live = $ID (previous: ${PREV#releases/})"
+  two_roots_post
   exit 0
 fi
 say "gate RED on $ID"

@@ -10,7 +10,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { useRouter } from 'next/navigation';
-import { Room, RoomEvent, Track, createAudioAnalyser } from 'livekit-client';
+import { Room, RoomEvent, Track, createAudioAnalyser, DisconnectReason } from 'livekit-client';
 import Link from 'next/link';
 import { LineIcon, StopSquare } from '@/components/line-icon';
 import { type Msg, SessionMessage, userProse } from '@/components/session-message';
@@ -83,9 +83,17 @@ async function agentInRoom(room: Room, ms: number) {
  *  minting a fresh dispatch). Recovery: ask the PWA to dispatch the agent
  *  into the room we are ALREADY in (no re-dial — the link was the flaky
  *  part) and wait one more window. Returns the agent, or null so the
- *  caller surfaces the lk-agent error — which is then the true diagnosis. */
+ *  caller surfaces the lk-agent error — which is then the true diagnosis.
+ *
+ *  2026-10-30 (req fix-main 14:11): a dispatch/duplicate-agent storm drove
+ *  the worker past its load threshold — LiveKit queued every fresh job
+ *  ~20-45s instead of ~1s, so the old 10s re-arm window expired while the
+ *  job was still pending (agent only joined at +45s). 10s → 30s and the
+ *  miss-diags now name the real phase: pending-dispatch vs still-empty
+ *  after a confirmed dispatch. */
 async function rearmAgent(room: Room, ms: number) {
   diagEvent('voice', `room ${room.name} agent-less — re-arming dispatch`);
+  let pending = false;
   try {
     const r = await fetch('/api/dispatch', {
       method: 'POST',
@@ -93,10 +101,16 @@ async function rearmAgent(room: Room, ms: number) {
       body: JSON.stringify({ room: room.name }),
     });
     if (!r.ok) return null;
+    pending = true;
+    diagEvent('voice', `dispatch accepted for room ${room.name} — waiting ${Math.round(ms / 1000)}s for the join`);
   } catch {
     return null;
   }
-  return agentInRoom(room, ms);
+  const agent = await agentInRoom(room, ms);
+  if (!agent && pending) {
+    diagEvent('voice-fail', `room ${room.name}: dispatch pending ${Math.round(ms / 1000)}s — worker saturated or slow to join`);
+  }
+  return agent;
 }
 
 /** Live mic equalizer — 5 voice-band bars (100Hz–2kHz) from the published
@@ -263,6 +277,10 @@ export default function SessionView({
   // replacement and storm LiveKit (seen 2026-09-25: ~5 reconnects/sec)
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectFailsRef = useRef(0);
+  // ANOTHER CLIENT TOOK THE SEAT (DUPLICATE_IDENTITY): set when the server
+  // duplicate-kills us, cleared by the next deliberate ensureVoice — the war
+  // stopper (see the Disconnected handler in connectVoice)
+  const voiceTakenOverRef = useRef(false);
   // PTT intent survives an async room connect: if the finger lifted before
   // the room was ready, the mic must not be left hot by connectVoice
   const pttWantRef = useRef(false);
@@ -895,6 +913,11 @@ export default function SessionView({
   async function ensureVoice(): Promise<Room> {
     if (roomRef.current && voiceState === 'ready') return roomRef.current;
     if (voicePromiseRef.current) return voicePromiseRef.current;
+    // a deliberate press here IS the takeover: whatever killed the last room
+    // (duplicate identity or not), the user asked for voice NOW — clear the
+    // latch and dial fresh (the Disconnected handler keeps self-heal off
+    // while the latch is set, so only a gesture can re-enter)
+    voiceTakenOverRef.current = false;
     // params unwrap is async: on first mount slug is still '' — minting
     // then would create a random fallback room in the token route (and the
     // agent would spawn a phantom opencode session titled after it, live
@@ -907,9 +930,11 @@ export default function SessionView({
   }
 
   /** Single self-heal path for a dropped/stale room: deduped by timer,
-   *  exponential backoff while connects keep failing. */
+   *  exponential backoff while connects keep failing. Never runs while a
+   *  duplicate-identity takeover latch is set — self-healing into a seat
+   *  another client owns is the connect/kill war of 2026-10-30. */
   function reconnectVoice() {
-    if (unmountedRef.current || reconnectTimerRef.current) return;
+    if (unmountedRef.current || voiceTakenOverRef.current || reconnectTimerRef.current) return;
     reconnectTimerRef.current = setTimeout(
       () => {
         reconnectTimerRef.current = null;
@@ -956,13 +981,32 @@ export default function SessionView({
       const room = new Room({ adaptiveStream: false });
       room.on(RoomEvent.SignalConnected, () => diagEvent('voice', 'signal connected'));
       room.on(RoomEvent.Connected, () => diagEvent('voice', 'room connected'));
-      room.on(RoomEvent.Disconnected, () => {
-        diagEvent('voice', 'room disconnected');
+      room.on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
+        diagEvent('voice', `room disconnected (${DisconnectReason[reason ?? 0] ?? 'unknown'})`);
         // the room's join token is stale now — reconnecting with it just 401s
         // ("token is expired"). Drop it so the next connect mints a fresh one.
         roomRef.current = null;
         voicePromiseRef.current = null;
         setVoiceState('off');
+        // ANOTHER CLIENT TOOK OUR SEAT (live 2026-10-30 12:41, room 'main'):
+        // the same identity is open on a Mac — the server duplicate-kills the
+        // newer join ~100ms after every signal connect. Self-healing kept
+        // reminting + redialing → an endless connect/kill war (hundreds of
+        // dispatches, dozens of jobs, mic permission spam) and the press that
+        // started it died on "signal timeout (12s)". The seat is lost until
+        // the user decides WHO owns this session: hold a takeover latch so
+        // the war stops, say it in words, and clear it only on a deliberate
+        // mic press — that gesture is the takeover (fresh token, fresh dial,
+        // this client wins).
+        if (reason === DisconnectReason.DUPLICATE_IDENTITY) {
+          if (!unmountedRef.current) {
+            voiceTakenOverRef.current = true;
+            setError(
+              'this session is open on another device — voice moved there. Tap the mic here to take it back.'
+            );
+          }
+          return;
+        }
         // self-heal ONLY while voice is actually wanted (e.g. the phone slept
         // past the token TTL and the server dropped the room). A deliberate
         // keyboard-mode release fires this event too: reconnecting there
@@ -1111,10 +1155,10 @@ export default function SessionView({
           if (roomRef.current !== room || room.remoteParticipants.size > 0) return;
           // the dispatch may have died with the first agent job (network-flap
           // self-reconnect) — re-arm into this room before blaming lk-agent
-          const agent = await rearmAgent(room, 10_000);
+          const agent = await rearmAgent(room, 30_000);
           if (unmountedRef.current || modeRef.current !== 'free') return;
           if (agent || roomRef.current !== room || room.remoteParticipants.size > 0) return;
-          diagEvent('voice-fail', 'hands-free: no voice agent in the room after 10s (+re-arm)');
+          diagEvent('voice-fail', 'hands-free: no voice agent in the room after 10s (+re-arm 30s)');
           setError('voice agent missing from the room — is lk-agent running? tap the mic button to retry');
         }, 10_000);
       }
@@ -1311,8 +1355,10 @@ export default function SessionView({
       let agent = await agentInRoom(room, 4_000);
       if (!agent) {
         // dispatch may have died with the first agent job (network-flap
-        // self-reconnect) — re-arm into this room before blaming lk-agent
-        agent = await rearmAgent(room, 10_000);
+        // self-reconnect) — re-arm into this room before blaming lk-agent;
+        // 30s: a saturated worker can take 45s to seat a job (10-30), but
+        // pttUp aborts the wait the moment a newer hold begins
+        agent = await rearmAgent(room, 30_000);
       }
       if (pttWantRef.current) {
         // a newer hold began while we waited — ITS release owns the commit
@@ -1320,7 +1366,7 @@ export default function SessionView({
         return;
       }
       if (!agent) {
-        diagEvent('voice-fail', 'commit: no voice agent in the room after 4s (+re-arm)');
+        diagEvent('voice-fail', 'commit: no voice agent in the room after 4s (+re-arm 30s)');
         setError('voice agent missing from the room — is lk-agent running? try again in a moment');
         setBusy(false);
         return;
@@ -1842,11 +1888,13 @@ export default function SessionView({
       let agent = await agentInRoom(room, 4_000);
       if (!agent) {
         // dispatch may have died with the first agent job (network-flap
-        // self-reconnect) — re-arm into this room before blaming lk-agent
-        agent = await rearmAgent(room, 10_000);
+        // self-reconnect) — re-arm into this room before blaming lk-agent;
+        // 30s: a saturated worker can take 45s to seat a job (10-30), so
+        // the miss-diag distinguishes pending-dispatch from truly down
+        agent = await rearmAgent(room, 30_000);
       }
       if (!agent) {
-        diagEvent('voice-fail', 'tap-to-send: no voice agent in the room after 4s (+re-arm)');
+        diagEvent('voice-fail', 'tap-to-send: no voice agent in the room after 4s (+re-arm 30s)');
         setError('voice agent missing from the room — is lk-agent running? try again in a moment');
         setBusy(false);
         return;

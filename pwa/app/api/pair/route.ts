@@ -14,6 +14,7 @@
 import { NextResponse } from 'next/server';
 import { listDevices, mintDevice, validateToken } from '@/lib/devices';
 import { adminOk } from '@/lib/admin';
+import { turnCreds, turnSecret } from '@/lib/ice';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -37,7 +38,13 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const name = String(body?.name || 'device');
   const { id, token } = await mintDevice(name);
-  return NextResponse.json({ id, token, name }, { headers: { 'Cache-Control': 'no-store' } });
+  // vps-turn-tcp: pair response also carries fresh time-limited TURN creds
+  // (empty urls[] until TURN_SECRET is set on the box — seam stays inert).
+  const iceServers = turnSecret() ? [turnCreds(turnSecret())] : [];
+  return NextResponse.json(
+    { id, token, name, iceServers },
+    { headers: { 'Cache-Control': 'no-store' } },
+  );
 }
 
 export async function GET(req: Request) {

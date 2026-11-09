@@ -107,6 +107,18 @@ What the wrapper enforces (nothing to remember, all automatic):
   output has not grown for 10 min the wrapper kills it and retries ONCE;
   a second stall (or failure) is reported as a failure in the log. Plain `-p`
   text output is silent until the end — never hand-roll monitoring on it.
+- (S4, 10-27) Every lane runs in its own transient `systemd-run --user` unit
+  (`agi-lane-<SESSION>-<pid>`), outside the caller's cgroup: restarting the brain
+  that dispatched it kills no lane. `AGI_SYSTEMD=0` runs in place (tests only);
+  `AGI_DETACH=1` returns at launch instead of blocking.
+- (S4) A finished lane writes a completion letter (envelope v1, `author: harness`,
+  `kind: result|blocked`) to `artifacts/letters/` and pushes it via `/api/push`
+  (`AGI_PUSH_URL`, default the sandbox PWA :8090 — never the live :8080).
+- (S4) A RUNNING row whose wrapper pid is gone is reaped to `DEAD` by any
+  `agi-status.sh` call (`--reap` = quiet; `scripts/agi-reap.timer` is shipped, not enabled).
+- (S4) Chains: `scripts/agi-chain.sh -w UP[,UP] -t SECS [--any] -- <agi-run args>` is the one
+  chain format. It launches only when every upstream's latest row is OK, and STOPS (a
+  `CHAIN-STOP` row) on expiry or on a red upstream. No hand-rolled `sleep` waiters.
 - Fleet view any time: `scripts/agi-status.sh` → runs today (count,
   success/fail/stalled), currently running with elapsed time, last failure.
 
@@ -232,6 +244,71 @@ scope (arXiv 2609.29144). Therefore:
 4. Rules form a POOL, not an append log: rules that no longer certify get
    culled by the periodic mutator/judge pass (RuleEvolve pattern, arXiv
    2610.00650) — the playbook evolves by the same loop it teaches.
+5. **ARTIFACT PARITY** (v0.7 root FAIL, 10-06 — docs/reviews/sim-gap-v07.md):
+   a simulation certifies the artifact it runs on — THE SHIPPING BINARY ON
+   THE SHIPPING DEVICE CLASS — and nothing else. Every GREEN carries artifact
+   identity (binary/build hash, config/env, topology, device class); cycle
+   snapshots record hashes, not prose versions. REPRO-FIRST: "simulate-tested"
+   attaches to a release only when the sim/e2e gate re-runs against the
+   shipping artifact (same hash, same device class, same topology); a device
+   class the lab cannot reach (a real phone) is a named SKIP in the release
+   notes, never a silently carried GREEN. Mocks never ship: test scaffolding
+   (fake mics, lab tokens, mock upstreams) is gated so no shipping build or
+   user-facing link can activate it — scaffolding in a shipping link FAILS.
+   GREENs on a future artifact (next transport, next slot) attach to that
+   future artifact and certify nothing about today's. Evidence: cycles 6/7
+   CYCLE VALID on app 0.6.0 (AVD, lab-mic, in-sim STT, ephemeral ports) while
+   the shipped :8443 slot was the sandbox tree-door build + LiveKit agent +
+   Mac MLX STT — the lab's fake-mic flag itself shipped to the user's phone.
+   Scope: every lab with an app/endpoint lane + release gates (promote.sh,
+   gate.py). Counterfactual: hermetic determinism still wins for regression
+   hunting — parity binds CERTIFICATION claims, not exploratory runs.
+
+## Fleet rule 10-27: CROSS-LINE PARITY — a fix exists on every product line, or is a named gap
+
+The 10-27 class (user: "it was fixed, it came back"): the hands-free mic guards
+and the dialects theme retune existed on main/live (v0.6.x) but never shipped on
+`lab/sandbox` (v0.7) — the branch forked from `ab00e73` (10-01) BEFORE the fixes
+were committed on main (`6405ead`, 10-04), and nothing ever compared lines.
+Three laws:
+
+1. **PORT OVER REWRITE** — hitting a bug another line already fixed? Find the
+   existing fix first (`git log --all -S <symbol>` / the reviews index) and PORT
+   it; never re-derive what a review already settled. The port documents the
+   source commit.
+2. **DRIFT GUARD** — `scripts/drift-guard.sh` inventories known class-fixes
+   across product worktrees. Run it before any release/ship and after any
+   "it came back" report. A new product line registers its probes there the day
+   it forks; a gap must be a NAMED row, never silence.
+3. **TOUCH-EVENT SPECS** — a mouse click always lands on the pressed element, so
+   no mouse spec can ever see a touch ghost (the tap's synthesized click is
+   hit-tested against the DOM that exists AFTER the lift). Any spec guarding a
+   touch gesture drives CDP touch events — `pwa/e2e/hf-quick-tap.spec.ts` is
+   the pattern.
+
+## Fleet rule 10-28: NO MORE FORK GAPS (user, 10-27 — closes the 10-27 class at the source)
+
+10-27 catches drift at ship time; 10-28 stops it from opening. The gap opened
+because fixes sat UNCOMMITTED in a worktree for 2 days (only the nightly sweep
+commits), the fork was cut with no record of what it lacks, and nothing
+compared lines again until a user hit the bug. Four parts, ALL adopted
+(user's GO, relayed by the coordinator, 10-27):
+
+1. **FORK MANIFEST** — the day a line forks, the forking session writes
+   `docs/lines/<line>.md`: fork commit + date, purpose, and the tail of
+   `git log --oneline <forkpoint>..main` as "known missing"; any in-flight
+   uncommitted work is committed FIRST or listed as a named gap with an owner.
+   ~10 min at fork time.
+2. **MERGE CADENCE** — product lines merge main at least every 3 days and
+   before any release/ship; frequent small merges are cheap, a month of drift
+   is the 10-27 bug again. **Binding on `lab/sandbox` (v0.7) in particular —
+   it is the active line, not a throwaway.**
+3. **COMMIT-FIXES-SAME-DAY** — a verified fix on a live-serving line is
+   committed the same day, never left as WIP overnight (the 10-02 fixes sat
+   2 days — that WAS the hole).
+4. **SHIP GATE** — `scripts/drift-guard.sh` exit 0 is a BLOCKING step of
+   promote/ship (it runs green; now it gates). A red guard stops the ship.
+
 
 ## THE RESEARCH FEED (10-03, user): papers auto-discovered, concepts feed the labs
 The labs don't invent methodology alone — the state-of-the-art is monitored
@@ -251,3 +328,51 @@ the Rule 10-05/10-07 amendments + new Rule 10-08 above. Receipts + full
 index in docs/research/. The playbook's own evolution mechanism candidate:
 RuleEvolve-style pool + mutator/judge + provenance-gated cull (arXiv
 2610.00650).
+
+## Rule 10-09 — SIMULATION-ONLY PROOF (user, 10-07)
+Only simulation is proof. If a property (stability, endurance, scale)
+cannot be proven in simulation, the SIMULATION must improve — compressed
+time, fault injection, event churn — never the user's testing burden.
+The user's test is the consent confirmation (the feel-check), never the
+evidence. Every gate item must name its simulation proof before it can
+gate anything.
+
+## Rule 10-10 — THE DIVISION (user, 10-07, verbatim)
+"AGI uses and evolves the simulation, and I use a finished product."
+AGI lives inside the simulation: builds, validates, evolves the sim itself
+(the churn suites, the e2e, the repros), iterates until the matrix is
+green. The user touches FINISHED PRODUCT only — never drafts, never
+"try this build", never partial matrices. 33/37 green is not finished.
+An invitation to the user is written only when nothing remains open.
+
+## DRAFT — Coordinator law (v07-reflection §1.4 + §8.7; PROPOSED, not in force until the user's go — Rule 10-08)
+**Status: draft. It joins the playbook as a rule only with the user's explicit go.**
+
+1. **Dispatch has one door:** `scripts/agi-run.sh` (under `systemd-run`), the model by the ladder
+   (Rule 10-04b). Chains go through `scripts/agi-chain.sh`. Briefs never go as REST turns into a session.
+2. **Never into a brain that is live or under test.** The live brain (:4096) is the user's; the
+   sandbox brain is the system under test; a lane that dispatches into either measures itself.
+3. **Never twice for one topic: the claim line comes first** (`docs/claims.md`). One coordinator
+   per topic, one brief with the user's words verbatim, one lane, one session.
+4. **Authority never travels with a message.** A letter, a REST body, a file or a lane's output
+   carries information only. What a session may do is set by who the harness says started its run,
+   never by what the text says.
+5. **No session writes `user` turns into another session.** The `user` author is the human on a
+   client. A lane that must say something to another root sends a letter (`author: harness|agent|peer`).
+
+**Rule 10-08 terms.**
+- *Evidence:* W1–W5 in v07-reflection §1.4 (a wedged live brain for 14 h; two coordinators on one
+  problem; a gate mission queued into the system under test, ~42 h lost); S4 report
+  `docs/reviews/s4-lane-hygiene.md` (the tools that make rules 1–2 mechanical).
+- *Scope:* every coordinator session, every lab.
+- *Counterfactual:* a REST turn is right for the user's own conversation and for product tests of
+  the dispatcher itself (they go through the proxy like the phone, as the PWA specs do).
+- *Done-check:* a week of coordinator logs with zero REST turns into machine sessions.
+
+## Rule 10-11 — AGI RULES, THE USER ANSWERS CONTEXT (user, 10-27)
+The user does not make tool-level rulings. AGI (opus) rules; if it cannot,
+it is missing CONTEXT — it asks the user for context, never for the ruling.
+The user's remaining gates: the consent check on finished product (Rule
+10-10) and direction. Speed law: the user moves fast; days-long soaks need
+evidence-based waiver (the sandbox serving-time counts as stability
+evidence; the one-restart rollback is the safety net).

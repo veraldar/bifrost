@@ -57,3 +57,5 @@ lab/bifrost-net/config-bridge.toml
 
 # rust lab build dirs (binaries rebuilt from source; siblings keep them untracked)
 lab/*/target/
+lab/tool-policy/upstream.key
+lab/tool-policy/runs/

@@ -2,7 +2,8 @@
 # Slice 7 real-upstream hook: the verify.sh round-trip (chat, tool loop, roll-up crossing, abort
 # mid-SSE, transcript shape) through yggdrasil against a REAL provider.
 #
-# Env (the driver supplies the key; nothing is read from config files):
+# Env (the driver supplies the key; with neither of the first two set, the upstream vars are read
+# from ./yggdrasil.env — the brain's own unit env):
 #   YGG_UPSTREAM_BASE_URL  e.g. https://api.z.ai/api/anthropic  (anthropic dialect: {base}/v1/messages)
 #   YGG_UPSTREAM_API_KEY   provider key
 #   YGG_UPSTREAM_STYLE     anthropic (default here) | openai
@@ -16,6 +17,21 @@ set -uo pipefail
 cd "$(dirname "$0")"
 fail() { echo "FAIL: $*"; exit 1; }
 fail_auth() { echo "FAIL-AUTH: $*"; echo "(script ready: re-run with a working key in YGG_UPSTREAM_API_KEY)"; exit 3; }
+# Key/env path bug (10-23/24): the key the running brain uses lives in ./yggdrasil.env (the
+# lk-yggdrasil unit's EnvironmentFile), but this script only read the caller's environment —
+# so every plain run said FAIL-AUTH "no key" while :4100 served real turns on that same key.
+# With neither var given, take ONLY the upstream vars from that file (the rest of it —
+# YGG_LISTEN, YGG_DATA_DIR, YGG_MAX_TOKENS, YGG_VOICE — belongs to the service, not this
+# throwaway); explicit env still wins.
+if [ -z "${YGG_UPSTREAM_BASE_URL:-}" ] && [ -z "${YGG_UPSTREAM_API_KEY:-}" ] && [ -f ./yggdrasil.env ]; then
+  while IFS= read -r line; do
+    k=${line%%=*}
+    case "$k" in YGG_UPSTREAM_BASE_URL|YGG_UPSTREAM_API_KEY|YGG_UPSTREAM_STYLE|YGG_UPSTREAM_MODEL)
+      [ -n "${!k:-}" ] || export "$k=${line#*=}" ;;
+    esac
+  done < ./yggdrasil.env
+  echo "env: upstream vars from ./yggdrasil.env (the lk-yggdrasil unit's key)"
+fi
 [ -n "${YGG_UPSTREAM_BASE_URL:-}" ] || fail_auth "YGG_UPSTREAM_BASE_URL not set"
 [ -n "${YGG_UPSTREAM_API_KEY:-}" ] || fail_auth "YGG_UPSTREAM_API_KEY not set (no key in the environment)"
 export YGG_UPSTREAM_STYLE=${YGG_UPSTREAM_STYLE:-anthropic} YGG_UPSTREAM_MODEL=${YGG_UPSTREAM_MODEL:-glm-5.3-flash}

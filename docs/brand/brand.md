@@ -1,9 +1,18 @@
 # Veraldar brand book
 
 *BRAND session, 2026-09-30; corrected same day — Veraldar is the brand,
-Bifrost is one product under it. This file is the identity source of truth.*
+Bifrost is one product under it. This file is the identity source of truth.
+10-30: the owner made the structure canon — `docs/CONSTRUCT.md` is binding;
+this book's 09-30 name map (roots = the network) is superseded.*
 
 ## Handoff — read this first
+
+**The structure canon is `docs/CONSTRUCT.md` (10-30, binding):** Veraldar is
+the organization; Yggdrasil is one product of that org — the tree, containing
+root (the brain, installable on any computer), trunk (the private line:
+Tailscale today → WebRTC → WireGuard), and branch (the end-user app; the
+current branch is named bifrost, and the name stays). This book governs
+voice, loyalty, tokens, namespacing — never the structure map.
 
 Part 1 is the brand system every Veraldar product inherits unchanged. Part 2
 is how products plug into the brand. Any future model/session: work inside
@@ -11,6 +20,7 @@ this structure; don't fork Part 1 per product.
 
 | File | Part | What | Status |
 |---|---|---|---|
+| `docs/CONSTRUCT.md` | canon | the owner's construct: org → tree → root/trunk/branch | **binding — 10-30** |
 | `docs/brand/brand.md` | 1 + 2 | lore, voice, word list, do/dont + namespacing | done — this file |
 | `docs/brand/tokens.md` | 1 | color/type/space/motion system | done — v2 dialects pointer |
 | `docs/brand/realms.md` | 1 | **the eight-world palette canon (dialects, user pick)** | done — v2 canon |
@@ -42,12 +52,17 @@ own outright. Its products take Norse names — but the myth is a naming map,
 not decoration. Every name must say what the thing *is*.
 
 ```
-veraldar — the world (the org; the brand)
-  roots     — one private network (tailscale or its open twin)
-  yggdrasil — the trees: one per PC — the agent cores
-  bifrost   — the bridges: phone ⇄ tree, as many as you want
-  midgard   — one phone, one PWA — swipe between bridges
+veraldar              the world: the org — it holds the products
+└── yggdrasil         one product: the tree (one per PC)
+    ├── root          the brain: thinks, remembers — installable on any computer
+    ├── trunk         the private line: carries everything — never public
+    └── branch        the end-user app — the current branch: bifrost
 ```
+
+> **Canon 10-30 (`docs/CONSTRUCT.md`):** this map replaced the 09-30 original
+> (there, "roots" = the network — DEAD). The 10-22 public copy
+> (`naming-ladder.md`) already matched the owner; now the internal map does
+> too. Midgard/Asgard are optional garnish, not structure.
 
 The manifesto (believed, canonical, said plainly):
 
@@ -59,47 +74,54 @@ point. The tools exist to hand that power to whoever runs them — not to rent
 it back.
 
 The structural story — told everywhere: website, landing, the movie
-(`narration.md`). One phone. One network. Many trees.
+(`narration.md`). One phone. One tree. One private line.
 
-- **One phone runs the Bifrost app.** Every bridge lives in the same PWA,
-  swiped between like worlds.
-- **One private network is the roots** (Tailscale or its open twin).
-  Everything travels the roots; nothing goes public.
-- **Many PCs, each growing a Yggdrasil** — an agent core per machine. Today
-  the core is opencode; a lighter one-click core is growing.
+- **One phone runs the Bifrost app** — the branch: the end-user app in your
+  hand, first of its name.
+- **One private line is the trunk** (Tailscale today; WebRTC then WireGuard
+  on the roadmap). Everything travels the trunk; nothing goes public.
+- **Many PCs, each growing a Yggdrasil** — one tree per machine. Its root is
+  the brain: today opencode; a lighter root (yggdrasil) is growing.
 - **What the trees do:** the machine by the TV turns on movies. The machine
   at the desk creates games. The machine in the rack builds a company. One
   phone drives them all.
-- **Veraldar is the world that holds it** — trees host, bridges connect,
-  roots carry, Midgard holds the whole grove in a pocket.
+- **Veraldar is the world that holds it** — the org behind the products:
+  trees host, the trunk carries, the branch is where you are.
 - **The tree is the door** (canon, v0.6.0 ladder): veraldar.org's tree is
   hold-to-start vocal onboarding that hands over a personalized install; the
   PWA first-run is tree-centered main creation. Wording options:
   `tree-door.md`.
 
-- **Veraldar** — Old Norse, "the world". The organisation and its brand. The
-  world contains the trees and everything built on them. When we speak with one
-  voice — READMEs, landing pages, releases — it is Veraldar speaking.
-- **Yggdrasil** — the world tree, the ash that holds the nine worlds. Not one
-  tree: many — one per PC, an agent core each. The circuit-tree mark
-  (`pwa/public/yggdrasil_final.svg` — tree drawn as circuit traces) is the
-  Veraldar brand image: hardware and myth, one drawing.
-- **Bifrost** — the first product: the bridges between Midgard (where you are:
-  a phone in a pocket) and the trees (where agents work: your boxes, your
-  keys). As many bridges as you want, one swipe apart. In the myths the
-  bridge shatters at Ragnarök. Ours won't — but we still state every limit up
-  front, because a bridge you can't trust isn't a bridge.
+- **Veraldar** — Old Norse, "the world". The organization. It holds the
+  products; products can be anything (hardware or software). When we speak
+  with one voice — READMEs, landing pages, releases — it is Veraldar
+  speaking.
+- **Yggdrasil** — the world tree, the ash that holds the nine worlds. **One
+  product of the org: the tree.** One per PC. It contains the root (the
+  brain), the trunk (the private line) and the branch (the app). The
+  circuit-tree mark (`pwa/public/yggdrasil_final.svg` — tree drawn as
+  circuit traces) is the Veraldar brand image: hardware and myth, one
+  drawing.
+- **Root** — the tree's brain: thinks, remembers. Installable on any
+  computer. Today opencode; the lighter yggdrasil root is growing.
+- **Trunk** — the private line between roots and the end user. Tailscale
+  today; WebRTC first, WireGuard after, on the roadmap.
+- **Bifrost** — **the branch**: the end-user app, current branch of the
+  tree, a Veraldar product. In the myths the bridge shatters at Ragnarök.
+  Ours won't — but we still state every limit up front, because a bridge you
+  can't trust isn't a bridge.
 
 Rules of the lore:
 
 1. **The myth is a map.** We never sell mythology; we sell ownership of *your*
    tools on *your* hardware. Names only explain relationships: trees host,
-   bridges connect, roots carry, the world holds.
+   the trunk carries, the branch is where you are, the world holds.
 2. **Future products are future Norse names** (see Part 2), each with a
    one-line meaning written down before any code ships under it.
-3. **Midgard/Asgard are lore-copy only** — landing lore pages, the movie,
-   prose that explains the architecture metaphor. Never in UI, errors, or
-   behavior docs.
+3. **Midgard/Asgard are lore-copy only and optional garnish, never
+   structure** — landing lore pages, the movie, prose that explains the
+   architecture metaphor. Never in UI, errors, or behavior docs. The
+   construct (root/trunk/branch) never depends on them.
 
 ## 2. Tone of voice
 
@@ -283,8 +305,10 @@ line that says what it is.
 - Shared infrastructure repos follow the same pattern: `veraldar/theme`
   (the DTCG source), `veraldar/brand` (this book, if split out).
 - Migration note: DONE — the repo lives at `veraldar/bifrost` since v0.6.0
-  (10-02). Ship as **Bifrost only**; Yggdrasil is the internal name of the
-  trunk layer — never a shipped product name.
+  (10-02). Bifrost ships as the branch — the end-user app. Yggdrasil, the
+  tree, is its own product and its own repo (`veraldar/yggdrasil`, 10-29):
+  the root brain, trunk private line, branch app. Per the 10-30 canon
+  (`docs/CONSTRUCT.md`), both are Veraldar products under one org.
 
 ## Attribution patterns
 
@@ -308,7 +332,8 @@ as a noun of self-praise.
 
    | Product | Name means | One line |
    |---|---|---|
-   | Bifrost | the bridge between worlds | talk to your agent from your phone |
+   | Yggdrasil | the world tree | the tree: a root brain, a trunk private line, a branch app |
+   | Bifrost | the bridge between worlds | the branch: talk to your agent from your phone |
    | *(next)* | | |
 
 3. Check the name against Part 1: passes tone rules, no trademark collision,

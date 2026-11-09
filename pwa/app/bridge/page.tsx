@@ -90,7 +90,35 @@ export default function BridgePage() {
       const url = bridgeUrl.trim() || `http://${location.hostname}:18080`;
       localStorage.setItem('bifrost_bridge', url);
 
-      const pc = new RTCPeerConnection({ iceServers: [] });
+      // vps-turn-tcp: TURN creds come with the /api/ice fetch (device token),
+      // or were minted inline by /api/pair — both cached in localStorage by
+      // the param-pickup effect below. Empty/absent = direct-only (old flow).
+      let iceServers: RTCIceServer[] = [];
+      try {
+        type Ice = { iceServers?: (RTCIceServer & { username?: string })[] };
+        const cached = JSON.parse(localStorage.getItem('bifrost_ice') || 'null') as Ice | null;
+        const first = cached?.iceServers?.[0];
+        const expiry = Number(first?.username || 0);
+        const fresh = expiry > Date.now() / 1000 + 30; // username IS the unix expiry
+        if (cached?.iceServers?.length && fresh) iceServers = cached.iceServers;
+        else if (cached?.iceServers?.length && !fresh) localStorage.removeItem('bifrost_ice');
+        else {
+          // /api/ice lives on the PWA origin (this page), not the bridge host
+          const r = await fetch(`${location.origin}/api/ice`, {
+            headers: { Authorization: `Bearer ${t}` },
+          });
+          if (r.ok) {
+            const v = (await r.json()) as { iceServers?: RTCIceServer[] };
+            if (v.iceServers?.length) {
+              iceServers = v.iceServers;
+              localStorage.setItem('bifrost_ice', JSON.stringify(v));
+            }
+          }
+        }
+      } catch {
+        /* TURN is optional: fall back to direct candidates */
+      }
+      const pc = new RTCPeerConnection({ iceServers });
       pcRef.current = pc;
 
       // audio up: mic (Playwright drives it with a real-speech WAV fixture)
@@ -223,8 +251,16 @@ export default function BridgePage() {
   }, [send]);
 
   useEffect(() => {
-    setToken(localStorage.getItem('bifrost_device') || '');
-    setBridgeUrl(localStorage.getItem('bifrost_bridge') || '');
+    // QR / pre-filled link pickup: /bridge?t=<token>&b=<bridge-url> (the QR
+    // layman-bootstrap.sh prints encodes exactly this). Params win over
+    // localStorage — a re-scan must re-pair, not resurrect a stale token.
+    const q = new URLSearchParams(window.location.search);
+    const qToken = q.get('t');
+    const qBridge = q.get('b');
+    if (qToken) localStorage.setItem('bifrost_device', qToken);
+    if (qBridge) localStorage.setItem('bifrost_bridge', qBridge);
+    setToken(qToken || localStorage.getItem('bifrost_device') || '');
+    setBridgeUrl(qBridge || localStorage.getItem('bifrost_bridge') || '');
   }, []);
 
   return (

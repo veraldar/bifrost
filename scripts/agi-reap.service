@@ -1,0 +1,6 @@
+[Unit]
+Description=agi lanes: reap RUNNING rows whose wrapper is gone (S4)
+
+[Service]
+Type=oneshot
+ExecStart=%h/Work/bifrost/scripts/agi-status.sh --reap

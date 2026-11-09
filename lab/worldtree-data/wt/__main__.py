@@ -26,6 +26,8 @@ def main(argv=None):
     c.add_argument("--now")
     c.add_argument("--no-commit", action="store_true")
     mp = sub.add_parser("mapdata")
+    lg = sub.add_parser("ledger")
+    lg.add_argument("--no-verify", action="store_true")
     a = ap.parse_args(argv)
 
     if a.cmd == "check" and a.what == "catalog":
@@ -54,6 +56,9 @@ def main(argv=None):
         from .extract import build_all
         build_all(a.as_of)
         return 0
+    if a.cmd == "ledger":
+        from .ledger import main as ledger_main
+        return ledger_main(verify=not a.no_verify)
     if a.cmd == "mapdata":
         from .mapdata import build
         return build()

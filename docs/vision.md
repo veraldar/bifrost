@@ -148,7 +148,14 @@ one tree. The self is the spread pattern, not any single machine's part.
 - per machine: a root + branches + (optionally) a well — parts of the ONE
   tree, never whole trees per machine
 
-## THE NAMING CONVENTION (10-03, user): the layers per Norse mythology
+## THE NAMING CONVENTION (10-03, user) — SUPERSEDED 10-30
+
+> **Superseded by `docs/CONSTRUCT.md` (10-30, binding):** veraldar = the
+> org; yggdrasil = the tree (one product); root = the brain; trunk = the
+> private line (tailscale → webrtc → wireguard); branch = the end-user app
+> (bifrost — the branch, not the trunk). Kept below as history; do not
+> build on the old mapping.
+
 Identity is a ROOT (the deep anchoring layer, not a soft service). The
 mapping: Yggdrasil = the ALL; the roots = the cores/brains + identity +
 the wells (Urd: the state, Mimir: the memory, Hvergelmir: the source);

@@ -43,6 +43,13 @@ pub fn run(path: &str) -> Result<(), String> {
         tts_model: cfg.tts_model.clone(),
         tts_voice: cfg.tts_voice.clone(),
         candidates,
+        // v4 root-link: [bridge.root-link] + root_link_secret (fail closed)
+        root_link_secret: cfg.root_link_secret.as_ref().map(|s| s.as_bytes().to_vec()),
+        root_ids: cfg.root_ids.clone(),
+        root_link_enabled: cfg.root_link.as_ref().map(|rl| rl.enabled).unwrap_or(false),
+        root_link_listen: cfg.root_link.as_ref().and_then(|rl| rl.listen.clone()),
+        root_link_ping_secs: cfg.root_link.as_ref().map(|rl| rl.ping_secs).unwrap_or(15),
+        root_link_max_inflight: cfg.root_link.as_ref().map(|rl| rl.max_inflight).unwrap_or(1),
     })?;
 
     println!(

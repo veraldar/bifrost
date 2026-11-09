@@ -25,6 +25,11 @@ pub struct TokenStore {
 struct Cache {
     loaded_at: std::time::Instant,
     valid: std::collections::HashSet<String>,
+    /// v4: token_hash → root allowlist claim (missing = empty list)
+    roots: std::collections::HashMap<String, Vec<String>>,
+    /// v4 root-link: device ids of unrevoked devices (the link-token `dev`
+    /// claim names an ID, not a bearer token — validated against this set)
+    devs: std::collections::HashSet<String>,
 }
 
 impl TokenStore {
@@ -34,6 +39,8 @@ impl TokenStore {
             cache: std::sync::Mutex::new(Cache {
                 loaded_at: std::time::Instant::now() - Duration::from_secs(3600),
                 valid: Default::default(),
+                roots: Default::default(),
+                devs: Default::default(),
             }),
         }
     }
@@ -41,9 +48,15 @@ impl TokenStore {
     /// Validate a raw bearer token against the CURRENT file (mtime-aware,
     /// re-reads at most once per second so revocation lands within seconds).
     pub fn validate(&self, raw: &str) -> bool {
+        self.claims(raw).is_some()
+    }
+
+    /// Validate + return the device's root-allowlist claim (v4 TOKEN LAW).
+    /// Empty list = anonymous-class device: the public/local root only.
+    pub fn claims(&self, raw: &str) -> Option<Vec<String>> {
         let raw = raw.trim();
         if raw.len() < 16 {
-            return false;
+            return None;
         }
         let hash = hash_token(raw);
         let mut cache = self.cache.lock().unwrap();
@@ -52,17 +65,37 @@ impl TokenStore {
         if reload {
             cache.loaded_at = std::time::Instant::now();
             cache.valid.clear();
+            cache.roots.clear();
+            cache.devs.clear();
             if let Ok(txt) = std::fs::read_to_string(&self.path) {
                 if let Ok(v) = serde_json::from_str::<TokenFile>(&txt) {
                     for d in v.devices {
                         if !d.revoked {
-                            cache.valid.insert(d.token_hash);
+                            cache.valid.insert(d.token_hash.clone());
+                            cache.roots.insert(d.token_hash, d.roots);
+                            if let Some(id) = d.id {
+                                cache.devs.insert(id);
+                            }
                         }
                     }
                 }
             }
         }
-        cache.valid.contains(&hash)
+        cache.valid.contains(&hash).then(|| {
+            cache.roots.get(&hash).cloned().unwrap_or_default()
+        })
+    }
+
+    /// v4 root-link: is this device ID known and unrevoked? (link-token
+    /// `dev` claim validation — same file, same 1s-reload law as claims).
+    pub fn knows_dev(&self, id: &str) -> bool {
+        let _ = self.claims_probe();
+        self.cache.lock().unwrap().devs.contains(id)
+    }
+
+    /// warm the cache without needing a bearer token
+    fn claims_probe(&self) {
+        let _ = self.claims("::__rootlink_probe_token__::");
     }
 }
 
@@ -79,6 +112,13 @@ struct DeviceEntry {
     token_hash: String,
     #[serde(default)]
     revoked: bool,
+    /// optional id (devices.ts always writes it) — root-link `dev` checks
+    #[serde(default)]
+    id: Option<String>,
+    /// v4 TOKEN LAW: roots this device may name on a branch request.
+    /// Missing = empty = local (public) root only.
+    #[serde(default)]
+    roots: Vec<String>,
 }
 
 fn mtime_newer(path: &Path, at: std::time::Instant) -> bool {

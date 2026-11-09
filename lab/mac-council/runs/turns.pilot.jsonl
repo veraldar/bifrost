@@ -1,0 +1,33 @@
+{"label": "B r1 ingest-s1", "wall_ms": 26872, "error": null, "chars": 11, "tools": 0}
+{"label": "B r1 ingest-s2", "wall_ms": 20329, "error": null, "chars": 11, "tools": 0}
+{"label": "B s1 r1", "wall_ms": 17033, "error": null, "chars": 36, "tools": 0}
+{"label": "B s2 r1", "wall_ms": 11484, "error": null, "chars": 48, "tools": 0}
+{"label": "B s3 r1", "wall_ms": 11097, "error": null, "chars": 62, "tools": 0}
+{"label": "A r1 ingest", "wall_ms": 28990, "error": null, "chars": 9, "tools": 0}
+{"label": "A s1 r1", "wall_ms": 3062, "error": null, "chars": 37, "tools": 0}
+{"label": "A dose s2 r1", "wall_ms": 2114, "error": null, "chars": 6, "tools": 0}
+{"label": "A s2 r1", "wall_ms": 5665, "error": null, "chars": 49, "tools": 0}
+{"label": "A dose s3 r1", "wall_ms": 2954, "error": null, "chars": 6, "tools": 0}
+{"label": "A s3 r1", "wall_ms": 4987, "error": null, "chars": 62, "tools": 0}
+{"label": "B r2 ingest-s1", "wall_ms": 22389, "error": null, "chars": 64, "tools": 0}
+{"label": "B r2 ingest-s2", "wall_ms": 35673, "error": null, "chars": 113, "tools": 0}
+{"label": "B s1 r2", "wall_ms": 9574, "error": null, "chars": 36, "tools": 0}
+{"label": "B s2 r2", "wall_ms": 13940, "error": null, "chars": 48, "tools": 0}
+{"label": "B s3 r2", "wall_ms": 12478, "error": null, "chars": 62, "tools": 0}
+{"label": "A r2 ingest", "wall_ms": 3638, "error": null, "chars": 9, "tools": 0}
+{"label": "A s1 r2", "wall_ms": 4738, "error": null, "chars": 37, "tools": 0}
+{"label": "A dose s2 r2", "wall_ms": 4587, "error": null, "chars": 6, "tools": 0}
+{"label": "A s2 r2", "wall_ms": 5602, "error": null, "chars": 49, "tools": 0}
+{"label": "A dose s3 r2", "wall_ms": 4385, "error": null, "chars": 6, "tools": 0}
+{"label": "A s3 r2", "wall_ms": 1954, "error": null, "chars": 62, "tools": 0}
+{"label": "B r3 ingest-s1", "wall_ms": 21703, "error": null, "chars": 11, "tools": 0}
+{"label": "B r3 ingest-s2", "wall_ms": 40978, "error": null, "chars": 103, "tools": 0}
+{"label": "B s1 r3", "wall_ms": 9104, "error": null, "chars": 37, "tools": 0}
+{"label": "B s2 r3", "wall_ms": 11653, "error": null, "chars": 52, "tools": 0}
+{"label": "B s3 r3", "wall_ms": 6448, "error": null, "chars": 62, "tools": 0}
+{"label": "A r3 ingest", "wall_ms": 6761, "error": null, "chars": 9, "tools": 0}
+{"label": "A s1 r3", "wall_ms": 3734, "error": null, "chars": 37, "tools": 0}
+{"label": "A dose s2 r3", "wall_ms": 1483, "error": null, "chars": 6, "tools": 0}
+{"label": "A s2 r3", "wall_ms": 2774, "error": null, "chars": 49, "tools": 0}
+{"label": "A dose s3 r3", "wall_ms": 1538, "error": null, "chars": 6, "tools": 0}
+{"label": "A s3 r3", "wall_ms": 5270, "error": null, "chars": 62, "tools": 0}

@@ -42,8 +42,13 @@ async function writeRegistry(reg: Registry): Promise<void> {
   await chmod(DEVICES_FILE, 0o600).catch(() => {});
 }
 
-/** Mint one device: returns the raw token ONCE. */
-export async function mintDevice(name: string): Promise<{ id: string; token: string }> {
+/** Mint one device: returns the raw token ONCE. `roots` is the v4 root-link
+ *  allowlist claim — the bridge refuses branch turns naming any root not in
+ *  this list (empty = the local/public root only). */
+export async function mintDevice(
+  name: string,
+  roots: string[] = [],
+): Promise<{ id: string; token: string }> {
   const reg = await readRegistry();
   const id = `dev_${randomBytes(4).toString('hex')}`;
   const token = `bfnd-${randomBytes(24).toString('base64url')}`;
@@ -53,6 +58,7 @@ export async function mintDevice(name: string): Promise<{ id: string; token: str
     tokenHash: hashToken(token),
     created: new Date().toISOString(),
     revoked: false,
+    roots,
   });
   await writeRegistry(reg);
   return { id, token };

@@ -4,9 +4,16 @@ import {
   type AccessTokenOptions,
   AgentDispatchClient,
   RoomConfiguration,
+  RoomServiceClient,
   type VideoGrant,
 } from 'livekit-server-sdk';
 import { agentName } from '@/lib/agent-name';
+
+// per-room last-dispatch timestamps: the 5s burst damper (see the dispatch
+// block below). Module-scope on purpose — survives across requests in the
+// running server process, resets on restart (harmless: worst case one
+// extra dispatch).
+const dispatchedAt = new Map<string, number>();
 
 type ConnectionDetails = {
   serverUrl: string;
@@ -84,8 +91,29 @@ export async function POST(req: Request) {
         /^ws(s):/,
         'http$1:'
       );
-      const dispatchClient = new AgentDispatchClient(apiHost, API_KEY, API_SECRET);
-      await dispatchClient.createDispatch(roomName, agentName());
+      // Two guards against dispatch storms (live 2026-10-30 room 'main': a
+      // second client holding the same identity duplicate-killed the phone
+      // every ~150ms; each reconnect minted + re-dispatched → hundreds of
+      // dispatches in minutes, dozens of agent jobs fighting over one room,
+      // the worker swamped to the point LiveKit saw "no worker available"):
+      //  1. the agent is ALREADY in the room → nothing to hire;
+      //  2. one dispatch per room per 5s (connect burst damper — the
+      //     client-side takeover latch stops the infinite loop, this stops
+      //     any residual burst from several quick attempts).
+      const api = new RoomServiceClient(apiHost, API_KEY, API_SECRET);
+      const hasAgent = await api
+        .listParticipants(roomName)
+        .then((ps) => ps.some((p) => p.identity !== `user_${roomName}`))
+        .catch(() => false);
+      if (hasAgent) {
+        console.log(`[token] dispatch skipped — agent already in room ${roomName}`);
+      } else if (Date.now() - (dispatchedAt.get(roomName) ?? 0) < 5_000) {
+        console.log(`[token] dispatch throttled (5s) for room ${roomName}`);
+      } else {
+        dispatchedAt.set(roomName, Date.now());
+        const dispatchClient = new AgentDispatchClient(apiHost, API_KEY, API_SECRET);
+        await dispatchClient.createDispatch(roomName, agentName());
+      }
     } catch (dispatchError) {
       console.error(`agent dispatch failed for room ${roomName}:`, dispatchError);
     }

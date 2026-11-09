@@ -1,0 +1,62 @@
+[
+ [
+  "q01-release-version",
+  "What is the current release version of kvx? Answer with just the version number.",
+  "2.3.1"
+ ],
+ [
+  "q02-cache-capacity",
+  "What is the default cache capacity (in entries)? Answer with just the number.",
+  "512"
+ ],
+ [
+  "q03-flush-threshold",
+  "What is the flush threshold (in dirty entries)? Answer with just the number.",
+  "9000"
+ ],
+ [
+  "q04-eviction-policy",
+  "Which cache eviction policy does kvx use by default? One word.",
+  "clock"
+ ],
+ [
+  "q05-cli-binary",
+  "What is the name of the CLI binary? Answer with just the binary name.",
+  "kvxctl"
+ ],
+ [
+  "q06-maintenance-window",
+  "When does the maintenance window run? Answer with weekday and time.",
+  "tuesday 03:00"
+ ],
+ [
+  "q07-escalation-contact",
+  "Who is the primary escalation contact for latency incidents? Surname only.",
+  "okafor"
+ ],
+ [
+  "q08-alert-threshold",
+  "At what value does kvx_dirty_total issue a warning alert? Just the number.",
+  "8000"
+ ],
+ [
+  "q09-shard-count",
+  "How many shards does the store use? Just the number.",
+  "16"
+ ],
+ [
+  "q10-listen-address",
+  "What address does the network listener bind? Just host:port.",
+  "127.0.0.1:7777"
+ ],
+ [
+  "q11-flush-heartbeat",
+  "Which file holds the flusher heartbeat? Just the path.",
+  "run/state/flusher.hb"
+ ],
+ [
+  "q12-compact-command",
+  "Which subcommand compacts the WAL? Just the subcommand name.",
+  "compact"
+ ]
+]

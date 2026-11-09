@@ -95,6 +95,7 @@ ssh "$H" "grep -qxF '$LINE' $W/llms.txt || printf '\n%s\n' '$LINE' >> $W/llms.tx
 scp -q out/realms-history.json "$H:$W/"
 # GitHub evolution speed (method 0.4.1) + the tools block (0.5.0): the AI EVOLUTION tab, next to realms.json
 [ -f out/github-trends.json ] && scp -q out/github-trends.json "$H:$W/github-trends.json"
+[ -f out/github.json ] && scp -q out/github.json "$H:$W/github.json"  # the toolbox / ai evolution curves
 scp -q out/realms.provenance.json "$H:$W/"
 scp -q out/realms.json "$H:$W/"
 scp -q /tmp/wt-feed.xml "$H:$W/feed.xml"

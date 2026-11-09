@@ -410,4 +410,10 @@ The pool is small on purpose (cost law). Each slice's BUILD run repeats its own 
 - **Some evidence is inferred, not proven.** The permission-ask attribution of the 57 kills rests on path patterns plus the fleet's own diagnosis (`docs/claims.md:71`). opencode does not persist permission events in its store (the `permission` table holds 0 rows; no `permission.*` event rows exist).
 - **The voice-transcript count (≥ 113) is a heuristic** (fillers plus sentence shape). The store does not mark which prompts were spoken.
 - **The online check is a 6-query pass,** not a deep survey. Sources were search summaries, not full reads.
-- **The UX artifacts have not been tried on a real phone.** I checked them in headless Chromium at phone and desktop sizes. Their speech uses the device's local system voice when one exists; it is not bifrost's TTS.
+- **The UX artifacts have not been tried on a real phone.** I checked them in headless Chromium:
+  - at 390 px and 1440 px, offline, inside a `sandbox="allow-scripts"` iframe: no errors, no network requests, and a reload resets to a clean state;
+  - with every scripted flow driven by pointer holds.
+
+  That pass caught one real bug, now fixed: the caption overlay swallowed holds on the phone.
+  Their speech uses the device's *local* system voice when one exists, pitch-shifted when no voice matches the persona. It is not bifrost's TTS, and the speech output itself was not listened to.
+- **verify.sh is calibrated, not just green.** I ran it against 7 deliberately broken copies (external `src`, `localStorage`, an unbalanced tag, the persona toggle removed, a JS syntax error, a slice without a hard verify, a fabricated evidence id). Each failed exactly its own check.

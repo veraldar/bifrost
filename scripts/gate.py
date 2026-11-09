@@ -36,6 +36,11 @@ RECEIPTS = HOME / ".local/state/bifrost/gate"
 LIVE_UNITS = ("lk-pwa", "lk-agent")
 LAB_UNITS = ("lk-yggdrasil", "bifrost-sandbox", "lk-agent-ygg", "bifrost-bridge", "lk-pwa-lan")
 BRAIN = "http://127.0.0.1:4096"  # default; a release's env/live-pwa.env OPENCODE_URL wins
+# the unit that must own the brain port; a release's env/live-pwa.env BRAIN_UNIT wins.
+# Releases before v0.7 carry no BRAIN_UNIT: v0.6.x's brain is opencode-legacy (made 10-19,
+# adopted as v0.6's declared unit 10-27; opencode-serve is disabled — two enabled units
+# on one port race at boot). v0.7 = the yggdrasil root on :4100.
+BRAIN_UNITS = {4096: "opencode-legacy", 4100: "lk-yggdrasil"}
 
 
 def release_env(name):
@@ -46,6 +51,14 @@ def release_env(name):
 
 def brain():
     return (release_env("live-pwa.env").get("OPENCODE_URL") or BRAIN).rstrip("/")
+
+
+def brain_port():
+    return int(brain().rsplit(":", 1)[-1].split("/")[0])
+
+
+def brain_unit():
+    return release_env("live-pwa.env").get("BRAIN_UNIT") or BRAIN_UNITS.get(brain_port(), "opencode-serve")
 # source tree hashed into the release manifest (build outputs and state excluded)
 MANIFEST_SKIP = {"node_modules", ".next", ".venv", "__pycache__", "test-results",
                  "playwright-report", ".diag"}
@@ -201,7 +214,7 @@ def check_release():
 
 def check_singletons():
     ss = sh(["ss", "-ltnpH"])
-    for port, owner in ((8080, "lk-pwa"), (4096, "opencode-serve")):
+    for port, owner in ((8080, "lk-pwa"), (brain_port(), brain_unit())):
         pids = set(re.findall(rf"\S+:{port}\s.*?pid=(\d+)", ss))
         lines = [l for l in ss.splitlines() if re.search(rf":{port}\s", l.split()[3] + " ")]
         want = unit(owner, "MainPID")
@@ -326,6 +339,7 @@ def check_strays():
     rel = LIVE.resolve() if LIVE.is_symlink() else None
     pat = re.compile(r"(next-server|next start|agent\.py (start|dev)|/yggdrasil( |$)|bifrost-net |server\.mjs|voice_server)")
     strays = []
+    host, host_pid = f"{brain_unit()}.service", unit(brain_unit(), "MainPID")
     for p in pathlib.Path("/proc").iterdir():
         try:
             if not p.name.isdigit() or p.stat().st_uid != os.getuid():
@@ -336,7 +350,8 @@ def check_strays():
         if not pat.search(cmd):
             continue
         cg = proc_cgroup(p.name)
-        if cg.endswith(".service") and cg != "opencode-serve.service":
+        # the brain's cgroup hosts its sessions' children: those are unsupervised; the brain itself is not
+        if cg.endswith(".service") and (cg != host or p.name == host_pid):
             continue
         strays.append(f"pid {p.name} [{cg or '?'}] {cmd[:80]} (cwd {proc_cwd(p.name)})")
     if strays:
@@ -353,13 +368,13 @@ def check_autonomy():
          f"fleet-watchdog.timer {timer} ({'re-prompts dead turns every 5 min' if timer == 'active' else 'no automatic re-prompting'})")
     drv = sh(["pgrep", "-fa", "ygg-driver.sh"]).strip()
     mark("WARN" if drv else "PASS", "autonomy.driver", f"ygg-driver loop {'RUNNING: ' + drv[:60] if drv else 'off'}")
-    st, body = http(f"{BRAIN}/session/status")
+    st, body = http(f"{brain()}/session/status")
     busy = []
     try:
         busy = [k for k, v in json.loads(body).items() if (v or {}).get("type") == "busy"]
     except Exception:
         pass
-    mark("INFO", "autonomy.busy", f"{len(busy)} opencode session(s) busy: {', '.join(busy) or 'none'}")
+    mark("INFO", "autonomy.busy", f"{len(busy)} brain session(s) busy: {', '.join(busy) or 'none'}")
 
 
 def check_labs(live_name):

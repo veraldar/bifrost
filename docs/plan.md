@@ -108,3 +108,113 @@ layer = the trunk's presence directory + the small shared facts. "One voice"
    memory problem must never block routing.
 3. The inflection test for v1.0: "put it on the tv" — and a different
    machine acts. If that sentence works, v1.0 is felt.
+
+## THE CONSENT EVOLUTION (10-06, user-discovered in production)
+Two independent stacks (live vX / sandbox vY), each with its own brain.
+When one fails the other stands. The new version proves itself in the
+sandbox while the old serves; the USER consents when to move; the flip is
+one restart. Proven 10-06: live brain down -> user's [MAIN] session ran on
+the root (:4100) via :8443 -> worked. Deploy law: never all-at-once; the
+sandbox is the rehearsal, the consent is the gate.
+
+## v0.7 GATE — what must pass before v0.8 (10-07)
+OWNER: the sim lab implements + validates (Rule 10-08: the shipping binary,
+the phone device class). The user tests LAST — the 2-min confirmation only.
+1. onboarding v3: load fast, tap fast, prerecorded greeting <300ms, clean
+   flow into the deck (e2e running now: e2e-base/voiceui/wedge)
+2. voice round-trip: hotword fix verified ("Bifrost" clean at utterance start)
+3. echo bleed fixed: the mic no longer transcribes the TTS playback
+4. stability: **ACCELERATED churn proof in simulation (user law 10-07:
+   only simulation is proof; if sim can't prove it, sim improves — never
+   the user's burden).** Compress the 24h-equivalent into minutes: N
+   reconnects, N rekeys, upstream kills mid-turn, queue deaths, memory
+   soak over the turn volume — the churn suite. Wall-clock waiting
+   deleted. The user's test = the consent confirmation, never evidence.
+5. session lifecycle on the root: create, list, switch, artifacts save
+6. version string: 0.7.0-x displayed on the sandbox
+7. room→session mapping: voice tests do not pollute [MAIN]
+8. the dispatcher: queued REST turns actually run + reply (proven queued,
+   end-to-end pending)
+THE ORDER: e2e green → sim-lab phone-class suite → receipts to the
+coordinator → user confirmation test → the URD row → v0.8 starts.
+
+## ALIGNMENT 10-27: adopted from the root's MAIN session (validated together)
+- Rule 10-27 + scripts/drift-guard.sh (9d3daa8): cross-line parity — the
+  10-02 mic fixes + the dialects theme never reached the v0.7 fork ("fixed,
+  came back"). The guard inventories class-fixes across product worktrees.
+- The user ADOPTED all four fork-gap measures (root's proposition, req 10-27):
+  A fork manifest (docs/lines/<line>.md at fork time) · B merge cadence ≤3
+  days on product lines · C commit-fixes-same-day on live-serving lines ·
+  D drift-guard = a blocking ship step. The root writes these as fleet rule
+  10-28 on the user's go.
+- UX: the decorative mic glyph removed from the roots row; the footer
+  teaching line retired (d02e965, rebuilt, restarted).
+- FOLD INTO S2 TRUNK-MERGE: the merge brief cites 10-27/10-28 + runs
+  drift-guard as a blocking step; S1's test gaps include the fork-gap class.
+
+## RELEASE + REFLECTION NOTES (10-27, user)
+1. MAC-TOOLS CAUTION (feeds S9 MAC-REVIEW): the Mac tools (Letters, Project,
+   skid workers, Flow) help AI sessions manage background work — but may
+   impose LIMITATIONS on AGI we cannot see from here. S9's brief adds the
+   limitations audit: what does each tool PREVENT or constrain (the cost
+   side), not only what it enables.
+2. THE MULTI-ROOT REFLECTION placement: Q8 (the grove lanes, the third
+   identity lane) gets its essence placed in docs/veraldar-doctrine.md —
+   the sap that syncs to the Mac (workspace-thor/theway/) — so every root
+   shares the same inter-root model before any root builds one.
+3. RELEASE TIMELINE (v0.7 ready → live): user's 3 rulings → S3+S1 waves
+   (~1-2 d) → S2 trunk merge (~0.5 d) → freeze v0.7.0-rc1 → user consent
+   check → soak (72h or 7d) → PROMOTE: GitHub latest + veraldar.org updated
+   same day → v0.8 opens (the bridge + the tokens + the APK). Fastest:
+   ~5-6 days from the rulings; 7d soak: ~10 days.
+
+## THE USER RETURNS (10-29, after 2w away) — concerns → the retrospective wave
+LAWS ADDED:
+1. MAJORS PARALLEL: every major version runs as its own root//stack,
+   reachable, communicating when needed; the majors' // = the trend
+   instrument. :443 returns to THE STABLE (v0.6 + opencode); v0.7 gets its
+   own port/URL; the next major the next port — promoted only when the
+   user validates (the coordinator profiles, the LLM management, the
+   extensions).
+2. AWAY-MODE: the system must keep working + self-driving while the user
+   cannot access from the phone. The holiday proved the waves die without
+   a driver — the self-driving loop (the scheduler, the chain) is
+   mandatory, not optional.
+3. STORY COHERENCE: veraldar.org (the org + Yggdrasil + root-trunk-branch)
+   vs GitHub (stale 3w, 10-10 last commit) vs omarchy (the mess) — one
+   story everywhere; the GitHub sync + the docs archive (the useless
+  堆积 → archived); the install story (a root install easily + the trunk
+   webrtc ready) must exist or be honestly parked.
+4. THE MAC EXTENSIONS: the scheduled agent-call flows + the project-follow
+   (the global context) — wanted; the Mac access STILL refused (the Remote
+   Login off 2w+). The user asks what access is needed.
+WAVE DISPATCHED: the RETROSPECTIVE (sonnet 5.5, deep-dive, all of the above
++ the holiday retrospective + what-stopped-why + the fix plan + the trend
+instrument).
+
+## THE TREE IS THE SURFACE (user law 10-29)
+No external alert channels (no ntfy/email/telegram). The user listens
+through the TREE: the root talks to the trunk, the trunk to the branch,
+the phone sees everything. Several roots = the resilience, more roots
+later. All failure surfaces = the tree's own (the routes, the sessions,
+the error turns). The alert-channel question is DROPED.
+
+## OLLAMA FALLBACK — the one user step (10-29)
+The provider wave is done; the root runs 885122c with the provider
+catalog + the fallback chain + the error visibility. OLLAMA is not on
+omarchy (the install needs the user's sudo). THE ONE STEP (copy for the
+user):
+  sudo pacman -S --noconfirm ollama && sudo systemctl enable --now ollama
+  ollama pull qwen3:8b
+Then the coordinator adds the ollama provider to the root's config and
+e2e-tests the fallback (the quota stop → the fallback answers). Until
+then the tree runs on zai alone with the honest banner on any stop.
+
+## THE THREE MAJOR RINGS (10-29, live)
+| ring | URL | version | brain |
+|---|---|---|---|
+| the STABLE | https://omarchy.tail5435b1.ts.net:8445 | v0.6.1 | opencode :4096 |
+| the CURRENT | https://omarchy.tail5435b1.ts.net (:443) | v0.7.0-rc2 | the root :4100 |
+| the NEXT | https://omarchy.tail5435b1.ts.net:8443 | the dev line | the root (the clone) |
+The user validates on :443 (the provider + the session coordination) BEFORE
+any v0.8 testing. The v0.6 ring: always reachable, the emergency door.

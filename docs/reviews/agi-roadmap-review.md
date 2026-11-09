@@ -1007,3 +1007,157 @@ experiment. Effort honesty: the rewrite is 4–8 weeks and a fleet monopoly;
 the cut is 2–3 weeks and ships v0.9 on time.
 **NO** to: starting the lab before v0.8's token middleware lands; org-run
 relays/signaling; loopback-only "validation."
+
+---
+
+# ADDENDUM 7 — THREE-REPO STRUCTURE vs THE FAR EXPERIENCE (10-06)
+
+*The locked structure: ROOT (per machine) = the harness — agent core +
+identity + memory, the wells (mimir/urd/hvergelmir), evolving with
+simulations · TRUNK = bifrost-net — mesh + WebRTC + access point ·
+BRANCH = the PWA, named BIFROST · YGGDRASIL = the ALL (the whole tree per
+machine — the harness is a root, not the tree). The UX vision: FAR —
+headphones, one place, topics switching across trees by voice, sessions
+invisible — plus the tree-is-the-door onboarding and the unified list.*
+
+## Part 16 — verdict: COHERENT — the separation supports FAR, with two moves and one decision
+
+The myth reading is now the correct one and it FIXES the earlier wart: the
+brand book used to call the agent core "Yggdrasil", which was always
+false-ish (Part 3, §3); naming the harness a **root** and Yggdrasil **the
+whole composition** makes every name literally true. The human lives in the
+branch; the trunk carries; the roots hold. The FAR experience is "living in
+the crown" — and the structure supports it, PROVIDED:
+
+**Move 1 — routing intelligence lives at the ENTRY ROOT, never in the
+trunk.** FAR says topics switch trees by voice and the user never picks a
+machine. That is an intent→tree routing decision, and it needs conversation
+context — which lives in roots, not transport. The root the headphones talk
+to (the entry tree — the one wearing the headphones) hosts the hands-free
+agent and becomes the doorman of the grove: it consults a directory, answers
+locally when the topic is home, dispatches to a sibling when it isn't, and
+hands a topic back when the user moves rooms. Putting routing in the trunk
+would bloat a carrier with semantics; putting it in the branch would make
+the glass smart and the seams visible. Entry-root routing keeps every layer
+honest — and it means the roots are NOT symmetric peers but one FIRST root
+per human (a small sovereignty fact the docs should say out loud).
+
+**Move 2 — the trunk gains one semantic: PRESENCE, not content.** The
+federation layer's transport half belongs in bifrost-net as a dumb,
+versioned, cacheable directory: which roots are awake, which session ids
+live where, capability flags. No content routing, no message brokering —
+a trunk that only answers "who is home" stays a trunk. This is the Part 13
+groundwork (`tree/slug`, versioned peer API) promoted into bifrost-net's
+protocol — nothing new to invent, one place to put it.
+
+With those two moves, the division of labor is exact: **trunk = who is
+home; roots = everything intelligent; branch = glass.**
+
+### The gaps for FAR (in build order)
+
+1. **Grove directory (trunk):** presence + session index across roots.
+   Missing; the v0.9 client fan-out list is its app-scoped approximation and
+   the right first step — but FAR needs the index AMBIENT (the headphones
+   have no screen), so it must move into the trunk protocol post-v0.9.
+2. **Cross-root voice routing + topic handoff (entry root):** intent→tree
+   dispatch AND a session-graph that lets a topic started at the couch tree
+   continue at the desk tree. Biggest engineering gap; nothing exists yet.
+   Spec name: `grove routing` — one root-responsibility, not a repo.
+3. **Memory federation (roots — THE user decision):** the wells are
+   per-machine today; FAR says "one place". Options: (a) per-root wells +
+   one grove-shared layer for small facts (preferences, people, ongoing
+   topics) with deep archives staying local — recommended; (b) one shared
+   well reachable over the trunk — simpler, less sovereign. This is a
+   philosophy decision, not an engineering one: it decides whether "one
+   voice" means one memory. Flagged for you.
+4. **Identity continuity (roots):** the assistant must sound and be the
+   same on every tree — one identity artifact (voice, name, persona)
+   distributed to all roots, exactly like tokens.css: generated upstream,
+   inherited everywhere, never forked locally. The mechanism is proven by
+   the theme pipeline; the artifact doesn't exist yet.
+5. **The FAR client (branch/trunk):** headphones = voice-only surface. The
+   branch PWA stays the glass; a headless client riding the trunk's WebRTC
+   (audio in/out, zero UI) is thin and can wait for post-v1.x — but name it
+   now so the trunk API doesn't accrete screen assumptions.
+6. **Onboarding × N (branch):** tree-is-the-door covers tree one; joining
+   tree two under FAR = the door saying "another tree heard you" via the
+   directory. Small once #1 exists.
+
+### Naming: coherent, one register rule to add
+
+- **YGGDRASIL = the ALL** is the fix the brand book needed (lore map v3:
+  wells = roots, bifrost-net = trunk, the Bifrost app = the branch/crown,
+  Yggdrasil = the whole per machine). brand.md + lore-page + narration need
+  that amendment — the current lore map still says "yggdrasil = the trees =
+  agent cores", which the lock now falsifies.
+- **Bifrost (app) vs bifrost-net (trunk):** collision risk is real in TEXT,
+  manageable by the existing register law, extended with one rule:
+  **spoken contexts never say "net"** — the voice layer only ever says "the
+  tree", "the bridge", or nothing (FAR makes names vanish anyway; the
+  collision exists only in ops/CLI, where `bifrost-net` as daemon/package
+  name is unambiguous). Do NOT rename the trunk to a third myth name — two
+  bifrosts with a register rule beats a third name to memorize.
+
+### Fold into the ladder
+
+Nothing re-sequences: FAR is the post-v1.0 experience. But two items enter
+the plan as named lines: (1) grove directory + entry-root routing = the
+v1.x "grove" spec (replaces the vague "federation deepen" v1.1 row);
+(2) memory-federation decision = added to USER DECISIONS (Part 6 #13).
+
+---
+
+# ADDENDUM 8 — VERSION MAPPING: FAR ONTO THE RENUMBERED LADDER (10-06)
+
+*Judgment pass: Sonnet 5.5 per the agi-guide. Grounding: the FAR film
+(js-movie-far-vision.html — lines extracted and verified: "add a night level
+to the game" → desk drafts; "put the film on" → tv plays; "put it on the tv"
+→ tv PULLS night-level from desk; "what did the desk finish today" →
+cross-tree query; "one list · growing"; no exit path; your LLM your key;
+"today feels nothing — it serves"), docs/STABLE.md + the plan ladder
+(v0.6.2 speech / v0.7 tree / v0.8 bridge+tokens+Android / v0.9
+bridge-first no-tailnet / v1.0 grove+FAR), Part 16 architecture.*
+
+## Part 17 — mapping, alignment, inflection
+
+### Mapping table
+
+| FAR piece | Version | What the user can DO there |
+|---|---|---|
+| One voice | v0.6.2 → v0.7 | v0.6.2: one voice in one process (STT in-process, no separate service). v0.7: the voice is the tree's own brain, light prompt — one mind, not a relay. |
+| Hands-free default | v0.6.2 (phone); headphones post-v1.0 | Talk and be heard without tapping, on the phone. The no-screen version waits for the headphone client. |
+| Privacy, no exit path | v0.7 → v0.8 → v0.9 | Roots private by construction; device tokens; no tailnet. The grove adds no exit at v1.0. |
+| Your LLM, your key, each turn | **v0.7** (not v1.0) | The brain lives in the tree — model + key are yours from the moment the brain lands. |
+| The door (onboarding) | v0.8 → v0.9 | v0.8: install + pair (Android first glass, icon <192px fix first). v0.9: a layman connects with no tailnet; the iPhone gate passes here. |
+| Sessions: one list | v0.8 (one tree) → v1.0 (invisible, across trees, no machine names) | v0.8: one list on the app. v1.0: the list grows by itself across roots. |
+| Topic-switch across trees by voice | v1.0 | "Add a night level" → desk; "put the film on" → tv. Needs grove routing — no earlier version can carry it. |
+| Grove routing (entry-root doorman + trunk presence) | v1.0 | The entry root asks "who is home" and dispatches. v0.9's fan-out list is the stopgap. |
+| Cross-tree actions (the pull) | v1.0 | "Put it on the tv" pulls night-level from desk; "what did the desk finish today" answers across trees. |
+| Option-A shared small memory | v1.0 | Facts told to one root are known by all; deep archives stay local. |
+| Identity continuity | v1.0 | Every tree greets you as the same assistant. |
+| Living in the crown (headphone client) | post-v1.0 | Talk with no screen; the branch is glass. |
+
+### Alignment verdict
+
+The order is right — speech → brain → client → reach → grove; each step is a
+precondition for the next. Judgments: **(a) Android at v0.8 is a FAR step,
+not a detour** — it is the first real glass, it proves tokens + bridge +
+door, it is where adoption is measured, and the headphone client reuses its
+bridge and tokens; the detour risk is feature creep, so it ships as a THIN
+client (and the one-line manifest-icon fix rides before it). **(b) No-tailnet
+v0.9 sits correctly BEFORE FAR is felt** — the door must work for a layman
+before the grove exists, or the first real FAR moment happens only on our
+own tailnet and proves nothing about the product. **(c) One piece is late:**
+"your LLM, your key" is real at v0.7 — surface it there, don't let the plan
+treat it as a v1.0 item. One risk to sequence: ship the grove directory
+before the memory layer inside v1.0, so a memory problem cannot block
+routing.
+
+### INFLECTION: v1.0
+
+v1.0 is where FAR is FELT: the first version where the user says "put it on
+the tv" and a *different machine acts*. That sentence is the vision. v0.7
+and v0.8 are a better remote for one tree; v0.9 makes reaching it easy but
+it is still one tree; at v1.0 the machines act as one — the pull works, the
+cross-tree question answers, and the list shows no machine names. Felt, not
+complete: the headphone client and the grove's width come after.

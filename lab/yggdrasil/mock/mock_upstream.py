@@ -7,6 +7,8 @@ long and each chunk is delayed 0.2s (~10s total) so clients can abort mid-stream
 Slice 3 (bifrost e2e prompts): "sleep N" anywhere delays the first chunk N seconds
 (stands in for a long tool run); "reply with exactly: X" makes the whole reply X
 (echo of the instruction, as a compliant model would answer).
+Cut mode: a last user message starting with "cut" streams half its reply, then the mock
+drops the connection with no end marker (no [DONE] / message_stop) — a provider dying mid-reply.
 MOCK_LATENCY=<seconds> (env, default 0) delays every first chunk like a real provider's
 time-to-first-token.
 Slice 6a tool mode (last user message starts with "tool:"):
@@ -33,14 +35,37 @@ Slice 7 anthropic dialect: POST .../v1/messages. The request is validated the wa
   zai-style balance rejection.
 Real-upstream dry run: "use the bash tool to run `CMD`" -> one bash call, then
   "The command printed: <output>".
+PROVIDER-WAVE (10-28), both dialects, by key (Bearer or x-api-key): "mock-1310" -> 429 with z.ai's
+  exact weekly/monthly-limit body, its reset = now + MOCK_RESET_S (default 3600) printed in UTC+8
+  like z.ai; "mock-401" -> 401 authentication_error; "mock-429" -> the 1113 balance body. Every
+  request counts per key at GET /keys; GET /last -> the last chat request body (history checks);
+  GET .../models -> {"data":[mock, mock-b]} (the health probe; error keys answer their error).
 GET /calls -> request counters: chat/summary/summary_with_tools (openai dialect), a_* (anthropic
   dialect; a_max_tokens = last max_tokens seen), disconnects (client dropped mid-stream)."""
 import os
 import json, re, sys, time
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 CALLS = {"chat": 0, "summary": 0, "summary_with_tools": 0, "a_chat": 0, "a_summary": 0,
          "a_summary_with_tools": 0, "a_rejected": 0, "a_max_tokens": 0, "disconnects": 0}
+KEYS = {}  # per-key request counts — kept out of CALLS: verify.sh compares /calls whole
+LAST = {"body": None}
+
+
+def key_error(key):
+    """(status, body) for the error keys, else None."""
+    if key == "mock-1310":
+        reset = datetime.now(timezone(timedelta(hours=8))) + timedelta(seconds=int(os.environ.get("MOCK_RESET_S", "3600")))
+        rid = "20261029032350mock"
+        return 429, {"type": "error", "error": {"type": "rate_limit_error", "code": "1310",
+                     "message": f"[1310][Weekly/Monthly Limit Exhausted. Your limit will reset at {reset:%Y-%m-%d %H:%M:%S}][{rid}]"},
+                     "request_id": rid}
+    if key == "mock-401":
+        return 401, {"type": "error", "error": {"type": "authentication_error", "message": "invalid x-api-key"}}
+    if key == "mock-429":
+        return 429, {"error": {"code": "1113", "message": "Insufficient balance or no resource package. Please recharge."}}
+    return None
 NL_TOOL = re.compile(r"use the bash tool to run `([^`]+)`", re.I)
 TOOL_ID = re.compile(r"^[a-zA-Z0-9_-]+$")
 
@@ -63,15 +88,19 @@ def plan(body):
             return {"kind": "tools", "text": "", "calls": [("call_nl_0", "bash", json.dumps({"command": cmd}))]}
         return {"kind": "text", "text": f"The command printed: {results[-1]['content'].strip()}", "chunk": 8}
     last = msgs[-1]["content"]
+    if last == "ctx?":  # OG-ctx: echo the injected system message's first line (or none)
+        sysm = [m for m in msgs if m["role"] == "system"]
+        return {"kind": "text", "text": f"CTX: {' | '.join(str(sysm[0]['content']).splitlines()[:2]) if sysm else 'none'} [system msgs: {len(sysm)}]", "chunk": 8}
     reply = f"MOCK-REPLY: you said '{last}' ({len(msgs)} msgs)"
     slow = last.startswith("slow") or bool(re.match(r"count from 1 to", last, re.I))
+    cut = last.startswith("cut")
     exact = re.search(r"reply(?: with exactly)?:\s*(\S+)", last, re.I)
     if exact:
         reply = exact.group(1).rstrip(".")
     nap = re.search(r"\bsleep (\d+)", last)
     if slow:
         reply += " " + "lorem ipsum " * 30 + "SLOW-END"
-    return {"kind": "text", "text": reply, "chunk": 8, "slow": slow, "latency": True,
+    return {"kind": "text", "text": reply, "chunk": 8, "slow": slow, "cut": cut, "latency": True,
             "nap": int(nap.group(1)) if nap else 0}
 
 
@@ -188,6 +217,14 @@ def validate(body, headers):
 
 class H(BaseHTTPRequestHandler):
     def do_GET(self):
+        if self.path == "/last":
+            return self.json(200, LAST["body"] or {})
+        if self.path == "/keys":
+            return self.json(200, KEYS)
+        if self.path.endswith("/models"):  # the provider health probe (both dialects)
+            key = self.headers.get("x-api-key") or (self.headers.get("Authorization") or "").removeprefix("Bearer ").strip()
+            err = key_error(key)
+            return self.json(*err) if err else self.json(200, {"data": [{"id": "mock"}, {"id": "mock-b"}]})
         if self.path != "/calls":
             self.send_error(404); return
         self.json(200, CALLS)
@@ -199,10 +236,17 @@ class H(BaseHTTPRequestHandler):
 
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        key = self.headers.get("x-api-key") or (self.headers.get("Authorization") or "").removeprefix("Bearer ").strip()
+        KEYS[key] = KEYS.get(key, 0) + 1
+        LAST["body"] = body
+        if key == "mock-1310":
+            return self.json(*key_error(key))
         if self.path.endswith("/v1/messages"):
             return self.anthropic(body)
         if not self.path.endswith("/chat/completions"):
             self.send_error(404); return
+        if key in ("mock-401", "mock-429"):
+            return self.json(*key_error(key))
         p = plan(body)
         if p["kind"] == "summary":
             CALLS["summary"] += 1
@@ -236,6 +280,9 @@ class H(BaseHTTPRequestHandler):
                 time.sleep(float(os.environ.get("MOCK_LATENCY", "0")))
             time.sleep(p.get("nap", 0))
             for i, f in enumerate(frames):
+                if p.get("cut") and i >= len(frames) // 2:
+                    self.close_connection = True
+                    return  # dropped mid-reply: no end marker ever comes
                 self.wfile.write(f.encode()); self.wfile.flush()
                 if p.get("slow") and i in paced: time.sleep(0.2)
         except (BrokenPipeError, ConnectionResetError):

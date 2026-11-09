@@ -44,6 +44,59 @@ pub struct BridgeConfigSection {
     pub tts_voice: String,
     #[serde(default)]
     pub candidates: Vec<String>,
+    /// v4 root-link: HMAC secret for link-tokens (absent = protocol
+    /// DISABLED — fail closed; no secret, no dial-in).
+    #[serde(default)]
+    pub root_link_secret: Option<String>,
+    /// v4: optional [bridge.root-link] dial-in plane config (absent or
+    /// enabled=false = OFF — fail closed).
+    #[serde(default, rename = "root-link")]
+    pub root_link: Option<RootLinkConfig>,
+    /// v4: root ids this trunk accepts ([roots] table + "local" implicit)
+    #[serde(default)]
+    pub root_ids: Vec<String>,
+    /// v4 demo: [roots] table — local (opencode url) + remote entries.
+    /// Remote entries carry NO endpoint: link-token dial-in only.
+    #[serde(default)]
+    pub roots: Vec<RootEntry>,
+}
+
+/// v4 [bridge.root-link] — the root dial-in ws plane (rootlink.rs).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RootLinkConfig {
+    /// dial-in is OFF unless explicitly true (fail closed)
+    #[serde(default)]
+    pub enabled: bool,
+    /// ws listen for root dial-in (default: bridge http port + 1)
+    #[serde(default)]
+    pub listen: Option<String>,
+    /// trunk ping interval (secs); a conn is reaped after 2 missed pongs
+    #[serde(default = "default_root_ping_secs")]
+    pub ping_secs: u64,
+    /// v4c GAP-A: per-root in-flight cap (default 1; 0 = unlimited). A root
+    /// AT its cap gets an immediate 429-style error — never a queued slot.
+    #[serde(default = "default_max_inflight")]
+    pub max_inflight: u64,
+}
+
+fn default_root_ping_secs() -> u64 {
+    15
+}
+
+fn default_max_inflight() -> u64 {
+    1
+}
+
+/// v4 [roots] table entry. `local` names the trunk's own opencode; every
+/// other entry is a REMOTE root identified only by its link-token.
+#[derive(Debug, Clone, Deserialize)]
+pub struct RootEntry {
+    pub name: String,
+    /// "local" (trunk's own opencode) — remote roots omit any endpoint
+    pub kind: String,
+    #[serde(default)]
+    pub opencode_url: Option<String>,
 }
 
 fn default_opencode_url() -> String { "http://127.0.0.1:4096".into() }
@@ -190,16 +243,30 @@ impl Config {
                         .to_string(),
                 );
             } else {
+                let mut junk: Vec<String> = vec![];
                 for c in &w.candidates {
-                    let _: IpAddr = c
+                    let ip: IpAddr = c
                         .parse()
                         .map_err(|e| format!("webrtc.candidates: '{c}': {e}"))?;
+                    // v2c candidate hygiene: these classes never carry media
+                    // from outside; emission filters them, check() says why
+                    if crate::cand::forbidden(ip) {
+                        junk.push(c.clone());
+                    }
                 }
-                lines.push(format!(
-                    "webrtc: {} candidate(s) pinned: {}",
-                    w.candidates.len(),
-                    w.candidates.join(", ")
-                ));
+                if junk.is_empty() {
+                    lines.push(format!(
+                        "webrtc: {} candidate(s) pinned: {}",
+                        w.candidates.len(),
+                        w.candidates.join(", ")
+                    ));
+                } else {
+                    lines.push(format!(
+                        "webrtc: WARNING candidate(s) [{}] will NOT be advertised (loopback/CGNAT/link-local — the v2b scar: dead pairs race the public one); emission keeps only: {}",
+                        junk.join(", "),
+                        w.candidates.iter().filter(|c| !junk.contains(c)).cloned().collect::<Vec<_>>().join(", ")
+                    ));
+                }
             }
         }
 

@@ -74,11 +74,13 @@ print(json.dumps({"parts": [{"type": "text", "text": sys.argv[1]}]}))
 PY
   for attempt in 1 2 3; do
     code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BRAIN_URL/session/$sid/message" \
-      -H 'content-type: application/json' -d @"$WAKE_JSON" --max-time 20) || code=000
+      -H 'content-type: application/json' -d @"$WAKE_JSON" --max-time 90) || code=000
     case "$code" in 2*) return 0 ;; esac
-    sleep 5
+    # ONE attempt per poll cycle, not 3 in a burst: a MAIN mid-turn holds the run lock,
+    # so a short client timeout "fails" while the brain still runs the turn server-side —
+    # rapid retries then create duplicate wakes (3x identical landings seen 11-09 20:10).
+    return 1
   done
-  return 1
 }
 
 flush_pending() {

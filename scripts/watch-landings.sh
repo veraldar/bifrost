@@ -20,7 +20,7 @@ set -u
 STATUS_FILE="${STATUS_FILE:-/tmp/sub-status.tsv}"
 BRAIN_URL="${BRAIN_URL:-http://127.0.0.1:4100}"
 POLL_SECS="${POLL_SECS:-60}"
-WILL_DIR="${WILL_DIR:-$HOME/Work/bifrost/.agi-log/wills}"
+WILL_DIR="${WILL_DIR:-${AGI_WILL_DIR:-$HOME/Work/bifrost/.agi-log/wills}}"
 
 resolve_main() {
   curl -s --max-time 5 "$BRAIN_URL/session" | python3 -c '

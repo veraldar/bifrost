@@ -79,7 +79,11 @@ ${_will_law}" ;; esac
 WILL_FILE=""
 if [ -n "$ARTIFACT" ]; then
   mkdir -p "$WILL_DIR" 2>/dev/null || true
-  WILL_FILE="$WILL_DIR/$(printf '%s' "$SESSION" | tr -c 'A-Za-z0-9_.-' '-')-$$.will"
+  # session-keyed: the outer dispatcher writes the will as its dispatch record; the inner
+  # (in-unit) invocation UPSERTS the same file with its own pid/unit (if the outer died
+  # before the unit started, the will survives with a dead pid → the watch re-kicks —
+  # the dispatch-abort class is covered by the same mechanism).
+  WILL_FILE="$WILL_DIR/$(printf '%s' "$SESSION" | tr -c 'A-Za-z0-9_.-' '-').will"
   printf 'session=%s\nartifact=%s\nbudget_min=%s\npid=%s\nunit=%s\ndispatched=%s\nprompt_file=%s\n%s\n' \
     "$SESSION" "$ARTIFACT" "${BUDGET_MIN:-0}" "$$" "${AGI_UNIT:-none}" "$(date -Iseconds)" \
     "${PROMPT_FILE:--}" "${AGI_REKICK:+rekick=1}" >"$WILL_FILE" 2>/dev/null || WILL_FILE=""
@@ -106,7 +110,7 @@ if [ "${AGI_SYSTEMD:-1}" = "1" ] && [ -z "${AGI_IN_UNIT:-}" ] && command -v syst
   _d="${AGI_LOG_DIR:-$HOME/Work/bifrost/.agi-log}/prompts"; mkdir -p "$_d"
   _pf="$_d/$(date -u +%Y%m%dT%H%M%SZ)-$$.txt"; printf '%s' "$PROMPT" >"$_pf"
   _unit="agi-lane-$(printf '%s' "$SESSION" | tr -c 'A-Za-z0-9_.-' '-')-$$"
-  _envs=(); for _v in AGI_MODEL AGI_STALL_SECS AGI_RETRIES AGI_LOG_DIR AGI_BIN AGI_POLL_SECS AGI_PUSH_URL AGI_LETTER_DIR AGI_DETACH; do
+  _envs=(); for _v in AGI_MODEL AGI_STALL_SECS AGI_RETRIES AGI_LOG_DIR AGI_BIN AGI_POLL_SECS AGI_PUSH_URL AGI_LETTER_DIR AGI_DETACH AGI_WILL_DIR AGI_STATUS_FILE AGI_REKICK; do
     [ -n "${!_v:-}" ] && _envs+=("--setenv=$_v=${!_v}"); done
   _wait=(--wait --pipe --collect)   # foreground: same blocking contract as before; AGI_DETACH=1 returns at once
   [ "${AGI_DETACH:-0}" = "1" ] && _wait=(--collect)

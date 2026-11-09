@@ -3,7 +3,7 @@
 # Fleet rule 10-04 (docs/lab-playbook.md): an unmeasured delegation did not happen.
 #
 # Usage:
-#   agi-run.sh -s SESSION [-m MODEL] [-f PROMPT_FILE] ["PROMPT TEXT"]
+#   agi-run.sh -s SESSION [-m MODEL] [-f PROMPT_FILE] [-a ARTIFACT] [-b BUDGET_MIN] ["PROMPT TEXT"]
 #   echo "prompt" | agi-run.sh -s SESSION
 #
 # What it does:
@@ -34,11 +34,17 @@ SESSION="unknown"
 MODEL="${AGI_MODEL:-sonnet}"
 PROMPT_FILE=""
 PROMPT=""
-while getopts "s:m:f:h" opt; do
+ARTIFACT="${AGI_ARTIFACT:-}"
+BUDGET_MIN="${AGI_BUDGET_MIN:-}"
+WILL_DIR="${AGI_WILL_DIR:-$HOME/Work/bifrost/.agi-log/wills}"
+STATUS_FILE="${AGI_STATUS_FILE:-/tmp/sub-status.tsv}"
+while getopts "s:m:f:a:b:h" opt; do
   case "$opt" in
     s) SESSION="$OPTARG" ;;
     m) MODEL="$OPTARG" ;;
     f) PROMPT_FILE="$OPTARG" ;;
+    a) ARTIFACT="$OPTARG" ;;
+    b) BUDGET_MIN="$OPTARG" ;;
     h|*) usage ;;
   esac
 done
@@ -58,6 +64,42 @@ case "$PROMPT" in *"CANON: Veraldar=org"*) : ;; *) PROMPT="${_canon}
 
 ${PROMPT}" ;; esac
 
+# --- LANE-WILL (owner law 11-09: silent lane death must never happen again) -------------------
+# Every dispatched lane is told: write your artifact — even FAILED with partial state — BEFORE
+# going idle. If the lane dies without one, the harness writes the stub for it (guarantee below),
+# and the auto-watch re-kicks once, then escalates to the station.
+_will_law="LANE-WILL (binding, owner 11-09): before going idle you MUST write your brief's artifact file (even if it says FAILED + partial state). An idle lane with no artifact is auto-re-kicked once, then escalated."
+case "$PROMPT" in *"LANE-WILL (binding"*) : ;; *) PROMPT="${PROMPT}
+
+${_will_law}" ;; esac
+
+# --- will + budget registration (the watch's contract) ----------------------------------------
+# Will file: who, what artifact, budget window. $-expanded (no eval). Removed only on clean exit
+# with the artifact present — any other ending leaves it behind for the watch to act on.
+WILL_FILE=""
+if [ -n "$ARTIFACT" ]; then
+  mkdir -p "$WILL_DIR" 2>/dev/null || true
+  WILL_FILE="$WILL_DIR/$(printf '%s' "$SESSION" | tr -c 'A-Za-z0-9_.-' '-')-$$.will"
+  printf 'session=%s\nartifact=%s\nbudget_min=%s\npid=%s\nunit=%s\ndispatched=%s\nprompt_file=%s\n%s\n' \
+    "$SESSION" "$ARTIFACT" "${BUDGET_MIN:-0}" "$$" "${AGI_UNIT:-none}" "$(date -Iseconds)" \
+    "${PROMPT_FILE:--}" "${AGI_REKICK:+rekick=1}" >"$WILL_FILE" 2>/dev/null || WILL_FILE=""
+fi
+
+# Exit guarantee: a lane that ends without having written its artifact still leaves the marker —
+# FAILED + partial state — so the station is never silently dark (owner law 11-09).
+lane_will_finish() { # $1 = final status, $2 = note
+  [ -n "$ARTIFACT" ] || return 0
+  if [ -f "$ARTIFACT" ]; then
+    rm -f "${WILL_FILE:-/nonexistent}" 2>/dev/null
+    return 0
+  fi
+  local adir; adir=$(dirname "$ARTIFACT"); mkdir -p "$adir" 2>/dev/null || true
+  printf '# LANE FAILED — auto-stub by agi-run (LANE-WILL, owner 11-09)\n\n- lane: %s\n- final status: %s\n- note: %s\n- artifact the lane owed: %s (never written)\n- evidence: %s\n- dispatched: %s\n\nThe lane ended without writing its artifact. Partial state lives on its branch/logs above; the auto-watch has been notified.\n' \
+    "$SESSION" "$1" "$2" "$ARTIFACT" "${LOG_DIR}/outputs/${RUNID_LAST:-unknown}.*" "$(date -Iseconds)" >"$ARTIFACT" 2>/dev/null || true
+  printf '%s\n' "lane-will FAILED-STUB $SESSION artifact=$ARTIFACT status=$1 $(date -Iseconds)" >>"$STATUS_FILE" 2>/dev/null || true
+  rm -f "${WILL_FILE:-/nonexistent}" 2>/dev/null
+}
+
 # --- one door, outside the caller's cgroup (S4): re-exec under systemd-run -------------------
 # The prompt travels via a file so quoting/stdin survive the hop. AGI_IN_UNIT marks the child.
 if [ "${AGI_SYSTEMD:-1}" = "1" ] && [ -z "${AGI_IN_UNIT:-}" ] && command -v systemd-run >/dev/null 2>&1; then
@@ -68,9 +110,12 @@ if [ "${AGI_SYSTEMD:-1}" = "1" ] && [ -z "${AGI_IN_UNIT:-}" ] && command -v syst
     [ -n "${!_v:-}" ] && _envs+=("--setenv=$_v=${!_v}"); done
   _wait=(--wait --pipe --collect)   # foreground: same blocking contract as before; AGI_DETACH=1 returns at once
   [ "${AGI_DETACH:-0}" = "1" ] && _wait=(--collect)
+  _extra=()
+  [ -n "$ARTIFACT" ] && _extra+=(-a "$ARTIFACT")
+  [ -n "$BUDGET_MIN" ] && _extra+=(-b "$BUDGET_MIN")
   exec systemd-run --user --quiet --unit="$_unit" --description="agi lane $SESSION" \
     --working-directory="$PWD" --setenv=AGI_IN_UNIT=1 --setenv=AGI_UNIT="$_unit" --setenv=PATH="$PATH" --setenv=HOME="$HOME" \
-    "${_envs[@]}" "${_wait[@]}" -- "$0" -s "$SESSION" -m "$MODEL" -f "$_pf"
+    "${_envs[@]}" "${_wait[@]}" -- "$0" -s "$SESSION" -m "$MODEL" -f "$_pf" "${_extra[@]}"
 fi
 
 STALL_SECS="${AGI_STALL_SECS:-600}"
@@ -222,9 +267,13 @@ PYEOF
 
 i=0
 MAX_ATTEMPTS=$((RETRIES + 1))
+RUNID_LAST=""
+# LANE-WILL: even a wrapper killed mid-run (unit stop, reboot) leaves the FAILED stub behind.
+trap 'lane_will_finish KILLED "wrapper terminated mid-run"' TERM INT
 while :; do
   i=$((i + 1))
   RUNID="$(date -u +%Y%m%dT%H%M%SZ)-a$i-$$"
+  RUNID_LAST="$RUNID"
   NOTE="-"
   run_attempt "$RUNID"
 
@@ -238,6 +287,7 @@ while :; do
     log_line "$RUNID" "STALLED" "kill" "$(date '+%F %H:%M:%S%z')" "$DUR" \
       "no output growth ${STALL_SECS}s; killed; retry exhausted"
     write_letter "$RUNID" "STALLED"
+    lane_will_finish STALLED "stalled twice, retry exhausted"
     echo "agi-run: [$SESSION] FAILED — stalled twice, retry exhausted. evidence: $LOG_DIR/outputs/$RUNID.{jsonl,err}" >&2
     exit 1
   fi
@@ -246,6 +296,7 @@ while :; do
     [ "$i" -gt 1 ] && NOTE="recovered on retry after stall (attempt $i)"
     log_line "$RUNID" "OK" "0" "$(date '+%F %H:%M:%S%z')" "$DUR" "$NOTE"
     write_letter "$RUNID" "OK"
+    lane_will_finish OK "lane landed"
     echo "agi-run: [$SESSION] OK in ${DUR}s — output: $LOG_DIR/outputs/$RUNID.txt"
     exit 0
   fi
@@ -254,6 +305,7 @@ while :; do
   [ "$EXTRACT" -eq 4 ] && NOTE="claude reported is_error"
   log_line "$RUNID" "FAIL" "$RC" "$(date '+%F %H:%M:%S%z')" "$DUR" "$NOTE"
   write_letter "$RUNID" "FAIL"
+  lane_will_finish FAIL "exit $RC, $NOTE"
   echo "agi-run: [$SESSION] FAILED (exit $RC, $NOTE). evidence: $LOG_DIR/outputs/$RUNID.{jsonl,err}" >&2
   exit 1
 done

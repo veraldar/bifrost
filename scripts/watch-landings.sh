@@ -70,7 +70,7 @@ post_lane_line() { # $1 = full text; returns 0 when the brain acknowledged (2xx)
   [ -n "$sid" ] || return 1
   python3 - "$1" <<'PY' > "$WAKE_JSON"
 import json, sys
-print(json.dumps({"parts": [{"type": "text", "text": sys.argv[1]}]}))
+print(json.dumps({"parts": [{"type": "text", "text": "AUTO-VERDICT REQUEST: " + sys.argv[1]}]}))
 PY
   for attempt in 1 2 3; do
     code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BRAIN_URL/session/$sid/message" \

@@ -45,20 +45,50 @@ PY
 
 LAST=$(tail -1 "$STATUS_FILE" 2>/dev/null)
 
+# ---------- durable wake (opus review 9: a signal sent while :4100 is down must be
+# retried until a 2xx, never silently consumed) ----------
+pend() { grep -qxF "$1" "$STATUS_FILE.pending" 2>/dev/null || printf '%s\n' "$1" >>"$STATUS_FILE.pending"; }
+unpend() { [ -f "$STATUS_FILE.pending" ] && grep -vxF "$1" "$STATUS_FILE.pending" >"$STATUS_FILE.pending.next" 2>/dev/null && mv "$STATUS_FILE.pending.next" "$STATUS_FILE.pending" || :; }
+
+post_lane_line() { # $1 = full text; returns 0 when the brain acknowledged (2xx)
+  local sid attempt code
+  sid="${SES_ID:-$(resolve_main)}"
+  [ -n "$sid" ] || return 1
+  python3 - "$1" <<'PY' > /tmp/.lane-wake.json
+import json, sys
+print(json.dumps({"parts": [{"type": "text", "text": sys.argv[1]}]}))
+PY
+  for attempt in 1 2 3; do
+    code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BRAIN_URL/session/$sid/message" \
+      -H 'content-type: application/json' -d @/tmp/.lane-wake.json --max-time 20) || code=000
+    case "$code" in 2*) return 0 ;; esac
+    sleep 5
+  done
+  return 1
+}
+
+flush_pending() {
+  [ -f "$STATUS_FILE.pending" ] || return 0
+  local line
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    post_lane_line "$line" || return 0   # brain still down — try again next poll
+    unpend "$line"
+  done <"$STATUS_FILE.pending"
+}
+
 # ---------- LANE-WILL scan ----------
 pinged_marker() { printf '%s.pinged' "$1"; }
 
-will_nudge() { # $1 = will path, $2 = message
-  local sid msg
-  sid="${SES_ID:-$(resolve_main)}"
-  [ -n "$sid" ] || return 0
-  msg="$(basename "$1" .will): $2"
-  python3 - "$msg" <<'PY' > /tmp/.lane-nudge.json
-import json, sys
-print(json.dumps({"parts": [{"type": "text", "text": "LANE-WILL (auto-watch): " + sys.argv[1]}]}))
-PY
-  curl -s -X POST "$BRAIN_URL/session/$sid/message" -H 'content-type: application/json' \
-    -d @/tmp/.lane-nudge.json --max-time 30 -o /dev/null
+will_nudge() { # $1 = will path, $2 = message; marker only AFTER the brain acknowledged
+  local will="$1" text ok
+  text="$(basename "$will" .will): $2"
+  if post_lane_line "LANE-WILL (auto-watch): $text"; then
+    unpend "LANE-WILL (auto-watch): $text"
+    return 0
+  fi
+  pend "LANE-WILL (auto-watch): $text"
+  return 1
 }
 
 will_scan() {
@@ -69,23 +99,23 @@ will_scan() {
     session=$(grep -oP '^session=\K.*' "$will"); artifact=$(grep -oP '^artifact=\K.*' "$will")
     budget=$(grep -oP '^budget_min=\K.*' "$will"); disp=$(grep -oP '^dispatched=\K.*' "$will")
     unit=$(grep -oP '^unit=\K.*' "$will"); rekick=$(grep -oP '^rekick=\K.*' "$will")
-    [ -f "$artifact" ] && { rm -f "$will"; continue; }        # landed clean — close the will
+    [ -f "$artifact" ] && { rm -f "$will" "$(pinged_marker "$will")" "$(pinged_marker "$will").esc"; continue; }   # landed clean — close the will
     elapsed=$(( now - $(date -d "$disp" +%s 2>/dev/null || echo now) ))
     if [ "${budget:-0}" -gt 0 ] && [ $elapsed -ge $((budget * 60)) ] && [ ! -f "$(pinged_marker "$will")" ]; then
-      touch "$(pinged_marker "$will")"                        # one nudge per will until state changes
-      will_nudge "$will" "STATION PING: lane '$session' is over budget (${elapsed}s > ${budget}min) with no artifact at $artifact — tell the owner WITHOUT being asked."
+      will_nudge "$will" "STATION PING: lane '$session' is over budget (${elapsed}s > ${budget}min) with no artifact at $artifact — tell the owner WITHOUT being asked." \
+        && touch "$(pinged_marker "$will")"     # marker only on delivered ping
     fi
     if kill -0 "$(grep -oP '^pid=\K.*' "$will")" 2>/dev/null; then continue; fi
-    [ -n "$rekick" ] && {
-      [ -f "$(pinged_marker "$will").esc" ] || {
-        touch "$(pinged_marker "$will").esc"
-        will_nudge "$will" "ESCALATION: re-kick of lane '$session' also died without writing $artifact — lane needs owner attention."
-      }
+    if [ -n "$rekick" ]; then
+      if [ ! -f "$(pinged_marker "$will").esc" ]; then
+        will_nudge "$will" "ESCALATION: re-kick of lane '$session' also died without writing $artifact — lane needs owner attention." \
+          && touch "$(pinged_marker "$will").esc"
+      fi
       continue
-    }
+    fi
     # dead + no artifact + not yet re-kicked: ONE automatic re-kick
     echo "rekick=1" >>"$will"
-    will_nudge "$will" "lane '$session' died with no artifact — auto re-kick ONCE via agi-run (artifact $artifact)."
+    will_nudge "$will" "lane '$session' died with no artifact — auto re-kick ONCE via agi-run (artifact $artifact)." || : ;
     (
       export AGI_REKICK=1 AGI_TREE="${AGI_TREE:-}"
       AGI_SYSTEMD=1 "$HOME/Work/bifrost/scripts/agi-run.sh" \
@@ -97,11 +127,15 @@ will_scan() {
 
 while true; do
   sleep "$POLL_SECS"
+  flush_pending
   will_scan
   CUR=$(tail -1 "$STATUS_FILE" 2>/dev/null)
   if [ -n "$CUR" ] && [ "$CUR" != "$LAST" ]; then
-    LAST="$CUR"
-    SID="${SES_ID:-$(resolve_main)}"
-    [ -n "$SID" ] && wake "$SID" "$CUR"
+    if post_lane_line "LANE LANDED (auto-watch): $CUR"; then
+      unpend "LANE LANDED (auto-watch): $CUR"
+    else
+      pend "LANE LANDED (auto-watch): $CUR"   # replayed until the brain answers
+    fi
+    LAST="$CUR"   # only after delivery or durable pendency — never before
   fi
 done

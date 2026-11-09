@@ -84,8 +84,13 @@ if [ -n "$ARTIFACT" ]; then
   # before the unit started, the will survives with a dead pid → the watch re-kicks —
   # the dispatch-abort class is covered by the same mechanism).
   WILL_FILE="$WILL_DIR/$(printf '%s' "$SESSION" | tr -c 'A-Za-z0-9_.-' '-').will"
+  _abs_artifact="$ARTIFACT"
+  case "$ARTIFACT" in
+    /*) : ;;
+    *)  _abs_artifact="$PWD/${ARTIFACT#./}" ;;  # the watcher runs from $HOME — relative paths never resolve there
+  esac
   printf 'session=%s\nartifact=%s\nbudget_min=%s\npid=%s\nunit=%s\ndispatched=%s\nprompt_file=%s\n%s\n' \
-    "$SESSION" "$ARTIFACT" "${BUDGET_MIN:-0}" "$$" "${AGI_UNIT:-none}" "$(date -Iseconds)" \
+    "$SESSION" "$_abs_artifact" "${BUDGET_MIN:-0}" "$$" "${AGI_UNIT:-none}" "$(date -Iseconds)" \
     "${PROMPT_FILE:--}" "${AGI_REKICK:+rekick=1}" >"$WILL_FILE" 2>/dev/null || WILL_FILE=""
 fi
 
@@ -93,13 +98,18 @@ fi
 # FAILED + partial state — so the station is never silently dark (owner law 11-09).
 lane_will_finish() { # $1 = final status, $2 = note
   [ -n "$ARTIFACT" ] || return 0
-  if [ -f "$ARTIFACT" ]; then
+  _abs_artifact="$ARTIFACT"
+  case "$ARTIFACT" in
+    /*) : ;;
+    *)  _abs_artifact="$PWD/${ARTIFACT#./}" ;;
+  esac
+  if [ -f "$_abs_artifact" ]; then
     rm -f "${WILL_FILE:-/nonexistent}" 2>/dev/null
     return 0
   fi
-  local adir; adir=$(dirname "$ARTIFACT"); mkdir -p "$adir" 2>/dev/null || true
+  local adir; adir=$(dirname "$_abs_artifact"); mkdir -p "$adir" 2>/dev/null || true
   printf '# LANE FAILED — auto-stub by agi-run (LANE-WILL, owner 11-09)\n\n- lane: %s\n- final status: %s\n- note: %s\n- artifact the lane owed: %s (never written)\n- evidence: %s\n- dispatched: %s\n\nThe lane ended without writing its artifact. Partial state lives on its branch/logs above; the auto-watch has been notified.\n' \
-    "$SESSION" "$1" "$2" "$ARTIFACT" "${LOG_DIR}/outputs/${RUNID_LAST:-unknown}.*" "$(date -Iseconds)" >"$ARTIFACT" 2>/dev/null || true
+    "$SESSION" "$1" "$2" "$_abs_artifact" "${LOG_DIR}/outputs/${RUNID_LAST:-unknown}.*" "$(date -Iseconds)" >"$_abs_artifact" 2>/dev/null || true
   printf '%s\n' "lane-will FAILED-STUB $SESSION artifact=$ARTIFACT status=$1 $(date -Iseconds)" >>"$STATUS_FILE" 2>/dev/null || true
   rm -f "${WILL_FILE:-/nonexistent}" 2>/dev/null
 }
@@ -192,7 +202,7 @@ run_attempt() { # $1 = runid ; sets RC / STALLED / NOTE
   if [ "$RC" = "0" ] && [ "${AGI_AUTO_PUSH:-1}" = "1" ]; then
     _push_branch=$(git -C "$PWD" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
     if [ -n "${_push_branch:-}" ] && [ "${_push_branch}" != "HEAD" ]; then
-      if ! git -C "$PWD" push -u origin "$_push_branch" >>"$LOG_DIR/push.log" 2>&1; then
+      if ! timeout 120 git -C "$PWD" push -u origin "$_push_branch" >>"$LOG_DIR/push.log" 2>&1; then
         echo "push-all note: landed lane '$SESSION' could not push '$_push_branch' (see $LOG_DIR/push.log)" >>"$LOG_DIR/push.log"
       fi
     fi

@@ -622,7 +622,8 @@ async fn post_message(
         .is_some_and(|a| a.contains("text/event-stream"));
 
     // The user message lands at once (a stacked prompt is visible while it waits its turn).
-    let user_msg = make_message(&id, "user", parts);
+    let mut user_msg = make_message(&id, "user", parts);
+    mark_auto(&mut user_msg);
     if with_session(&st, &id, |s| s.messages.push(user_msg.clone())).is_none() {
         return not_found(&id);
     }
@@ -818,6 +819,49 @@ impl Run {
     }
 }
 
+/// Station posts (the lane watcher's landings, pings, escalations) open with this marker.
+const AUTO_MARKER: &str = "AUTO-VERDICT REQUEST:";
+/// Replies longer than this get the `[auto-verdict]` skim line.
+const AUTO_VERDICT_MIN: usize = 800;
+const AUTO_VERDICT_MAX: usize = 160;
+
+fn auto_verdict_on() -> bool {
+    std::env::var("YGG_AUTO_VERDICT").map_or(true, |v| v != "0")
+}
+
+/// Pure metadata on the stored user message (`info.meta.auto`): `upstream_history` reads
+/// only roles and parts, so the model's view — and the prompt cache — never changes.
+fn mark_auto(msg: &mut Value) {
+    if !auto_verdict_on() {
+        return;
+    }
+    let first = msg["parts"].as_array().and_then(|ps| ps.iter().find(|p| p["type"] == "text"));
+    if first.and_then(|p| p["text"].as_str()).is_some_and(|t| t.starts_with(AUTO_MARKER)) {
+        msg["info"]["meta"] = json!({ "auto": true });
+    }
+}
+
+fn is_auto(msg: &Value) -> bool {
+    msg["info"]["meta"]["auto"] == true
+}
+
+/// A long reply to a station post ends with its own first sentence, so it skims without opening.
+fn add_auto_verdict(msg: &mut Value) {
+    if !auto_verdict_on() || message_text(msg).chars().count() <= AUTO_VERDICT_MIN {
+        return;
+    }
+    let text = message_text(msg);
+    let flat = text.trim_start();
+    let end = flat.find(|c| matches!(c, '.' | '!' | '?')).map_or(flat.len(), |i| i + 1);
+    let first: String = flat[..end].split_whitespace().collect::<Vec<_>>().join(" ");
+    let first: String = first.chars().take(AUTO_VERDICT_MAX).collect();
+    let line = format!("\n\n[auto-verdict] {}", first.trim());
+    if let Some(p) = msg["parts"].as_array_mut().and_then(|ps| ps.iter_mut().rev().find(|p| p["type"] == "text")) {
+        let cur = p["text"].as_str().unwrap_or_default().to_string();
+        p["text"] = json!(format!("{cur}{line}"));
+    }
+}
+
 /// `info.providerID/modelID` = who answered; `info.fallback` = the degrades taken.
 fn stamp_route(run: &mut Run) {
     if let Some(r) = &run.answered {
@@ -848,7 +892,7 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<V
     msg["parts"] = json!([]);
     let mut run = Run { msg, text: String::new(), answered: None, fallbacks: Vec::new() };
     let outcome = {
-        let fut = agent_loop(st, id, history, tx, &mut run);
+        let fut = agent_loop(st, id, history.clone(), tx, &mut run);
         tokio::select! {
             r = fut => Some(r),
             _ = cancel.notified() => None,
@@ -865,6 +909,9 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<V
         Some(Ok(())) => {
             run.finish("interrupted");
             stamp_route(&mut run);
+            if history.iter().rev().find(|m| m["info"]["role"] == "user").is_some_and(is_auto) {
+                add_auto_verdict(&mut run.msg);
+            }
             replace_message(st, id, &run.msg);
             publish(st, "message.updated", json!({ "info": run.msg["info"] }));
             emit(st, tx, "message.completed", run.msg.clone()).await;
@@ -1578,4 +1625,58 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(&listen).await.expect("bind");
     eprintln!("yggdrasil listening on {listen}");
     axum::serve(listener, app).await.unwrap();
+}
+
+#[cfg(test)]
+mod auto_tests {
+    use super::*;
+
+    fn user(text: &str) -> Value {
+        make_message("ses_t", "user", vec![text_part(text)])
+    }
+
+    fn reply(text: &str) -> Value {
+        make_message("ses_t", "assistant", vec![text_part(text)])
+    }
+
+    #[test]
+    fn marker_sets_meta_auto() {
+        let mut m = user("AUTO-VERDICT REQUEST: LANE LANDED (auto-watch): x");
+        mark_auto(&mut m);
+        assert!(is_auto(&m));
+        let mut plain = user("hello AUTO-VERDICT REQUEST: not first");
+        mark_auto(&mut plain);
+        assert!(!is_auto(&plain));
+    }
+
+    #[test]
+    fn long_reply_gets_verdict_line() {
+        let mut r = reply(&format!("Verdict: lane is green. {}", "detail ".repeat(200)));
+        add_auto_verdict(&mut r);
+        assert!(message_text(&r).ends_with("\n\n[auto-verdict] Verdict: lane is green."));
+    }
+
+    #[test]
+    fn short_reply_unchanged() {
+        let mut r = reply("Verdict: green.");
+        add_auto_verdict(&mut r);
+        assert_eq!(message_text(&r), "Verdict: green.");
+    }
+
+    #[test]
+    fn verdict_trimmed_to_160() {
+        let mut r = reply(&"x".repeat(1000));
+        add_auto_verdict(&mut r);
+        let t = message_text(&r);
+        assert_eq!(t.rsplit("[auto-verdict] ").next().unwrap().chars().count(), 160);
+    }
+
+    #[test]
+    fn meta_auto_never_reaches_upstream() {
+        let plain = user("AUTO-VERDICT REQUEST: x");
+        let mut marked = plain.clone();
+        mark_auto(&mut marked);
+        assert!(is_auto(&marked));
+        assert_eq!(upstream_history(&[plain]), upstream_history(&[marked]));
+    }
 }

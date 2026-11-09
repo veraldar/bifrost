@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# fake claude for station-sim. Behaviour read at run time from $FAKE_DIR/mode (so a case can
+# flip it between the first run and a re-kick): sleep | write | fail | write-nolog
+# Env: FAKE_DIR (case dir), FAKE_ARTIFACT (path "write" creates), FAKE_SLEEP (secs, default 600)
+echo "$$ $(date +%s)" >>"$FAKE_DIR/fake.runs"
+mode=$(cat "$FAKE_DIR/mode.claude" 2>/dev/null || echo write)
+case "$mode" in
+  sleep)  end=$(( $(date +%s) + ${FAKE_SLEEP:-600} )); while [ "$(date +%s)" -lt "$end" ]; do sleep 1; done ;;
+  fail)   echo "fake claude: boom" >&2; exit 7 ;;
+  write|write-nolog)
+    [ -n "${FAKE_ARTIFACT:-}" ] && printf '# artifact by fake claude\n' >"$FAKE_ARTIFACT"
+    [ "$mode" = write ] && printf '%s OK %s artifact=%s\n' "${FAKE_LANE:-lane}" "$(date -Iseconds)" "${FAKE_ARTIFACT:-}" >>"$FAKE_STATUS"
+    ;;
+esac
+printf '{"type":"result","result":"fake ok","is_error":false}\n'

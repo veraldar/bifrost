@@ -104,14 +104,26 @@ lane_will_finish() { # $1 = final status, $2 = note
     *)  _abs_artifact="$PWD/${ARTIFACT#./}" ;;
   esac
   if [ -f "$_abs_artifact" ]; then
-    rm -f "${WILL_FILE:-/nonexistent}" 2>/dev/null
+    rm -f "${WILL_FILE:-/nonexistent}" "${WILL_FILE:-/nonexistent}.pinged" "${WILL_FILE:-/nonexistent}.pinged.esc" 2>/dev/null
+    return 0
+  fi
+  # same-name lane still alive owns this will + artifact: its death is the one to stub, not ours
+  # (station-sim case 12)
+  local _wpid; _wpid=$(grep -oP '^pid=\K.*' "${WILL_FILE:-/nonexistent}" 2>/dev/null)
+  if [ -n "$_wpid" ] && [ "$_wpid" != "$$" ] && kill -0 "$_wpid" 2>/dev/null; then
+    echo "agi-run: [$SESSION] ended ($1) but same-name lane pid $_wpid is live — no stub, will left to it" >&2
     return 0
   fi
   local adir; adir=$(dirname "$_abs_artifact"); mkdir -p "$adir" 2>/dev/null || true
   printf '# LANE FAILED — auto-stub by agi-run (LANE-WILL, owner 11-09)\n\n- lane: %s\n- final status: %s\n- note: %s\n- artifact the lane owed: %s (never written)\n- evidence: %s\n- dispatched: %s\n\nThe lane ended without writing its artifact. Partial state lives on its branch/logs above; the auto-watch has been notified.\n' \
     "$SESSION" "$1" "$2" "$_abs_artifact" "${LOG_DIR}/outputs/${RUNID_LAST:-unknown}.*" "$(date -Iseconds)" >"$_abs_artifact" 2>/dev/null || true
-  printf '%s\n' "lane-will FAILED-STUB $SESSION artifact=$ARTIFACT status=$1 $(date -Iseconds)" >>"$STATUS_FILE" 2>/dev/null || true
-  rm -f "${WILL_FILE:-/nonexistent}" 2>/dev/null
+  local _sw=""
+  if [ ! -f "$_abs_artifact" ]; then
+    _sw=" STUB-WRITE-FAILED"
+    echo "agi-run: [$SESSION] STUB WRITE FAILED — cannot write $_abs_artifact (unwritable dir?); status line still posted" >&2
+  fi
+  printf '%s\n' "lane-will FAILED-STUB $SESSION artifact=$ARTIFACT status=$1${_sw} $(date -Iseconds)" >>"$STATUS_FILE" 2>/dev/null || true
+  rm -f "${WILL_FILE:-/nonexistent}" "${WILL_FILE:-/nonexistent}.pinged" "${WILL_FILE:-/nonexistent}.pinged.esc" 2>/dev/null
 }
 
 # --- one door, outside the caller's cgroup (S4): re-exec under systemd-run -------------------
@@ -176,7 +188,7 @@ run_attempt() { # $1 = runid ; sets RC / STALLED / NOTE
     --model "$MODEL" \
     --output-format stream-json --verbose \
     >"$out" 2>"$err" &
-  local pid=$!
+  local pid=$!; CLAUDE_PID=$pid
 
   STALLED=0
   last_size=-1; last_change=$start_epoch
@@ -283,7 +295,9 @@ i=0
 MAX_ATTEMPTS=$((RETRIES + 1))
 RUNID_LAST=""
 # LANE-WILL: even a wrapper killed mid-run (unit stop, reboot) leaves the FAILED stub behind.
-trap 'lane_will_finish KILLED "wrapper terminated mid-run"' TERM INT
+# ...and then EXITS (station-sim case 10: the trap used to return into the stall loop, so a TERMed
+# wrapper lived on); its setsid'd claude group goes down with it.
+trap 'lane_will_finish KILLED "wrapper terminated mid-run"; [ -n "${CLAUDE_PID:-}" ] && kill -TERM -- "-$CLAUDE_PID" 2>/dev/null; exit 143' TERM INT
 while :; do
   i=$((i + 1))
   RUNID="$(date -u +%Y%m%dT%H%M%SZ)-a$i-$$"

@@ -21,6 +21,7 @@ STATUS_FILE="${STATUS_FILE:-/tmp/sub-status.tsv}"
 BRAIN_URL="${BRAIN_URL:-http://127.0.0.1:4100}"
 POLL_SECS="${POLL_SECS:-60}"
 WILL_DIR="${WILL_DIR:-${AGI_WILL_DIR:-$HOME/Work/bifrost/.agi-log/wills}}"
+WAKE_JSON="${WAKE_JSON:-/tmp/.lane-wake.json}"   # station-sim points this at scratch
 
 resolve_main() {
   curl -s --max-time 5 "$BRAIN_URL/session" | python3 -c '
@@ -35,32 +36,45 @@ print(mains[-1]["id"] if mains else "")' 2>/dev/null
 }
 
 wake() { # $1 = session id, $2 = landing line
-  python3 - "$2" <<'PY' > /tmp/.lane-wake.json
+  python3 - "$2" <<'PY' > "$WAKE_JSON"
 import json, sys
 print(json.dumps({"parts": [{"type": "text", "text": "LANE LANDED (auto-watch): " + sys.argv[1]}]}))
 PY
   curl -s -X POST "$BRAIN_URL/session/$1/message" -H 'content-type: application/json' \
-    -d @/tmp/.lane-wake.json --max-time 30 -o /dev/null
+    -d @"$WAKE_JSON" --max-time 30 -o /dev/null
 }
 
-LAST=$(tail -1 "$STATUS_FILE" 2>/dev/null)
+# A status line counts only when it is complete (newline-terminated) and carries an ISO
+# timestamp; a truncated/garbage tail is ignored until a real line lands (station-sim case 8).
+last_line() {
+  local l; l=$(tail -n1 "$STATUS_FILE" 2>/dev/null)
+  [ -n "$(tail -c1 "$STATUS_FILE" 2>/dev/null)" ] && l=""
+  [[ "$l" =~ [0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2} ]] || l=""
+  printf '%s' "$l"
+}
+LAST=$(last_line)
 
 # ---------- durable wake (opus review 9: a signal sent while :4100 is down must be
 # retried until a 2xx, never silently consumed) ----------
 pend() { grep -qxF "$1" "$STATUS_FILE.pending" 2>/dev/null || printf '%s\n' "$1" >>"$STATUS_FILE.pending"; }
-unpend() { [ -f "$STATUS_FILE.pending" ] && grep -vxF "$1" "$STATUS_FILE.pending" >"$STATUS_FILE.pending.next" 2>/dev/null && mv "$STATUS_FILE.pending.next" "$STATUS_FILE.pending" || :; }
+# (grep -v exits 1 when it removes the LAST line — that must still replace the file, else the
+# delivered line is replayed every poll: station-sim case 4/5/6)
+unpend() { [ -f "$STATUS_FILE.pending" ] || return 0; grep -vxF "$1" "$STATUS_FILE.pending" >"$STATUS_FILE.pending.next" 2>/dev/null; mv "$STATUS_FILE.pending.next" "$STATUS_FILE.pending"; }
+# a pending ping/escalation is retried by will_scan itself (it owns the marker) — flushing it
+# here too delivered it twice (station-sim case 5); a closed will's leftovers are dropped
+unpend_will() { [ -f "$STATUS_FILE.pending" ] || return 0; grep -vF "LANE-WILL (auto-watch): $(basename "$1" .will): " "$STATUS_FILE.pending" >"$STATUS_FILE.pending.next" 2>/dev/null; mv "$STATUS_FILE.pending.next" "$STATUS_FILE.pending"; }
 
 post_lane_line() { # $1 = full text; returns 0 when the brain acknowledged (2xx)
   local sid attempt code
   sid="${SES_ID:-$(resolve_main)}"
   [ -n "$sid" ] || return 1
-  python3 - "$1" <<'PY' > /tmp/.lane-wake.json
+  python3 - "$1" <<'PY' > "$WAKE_JSON"
 import json, sys
 print(json.dumps({"parts": [{"type": "text", "text": sys.argv[1]}]}))
 PY
   for attempt in 1 2 3; do
     code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BRAIN_URL/session/$sid/message" \
-      -H 'content-type: application/json' -d @/tmp/.lane-wake.json --max-time 20) || code=000
+      -H 'content-type: application/json' -d @"$WAKE_JSON" --max-time 20) || code=000
     case "$code" in 2*) return 0 ;; esac
     sleep 5
   done
@@ -72,6 +86,7 @@ flush_pending() {
   local line
   while IFS= read -r line; do
     [ -n "$line" ] || continue
+    case "$line" in *"STATION PING:"*|*"ESCALATION:"*) continue ;; esac   # will_scan owns these
     post_lane_line "$line" || return 0   # brain still down — try again next poll
     unpend "$line"
   done <"$STATUS_FILE.pending"
@@ -99,10 +114,10 @@ will_scan() {
     session=$(grep -oP '^session=\K.*' "$will"); artifact=$(grep -oP '^artifact=\K.*' "$will")
     budget=$(grep -oP '^budget_min=\K.*' "$will"); disp=$(grep -oP '^dispatched=\K.*' "$will")
     unit=$(grep -oP '^unit=\K.*' "$will"); rekick=$(grep -oP '^rekick=\K.*' "$will")
-    [ -f "$artifact" ] && { rm -f "$will" "$(pinged_marker "$will")" "$(pinged_marker "$will").esc"; continue; }   # landed clean — close the will
+    [ -f "$artifact" ] && { rm -f "$will" "$(pinged_marker "$will")" "$(pinged_marker "$will").esc"; unpend_will "$will"; continue; }   # landed clean — close the will
     elapsed=$(( now - $(date -d "$disp" +%s 2>/dev/null || echo now) ))
     if [ "${budget:-0}" -gt 0 ] && [ $elapsed -ge $((budget * 60)) ] && [ ! -f "$(pinged_marker "$will")" ]; then
-      will_nudge "$will" "STATION PING: lane '$session' is over budget (${elapsed}s > ${budget}min) with no artifact at $artifact — tell the owner WITHOUT being asked." \
+      will_nudge "$will" "STATION PING: lane '$session' is over budget (> ${budget}min) with no artifact at $artifact — tell the owner WITHOUT being asked." \
         && touch "$(pinged_marker "$will")"     # marker only on delivered ping
     fi
     if kill -0 "$(grep -oP '^pid=\K.*' "$will")" 2>/dev/null; then continue; fi
@@ -118,7 +133,12 @@ will_scan() {
     will_nudge "$will" "lane '$session' died with no artifact — auto re-kick ONCE via agi-run (artifact $artifact)." || : ;
     (
       export AGI_REKICK=1 AGI_TREE="${AGI_TREE:-}"
-      AGI_SYSTEMD=1 "$HOME/Work/bifrost/scripts/agi-run.sh" \
+      # scratch-env passthrough (station-sim): a sim's re-kick must stay in the sim's
+      # log dir / fake claude / in-place mode — defaults unchanged when unset
+      for _v in AGI_LOG_DIR AGI_BIN AGI_SYSTEMD AGI_WILL_DIR AGI_STALL_SECS AGI_POLL_SECS; do
+        [ -n "${!_v:-}" ] && export "$_v=${!_v}"
+      done
+      AGI_SYSTEMD="${AGI_SYSTEMD:-1}" "$HOME/Work/bifrost/scripts/agi-run.sh" \
         -s "$session" -f "$(grep -oP '^prompt_file=\K.*' "$will")" \
         ${artifact:+-a "$artifact"} ${budget:+-b "$budget"} </dev/null >/dev/null 2>&1
     ) &
@@ -129,7 +149,7 @@ while true; do
   sleep "$POLL_SECS"
   flush_pending
   will_scan
-  CUR=$(tail -1 "$STATUS_FILE" 2>/dev/null)
+  CUR=$(last_line)
   if [ -n "$CUR" ] && [ "$CUR" != "$LAST" ]; then
     if post_lane_line "LANE LANDED (auto-watch): $CUR"; then
       unpend "LANE LANDED (auto-watch): $CUR"

@@ -96,7 +96,13 @@ if [ -n "$SESSION" ] && [ "$SESSION" != "unknown" ]; then
       _dedup_skip "unit $_unit"   # inner lane registered its unit and it is RUNNING
     fi
     _wpid="$(grep -oP '^pid=\K\d+' "$_w" 2>/dev/null | head -1)"
-    [ -n "$_wpid" ] && kill -0 "$_wpid" 2>/dev/null && _dedup_skip "pid $_wpid"  # in-place lane (AGI_SYSTEMD=0)
+    # only a live claude PROCESS counts as a lane: a stuck outer dispatcher (unit=none,
+    # wrapper alive while the inner never started) must not block re-kicks (11-10 lesson)
+    if [ -n "$_wpid" ] && kill -0 "$_wpid" 2>/dev/null; then
+      case "$(tr '\0' ' ' < "/proc/$_wpid/cmdline" 2>/dev/null)" in
+        *claude*) _dedup_skip "pid $_wpid" ;;
+      esac
+    fi
   done
 fi
 

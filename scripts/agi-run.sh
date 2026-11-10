@@ -97,7 +97,10 @@ _dedup_skip() { # $1 = live pid
 if [ -z "${AGI_IN_UNIT:-}" ] && [ -n "$SESSION" ] && [ "$SESSION" != "unknown" ]; then
   _sess_pat="agi-lane-$(printf '%s' "$SESSION" | tr -c 'A-Za-z0-9_.-' '-')-*.service"
   for _u in $(systemctl --user list-units "$_sess_pat" --no-legend --no-pager 2>/dev/null | awk '$4=="running"{print $1}'); do
-    _dedup_skip "unit $_u"   # name-keyed: catches lanes whose will was already consumed
+    _mpid="$(systemctl --user show -p MainPID --value "$_u" 2>/dev/null)"
+    if [ -n "$_mpid" ] && [ "$_mpid" != "0" ] && kill -0 "$_mpid" 2>/dev/null; then
+      _dedup_skip "unit $_u"   # name-keyed + MainPID alive: a lingering unit with a dead pid is NOT running
+    fi
   done
   for _w in "$WILL_DIR"/$(printf '%s' "$SESSION" | tr -c 'A-Za-z0-9_.-' '-').will; do
     [ -f "$_w" ] || continue
@@ -184,8 +187,8 @@ if [ "${AGI_SYSTEMD:-1}" = "1" ] && [ -z "${AGI_IN_UNIT:-}" ] && command -v syst
   _unit="agi-lane-$(printf '%s' "$SESSION" | tr -c 'A-Za-z0-9_.-' '-')-$$"
   _envs=(); for _v in AGI_MODEL AGI_STALL_SECS AGI_RETRIES AGI_LOG_DIR AGI_BIN AGI_POLL_SECS AGI_PUSH_URL AGI_LETTER_DIR AGI_DETACH AGI_WILL_DIR AGI_STATUS_FILE AGI_REKICK; do
     [ -n "${!_v:-}" ] && _envs+=("--setenv=$_v=${!_v}"); done
-  _wait=(--wait --pipe --collect)   # foreground: same blocking contract as before; AGI_DETACH=1 returns at once
-  [ "${AGI_DETACH:-0}" = "1" ] && _wait=(--collect)
+  _wait=(--wait --pipe --collect --property=TimeoutStartSec=600)   # foreground: same blocking contract as before; AGI_DETACH=1 returns at once
+  [ "${AGI_DETACH:-0}" = "1" ] && _wait=(--collect --property=TimeoutStartSec=600)
   _extra=()
   [ -n "$ARTIFACT" ] && _extra+=(-a "$ARTIFACT")
   [ -n "$BUDGET_MIN" ] && _extra+=(-b "$BUDGET_MIN")

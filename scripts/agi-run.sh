@@ -193,7 +193,7 @@ if [ "${AGI_SYSTEMD:-1}" = "1" ] && [ -z "${AGI_IN_UNIT:-}" ] && command -v syst
   [ -n "$ARTIFACT" ] && _extra+=(-a "$ARTIFACT")
   [ -n "$BUDGET_MIN" ] && _extra+=(-b "$BUDGET_MIN")
   exec systemd-run --user --quiet --unit="$_unit" --description="agi lane $SESSION" \
-    --working-directory="$PWD" --setenv=AGI_IN_UNIT=1 --setenv=AGI_UNIT="$_unit" --setenv=PATH="$PATH" --setenv=HOME="$HOME" \
+    --property=TimeoutStartSec=600 --working-directory="$PWD" --setenv=AGI_IN_UNIT=1 --setenv=AGI_UNIT="$_unit" --setenv=PATH="$PATH" --setenv=HOME="$HOME" \
     "${_envs[@]}" "${_wait[@]}" -- "$0" -s "$SESSION" -m "$MODEL" -f "$_pf" "${_extra[@]}"
 fi
 

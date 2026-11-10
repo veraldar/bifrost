@@ -1,0 +1,26 @@
+MISSION: spacing/height coherence audit — header + footer across MAIN and session pages, then the overall app. AGI reviews, decides, fixes.
+
+Session UX-SPACING. Tree: ~/Work/bifrost-sandbox (lab/sandbox, :8090 → :8443). Live stack untouched.
+Commit per slice, screenshot evidence (the e2e phone-shot pattern exists), short report
+docs/reviews/ux-spacing-report.md. Do NOT touch docs/urd/.
+
+THE USER'S REPORT (10-27, verbatim intent): heights are incoherent between the footer and the header
+on the MAIN page and on the session page. The footer area (oz-phase) changed a lot in the last days:
+idle renders NOTHING (9f43c8e), working is glyph-only (4028224) — the reserved vertical space likely
+jumped/collapsed between states, and header vs footer balance across pages is off.
+
+YOUR TASK:
+1. AUDIT with evidence: measure (Playwright screenshots + DOM box heights) the header and footer on
+   the home page, MAIN, and a normal session page — across states (idle / heard / working / speaking,
+   and onboarding vs done device). Name every inconsistency in px (e.g. footer reserves X px idle but
+   Y px working; header heights differ between MAIN and session pages; safe-area padding differences).
+2. DECIDE the coherent system: one spacing scale for chrome (header/footer), stable footer height
+   across states (reserve or absolute-position so nothing jumps when text appears/disappears), same
+   header height on every page, consistent safe-area handling. Respect the recent decisions: idle =
+   nothing visible, working = glyph only — those stay; the CHROME around them must be stable.
+3. FIX in styles (brand.css / tokens) — minimal diff, no redesign. The phone is the target
+   (360–430px widths); check desktop doesn't regress.
+4. PROVE: before/after phone shots per page per state; e2e general suite green; the jump test —
+   switch idle→working→idle and show content below the footer never moves.
+DEFINITION OF DONE: every inconsistency either fixed or named with a reason; the audit table in the
+report with px numbers; screenshots referenced by path.

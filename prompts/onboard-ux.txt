@@ -1,0 +1,25 @@
+MISSION: UX-truth fixes in the sandbox PWA settings — small, surgical.
+
+Session ONBOARD-UX. Tree: ~/Work/bifrost-sandbox (branch lab/sandbox, served by bifrost-sandbox
+:8090 → tailnet :8443). Live stack (~/Work/bifrost, lk-pwa, lk-agent) untouched. Commit per fix,
+run the sandbox e2e general suite, report in docs/reviews/onboard-ux-fixes.md (short).
+
+THE USER FOUND (on /session/main/settings, 10-19):
+1. Renaming the "main" session silently does nothing. Cause (verified): pwa/app/api/session/[id]/route.ts
+   PATCH returns 409 {"error":"MAIN is reserved — it keeps its name"} for the reserved MAIN title, but
+   settings/page.tsx drops the error — no feedback. FIX: surface the refusal in the UI (inline error or
+   toast, house style) so the user knows rename is refused and why. Same for any other silent-failure
+   path in that PATCH flow (title/model/agent) — errors must be visible, not swallowed.
+2. Settings shows "no LLM selected" though voice turns clearly use one. Cause (verified): yggdrasil
+   returns model: null for a session that never had an explicit model set; the brain's /model route 404s.
+   The effective model is the brain default (zai-coding-plan/glm-5.3-flash in the live agent env;
+   verify what the sandbox stack actually uses — check bifrost-sandbox.env / agent env / dispatch probe).
+   FIX: when session model is null, settings should show the brain's effective/default model, labeled as
+   default (e.g. "glm-5.3-flash · default (set on the box)"), matching the door's honesty rule
+   ("shown, not asked"). If the brain cannot report a default, say so explicitly in the report instead of
+   faking a value — TODO-VERIFY beats invented data.
+3. While there: /api/models on the sandbox returns 200 — check settings uses it correctly and the empty
+   state can't be a silent blank.
+
+CONSTRAINTS: product code only in ~/Work/bifrost-sandbox. Do NOT touch docs/urd/. Evidence in commit
+messages. The rename guard itself (409 on MAIN) is CORRECT — keep the guard, fix the silence.

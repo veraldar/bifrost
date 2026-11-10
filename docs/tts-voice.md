@@ -1,7 +1,23 @@
 # TTS voice pipeline — what works, what failed
 
-State: 2026-09-27. Production: streaming deck « speak last reply » in the PWA.
-French voice = Elise. English voice = base clone of `ref_voice.wav`.
+State: 2026-10-03 (r2). Production: streaming deck « speak last reply » in the PWA.
+French voice = Elise. English voice = Kokoro `af_heart` (female, 200 Hz —
+user ear-pass 10-03 REJECTED the deep male after hearing it live; `am_onyx`
+88 Hz stays one env var away for anyone who wants it back).
+
+## Voice-name law (Kokoro on the MLX wrapper, 10-03 measured)
+
+Voices are FILES: `voices/<name>.safetensors` in the `prince-canuma/Kokoro-82M`
+HF cache on the Mac. Present packs: `af_heart, am_fenrir, am_michael, am_onyx,
+bm_george, ff_siwis` (missing packs auto-download on first use when they exist
+upstream). `onyx` is an OPENAI voice name — no such pack, and the wrapper fails
+LAZILY (raises inside the stream generator after HTTP 200) → the phone gets a
+"successful" empty stream and auto-speak silently plays nothing. This exact
+failure broke auto-speak live on 10-03 (diag `tts 502` 14:40-14:43, reverted to
+af_heart). Wrapper gap: validate the voice pack BEFORE returning 200 — see
+open-questions 10-03. Probe evidence: `lab/voice-switch/probe-results.json`
+(am_onyx 87.9 Hz first-sound 0.28s · am_michael 117.6 · bm_george 148.1 ·
+am_fenrir 140.4 · af_heart 195.1, all 200; `onyx` = 200 + 0 bytes).
 
 ## Production setup (works)
 
@@ -18,9 +34,13 @@ French voice = Elise. English voice = base clone of `ref_voice.wav`.
   - French: `thaddeusk/Qwen3-TTS-12Hz-1.7B-Elise-v2` — CustomVoice fine-tune,
     single speaker `elise`, `french` in supported languages. (user-chosen)
   - English: `mlx-community/Kokoro-82M-bf16`, voice `af_heart`, lang `a`
-    (user-chosen after audition; Kokoro lang codes are single letters
-    a/b/e/f/h/i/p/j/z — `auto` asserts). Base clone `ref_voice.wav` retained
-    for the livekit agent path only.
+    (10-03 r2: user heard am_onyx live and chose female back; deep male =
+    `am_onyx` env var + lk-pwa restart, measured 87.9-89.9 Hz. Kokoro lang
+    codes are single letters a/b/e/f/h/i/p/j/z — `auto` asserts).
+    Base clone `ref_voice.wav` retained for the livekit agent path only.
+    NOTE: the phone's ONLY TTS call is `/api/tts/stream` (lib/speech.ts);
+    the non-stream `/api/tts` route serves the BASE model (deep male ref
+    clone ~99 Hz) and has no client callers — it cannot leak into the deck.
   - Do NOT use `mlx-community/Qwen3-TTS-*-MLX-4bit` variants for image/other —
     for TTS the `mlx-community` bf16 CustomVoice/VoiceDesign work; the
     `Qwen-Image` MLX ports are diffusers-incompatible (silent noise output).

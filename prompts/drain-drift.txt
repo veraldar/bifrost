@@ -1,0 +1,23 @@
+MISSION: drain the drift — port ALL 14 KNOWN-GAP rows from drift-guard.sh to lab/sandbox (v0.7, the active line). Fleet rule 10-27 law 1: PORT OVER REWRITE — never re-derive what a review already settled.
+
+Session DRAIN-DRIFT. Tree: ~/Work/bifrost-sandbox (branch lab/sandbox, :8090 → :8443). Model: Claude Code Sonnet 5.5 (user's explicit pick — this is mechanical porting, not judgment work).
+Live stack (~/Work/bifrost pwa :8080, release-v07) untouched — ports go ONE WAY: main/live → lab/sandbox. Do NOT touch docs/urd/.
+
+THE LIST — source of truth: `bash ~/Work/bifrost/scripts/drift-guard.sh` (run it first; 14 KNOWN-GAP rows on
+lab/sandbox / release-v07, e.g. artifact-black-page, agent-rearm, bifrost-auth-declared, tts-generation-lock,
+agent-split-brain, agent-ordered-yield, agent-loopback-http, agent-load-inf, first-turn-tap on release-v07…).
+For each gap: find the fix on main (~/Work/bifrost, branch rebuild/cohesive-opus) — the commit is named in
+docs/claims.md / docs/reviews/ — and PORT the exact change, commit with the source commit hash in the message.
+EXCEPTIONS — do NOT port blindly:
+  - first-turn-tap on release-v07 only: the sandbox line already has the newer first-turn design
+    (ef3cc3a, 9f43c8e, 4028224, 4343a0f) — if the port would resurrect teaching text or the idle
+    label the user removed, SKIP and mark the row WAIVED with one line of reason in the report.
+  - agent-* fixes: port, then prove with the sandbox agent e2e/health checks, not just file diffs.
+ORDER: user-visible PWA fixes first (theme/overlay/artifact/auth), then agent robustness.
+EACH SLICE: port → jitless build (cd ~/Work/bifrost-sandbox/pwa && NODE_OPTIONS="--jitless --require ../scripts/jitless-wasm-shim.cjs" npm run build) → relevant e2e → commit (one commit per fix, source hash in message). Batch restarts, not per-commit.
+FINISH: run drift-guard again — every row must read OK or WAIVED (zero KNOWN-GAP left on lab/sandbox);
+release-v07 rows that were SKIPPED stay named (that line is frozen, user decides its fate separately);
+update scripts/drift-guard.sh states to match reality; write docs/reviews/drain-drift-report.md
+(table: fix | source commit | port commit | e2e result | OK/WAIVED + reasons).
+DEFINITION OF DONE: drift-guard shows no KNOWN-GAP on lab/sandbox, general e2e suite green on :8090,
+report written, everything committed on lab/sandbox.

@@ -1,0 +1,15 @@
+MISSION: the v0.7 reflection + plan — the user's seven questions, opus review. Evidence first: read the git history (the user's v0.7 commits), the session logs on :4100 (the user's work sessions), docs/plan.md (the gate), docs/reviews/root-coordination-design.md, docs/research/herdr-takeaways.md, docs/lab-playbook.md (Rules 10-02..10-10), docs/reviews/v07-gate-final.md if the V07-GATE-FINAL wave finished.
+
+Q1 WORKFLOW AUDIT: review everything the user did on v0.7 (their commits, their session work on :4100, their test reports). Find: things done improperly or in the wrong order; places where AI sessions were SLOW because of tools, context, or missing information. For each friction: the fix (spawn-worthy sub work or a tool/context change). Honest — include our own coordinator mistakes (the wrong-queue dispatches).
+
+Q2 BACKLOG: enumerate everything wanted for v0.7 (the plan gate + the user's asks across sessions). What shipped, what didn't. What remains to TEST on v0.7 — the complete list.
+
+Q3 MAC TOOLS: the Mac's Yggdrasil runs Squid (scheduling), Flow (pipelines), Workers, Letters (async session-to-session messaging). Should the roots incorporate these? Judge per concept: what it maps to in our design (Letters ≈ the queued-turns relay; Squid ≈ the Nornir/scheduling; Workers ≈ sub-sessions; Flow ≈ pipelines), whether the concept adds value the design lacks, and the landing version (v0.7.x / v0.8 / v1.0 / never). A deep Mac review needs new access — note what to check there, but decide from the description + doctrine now.
+
+Q4 MAIN TOOL DIET: the user proposes the main session should NOT build or edit directly — ONLY manage sessions/sub-sessions, topics, context, information flow; answer fast; model-tiered per topic. Judge against the coordination design (the concierge). If agreed: the tool diet spec (what the main keeps: spawn/relay/status/talk; what moves to subs: build/edit/bash), the risk review (can the main still do its 6% delegation + small talk?), the landing version.
+
+Q5 R&D LAB: should we run continuous online R&D (GitHub + papers)? The field-watch proposal exists (docs/research/herdr-takeaways.md §4). Decide: run it now (the wave cadence, the cost) or defer; if now, the first pass scope.
+
+Q6 RELEASE GATE: per the documented release process (docs/plan.md, the deploy gates), enumerate exactly what remains to: drop v0.6, promote v0.7 to live, start the v0.8 release. Ordered, with owners (wave/user/process).
+
+DELIVERABLE: docs/reviews/v07-reflection-and-plan.md — the seven answers, the plan, the spawn list (the sub-work to fire). Reply summary: 15 lines max.

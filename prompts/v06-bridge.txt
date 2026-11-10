@@ -1,0 +1,37 @@
+MISSION: V06-BRIDGE — nothing from v0.6 is lost, and old work keeps improving. Session V06-BRIDGE,
+model sonnet (inventory + design; the heavy judgment rides ROOT-CONTRACT/TRUNK-APK).
+
+THE USER'S DIRECTIVE (10-27): "we lost some information from v0.6 — it was opencode with sessions,
+that was a past version. We should still have access to it. There was a lab on it running for voice
+simulation, improving text-to-voice / voice-to-text — that was an IMPORTANT lab. How do we improve
+version to version — are we taking into account old sessions? Create NEW sessions that represent
+past sessions, so we don't lose what we're doing — labs on different topics and problems — and
+improve them automatically, recursively, through an automated process."
+
+ASSETS (verify, don't trust):
+- The frozen v0.6 store: opencode serve on 127.0.0.1:4096 (systemd unit opencode-legacy), SQLite
+  store, ~200+ sessions READ-ONLY (a query already listed [LAB] voice, worldtree-data, silicon,
+  ygg-sim, research-feed…). RULE: read-only, always. No writes to :4096, ever.
+- yggdrasil v0.7 store: ~/.local/share/yggdrasil/session/ses_*.json — MAIN ses_770b8998… is SACRED.
+  Plus the trash backup ~/.local/share/yggdrasil/trash-v07-gate-20261024/ (39 test sessions).
+- The v0.6-era sim/voice evidence also lives in ~/Work/bifrost docs (claims.md, reviews, VERSIONS.md).
+
+YOUR TASK:
+1. INVENTORY THE STORE (read-only): full session list (id, title, size, dates, topic guess), flag the
+   voice-sim lab sessions (STT/TTS work) and every LAB/FIX session with what it delivered. Machine
+   table + human digest.
+2. RECOVER THE VOICE LAB: extract the voice-sim lab's state — what was built, what improved STT/TTS,
+   what was left open — from those sessions + docs. One section, citable. This feeds the current
+   v0.7 voice work (first-audio latency etc.).
+3. THE BRIDGE DESIGN: how past sessions become present — options: (a) import v0.6 sessions into the
+   yggdrasil store as read-only archived sessions; (b) per important session, mint a NEW yggdrasil
+   session holding a digest + links ("new sessions that represent past sessions" — the user's words);
+   (c) external archive with a root extension reading it. Recommend ONE, sized, with the recursive
+   auto-improvement loop sketched (a cadence that revisits dormant labs and reports "this got stale,
+   here's what changed upstream" — where does that live? coordination design/extension, not root —
+   align with ROOT-CONTRACT session's seam).
+4. PILOT: implement the smallest honest piece of the recommendation against the TRASH backup only
+   (39 test sessions) — prove the import/representation mechanics without touching :4096 or MAIN.
+   Scratch dir + report commits only.
+DELIVERABLE: docs/reviews/v06-bridge.md — inventory table, voice-lab recovery section, bridge design
++ recommendation, pilot results. Do NOT touch docs/urd/, MAIN, :4096 writes, product lines.

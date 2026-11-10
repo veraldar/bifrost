@@ -1,0 +1,11 @@
+MISSION: RULE, do not deliberate (Rule 10-11: AGI rules, the user answers context only). Read docs/reviews/v07-reflection-and-plan.md (§0, §6, §7.2), docs/plan.md, docs/lab-playbook.md (10-09/10-10/10-11), the V07-GATE-FINAL matrix. The user's law: TONIGHT freeze v0.7 → promote → open v0.8. The one-restart rollback (v0.6.1 as PREVIOUS) is the safety net.
+
+RULE THESE (3-6 lines each: the ruling + the reason + any CONTEXT QUESTIONS for the user — questions only if truly blocking, max 3 total):
+1. The opencode-legacy hand-made unit: retire + the gate reads the brain from the release env?
+2. OG-ctx (S1's approach): go/no-go, or pick the alternative yourself.
+3. The soak: 72h/7d — or WAIVED by evidence (the sandbox has served the user's real testing for days; the gate matrix is green; the rollback is one restart)? Rule as the evidence dictates.
+4. The 13 test gaps: which are PROMOTION-BLOCKING tonight (fix now, ~1h each) vs next-slot? Name the blocking set minimal.
+5. If ANY ruling needs user context: list the questions at the END, clearly — nothing else blocks on them.
+
+THEN EXECUTE what needs no user input (you have the tools): fix the blocking set, run the matrix, run drift-guard, write docs/reviews/v07-promotion-order.md — the ordered runbook for tonight: freeze rc1 → the user's 3-min consent check → promote (gate.py + promote.sh) → GitHub latest + veraldar.org note → open v0.8. The runbook states exactly what command runs in what order and what the user must tap at the consent step.
+Report: docs/reviews/v07-promotion-order.md + the rulings. Reply: the rulings + the questions (if any) + is tonight feasible: YES/NO + what would make it NO.

@@ -1,0 +1,14 @@
+MISSION: S4 LANE-HYGIENE (from docs/reviews/v07-reflection-and-plan.md §7.2 — read it first). The lane protection layer every other lane depends on.
+
+WORK (per the spawn row):
+1. scripts/agi-run.sh: launch runs via systemd-run by default — a lane must live OUTSIDE the caller's cgroup (restarting the hosting brain must kill no lane). Env knob to revert for tests.
+2. Completion letters: a finished lane writes a letter into artifacts/letters/ and pushes it via /api/push (the fleet's "say who did what" — Letter-shaped, envelope v1 per §8.6).
+3. scripts/agi-status.sh: RUNNING with a dead pid → DEAD within 60s (no zombie states).
+4. One chain format (the chain-*.sh pattern) that STOPS on expiry — no eternal waiters.
+5. The coordinator-law draft (§1.4) for docs/lab-playbook.md, plus the two lines from §8.7: "authority never travels with a message" and "no session writes user turns into another session".
+
+DONE-CHECKS (all must pass, evidence in the report):
+- restarting the hosting brain kills no lane (demonstrate: launch a sleep lane, restart the brain, the lane survives);
+- a killed lane reads DEAD ≤ 60s;
+- a finished lane pushes its letter (a named SKIP is acceptable only for the real-phone path).
+Report: docs/reviews/s4-lane-hygiene.md. Commit per slice. Never touch live (STABLE 4/5).

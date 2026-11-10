@@ -1,0 +1,32 @@
+MISSION: implement Proposal C — hold the roots — user's pick, with one upgrade. BUILD it.
+
+Session MAINFRAME-C. Tree: ~/Work/bifrost-sandbox (lab/sandbox, :8090 → :8443). Live stack untouched.
+Commit per slice, e2e for each interaction, report docs/reviews/mainframe-c-report.md.
+Do NOT touch docs/urd/.
+
+THE USER'S DECISION (10-26): Proposal C from docs/reviews/mainframe-design-proposals.md
+(§5, mockup artifacts/mainframe-proposals.html) is the long-term front page. Implement it WITH this
+upgrade the user added:
+- SHORT PRESS on the roots → opens MAIN (navigation, as designed in C)
+- LONG PRESS / HOLD on the roots → talks to MAIN directly: starts hands-free mode on the spot —
+  amber "heard" at once (press = amber instantly is a house law, tree-door precedent), speech goes to
+  MAIN, reply speaks back, WITHOUT navigating away from the front page. Release semantics follow the
+  door's hold-to-talk rules; if the user keeps talking in hands-free after release, keep the session
+  in hands-free (mode rules as in MAIN).
+
+BUILD PLAN (yours to refine, minimum bar):
+1. The roots become the full-width ground element at the bottom of the front page (mockup C visual,
+   brand signal colors). The existing small tree button at the bottom goes away — ONE tree only (top,
+   the working light). No duplicated tree anywhere on the page.
+2. Tap → router push to MAIN (same as today's button, same prefetch warmth).
+3. Hold → mic arms to MAIN without leaving the page: reuse MAIN's voice machinery (the same path the
+   door's first-voice-turn uses); show the four states (idle / heard / speaking / working) in the
+   roots themselves per the mockup; hands-free carry-over per the rules above.
+4. Respect the voice-test toggle (tests go to the voice-test room, not MAIN).
+5. Keyboard users: the roots are reachable/focusable; Enter = tap; space held = hold-to-talk (a11y
+   parity, no mouse-only interaction).
+
+CONSTRAINTS: door and MAIN stay untouched in behavior — this is the front page (app/page.tsx + its
+components). If C's design needs a small MAIN export (e.g. the voice hook), refactor minimally and
+keep MAIN's behavior byte-identical (e2e must prove MAIN unchanged). Speed budget intact — the front
+page must not get slower. Evidence in commits, e2e green, one test line per interaction in the report.

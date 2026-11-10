@@ -1,0 +1,23 @@
+MISSION: artifact plumbing — make every AGI-made artifact reachable at :8443. No design work.
+
+Session ARTIFACT-PLUMB. Tree: ~/Work/bifrost-sandbox (lab/sandbox). Commit per fix, report short at
+docs/reviews/artifact-plumb-report.md. Do NOT touch docs/urd/.
+
+THE BUG (observed 10-24): delegations write mockups to ~/Work/bifrost/artifacts/ (the main tree), but
+the sandbox gallery (:8443/artifacts) reads ~/Work/bifrost-sandbox/artifacts/ (ARTIFACTS_DIR default =
+cwd/../artifacts in pwa/lib/artifacts.ts). So new work (e.g. mainframe-proposals.html, door mockups,
+design eyes) never appears for the user on :8443 until someone copies it by hand. Meanwhile
+pwa/artifacts-builtin/ (the tree film etc.) exists as a separate mechanism.
+
+FIX (AGI decides the exact shape, minimum bar):
+1. One source of truth for "artifacts the user can see": either the sandbox gallery reads BOTH dirs
+   (worktree ~/Work/bifrost/artifacts + sandbox-local) with provenance tags, or a sync step (script or
+   delegation post-step) publishes new artifacts from ~/Work/bifrost/artifacts into the gallery dir
+   automatically. Pick the simplest thing that cannot drift silently; document the rule in the report.
+2. Builtin artifacts (/api/artifact/the-tree-film) currently return 415 through that route while the
+   gallery shows only 2 html files — audit the route: why 415, is content-type negotiation wrong, and
+   should builtins appear in the gallery list too? Fix or document deliberately.
+3. Backfill: copy the current design artifacts (mainframe-proposals.html, door-v3-tree-film.html,
+   onboarding-flow-v07.html, yggdrasil-ux-{near,mid,far}.html, world-tree-pertinence.html) so the
+   gallery shows them now (mainframe-proposals.html already hand-copied — keep, don't duplicate).
+4. e2e: gallery lists a freshly dropped html file without any manual step.

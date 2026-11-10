@@ -1,0 +1,1 @@
+{"build": "008d8b4", "den": 46, "device": "desktop-chromium", "from": "docs/reviews/v07-gate-final.md#wave-1", "metric": "e2e_pass_rate", "note": "same 4 failures, byte-identical; 7 extra passes are the batch's specs", "num": 42, "suite": "general", "ts": "2026-10-24", "unit": "ratio", "v": 1, "value": 0.913, "wave": "2026-10-24-ab2-batch"}

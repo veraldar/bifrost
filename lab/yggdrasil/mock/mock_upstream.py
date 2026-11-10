@@ -73,12 +73,44 @@ TOOL_ID = re.compile(r"^[a-zA-Z0-9_-]+$")
 def plan(body):
     """Dialect-neutral reply for an OpenAI-shaped body."""
     msgs = body["messages"]
+    if os.environ.get("MOCK_DUMP"):
+        with open(os.environ["MOCK_DUMP"], "w") as f:
+            json.dump(msgs[:2], f, indent=1)
     first = msgs[0]
     if first["role"] == "system" and str(first["content"]).startswith("[yggdrasil roll-up]"):
         tr = msgs[-1]["content"]
         head = next((l for l in tr.splitlines() if l.startswith("USER: ")), "")
         return {"kind": "summary", "text": f"MOCK-SUMMARY: {head} | {len(tr)} chars"}
     users = [i for i, m in enumerate(msgs) if m["role"] == "user"]
+    # TIME-AWARENESS sim, cache-law edition: the header rides INSIDE the
+    # LAST user turn (users[-1]; static system preamble sits at position 0). Same gap
+    # logic as before: >4h → acknowledge + refresh; ≤60m → no preamble.
+    hdr = None
+    if users and str(msgs[users[-1]]["content"]).startswith("[clock "):
+        hdr = str(msgs[users[-1]]["content"])  # CURRENT turn's header (last user slice)
+    if hdr:
+        m = re.search(r"\[gap since last user turn ([^]]+)\]", hdr)
+        gap = m.group(1).strip() if m else None
+        units = re.findall(r"(\d+)d", gap or "")
+        hours = re.findall(r"(\d+)h", gap or "")
+        minutes = re.findall(r"(\d+)m", gap or "")
+        long_gap = bool(units) or (hours and int(hours[0]) >= 1)
+        if long_gap:
+            if "[meanwhile]" in hdr:
+                mw = hdr.split("[meanwhile]")[1].replace("\n[clock] ", "; ").strip()
+                reply = f"CLOCK-GAP: welcome back after {gap} away. Meanwhile-summary refreshed: {mw}"
+            else:
+                reply = f"CLOCK-GAP: welcome back after {gap} away — state re-anchored."
+        elif minutes and int(minutes[0]) <= 60 and not hours:
+            reply = f"MOCK-REPLY: you said '{msgs[-1]['content']}' ({len(msgs)} msgs)"
+        else:  # fallback: default shape, but never a meanwhile-preamble
+            reply = f"MOCK-REPLY: you said '{msgs[-1]['content']}' ({len(msgs)} msgs)"
+        # slice-3 nap honored here too: the brain ALWAYS injects the clock
+        # header, so this branch is the main path — "sleep N" must still
+        # delay the first chunk (latency-sim slow leg).
+        nap = re.search(r"\bsleep (\d+)", msgs[-1]["content"])
+        return {"kind": "text", "text": reply, "chunk": 8,
+                "nap": int(nap.group(1)) if nap else 0}
     if users and msgs[users[-1]]["content"].startswith("tool:"):
         return tool_plan(body, users[-1])
     if users and NL_TOOL.search(msgs[users[-1]]["content"]):
@@ -295,6 +327,9 @@ class H(BaseHTTPRequestHandler):
             return self.json(401, {"type": "error", "error": {"type": "authentication_error", "message": "invalid x-api-key"}})
         if key == "mock-429":
             return self.json(429, {"error": {"code": "1113", "message": "Insufficient balance or no resource package. Please recharge."}})
+        if key == "mock-400":
+            return self.json(400, {"type": "error", "error": {"type": "invalid_request_error",
+                                                             "message": "model needs id + providerID (mocked)"}})
         errs = validate(body, self.headers)
         if errs:
             CALLS["a_rejected"] += 1

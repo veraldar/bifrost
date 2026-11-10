@@ -1,0 +1,6 @@
+{"ts": "2026-10-28T10:42:29+00:00", "harness": "yggdrasil", "model": "glm-5.3-flash", "task_id": "extract-invoice", "category": "extraction", "turn": 1, "ttfb_ms": 3390, "wall_ms": 7803, "ok": true, "score": 1.0, "notes": ""}
+{"ts": "2026-10-28T10:42:43+00:00", "harness": "yggdrasil", "model": "glm-5.3-flash", "task_id": "extract-logscan", "category": "extraction", "turn": 1, "ttfb_ms": 3390, "wall_ms": 14310, "ok": true, "score": 1.0, "notes": ""}
+{"ts": "2026-10-28T10:42:50+00:00", "harness": "yggdrasil", "model": "glm-5.3-flash", "task_id": "extract-resume", "category": "extraction", "turn": 1, "ttfb_ms": 3390, "wall_ms": 7044, "ok": true, "score": 1.0, "notes": ""}
+{"ts": "2026-10-28T10:43:07+00:00", "harness": "yggdrasil", "model": "glm-5.3-flash", "task_id": "extract-invoice", "category": "extraction", "turn": 1, "ttfb_ms": 9339, "wall_ms": 7847, "ok": true, "score": 1.0, "notes": ""}
+{"ts": "2026-10-28T10:43:19+00:00", "harness": "yggdrasil", "model": "glm-5.3-flash", "task_id": "extract-logscan", "category": "extraction", "turn": 1, "ttfb_ms": 9339, "wall_ms": 11119, "ok": true, "score": 1.0, "notes": ""}
+{"ts": "2026-10-28T10:43:27+00:00", "harness": "yggdrasil", "model": "glm-5.3-flash", "task_id": "extract-resume", "category": "extraction", "turn": 1, "ttfb_ms": 9339, "wall_ms": 8388, "ok": true, "score": 1.0, "notes": ""}

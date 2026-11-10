@@ -1,0 +1,36 @@
+MISSION: TRUNK-APK — answer the user's headline question with a plan: WHEN can he install the trunk
+and an APK on his phone. No vibes, a dated readiness path. Session TRUNK-APK, model opus (judgment work).
+
+THE USER'S FLOW (his words, 10-27): onboard on the website → install the app (APK) on the phone →
+QR code → scan → trunk auto-set-up on the home box → talk. He thinks this "feels smooth" but wants
+gaps found and better approaches considered.
+
+CONTEXT YOU inherit (verify, don't trust):
+- Roadmap: docs/roadmap-proposal-v2.md — v0.8 "layman release" holds /pair QR + S1 device tokens +
+  revoke + iPhone/android flows; the girlfriend-iPhone gate is the wall-clock. Android proper is
+  the v0.8+ story (bifrost-net). TODAY the phone runs the PWA (PWA-installable already on :8443).
+- The v0.6 opencode era HAD a simulation of the full cycle (ygg-sim, pairing app 0.6.0 ↔ sim 0.6.0,
+  APK/Android simulated) — read the old evidence via ~/Work/bifrost/docs (claims, reviews, VERSIONS.md)
+  and the read-only opencode store on :4096 (READ-ONLY, see the V06-BRIDGE session's territory —
+  coordinate, do not write there).
+- Security sequencing: S1 (device tokens) is v0.8 and BLOCKS v1.0 — an installable APK without the
+  token seam is a hole, not a milestone.
+
+YOUR TASK:
+1. INVENTORY: what exists today toward "APK + trunk install" (PWA installability, /pair, device
+   tokens state, bridge/bifrost-net state, the v0.6 Android sim assets). Name what is real vs imagined.
+2. GAPS: the ordered list between here and "he scans a QR and talks", each with size estimate
+   (S/M/L) and which lane builds it. Include the two hard preconditions: S1 token seam + the
+   QR onboarding loop (website → app → QR → trunk provisioned).
+3. SIM-PROOF LOOP (rule 10-09): the user's law — if HE finds a graphic/interaction/performance
+   issue, the simulation missed its job. Specify what the sim must cover for this milestone
+   (install flow, first-run, voice round on real-ish hardware profile, QR provisioning) and what
+   metrics/trends must be recorded per cycle to prove direction (ties to SIM-TRENDS session —
+   reference, don't duplicate).
+4. THE ANSWER: a dated estimate (in days of AGI lanes, not calendar promises) for "trunk + APK
+   installable", the cheapest honest path (PWA-install NOW vs native APK at v0.8 vs both),
+   and your recommendation.
+DELIVERABLE: docs/reviews/trunk-apk-readiness.md — inventory, gap table, sim coverage list,
+the dated answer, recommendation. Do NOT touch docs/urd/, the live stack (:443), or product lines
+(lab/sandbox is mid-DRAIN-DRIFT — read-only for you). Scratch/analysis + the report + commits in
+~/Work/bifrost (main tree docs) only.

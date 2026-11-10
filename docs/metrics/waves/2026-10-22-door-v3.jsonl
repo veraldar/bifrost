@@ -1,0 +1,1 @@
+{"build": "sandbox@door-v3", "den": 42, "device": "desktop-chromium", "from": "docs/reviews/door-v3-report.md", "metric": "e2e_pass_rate", "note": "0 regressions: 6 yggdrasil-vs-opencode, 2 other lanes' specs", "num": 33, "skipped": 2, "suite": "general", "ts": "2026-10-22", "unit": "ratio", "v": 1, "value": 0.7857, "wave": "2026-10-22-door-v3"}

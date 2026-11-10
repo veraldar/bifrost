@@ -1,0 +1,14 @@
+/home/dweeb_xyz/Work/bifrost/lab/tool-policy/vendor/target/release/deps/serde-95760260d2465018.d: /home/dweeb_xyz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs /home/dweeb_xyz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs /home/dweeb_xyz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs /home/dweeb_xyz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs /home/dweeb_xyz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs /home/dweeb_xyz/Work/bifrost/lab/tool-policy/vendor/target/release/build/serde-5bf4a1aef20d2555/out/private.rs
+
+/home/dweeb_xyz/Work/bifrost/lab/tool-policy/vendor/target/release/deps/libserde-95760260d2465018.rlib: /home/dweeb_xyz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs /home/dweeb_xyz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs /home/dweeb_xyz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs /home/dweeb_xyz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs /home/dweeb_xyz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs /home/dweeb_xyz/Work/bifrost/lab/tool-policy/vendor/target/release/build/serde-5bf4a1aef20d2555/out/private.rs
+
+/home/dweeb_xyz/Work/bifrost/lab/tool-policy/vendor/target/release/deps/libserde-95760260d2465018.rmeta: /home/dweeb_xyz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs /home/dweeb_xyz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs /home/dweeb_xyz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs /home/dweeb_xyz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs /home/dweeb_xyz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs /home/dweeb_xyz/Work/bifrost/lab/tool-policy/vendor/target/release/build/serde-5bf4a1aef20d2555/out/private.rs
+
+/home/dweeb_xyz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/lib.rs:
+/home/dweeb_xyz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/integer128.rs:
+/home/dweeb_xyz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/mod.rs:
+/home/dweeb_xyz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/de.rs:
+/home/dweeb_xyz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.229/src/private/ser.rs:
+/home/dweeb_xyz/Work/bifrost/lab/tool-policy/vendor/target/release/build/serde-5bf4a1aef20d2555/out/private.rs:
+
+# env-dep:OUT_DIR=/home/dweeb_xyz/Work/bifrost/lab/tool-policy/vendor/target/release/build/serde-5bf4a1aef20d2555/out

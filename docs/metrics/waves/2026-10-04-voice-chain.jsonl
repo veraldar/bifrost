@@ -1,0 +1,2 @@
+{"build": "n/a", "device": "box", "from": "artifacts/agi-loop-metrics.json", "leg": "brain", "metric": "voice_rtt", "n": 3, "p50": 6950, "p95": 7408, "src_kind": "e2e", "ts": "2026-10-04", "unit": "ms", "v": 1, "value": 6950, "wave": "2026-10-04-voice-chain"}
+{"build": "n/a", "device": "box", "from": "artifacts/agi-loop-metrics.json", "leg": "stt", "metric": "voice_rtt", "n": 3, "p50": 918, "p95": 1191, "src_kind": "e2e", "ts": "2026-10-04", "unit": "ms", "v": 1, "value": 918, "wave": "2026-10-04-voice-chain"}

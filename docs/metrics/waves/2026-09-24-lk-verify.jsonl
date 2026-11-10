@@ -1,0 +1,1 @@
+{"build": "n/r", "device": "desktop-chromium", "from": "docs/environments.md", "metric": "e2e_pass_rate", "note": "8 → 10 passed, green ×4", "num": 10, "suite": "lk-verify", "ts": "2026-09-24", "unit": "ratio", "v": 1, "value": null, "wave": "2026-09-24-lk-verify"}

@@ -1,0 +1,28 @@
+{"builds": ["n/r"], "file": "waves/2026-09-24-lk-verify.jsonl", "metrics": ["e2e_pass_rate"], "rows": 1, "sha256": "ebdacc5bae4028be", "ts": "2026-09-24", "wave": "2026-09-24-lk-verify"}
+{"builds": ["n/r"], "file": "waves/2026-10-04-sim-c1.jsonl", "metrics": ["e2e_pass_rate", "voice_rtt", "x.scenarios"], "rows": 3, "sha256": "c87b6ce5a5f22ecc", "ts": "2026-10-04", "wave": "2026-10-04-sim-c1"}
+{"builds": ["n/a"], "file": "waves/2026-10-04-voice-chain.jsonl", "metrics": ["voice_rtt"], "rows": 2, "sha256": "e1f9dad027b7e3a2", "ts": "2026-10-04", "wave": "2026-10-04-voice-chain"}
+{"builds": ["n/a"], "file": "waves/agi-2026-10-04.jsonl", "metrics": ["x.lane_ok_rate"], "rows": 1, "sha256": "3cdc6d246cd815b6", "ts": "2026-10-04", "wave": "agi-2026-10-04"}
+{"builds": ["app0.6.0+sim0.3.0"], "file": "waves/2026-10-05-sim-c2.jsonl", "metrics": ["e2e_pass_rate", "voice_rtt", "x.scenarios"], "rows": 3, "sha256": "18440f6a3c79135d", "ts": "2026-10-05", "wave": "2026-10-05-sim-c2"}
+{"builds": ["app0.6.0+sim0.3.0"], "file": "waves/2026-10-05-sim-c3.jsonl", "metrics": ["e2e_pass_rate", "voice_rtt", "x.scenarios"], "rows": 3, "sha256": "446b6e4e6b5fa4b1", "ts": "2026-10-05", "wave": "2026-10-05-sim-c3"}
+{"builds": ["app0.6.0+sim0.3.0"], "file": "waves/2026-10-05-sim-c4.jsonl", "metrics": ["e2e_pass_rate", "voice_rtt", "x.scenarios"], "rows": 3, "sha256": "8a39f54bd54d2a79", "ts": "2026-10-05", "wave": "2026-10-05-sim-c4"}
+{"builds": ["app0.6.0+sim0.4.0"], "file": "waves/2026-10-06-sim-c5.jsonl", "metrics": ["e2e_pass_rate", "voice_rtt", "x.scenarios"], "rows": 3, "sha256": "09e2e64278151b68", "ts": "2026-10-06", "wave": "2026-10-06-sim-c5"}
+{"builds": ["app0.6.0+sim0.5.0"], "file": "waves/2026-10-06-sim-c6.jsonl", "metrics": ["e2e_pass_rate", "voice_rtt", "x.scenarios", "x.slo_held"], "rows": 4, "sha256": "11ba44731ec8617f", "ts": "2026-10-06", "wave": "2026-10-06-sim-c6"}
+{"builds": ["app0.6.0+sim0.5.0"], "file": "waves/2026-10-07-sim-c7.jsonl", "metrics": ["e2e_pass_rate", "voice_rtt", "x.scenarios", "x.slo_held"], "rows": 4, "sha256": "798e5bf657733593", "ts": "2026-10-07", "wave": "2026-10-07-sim-c7"}
+{"builds": ["sandbox@2026-10-19"], "file": "waves/2026-10-19-onboarding-build.jsonl", "metrics": ["e2e_pass_rate"], "rows": 1, "sha256": "be7d9cd4cda0db0d", "ts": "2026-10-19", "wave": "2026-10-19-onboarding-build"}
+{"builds": ["n/a"], "file": "waves/agi-2026-10-19.jsonl", "metrics": ["x.lane_ok_rate"], "rows": 1, "sha256": "fdc9bd4f65e61ce4", "ts": "2026-10-19", "wave": "agi-2026-10-19"}
+{"builds": ["n/a"], "file": "waves/agi-2026-10-20.jsonl", "metrics": ["x.lane_ok_rate"], "rows": 1, "sha256": "3fe760e30bd77478", "ts": "2026-10-20", "wave": "agi-2026-10-20"}
+{"builds": ["sandbox@door-v3"], "file": "waves/2026-10-22-door-v3.jsonl", "metrics": ["e2e_pass_rate"], "rows": 1, "sha256": "dc17eb07546b853a", "ts": "2026-10-22", "wave": "2026-10-22-door-v3"}
+{"builds": ["n/a"], "file": "waves/agi-2026-10-22.jsonl", "metrics": ["x.lane_ok_rate"], "rows": 1, "sha256": "9f9e1005fd90477d", "ts": "2026-10-22", "wave": "agi-2026-10-22"}
+{"builds": ["n/r"], "file": "waves/2026-10-23-lk-verify.jsonl", "metrics": ["e2e_pass_rate"], "rows": 1, "sha256": "56e12f4fd942fdd6", "ts": "2026-10-23", "wave": "2026-10-23-lk-verify"}
+{"builds": ["n/a"], "file": "waves/agi-2026-10-23.jsonl", "metrics": ["x.lane_ok_rate"], "rows": 1, "sha256": "23c0996a10db10fc", "ts": "2026-10-23", "wave": "agi-2026-10-23"}
+{"builds": ["d7a131e"], "file": "waves/2026-10-24-ab1-pre-batch.jsonl", "metrics": ["e2e_pass_rate"], "rows": 1, "sha256": "773abc349e53fed5", "ts": "2026-10-24", "wave": "2026-10-24-ab1-pre-batch"}
+{"builds": ["008d8b4"], "file": "waves/2026-10-24-ab2-batch.jsonl", "metrics": ["e2e_pass_rate"], "rows": 1, "sha256": "b285537cc6620501", "ts": "2026-10-24", "wave": "2026-10-24-ab2-batch"}
+{"builds": ["n/r"], "file": "waves/2026-10-24-lk-verify.jsonl", "metrics": ["e2e_pass_rate"], "rows": 1, "sha256": "1706e2cbb2cbf95b", "ts": "2026-10-24", "wave": "2026-10-24-lk-verify"}
+{"builds": ["dBAzIRkZMnA43odv0JWmO"], "file": "waves/2026-10-24-v07-gate-final.jsonl", "metrics": ["e2e_pass_rate", "voice_rtt"], "rows": 5, "sha256": "94783a813313e715", "ts": "2026-10-24", "wave": "2026-10-24-v07-gate-final"}
+{"builds": ["n/a"], "file": "waves/agi-2026-10-24.jsonl", "metrics": ["x.lane_ok_rate"], "rows": 1, "sha256": "a87c969e53024c63", "ts": "2026-10-24", "wave": "agi-2026-10-24"}
+{"builds": ["n/r"], "file": "waves/2026-10-25-lk-verify.jsonl", "metrics": ["e2e_pass_rate"], "rows": 1, "sha256": "ceacf159b8d16c7b", "ts": "2026-10-25", "wave": "2026-10-25-lk-verify"}
+{"builds": ["n/r"], "file": "waves/2026-10-26-lk-verify.jsonl", "metrics": ["e2e_pass_rate"], "rows": 1, "sha256": "19d4cc31ab6a6d55", "ts": "2026-10-26", "wave": "2026-10-26-lk-verify"}
+{"builds": ["n/a"], "file": "waves/agi-2026-10-26.jsonl", "metrics": ["x.lane_ok_rate"], "rows": 1, "sha256": "b9cb7176fd20af46", "ts": "2026-10-26", "wave": "agi-2026-10-26"}
+{"builds": ["cffa786+wip"], "file": "waves/2026-10-27-s14-ledger.jsonl", "metrics": ["e2e_pass_rate"], "rows": 1, "sha256": "dae5115961cd29fd", "ts": "2026-10-27", "wave": "2026-10-27-s14-ledger"}
+{"builds": ["dBAzIRkZMnA43odv0JWmO"], "file": "waves/2026-10-27-v07-reassess.jsonl", "metrics": ["gate_green"], "rows": 1, "sha256": "29abf0a0e3b741ea", "ts": "2026-10-27", "wave": "2026-10-27-v07-reassess"}
+{"builds": ["n/a"], "file": "waves/agi-2026-10-27.jsonl", "metrics": ["x.lane_ok_rate"], "rows": 1, "sha256": "d88193d9337fc5fb", "ts": "2026-10-27", "wave": "agi-2026-10-27"}

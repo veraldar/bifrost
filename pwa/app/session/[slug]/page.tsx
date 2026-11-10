@@ -10,7 +10,7 @@ import {
   useSyncExternalStore,
 } from 'react';
 import { useRouter } from 'next/navigation';
-import { Room, RoomEvent, Track, createAudioAnalyser, DisconnectReason } from 'livekit-client';
+import { DisconnectReason, Room, RoomEvent, Track, createAudioAnalyser } from 'livekit-client';
 import Link from 'next/link';
 import { LineIcon, StopSquare } from '@/components/line-icon';
 import { type Msg, SessionMessage, userProse } from '@/components/session-message';
@@ -28,7 +28,7 @@ import {
   stopSpeech,
   subscribeSpeech,
 } from '@/lib/speech';
-import { diagEvent } from '@/lib/diag';
+import { diagEvent, setDiagMode } from '@/lib/diag';
 import { clearAsked, ensureNotifyPermission, markAsked, notifyReply } from '@/lib/notify';
 import { PENDING_TTL_MS } from '@/lib/pending-ttl';
 import { markRead } from '@/lib/read';
@@ -72,45 +72,6 @@ async function agentInRoom(room: Room, ms: number) {
     if (Date.now() >= deadline) return null;
     await new Promise((r) => setTimeout(r, 120));
   }
-}
-
-/** An agent-less room that still looks connected: the dispatch dies with
- *  the first agent job, and a network flap makes the SDK self-reconnect
- *  into a fresh server-side room WITHOUT re-minting a token — so no
- *  dispatch exists there and every agentInRoom wait runs out (diag
- *  2026-10-06 14:35: hands-free then tap-to-send both failed 'voice agent
- *  missing' while lk-agent was healthy; the next page load healed it by
- *  minting a fresh dispatch). Recovery: ask the PWA to dispatch the agent
- *  into the room we are ALREADY in (no re-dial — the link was the flaky
- *  part) and wait one more window. Returns the agent, or null so the
- *  caller surfaces the lk-agent error — which is then the true diagnosis.
- *
- *  2026-10-30 (req fix-main 14:11): a dispatch/duplicate-agent storm drove
- *  the worker past its load threshold — LiveKit queued every fresh job
- *  ~20-45s instead of ~1s, so the old 10s re-arm window expired while the
- *  job was still pending (agent only joined at +45s). 10s → 30s and the
- *  miss-diags now name the real phase: pending-dispatch vs still-empty
- *  after a confirmed dispatch. */
-async function rearmAgent(room: Room, ms: number) {
-  diagEvent('voice', `room ${room.name} agent-less — re-arming dispatch`);
-  let pending = false;
-  try {
-    const r = await fetch('/api/dispatch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ room: room.name }),
-    });
-    if (!r.ok) return null;
-    pending = true;
-    diagEvent('voice', `dispatch accepted for room ${room.name} — waiting ${Math.round(ms / 1000)}s for the join`);
-  } catch {
-    return null;
-  }
-  const agent = await agentInRoom(room, ms);
-  if (!agent && pending) {
-    diagEvent('voice-fail', `room ${room.name}: dispatch pending ${Math.round(ms / 1000)}s — worker saturated or slow to join`);
-  }
-  return agent;
 }
 
 /** Live mic equalizer — 5 voice-band bars (100Hz–2kHz) from the published
@@ -277,14 +238,12 @@ export default function SessionView({
   // replacement and storm LiveKit (seen 2026-09-25: ~5 reconnects/sec)
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectFailsRef = useRef(0);
-  // ANOTHER CLIENT TOOK THE SEAT (DUPLICATE_IDENTITY): set when the server
-  // duplicate-kills us, cleared by the next deliberate ensureVoice — the war
-  // stopper (see the Disconnected handler in connectVoice)
-  const voiceTakenOverRef = useRef(false);
   // PTT intent survives an async room connect: if the finger lifted before
   // the room was ready, the mic must not be left hot by connectVoice
   const pttWantRef = useRef(false);
   const echoesRef = useRef<Msg[]>([]);
+  // echoes whose landing diag already reported (req 10-02 outcomes)
+  const landedEchoesRef = useRef(new WeakSet<Msg>());
   const seenRef = useRef(0);
   const pollInFlightRef = useRef(false);
   // "working…" clears only when the run is really over: opencode emits one
@@ -319,6 +278,9 @@ export default function SessionView({
   // epoch ms of the last opencode stream event for this session (poll header
   // X-Run-Last-Event) — the wedge escape's liveness evidence
   const runLastEventRef = useRef(0);
+  // token mints this page performed — #2+ is a refresh (stale room rejoin),
+  // countable in diag (req 10-02 connection lifecycle)
+  const tokenMintsRef = useRef(0);
   // mirror for the always-on run-events SSE: its handlers read the CURRENT
   // mode/room state without re-subscribing on every hands-free toggle
   const voiceStateRef = useRef<'off' | 'connecting' | 'ready'>('off');
@@ -624,7 +586,11 @@ export default function SessionView({
           // Attachment-only sends echo '(📎 attachment)' while the server copy
           // has empty text + the image part — match normalized text + images,
           // or the echo never clears and the attachment renders twice
-          // (req 10-02 'attached the attachment only once, and I see it twice')
+          // (req 10-02 'attached the attachment only once, and I see it twice').
+          // An echo dropping out IS the "message landed" outcome (req 10-02
+          // interaction outcomes) — countable, paired with the send event.
+          // echoesRef is never pruned (this filter is display-only), so each
+          // echo reports its landing ONCE — not again on every later poll
           const echoes = echoesRef.current.filter((e) => {
             const et = e.text === '(📎 attachment)' ? '' : e.text;
             return !fresh.some(
@@ -635,6 +601,13 @@ export default function SessionView({
                 (e.images || []).every((img, i) => m.images?.[i] === img)
             );
           });
+          const landed = echoesRef.current.filter(
+            (e) => !echoes.includes(e) && !landedEchoesRef.current.has(e)
+          );
+          if (landed.length) {
+            for (const e of landed) landedEchoesRef.current.add(e);
+            diagEvent('send', `landed — ${landed.length} echo(es) reconciled with the transcript`);
+          }
           setMsgs([...fresh, ...echoes]);
           try {
             if (JSON.stringify(fresh).length < 300_000) {
@@ -742,7 +715,10 @@ export default function SessionView({
         totalRef.current > runBaseTotalRef.current &&
         !liveRef.current
       ) {
-        diagEvent('busy', `clear ${slug} after ${sec}s`);
+        diagEvent(
+          'busy',
+          `clear ${slug} after ${sec}s (${settled ? 'settled: stable completed state' : 'run-ended: proxy saw the finish'})`
+        );
         setBusy(false);
         busyBeatRef.current = 0;
         runStreakRef.current = 0;
@@ -870,6 +846,12 @@ export default function SessionView({
     modeRef.current = mode;
   }, [mode]);
 
+  // mode awareness (req 10-02): sessions open in keyboard mode — every diag
+  // event and the room metadata carry the interaction mode from here on
+  useEffect(() => {
+    setDiagMode('text');
+  }, [slug]);
+
   // --- tts deck handlers ---
   const lastAssistant = useMemo(
     () => [...msgs].reverse().find((m) => m.role === 'assistant' && m.text.trim()),
@@ -886,11 +868,6 @@ export default function SessionView({
   async function ensureVoice(): Promise<Room> {
     if (roomRef.current && voiceState === 'ready') return roomRef.current;
     if (voicePromiseRef.current) return voicePromiseRef.current;
-    // a deliberate press here IS the takeover: whatever killed the last room
-    // (duplicate identity or not), the user asked for voice NOW — clear the
-    // latch and dial fresh (the Disconnected handler keeps self-heal off
-    // while the latch is set, so only a gesture can re-enter)
-    voiceTakenOverRef.current = false;
     // params unwrap is async: on first mount slug is still '' — minting
     // then would create a random fallback room in the token route (and the
     // agent would spawn a phantom opencode session titled after it, live
@@ -903,11 +880,14 @@ export default function SessionView({
   }
 
   /** Single self-heal path for a dropped/stale room: deduped by timer,
-   *  exponential backoff while connects keep failing. Never runs while a
-   *  duplicate-identity takeover latch is set — self-healing into a seat
-   *  another client owns is the connect/kill war of 2026-10-30. */
+   *  exponential backoff while connects keep failing. Every attempt, failure
+   *  and success lands in diag — the break/restart trail must be countable
+   *  (req 10-02 connection lifecycle). */
   function reconnectVoice() {
-    if (unmountedRef.current || voiceTakenOverRef.current || reconnectTimerRef.current) return;
+    if (unmountedRef.current || reconnectTimerRef.current) return;
+    const waitMs = Math.min(4_000, 250 * 2 ** reconnectFailsRef.current);
+    const attempt = reconnectFailsRef.current + 1;
+    diagEvent('voice', `self-heal reconnect scheduled (attempt ${attempt} in ${waitMs}ms)`);
     reconnectTimerRef.current = setTimeout(
       () => {
         reconnectTimerRef.current = null;
@@ -915,15 +895,20 @@ export default function SessionView({
         ensureVoice()
           .then((r) => {
             reconnectFailsRef.current = 0;
+            diagEvent('voice', 'self-heal reconnect OK — room fresh');
             if (modeRef.current === 'free') return r.localParticipant.setMicrophoneEnabled(true);
             return undefined;
           })
-          .catch(() => {
+          .then((micOn) => {
+            if (micOn) diagEvent('voice', 'self-heal: mic re-enabled (hands-free)');
+          })
+          .catch((e) => {
             reconnectFailsRef.current += 1; // next attempt waits longer
+            diagEvent('voice-fail', `reconnect attempt ${attempt} failed: ${e}`);
             reconnectVoice();
           });
       },
-      Math.min(4_000, 250 * 2 ** reconnectFailsRef.current)
+      waitMs
     );
   }
 
@@ -944,42 +929,63 @@ export default function SessionView({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ room: slug }),
       });
-      // a 4xx/5xx body may be empty (Next error pages) — surface the status,
-      // never let r.json() mask it as "Unexpected end of JSON input"
-      if (!r.ok) {
-        const d = (await r.json().catch(() => ({}))) as { error?: string };
-        throw new Error(d.error || `token endpoint returned ${r.status}`);
-      }
       const d = await r.json();
+      // connection lifecycle (req 10-02): every mint is countable — the
+      // second+ mint for this page is a refresh (stale room rejoin)
+      tokenMintsRef.current += 1;
+      diagEvent('voice', `token minted (#${tokenMintsRef.current})`);
       const room = new Room({ adaptiveStream: false });
-      room.on(RoomEvent.SignalConnected, () => diagEvent('voice', 'signal connected'));
-      room.on(RoomEvent.Connected, () => diagEvent('voice', 'room connected'));
+      // --- connection lifecycle timings: connect span, outage span,
+      // agent presence — the break/restart trail lands in diag with
+      // reasons and durations, not prose timestamps alone
+      const connectStarted = Date.now();
+      let connectedAt = 0;
+      let reconnectingAt = 0;
+      let agentJoinedAt = 0;
+      room.on(RoomEvent.SignalConnected, () =>
+        diagEvent('voice', `signal connected (${Date.now() - connectStarted}ms into connect)`)
+      );
+      room.on(RoomEvent.Connected, () => {
+        connectedAt = Date.now();
+        diagEvent(
+          'voice',
+          `room connected (${connectedAt - connectStarted}ms after connect start)`
+        );
+      });
+      room.on(RoomEvent.SignalReconnecting, () => {
+        if (!reconnectingAt) reconnectingAt = Date.now();
+        diagEvent('voice', 'signal lost — LiveKit signal reconnecting…');
+      });
+      room.on(RoomEvent.Reconnecting, () => {
+        if (!reconnectingAt) reconnectingAt = Date.now();
+        diagEvent('voice', 'connection lost — LiveKit media reconnecting…');
+      });
+      room.on(RoomEvent.Reconnected, () => {
+        const outage = reconnectingAt ? `${((Date.now() - reconnectingAt) / 1000).toFixed(1)}s` : '?';
+        reconnectingAt = 0;
+        diagEvent('voice', `reconnected (outage ${outage})`);
+      });
+      room.on(RoomEvent.ParticipantConnected, (p) => {
+        if (p.identity === room.localParticipant.identity) return;
+        agentJoinedAt = Date.now();
+        diagEvent('voice', `voice agent joined the room (${p.identity})`);
+      });
+      room.on(RoomEvent.ParticipantDisconnected, (p) => {
+        if (p.identity === room.localParticipant.identity) return;
+        const secs = agentJoinedAt ? ` after ${Math.round((Date.now() - agentJoinedAt) / 1000)}s` : '';
+        agentJoinedAt = 0;
+        diagEvent('voice', `voice agent left the room${secs} — holds/commits will fail until it returns`);
+      });
       room.on(RoomEvent.Disconnected, (reason?: DisconnectReason) => {
-        diagEvent('voice', `room disconnected (${DisconnectReason[reason ?? 0] ?? 'unknown'})`);
+        const why =
+          reason === undefined ? 'no-reason' : (DisconnectReason[reason] ?? String(reason));
+        const secs = connectedAt ? Math.round((Date.now() - connectedAt) / 1000) : 0;
+        diagEvent('voice', `room disconnected (reason=${why}) after ${secs}s · room=${slug}`);
         // the room's join token is stale now — reconnecting with it just 401s
         // ("token is expired"). Drop it so the next connect mints a fresh one.
         roomRef.current = null;
         voicePromiseRef.current = null;
         setVoiceState('off');
-        // ANOTHER CLIENT TOOK OUR SEAT (live 2026-10-30 12:41, room 'main'):
-        // the same identity is open on a Mac — the server duplicate-kills the
-        // newer join ~100ms after every signal connect. Self-healing kept
-        // reminting + redialing → an endless connect/kill war (hundreds of
-        // dispatches, dozens of jobs, mic permission spam) and the press that
-        // started it died on "signal timeout (12s)". The seat is lost until
-        // the user decides WHO owns this session: hold a takeover latch so
-        // the war stops, say it in words, and clear it only on a deliberate
-        // mic press — that gesture is the takeover (fresh token, fresh dial,
-        // this client wins).
-        if (reason === DisconnectReason.DUPLICATE_IDENTITY) {
-          if (!unmountedRef.current) {
-            voiceTakenOverRef.current = true;
-            setError(
-              'this session is open on another device — voice moved there. Tap the mic here to take it back.'
-            );
-          }
-          return;
-        }
         // self-heal ONLY while voice is actually wanted (e.g. the phone slept
         // past the token TTL and the server dropped the room). A deliberate
         // keyboard-mode release fires this event too: reconnecting there
@@ -992,14 +998,7 @@ export default function SessionView({
       });
       room.on(RoomEvent.MediaDevicesError, (e: Error) => diagEvent('voice-fail', String(e)));
       diagEvent('voice', 'connecting signal…');
-      try {
-        await withTimeout(room.connect(d.serverUrl, d.participantToken), 12_000, 'signal');
-      } catch (e) {
-        // a timed-out connect leaves the signal websocket open (zombie
-        // socket, mic-in-use ghost) — always tear the half-built room down
-        void room.disconnect().catch(() => {});
-        throw e;
-      }
+      await withTimeout(room.connect(d.serverUrl, d.participantToken), 12_000, 'signal');
       diagEvent('voice', 'connected, mic stays muted until a mode/handler turns it on');
       // the agent calls this on "over and out": leave hands-free, teardown
       // to keyboard (the final reply lands as text in the session instead
@@ -1027,6 +1026,7 @@ export default function SessionView({
       });
       roomRef.current = room;
       setVoiceState('ready');
+      publishMode(modeRef.current); // the agent must know the mode from join
       diagEvent('voice', 'ready');
       return room;
     } catch (e) {
@@ -1063,9 +1063,22 @@ export default function SessionView({
   // (the RPC handler must work no matter what the closure saw). The room and
   // the agent in it stay warm: a PTT hold right after "over and out" must
   // find the agent present, not race its re-dispatch (see switchMode).
+  /** Publish the interaction mode into the room so the voice agent sees it
+   *  at commit time (req 10-02: the agent must know the user is hands-free
+   *  — replies then come short and spoken). Fire-and-forget: a laggy link
+   *  must not stall the mode switch. */
+  function publishMode(next: Mode) {
+    try {
+      void roomRef.current?.localParticipant.setMetadata(JSON.stringify({ mode: next }));
+    } catch {
+      /* room not up yet — connectVoice publishes the current mode on join */
+    }
+  }
+
   async function exitFree() {
     modeRef.current = 'text';
     setMode('text');
+    setDiagMode('text');
     setFreeCycle('listening');
     try {
       localStorage.setItem('oz-mode', 'text');
@@ -1074,6 +1087,7 @@ export default function SessionView({
     }
     const room = roomRef.current;
     if (room) releaseMicDevice(room);
+    publishMode('text');
     diagEvent('voice', 'released (over and out) — mic device released, room stays warm');
   }
 
@@ -1085,6 +1099,8 @@ export default function SessionView({
     // asynchronously and the self-heal must already see the new mode, or it
     // reconnects a room the user just left (socket that never closes)
     modeRef.current = next;
+    setDiagMode(next);
+    publishMode(next);
     // survive refresh: mode is component state, a reload silently dropped
     // hands-free to keyboard (req 09-29 'it switching from hf to keyboard')
     try {
@@ -1123,20 +1139,18 @@ export default function SessionView({
         // alone — if the voice agent never joined (lk-agent down, dispatch
         // lost), surface it instead of faking it (2026-09-25: the animation
         // ran for minutes with nobody transcribing)
-        window.setTimeout(async () => {
+        window.setTimeout(() => {
           if (unmountedRef.current || modeRef.current !== 'free') return;
-          if (roomRef.current !== room || room.remoteParticipants.size > 0) return;
-          // the dispatch may have died with the first agent job (network-flap
-          // self-reconnect) — re-arm into this room before blaming lk-agent
-          const agent = await rearmAgent(room, 30_000);
-          if (unmountedRef.current || modeRef.current !== 'free') return;
-          if (agent || roomRef.current !== room || room.remoteParticipants.size > 0) return;
-          diagEvent('voice-fail', 'hands-free: no voice agent in the room after 10s (+re-arm 30s)');
-          setError('voice agent missing from the room — is lk-agent running? tap the mic button to retry');
+          if (roomRef.current === room && room.remoteParticipants.size === 0) {
+            diagEvent('voice-fail', 'hands-free: no voice agent in the room after 10s');
+            setError('voice agent missing from the room — is lk-agent running? tap the mic button to retry');
+          }
         }, 10_000);
       }
     } catch {
       setMode('text'); // connect/mic failed (error surfaced by ensureVoice)
+      modeRef.current = 'text';
+      setDiagMode('text');
     }
   }
 
@@ -1146,6 +1160,7 @@ export default function SessionView({
     pttWantRef.current = true;
     pttCancelArmRef.current = false;
     setPttCancelArm(false);
+    setDiagMode('ptt'); // every event during the hold is attributable to it
     // hold fires no click either — log the gesture (see micTap)
     diagEvent('ptt', 'hold — push to talk armed');
     // hold UI appears only once the press has proven itself a hold (~350ms
@@ -1180,8 +1195,13 @@ export default function SessionView({
           })
           .catch(() => {});
       }
+      diagEvent('ptt', 'hold — mic requested');
       await room.localParticipant.setMicrophoneEnabled(true);
-    } catch {
+      // the ONE event stamped while mode='ptt' — proves the hold reached the
+      // mic (mode evidence + the outcome half of "PTT pressed → mic on?")
+      diagEvent('ptt', 'hold — mic enabled');
+    } catch (e) {
+      diagEvent('ptt-fail', `hold — mic enable failed: ${e instanceof Error ? e.message : e}`);
       setHoldPill(false); // connect/mic failed — error already surfaced by ensureVoice
     }
   }
@@ -1252,7 +1272,12 @@ export default function SessionView({
           payload: '{}',
           responseTimeout: 4_000,
         })
-        .catch(() => {});
+        .then(() => diagEvent('ptt', 'discard ok — buffered turn dropped agent-side'))
+        .catch(() =>
+          diagEvent('ptt-fail', 'discard RPC failed — agent gone, buffer dies with the room')
+        );
+    } else {
+      diagEvent('ptt-fail', 'discard impossible — no room/agent, buffer dies with the room');
     }
   }
 
@@ -1282,6 +1307,7 @@ export default function SessionView({
       // a release inside the pill-delay window must also cancel the pill
       // that was about to show — this WAS a tap, the pill never existed
       setHoldPill(false);
+      setDiagMode(modeRef.current); // no hold after all — events attribute to the mode again
       const room = roomRef.current;
       if (room) {
         pttDiscardRpc(); // the buffered 0-150ms is noise — die agent-side
@@ -1301,6 +1327,7 @@ export default function SessionView({
     pttCancelArmRef.current = false;
     setPttCancelArm(false);
     setHoldPill(false);
+    setDiagMode(modeRef.current); // hold over — events attribute to the mode again
     const room = roomRef.current;
     if (!room) {
       // released while the room was still connecting (refresh + immediate
@@ -1311,6 +1338,7 @@ export default function SessionView({
     }
     if (discard) {
       // released inside the delete zone — drop the buffered turn
+      diagEvent('ptt', 'slide-cancel — discarding the buffered turn');
       if (modeRef.current !== 'free') await mic(false);
       pttDiscardRpc();
       // text mode: release the capture device (room stays warm for the
@@ -1325,21 +1353,14 @@ export default function SessionView({
     try {
       // the agent may still be joining (press right after a page reload) —
       // wait it out instead of dropping the commit into an empty room
-      let agent = await agentInRoom(room, 4_000);
-      if (!agent) {
-        // dispatch may have died with the first agent job (network-flap
-        // self-reconnect) — re-arm into this room before blaming lk-agent;
-        // 30s: a saturated worker can take 45s to seat a job (10-30), but
-        // pttUp aborts the wait the moment a newer hold begins
-        agent = await rearmAgent(room, 30_000);
-      }
+      const agent = await agentInRoom(room, 4_000);
       if (pttWantRef.current) {
         // a newer hold began while we waited — ITS release owns the commit
         // now; flushing here would cut the new hold's audio mid-sentence
         return;
       }
       if (!agent) {
-        diagEvent('voice-fail', 'commit: no voice agent in the room after 4s (+re-arm 30s)');
+        diagEvent('voice-fail', 'commit: no voice agent in the room after 4s');
         setError('voice agent missing from the room — is lk-agent running? try again in a moment');
         setBusy(false);
         return;
@@ -1354,8 +1375,15 @@ export default function SessionView({
         responseTimeout: 14_000,
       });
       // agent answered but its session is dead (stale room) → reconnect
-      if (res && res !== 'ok') throw new Error(res);
-    } catch {
+      if (res && res !== 'ok') {
+        diagEvent('ptt-fail', `commit rejected (${res}) — reconnecting fresh`);
+        throw new Error(res);
+      }
+      diagEvent('ptt', 'commit ok — turn handed to the voice agent');
+    } catch (e) {
+      if (!(e instanceof Error && /commit rejected/.test(e.message))) {
+        diagEvent('ptt-fail', `commit failed (${e instanceof Error ? e.message : e}) — reconnecting fresh`);
+      }
       // stale voice session (e.g. the agent's session closed earlier) — a
       // retry against the same room keeps failing, so drop it and reconnect
       // with a fresh token; the agent side ends the job with its session,
@@ -1393,57 +1421,6 @@ export default function SessionView({
   const freeCycleRef = useRef(freeCycle);
   freeCycleRef.current = freeCycle;
   const freeLevels = useMicLevels(mode === 'free' && voiceState === 'ready', roomRef);
-
-  // Rung 0 (native-app-eval): while hands-free, hold a screen wake lock (the
-  // honest PWA answer to lock-screen voice loss) and instrument `bvl` —
-  // background voice loss: hands-free active AND the page hides or the mic
-  // track dies/mutes. Counts feed the native-shell triggers; no behavior
-  // change beyond keeping the screen awake.
-  const hfActive = mode === 'free' && voiceState === 'ready';
-  useEffect(() => {
-    if (!hfActive) return;
-    type WakeLockSentinel = { release: () => Promise<void>; addEventListener: (t: string, f: () => void) => void };
-    const nav = navigator as Navigator & { wakeLock?: { request: (t: 'screen') => Promise<WakeLockSentinel> } };
-    let lock: WakeLockSentinel | null = null;
-    let released = false;
-    const acquire = async () => {
-      if (released || lock || !nav.wakeLock) return;
-      try {
-        lock = await nav.wakeLock.request('screen');
-        lock.addEventListener('release', () => {
-          lock = null;
-          diagEvent('bvl', `wake-lock released (auto or manual) ${slug}`);
-        });
-        diagEvent('bvl', `wake-lock acquired ${slug}`);
-      } catch (e) {
-        diagEvent('bvl', `wake-lock denied: ${String(e).slice(0, 120)} ${slug}`);
-      }
-    };
-    const onVis = () => {
-      if (document.hidden) {
-        diagEvent('bvl', `page hidden while hands-free ${slug}`);
-      } else {
-        void acquire(); // wake lock auto-releases on hide — re-arm
-      }
-    };
-    const onTrackGone = (why: string) => () => {
-      diagEvent('bvl', `mic track ${why} while hands-free ${slug}`);
-    };
-    const pub = roomRef.current?.localParticipant.getTrackPublication(Track.Source.Microphone);
-    const mic = pub?.track;
-    mic?.on('ended', onTrackGone('ended'));
-    mic?.on('muted', onTrackGone('muted'));
-    document.addEventListener('visibilitychange', onVis);
-    void acquire();
-    return () => {
-      released = true;
-      document.removeEventListener('visibilitychange', onVis);
-      mic?.off('ended', onTrackGone('ended'));
-      mic?.off('muted', onTrackGone('muted'));
-      void lock?.release().catch(() => {});
-      lock = null;
-    };
-  }, [hfActive, slug]);
 
   // auto-listen cycle: while waiting for the reply (free_state "processing"),
   // the first assistant message that lands is spoken via the same TTS as the
@@ -1803,20 +1780,33 @@ export default function SessionView({
       const r = await fetch(`/api/session/${slug}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, images, files, async: true }),
+        // mode rides the payload (req 10-02): the proxy logs it with the
+        // send, so server-side diag attributes the prompt to the interaction
+        // mode it was written in
+        body: JSON.stringify({ text, images, files, async: true, mode: modeRef.current }),
         // a hung radio/socket must surface as an error, not a silent stuck send
         signal: AbortSignal.timeout(30_000),
       });
       if (!r.ok) {
         const d = await r.json().catch(() => ({}));
+        diagEvent('send-fail', `HTTP ${r.status} — ${d.error || 'send rejected'}`);
         setError(d.error || `send failed (${r.status})`);
         setInput((prev) => (prev.trim() ? prev : text)); // draft back, no clobber
         setBusy(false);
       } else if (!willQueue) {
         addEcho(text, images); // queued sends come back via the poll instead
+        // outcome expectation: the echo must reconcile with the server
+        // transcript (loadMsgs) — until then the send is "posted, not landed"
+        diagEvent(
+          'send',
+          `posted direct (${text.length} chars${images.length ? ` +${images.length} img` : ''}) — expecting transcript entry`
+        );
+      } else {
+        diagEvent('send', `posted queued (run in flight) — proxy owns pickup`);
       }
       await loadMsgs();
     } catch {
+      diagEvent('send-fail', 'network — no response from the proxy');
       setError('send failed');
       setInput((prev) => (prev.trim() ? prev : text)); // draft back, no clobber
       setBusy(false);
@@ -1857,17 +1847,11 @@ export default function SessionView({
     stickRef.current = true;
     setBusy(true); // cleared when the run state settles (see poller)
     armRunWatch();
+    diagEvent('free', 'tap-to-send — commit requested');
     try {
-      let agent = await agentInRoom(room, 4_000);
+      const agent = await agentInRoom(room, 4_000);
       if (!agent) {
-        // dispatch may have died with the first agent job (network-flap
-        // self-reconnect) — re-arm into this room before blaming lk-agent;
-        // 30s: a saturated worker can take 45s to seat a job (10-30), so
-        // the miss-diag distinguishes pending-dispatch from truly down
-        agent = await rearmAgent(room, 30_000);
-      }
-      if (!agent) {
-        diagEvent('voice-fail', 'tap-to-send: no voice agent in the room after 4s (+re-arm 30s)');
+        diagEvent('voice-fail', 'tap-to-send: no voice agent in the room after 4s');
         setError('voice agent missing from the room — is lk-agent running? try again in a moment');
         setBusy(false);
         return;
@@ -1878,7 +1862,11 @@ export default function SessionView({
         payload: '{}',
         responseTimeout: 14_000,
       });
-      if (res && res !== 'ok') throw new Error(res);
+      if (res && res !== 'ok') {
+        diagEvent('free-fail', `tap-to-send commit rejected (${res}) — reconnecting fresh`);
+        throw new Error(res);
+      }
+      diagEvent('free', 'tap-to-send commit ok — turn handed to the voice agent');
       // tap = "over" (req 09-30: 'should be the same behavior as if I say
       // over'): the strip leaves listening — mic paused now, auto-speak on
       // idle, mic back when the spoken reply ends or is stopped. The agent

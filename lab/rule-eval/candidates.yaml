@@ -1,0 +1,37 @@
+candidates:
+- id: naming-law
+  rule: '[LAB] = a long-running, iterating program of R&D (one session, registry row
+    in docs/LABS.md); [RUN] = a one-shot measurement, spawned freely, purged freely.
+    Never mint a [LAB] session per battery turn.
+
+    '
+  origin: the 10-28 session-list mess that spawned this lab
+  metrics:
+    primary: noise_ratio
+  guard:
+    metric: discovery_cost_s
+    must_not_regress: true
+  baseline:
+    value: 0.909
+    citation: 'docs/LABS.md (LAB REGISTRY, 10-28): ''77 [LAB] sessions, ~70 noise'''
+    probe_store: '4096'
+  target: <= 0.20 noise_ratio
+  window: 7 days or >=3 measurement points, whichever first
+  state: measuring
+  since: '2026-10-28'
+  points:
+  - ts: '2026-10-28T13:52:06+01:00'
+    metric: noise_ratio
+    value: 0.772
+    store: '4096'
+    ok: true
+  - ts: '2026-10-28T13:52:16+01:00'
+    metric: noise_ratio
+    value: 0.5
+    store: '4100'
+    ok: true
+  - ts: '2026-10-28T14:00:14+01:00'
+    metric: noise_ratio
+    value: 0.5
+    store: '4100'
+    ok: true

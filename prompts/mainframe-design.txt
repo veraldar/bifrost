@@ -1,0 +1,31 @@
+MISSION: main-frame entry redesign — THREE proposals, design only, NO code changes.
+
+Session MAINFRAME-DESIGN. AGI decides and proposes; user picks. Deliverable:
+docs/reviews/mainframe-design-proposals.md (docs only; optional HTML mockups under artifacts/ —
+static, no product code touched).
+
+THE USER'S OBSERVATION (verbatim intent, 10-24, after the onboarding landed "good enough"):
+On the app's front page, the button that opens MAIN (the session) is a small tree icon at the bottom —
+not very polished. The page ALREADY shows a tree at the top that displays working state (the living
+tree). Showing the tree twice is wrong. The user's sketch of a better layout:
+- the top tree stays the living/working indicator
+- maybe the top area should show MORE OF THE BRANCH (the work)
+- at the BOTTOM, full width: THE ROOTS — and tapping the roots opens MAIN
+- the bottom button spot is right; the duplication is what's wrong.
+
+YOUR TASK — survey the real front page (pwa/app/page.tsx + components: what the top tree shows, what
+state it reflects, where the MAIN button sits, what else lives on that screen), then propose THREE
+distinct, polished designs for the main-frame entry, each with:
+- the layout story (what lives where, how branch and roots take part)
+- how it resolves the duplication (one tree, or two trees with clearly different jobs)
+- how "tap the roots → MAIN" (or the alternative you propose) works on a phone: target size, thumb
+  reach, discoverability, state feedback (idle / heard / working)
+- what each looks like in the three states (idle, listening, working) and in the walk (the
+  one-thought walk the signal rail uses)
+- cost class (S/M/L), risk, and what you'd do first
+Each proposal gets a name and a one-sentence pitch. Then YOUR verdict: which one you'd ship and why —
+but the user decides; present, don't push.
+
+CONSTRAINTS: brand voice (docs/brand/*: the tree, signal colors — green alive / amber heard / red stop
+/ sky info). No product code changes. Mockups allowed as static HTML in artifacts/. Keep the door's
+"hold the mic" muscle memory intact — the mic interaction is sacred (press = amber at once).

@@ -1,0 +1,1 @@
+{"build": "n/r", "device": "desktop-chromium", "from": "docs/environments.md", "metric": "e2e_pass_rate", "note": "FAILED — fail count and names not recorded", "num": 45, "suite": "lk-verify", "ts": "2026-10-25", "unit": "ratio", "v": 1, "value": null, "wave": "2026-10-25-lk-verify"}

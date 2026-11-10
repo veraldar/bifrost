@@ -1,0 +1,34 @@
+MISSION: door v3 — layman-simple, provider-free, back-safe — user feedback 10-22 (verbatim intent below).
+
+Session DOOR-V3. Trees: ~/Work/bifrost-sandbox (branch lab/sandbox, :8090 → :8443) and
+~/Work/veraldar-site (deployed). Live stack untouched. AGI decides and builds; commit per slice;
+sandbox e2e after; short report docs/reviews/door-v3-report.md. Do NOT touch docs/urd/.
+
+USER FEEDBACK (verbatim intent, from the 10-22 door walkthrough):
+1. CODING-PLAN STEP IS Z.AI-ONLY. If the user chooses "coding plan", the brain env hardcodes
+   Z.ai (YGG_UPSTREAM_BASE_URL=https://api.z.ai/…, model glm-4.6). Fix: "coding plan" must allow
+   ANY provider — the door should collect (or link to) the provider's base URL + key + model generically,
+   with Z.ai, OpenRouter, Anthropic, OpenAI as presets, not as the only path. yggdrasil already takes
+   YGG_UPSTREAM_* generically — the door should not assume one vendor.
+2. PHONE BACK BUTTON. Pressing back after starting onboarding should land on veraldar.org or the last
+   onboarding step — never a dead 404/expired state. Implement sane history handling (popstate/hash
+   router on the door steps; the #door=… handoff must survive a back-forward cycle).
+3. THE COPY IS TOO COMPLEX FOR A LAYMAN ("what is a box?"). Rewrite the door's copy for someone who
+   has never self-hosted: short words, no jargon without an immediate plain-language gloss. The tree
+   metaphor (root / trunk / branch / yggdrasil / bifrost) must be EXPLAINED IN THE ONBOARDING itself,
+   one line per name, when it first appears — not assumed. Keep the brand voice (docs/brand/*): plain,
+   honest, warm. Cut length, not meaning. The $ tree diagram stays but gets a spoken + one-line-gloss
+   version; consider progressive disclosure (simple first, "why these names?" expands for the curious).
+4. THE ARTIFACT IDEA. The user LOVES artifacts like
+   https://omarchy.tail5435b1.ts.net/api/artifact/js-movie-far-vision.html (interactive canvas/film demo,
+   self-contained HTML, served from /api/artifact). They want that magic INSIDE onboarding but don't know
+   how — YOU propose. Ideas to evaluate (pick, combine, or better): the door's "hold the mic" lesson
+   taught as a tiny interactive artifact demo (try-it, feel-it); a one-screen "what your tree can do"
+   gallery artifact at the "you are in" moment; the tree metaphor itself as a 10-second animated artifact.
+   Constraint: onboarding must stay FAST (first audio ~100ms budget) — any artifact is lazy-loaded,
+   skippable, and never blocks the door. Build the best ONE as a slice (an artifact served the same way,
+   wired into the door), spec the rest.
+
+DEFINITION OF DONE: door v3 on :8443 + veraldar.org updated in step; provider presets in the door and
+the generated yggdrasil.env; back button safe; layman copy + in-onboarding tree gloss; one built artifact
+slice; e2e green; report with a 4-step "test it like a first-timer" script.

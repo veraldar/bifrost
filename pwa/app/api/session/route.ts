@@ -12,6 +12,7 @@
 import { NextResponse } from 'next/server';
 import { bustCache, getCache, setCache } from '@/lib/oc-cache';
 import { isRunLive } from '@/lib/oc-live';
+import { stripCtxTag } from '@/lib/oc-transcript';
 import { PENDING_TTL_MS } from '@/lib/pending-ttl';
 import { ensureWatchdog } from '@/lib/oc-watchdog';
 
@@ -61,7 +62,9 @@ export async function GET() {
           }>;
           const last = [...msgs].reverse().find((m) => textOf(m.parts));
           const lastRole = last?.info?.role || '';
-          const lastText = textOf(last?.parts);
+          // a hands-free turn's [ctx: …] protocol tag (agent CTX_TAG) is no
+          // preview text — an aborted/failed voice turn is the last text
+          const lastText = stripCtxTag(textOf(last?.parts));
           // mid-run detection on the RAW last message (may be a tool-only
           // step with no text): user msg last, or assistant step still
           // streaming (no completed time) — a run is in flight even when a

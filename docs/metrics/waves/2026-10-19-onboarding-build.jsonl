@@ -1,0 +1,1 @@
+{"build": "sandbox@2026-10-19", "den": 32, "device": "desktop-chromium", "from": "docs/reviews/onboarding-build-report.md", "metric": "e2e_pass_rate", "note": "shared the store with a concurrent repro; 4 of the 10 pass on rerun", "num": 22, "skipped": 3, "suite": "general", "ts": "2026-10-19", "unit": "ratio", "v": 1, "value": 0.6875, "wave": "2026-10-19-onboarding-build"}

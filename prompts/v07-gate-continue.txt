@@ -1,0 +1,13 @@
+MISSION: the v0.7 gate continuation — finish the matrix, no user invitation until ALL green (Rule 10-10). Tree: ~/Work/bifrost-sandbox (lab/sandbox, :8090 → :8443). Live stack untouched. Commit per fix, e2e per fix, report per wave to docs/reviews/.
+
+WHERE WE ARE: the UX batch landed (the door text option, the mic responsiveness 318ms, the echo-bleed fix, the voice-test room). The onboarding suite passes. The general suite: 41 passed / 9 failed — UNCONFIRMED whether pre-existing.
+
+WORK ORDER (in sequence):
+1. Confirm the 9 general-suite failures: run them against the pre-batch build. Pre-existing/test-env → fix the TESTS or quarantine with a filed reason; batch-broken → fix the batch. Matrix must reach all-green.
+2. The ACCELERATED STABILITY SUITE (Rule 10-09 — only simulation is proof): build the churn suite proving 24h-equivalent in minutes — N reconnects, N rekeys, upstream kill mid-turn, queue death + recovery, memory soak across the turn volume. Run it; the receipt goes in the report.
+3. verify-real-upstream FAIL-AUTH: find the key/env path bug (the 92-message session on :4100 proves the upstream works — the verify script lies somewhere). Make it pass.
+4. Fold the herdr takes (docs/research/herdr-takeaways.md): (a) the working/blocked/idle triad as harness-owned status (§1.1) — replace the binary busy map; (b) identity-pinned waits — session id + incarnation, never name (§1.4). E2e for each.
+5. The voice-test room toggle: default OFF for the user product, available for the fleet.
+6. CHAIN: if anything ends non-green, fix and re-run within this same session — do not exit with an open matrix.
+
+DEFINITION OF DONE: the full gate matrix green (the onboarding suite, the general suite, the churn receipt, the real-upstream verify, the triad + pins e2e). Then write docs/reviews/v07-gate-final.md — the matrix, the receipts, the 3-min user invitation (and ONLY then).

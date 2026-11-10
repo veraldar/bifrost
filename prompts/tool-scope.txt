@@ -1,0 +1,62 @@
+MISSION: TOOL-SCOPE — session-scoped tool profiles on the root (yggdrasil), opencode-shaped, built
+to the last pre-human step. Session TOOL-SCOPE, model opus 5.5 (user's pick: "review gaps, advise,
+plan, build until human needed, test+validate ALL in simulation").
+
+OWNER'S LAW (binding): everything validates in simulation. The user tests finished product only
+(rule 10-10). :4100 is the LIVE brain — you never deploy to it. You build + prove on a scratch root.
+
+CONTEXT (verify, don't trust — several are YOUR fleet's recent results):
+- Root: ~/Work/bifrost/lab/yggdrasil (rust). tools.rs has a single global switch (tools_enabled);
+  NO per-session scoping. main.rs POST /session takes {title?, parentID?}. Event bus GET /event.
+- Opencode prior art (LIVE on :4096, READ-ONLY — probe /agent): agents carry permission patterns
+  (e.g. build: permission:[{permission:"*",pattern:"*",action:"allow"}, ...]) and sessions select
+  an agent. THIS SHAPE IS THE SPEC: named profiles, pattern-granular permissions, chosen at
+  POST /session. Also satisfy the FAMILIARITY LAW: GLM 5.3 knows opencode-shaped surfaces — do not
+  invent a new scheme.
+- tool-policy lab (~/Work/bifrost/lab/tool-policy/): soft policy by prompt LEAKS (coordinator persona
+  B inline-edited against its own policy). Enforcement is the point. Its clean rerun may land while
+  you work — its before/after harness is what validates you (lab/tool-policy/runs/).
+- ROOT-CONTRACT (docs/reviews/root-contract.md): the root stays harness-thin; routing is IN-contract,
+  so an allowlist at tool-dispatch is legal; convenience wrappers stay external.
+- surface-familiarity [LAB] (docs/LABS.md): BLOCKED on this same feature — unblock it by landing
+  {session/profile} so a run can mutate a profile.
+- :4100 = live. :443 = live voice. Store: ~/.local/share/yggdrasil (MAIN sacred — never point the
+  scratch root at it).
+
+BUILD (branch lab/tool-scope off lab/sandbox in ~/Work/bifrost-sandbox? NO — root code lives in
+~/Work/bifrost/lab/yggdrasil: create a worktree branch `lab/tool-scope` there):
+1. PLAN FIRST (docs/reviews/tool-scope-plan.md, commit it before coding): profile model (YAML/JSON
+   config file: profiles: {name: {permissions: [{tool|category, pattern, action}]}}), opencode-pattern
+   semantics (glob patterns over tool names + args where sensible), POST /session {profile: "name"}
+   (default profile = current behavior, zero regression), tool-dispatch enforcement point (tools.rs),
+   profile listing endpoint, and the responses a denied call gives the model (explicit, so GLM adapts:
+   "denied by profile <name>" — never silent failure).
+2. GAPS REVIEW (in the plan, before code): multi-tenant safety (can a session patch its own profile?
+   NO — profiles are server-config, not session-writable), event-bus exposure of profile denials,
+   compaction/rollup interplay, MAIN special-casing avoided (profiles are per-session, MAIN is just
+   a session with profile orchestrator).
+3. IMPLEMENT on the branch. Small, typed, rust-idiomatic; keep the harness thin.
+4. SCRATCH ROOT: build the binary, run it on 127.0.0.1:4101 with YGG_DATA_DIR=/tmp/tool-scope-store
+   (throwaway store — NEVER the live data dir). systemd-run --user --unit=agg-tool-scope-root or
+   nohup+disown; it must NOT bind 4100.
+5. VALIDATE — ALL IN SIMULATION:
+   a. harness-bench compatibility: run the 4-category mini-battery through the SCRATCH root with the
+      default profile — numbers within noise of the :4100 ledger baselines (harness-bench harness
+      lives in ~/Work/bifrost/lab/harness-bench/; add an adapter for 4101; results to its ledger).
+   b. tool-policy enforcement rerun: same A/B/C battery against 4101 with real profiles — prompt-only
+      vs enforced table. Success = violations drop to 0 under enforcement with no success-rate loss
+      on legitimate tasks.
+   c. profile edge cases: unknown profile at create (reject or default? decide + test), profile with
+      zero tools (voice room shape), denial-message UX for the model, patterns matching args.
+   d. surface-familiarity probe: rename one tool via a profile, run 5 voice-brevity tasks, note the
+      delta — first data point for that lab.
+6. DELIVERABLES: branch lab/tool-scope (committed, small commits), docs/reviews/tool-scope-plan.md
+   (gaps + decisions), docs/reviews/tool-scope-report.md (validation tables, real numbers),
+   ledger rows in bench, the exact DEPLOY RUNBOOK for the human-gated step (build for :4100,
+   service edit, restart window, rollback = prior binary) — because the final deploy to :4100 IS
+   the human-needed moment. Do NOT restart or deploy anything on :4100/:443/:8090 yourself.
+7. If tool-policy's clean rerun lands first, use its numbers as the "before"; else use its partial
+   findings (B's inline-edit violation) and say so in the report.
+Status line: /tmp/sub-status.tsv "tool-scope done <sim-verdict> <date>". Report also copied to
+~/Work/bifrost-sandbox/pwa/artifacts/tool-scope-report.md. Do NOT touch docs/urd/, MAIN's store,
+:4096, or product PWA lines.

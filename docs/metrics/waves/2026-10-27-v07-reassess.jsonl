@@ -1,0 +1,1 @@
+{"build": "dBAzIRkZMnA43odv0JWmO", "den": 8, "device": "desktop-chromium", "from": "docs/reviews/v07-reflection-and-plan.md#21", "metric": "gate_green", "note": "green as written; 4 are 🟡, 1 ❌ (T1 version string); the build moved 15 commits since", "num": 3, "suite": "plan.md gate", "ts": "2026-10-27", "unit": "ratio", "v": 1, "value": 0.375, "wave": "2026-10-27-v07-reassess"}

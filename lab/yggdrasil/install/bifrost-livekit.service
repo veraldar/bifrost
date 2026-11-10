@@ -1,0 +1,17 @@
+# bifrost livekit — LiveKit server for the realtime voice transport (LIVEKIT_MODE=binary).
+# install.sh fills in the @…@ values. Its config (@CONF@/livekit.yaml, mode 600) holds
+# the generated API key + secret; --node-ip advertises the LAN address to phones.
+[Unit]
+Description=bifrost livekit — LiveKit server (voice transport)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+ExecStart=@BIN@/livekit-server --config @CONF@/livekit.yaml --node-ip @LAN@
+Restart=on-failure
+RestartSec=3
+UMask=0077
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,6 @@
+async	brand-banned-words	13	0	22328	done	256	158
+async	commit-types	12	0	31905	done	13	253
+async	versions-v6	12	0	14473	done	655	125
+sync	brand-banned-words	10	16032	16032	done	256	158
+sync	commit-types	10	25050	25050	done	13	253
+sync	versions-v6	10	21825	21825	done	803	125

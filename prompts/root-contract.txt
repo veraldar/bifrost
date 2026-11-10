@@ -1,0 +1,39 @@
+MISSION: ROOT-CONTRACT — write the root's contract: yggdrasil stays AS SIMPLE AS OPENCODE, possibly
+simpler. Everything else becomes external extensions. Session ROOT-CONTRACT, model opus (architecture
+judgment). This is a design slice, not a code slice — no refactors tonight.
+
+THE USER'S DIRECTIVE (10-27, this is law): "keep the root clean and simple. It shouldn't do more than
+what OpenCode does. Maybe a bit less. Root = a harness comparable to opencode — that's easier to
+improve and to keep simple. MAIN should be the coordination of sessions, subsessions, rooms, topics —
+but scheduling, loops, flows, letters, better context handling: those are EXTERNAL extensions, not root."
+
+CONTEXT (verify, don't trust):
+- The root: ~/Work/bifrost/lab/yggdrasil (rust, :4100), v0.7.0-25. Env shows it already grew organs:
+  YGG_VOICE=1 (voice baked in), YGG_VOICE_MAX_WORDS, MAIN reserved session, push/letters (S4 slice 2
+  added completion letters + /api/push). Inventory what else overstepped.
+- YGG-VS-OC (opus, running NOW) is measuring yggdrasil vs opencode quality/latency across session
+  strategies — its verdict feeds yours (harness parity is the baseline claim being tested).
+  Check .agi-log for its state; if landed, read docs/labs/ygg-vs-oc-report.md and build on it;
+  if not, proceed and mark the dependency.
+- Coordination design (main↔sub-session, events/hooks/pull, model-per-session, auto-evolution) is
+  ALREADY being written by another session (main-veraldar) — find it (docs/reviews/ or
+  root-coordination-design*), build on it, do NOT duplicate it.
+- Fleet rules 10-09 (simulation-only proof), 10-27/10-28 (parity + no fork gaps) apply to the
+  contract too: any feature demoted out of the root is a PORT/migration named in drift-guard terms,
+  never a silent loss.
+
+YOUR TASK:
+1. INVENTORY: list every yggdrasil feature beyond opencode-parity harness (voice, letters/push,
+   MAIN reservation, topic/room handling, planner-ish behaviors, context handling…). For each:
+   IN-ROOT (justify) / EXTENSION (demote — how it plugs back via API) / DROP (with migration note).
+2. THE CONTRACT: a short, hard document — "the root is X and nothing else": session CRUD, model
+   routing, storage, transport API, extension seam. One page. This becomes the review bar for every
+   future root PR.
+3. EXTENSION SEAM: what API surface must the root expose so scheduling/loops/flows/letters/context
+   become external processes (the coordination design's events/hooks should be the seed). Define the
+   seam, not the extensions.
+4. MIGRATION MAP: current overreach → target state, ordered, sized (S/M/L), respecting that MAIN is
+   sacred and the ladder (v0.7 reliable voice → v0.8 layman) — nothing demoted may break v0.7's gate.
+DELIVERABLE: docs/reviews/root-contract.md (inventory verdicts, the one-page contract, seam spec,
+migration map). Commits in ~/Work/bifrost main tree only. Do NOT touch docs/urd/, the live stack,
+product lines, or the root's code.

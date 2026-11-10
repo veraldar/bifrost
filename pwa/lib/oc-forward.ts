@@ -14,6 +14,9 @@ export type SendBody = {
   text?: string;
   images?: string[];
   files?: { name: string; content: string }[];
+  /** interaction mode the message was written in ('text' | 'free') — req
+   *  10-02 mode awareness: server diag attributes the send to the mode */
+  mode?: string;
 };
 
 export function buildParts(body: SendBody): any[] {
@@ -73,7 +76,9 @@ export function forward(sid: string, slug: string, body: SendBody, isRetry = fal
         method: 'POST',
         body: JSON.stringify({ parts: buildParts(body) }),
       });
-      console.log(`[oc] async prompt done ${Date.now() - t0}ms`);
+      console.log(
+        `[oc] async prompt done ${Date.now() - t0}ms mode=${body.mode || 'text'}`
+      );
       // opencode v1.18 occasionally swallows a POST right after an abort
       // (200, no run, no reply — seen live: prompt done in ~200ms that
       // should take 20s). Verify the run happened; one bounded silent

@@ -1,0 +1,25 @@
+MISSION: the film + the loading gap — user feedback 10-22 (second pass). AGI decides freely.
+
+Session FILM-V1. Trees: ~/Work/bifrost-sandbox (lab/sandbox, :8090 → :8443) and ~/Work/veraldar-site.
+Live stack untouched. Commit per slice, e2e for the app side, report docs/reviews/film-v1-report.md.
+Do NOT touch docs/urd/.
+
+CONTEXT: the user loves the artifact js-movie-far-vision.html (in ~/Work/bifrost/artifacts/, built-in
+copy served at /api/artifact/the-tree-film on :8443) — it SHOWS what yggdrasil with several roots on
+different hardware makes possible (desk → tv → workshop, branches moving work, phone as the way in,
+private federation). But on veraldar.org (the #&film section) it is currently under-represented.
+
+THE USER'S TWO ASKS (verbatim intent):
+1. THE FILM ON VERALDAR.ORG. The showcase quality of the film should be better represented on the
+   public site — its graphics, the multi-root story. Improve https://veraldar.org/#&film freely:
+   presentation, staging, how the story is told, how it leads to the door. AGI proposes and builds.
+2. THE LOADING GAP — NO DEAD AIR. Right now there is a silent/blank gap between "voice step opens"
+   and "voice actually plays" — in BOTH the film playback and the onboarding steps (audio doesn't
+   come instantly). Fix the gap everywhere: visible + honest loading animation (e.g. the signal rail
+   breathing / amber pulse / the film's own idiom) from the instant the step opens until first audio,
+   for both surfaces. Preload/decode ahead where possible, but never fake ready — the animation shows
+   exactly while it loads. This is a brand moment: make waiting feel alive, not broken.
+
+CONSTRAINTS: onboarding speed budget intact (first audio ~100ms when cached; the animation is for
+first-uncached-load and slow networks). Film stays skippable. House copy rules (no jargon, plain
+words). Evidence in commits.

@@ -1,0 +1,26 @@
+MISSION: onboarding gap analysis — DECISION DOC ONLY, no product code.
+
+Context — read these first (cite file paths for every claim):
+- docs/plan.md (master plan; v0.7.0 = "reliable voice"), docs/roadmap-proposal-v2.md (the adopted ladder)
+- docs/urd/ — the OPEN v0.7 row "first conversation with the root": user verdict FAIL —
+  onboarding slow to load + slow tree click, greeting voice slow to start (pre-record?),
+  STT dead, post-onboarding flow unclear
+- docs/claims.md — dispatches onboarding-flow, voice-stt-sandbox, sim-gap (check overlap; you own gaps, not their slices)
+- docs/spec-onboard.md — VPS bootstrap + QR pairing spec (POST-V1, spec only)
+- docs/brand/tree-door.md, docs/brand/narration.md, docs/brand/brand.md — the brand: the tree is the door
+- pwa/app/pair/ + bifrost.env — device pairing by QR ALREADY exists (BIFROST_AUTH=devices|tailnet, one-time token at /pair)
+- Voice stack: TTS af_heart (en) / Elise (fr) via speaches or Mac MLX; live agent greeting path; STT in-process since v0.6.2
+- https://veraldar.org — public brand site ("Veraldar — tools you own outright"; three names / products / bifrost wearing the brand)
+
+THE USER'S OPTIONS (verbatim intent):
+A) Web onboarding must be exactly the same experience as veraldar.org (brand-identical), with the SAME voice as in the app — pre-recorded where possible instead of live TTS.
+B) QR code → download app with onboarding ALREADY DONE (state carried in QR / one-time link), or onboarding runs in the app after install.
+C) Keep in-app onboarding but fix it (speed, STT, flow clarity).
+
+DELIVERABLE — write docs/reviews/onboarding-gap-analysis.md (docs-only; optional HTML mock under artifacts/):
+1. Gap analysis per option: what exists today (map to real files/routes/units), what's missing, effort class S/M/L, risks.
+2. Open questions for the user — numbered, max 12, each with a recommended default (house convention: "default taken unless vetoed"). Cross-check docs/open-questions.md for related pending decisions.
+3. Defined solution BEFORE building: one recommended composition (expected shape: brand-first landing flow = veraldar.org door + pre-recorded greeting/steps in the app voice + QR pairing that carries onboarding state + in-app completion), phased: what lands in v0.7.0, what in v0.8, what stays in spec-onboard.md (post-V1). Include the voice pre-recording approach: asset list, where files live, generation method, fallback to live TTS.
+4. Test criteria to CLOSE the URD v0.7 row: exactly what the user re-tests and pass thresholds (load time, first-audio latency, STT round-trip, flow clarity).
+
+CONSTRAINTS: modify NOTHING outside docs/reviews/onboarding-gap-analysis.md (+ optional artifacts/ HTML). Do not touch product code, services, env files. If a fact needs runtime verification, mark TODO-VERIFY instead of guessing.

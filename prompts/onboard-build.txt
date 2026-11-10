@@ -1,0 +1,37 @@
+MISSION: BUILD the coherent onboarding — app + veraldar.org — full authority to decide.
+
+You are ONBOARD-BUILD. The decision doc docs/reviews/onboarding-gap-analysis.md (from session
+ONBOARD-GAPS) is your brief. If it is missing or thin, decide yourself from docs/plan.md,
+docs/brand/tree-door.md, docs/spec-onboard.md and the URD v0.7 FAIL row (docs/urd/).
+
+THE GOAL (user, verbatim intent): one coherent onboarding across app and website —
+the tree-door experience of veraldar.org continues INTO the app, same voice, no dead ends.
+AGI DECIDES the composition; defaults are taken, no user veto pending. Optimize for:
+coherence (web → app is one continuous story), speed (load + first audio), working STT,
+and a clear "what now" after onboarding.
+
+WHERE: build in ~/Work/bifrost-sandbox (the v0.7 sandbox line, the tree your predecessor
+root-tested). It has UNCOMMITTED modifications (page.tsx, tree-door.tsx, speech.ts, e2e) —
+review them first: keep what serves this mission, commit kept work separately with an honest
+message, never mix another session's edit into your commit silently.
+The website lives in ~/Work/veraldar-site (+ -rebuild, -theme): align the door/CTA so the
+site's entry point hands off to the app flow (link, QR, or embedded step — your call).
+
+WHAT TO BUILD (your composition, minimum bar):
+1. Pre-recorded onboarding voice: generate assets with the local speech server
+   (127.0.0.1:8000, OpenAI-compatible /v1/audio/speech, TTS_MODEL/voices from
+   ~/.config/bifrost/env/*, af_heart en / elise fr) into pwa/public/onboarding/ —
+   commit the generated files. Live TTS stays the fallback path.
+2. The flow: brand door (veraldar.org style) → greeting audio plays fast → QR pair
+   (existing /pair machinery) or in-app continue → first working voice turn (STT proven
+   alive) → explicit "you are in, talk to your tree" state.
+3. STT must work in the sandbox stack (it was DEAD in the root test — that is the hard gate).
+
+CONSTRAINTS:
+- Do NOT touch the live stack: no ~/Work/bifrost product code, no lk-pwa/lk-agent/live env
+  changes, no restarts of live services. Sandbox only.
+- Commit per slice, evidence in messages. Run the sandbox e2e suite; record results.
+- Do NOT edit docs/urd/ (the user closes that row by re-testing).
+- Write a build report at docs/reviews/onboarding-build-report.md: what you decided, what
+  you built, exact URL + steps for the user to re-test, what remains open.
+- If the gap doc contradicts feasibility, note it in the report and build the better path.

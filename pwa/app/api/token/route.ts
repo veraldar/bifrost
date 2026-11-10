@@ -4,16 +4,11 @@ import {
   type AccessTokenOptions,
   AgentDispatchClient,
   RoomConfiguration,
-  RoomServiceClient,
   type VideoGrant,
 } from 'livekit-server-sdk';
-import { agentName } from '@/lib/agent-name';
 
-// per-room last-dispatch timestamps: the 5s burst damper (see the dispatch
-// block below). Module-scope on purpose — survives across requests in the
-// running server process, resets on restart (harmless: worst case one
-// extra dispatch).
-const dispatchedAt = new Map<string, number>();
+// must match agent/agent.py: @server.rtc_session(agent_name=...)
+const AGENT_NAME = process.env.AGENT_NAME || process.env.AGENT_DISPATCH_NAME || 'bifrost';
 
 type ConnectionDetails = {
   serverUrl: string;
@@ -91,28 +86,19 @@ export async function POST(req: Request) {
         /^ws(s):/,
         'http$1:'
       );
-      // Two guards against dispatch storms (live 2026-10-30 room 'main': a
-      // second client holding the same identity duplicate-killed the phone
-      // every ~150ms; each reconnect minted + re-dispatched → hundreds of
-      // dispatches in minutes, dozens of agent jobs fighting over one room,
-      // the worker swamped to the point LiveKit saw "no worker available"):
-      //  1. the agent is ALREADY in the room → nothing to hire;
-      //  2. one dispatch per room per 5s (connect burst damper — the
-      //     client-side takeover latch stops the infinite loop, this stops
-      //     any residual burst from several quick attempts).
-      const api = new RoomServiceClient(apiHost, API_KEY, API_SECRET);
-      const hasAgent = await api
-        .listParticipants(roomName)
-        .then((ps) => ps.some((p) => p.identity !== `user_${roomName}`))
-        .catch(() => false);
-      if (hasAgent) {
-        console.log(`[token] dispatch skipped — agent already in room ${roomName}`);
-      } else if (Date.now() - (dispatchedAt.get(roomName) ?? 0) < 5_000) {
-        console.log(`[token] dispatch throttled (5s) for room ${roomName}`);
-      } else {
-        dispatchedAt.set(roomName, Date.now());
-        const dispatchClient = new AgentDispatchClient(apiHost, API_KEY, API_SECRET);
-        await dispatchClient.createDispatch(roomName, agentName());
+      const dispatchClient = new AgentDispatchClient(apiHost, API_KEY, API_SECRET);
+      // the worker's availability flaps with its load metric (seen live:
+      // "at full capacity" windows of a few seconds) — retry the dispatch
+      // through those windows instead of silently dropping voice
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await dispatchClient.createDispatch(roomName, AGENT_NAME);
+          break;
+        } catch (e) {
+          if (attempt === 3) throw e;
+          console.warn(`[token] dispatch attempt ${attempt} failed (${String(e).slice(0, 80)}), retrying`);
+          await new Promise((r) => setTimeout(r, 2000));
+        }
       }
     } catch (dispatchError) {
       console.error(`agent dispatch failed for room ${roomName}:`, dispatchError);
@@ -130,10 +116,10 @@ export async function POST(req: Request) {
     });
     return NextResponse.json(data, { headers });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'token minting failed';
-    console.error(message);
-    // JSON body so the client can surface the reason (was bare text before)
-    return NextResponse.json({ error: message }, { status: 500, headers: { 'Cache-Control': 'no-store' } });
+    if (error instanceof Error) {
+      console.error(error);
+      return new NextResponse(error.message, { status: 500 });
+    }
   }
 }
 

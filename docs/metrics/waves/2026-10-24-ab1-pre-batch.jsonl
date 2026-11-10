@@ -1,0 +1,1 @@
+{"build": "d7a131e", "den": 39, "device": "desktop-chromium", "from": "docs/reviews/v07-gate-final.md#wave-1", "metric": "e2e_pass_rate", "note": "A/B baseline, original specs; the 4 are env, not code", "num": 35, "suite": "general", "ts": "2026-10-24", "unit": "ratio", "v": 1, "value": 0.8974, "wave": "2026-10-24-ab1-pre-batch"}

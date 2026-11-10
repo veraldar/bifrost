@@ -1,0 +1,1 @@
+{"build": "n/a", "den": 3, "detail": {"median_min": 73.8, "statuses": {"DEAD": 1, "OK": 2}, "total_h": 83.98}, "device": "box", "from": ".agi-log/log.tsv", "metric": "x.lane_ok_rate", "note": "exit status only; whether the lane's gate went green is not in the log", "num": 2, "ts": "2026-10-24", "unit": "ratio", "v": 1, "value": 0.6667, "wave": "agi-2026-10-24"}

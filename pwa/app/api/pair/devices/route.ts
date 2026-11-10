@@ -1,20 +1,19 @@
 /**
- * S1 seam (v0.9): revoke a device. Admin token or any live device token.
- * DELETE /api/pair/devices { id } → { revoked: true }
+ * S1 seam (v0.9): revoke a device. Admin or any live device (a phone can
+ * retire a lost tablet). DELETE /api/pair/devices { id } → { revoked: true }
+ * Lands on the device's next HTTP call and severs its live bridge peer
+ * within ~1s (the bridge re-checks every peer against the registry).
  */
 import { NextResponse } from 'next/server';
-import { adminOk } from '@/lib/admin';
-import { revokeDevice, validateToken } from '@/lib/devices';
+import { adminOrDevice } from '@/lib/admin';
+import { revokeDevice } from '@/lib/devices';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function DELETE(req: Request) {
-  if (!adminOk(req)) {
-    const raw = req.headers.get('authorization')?.replace(/^Bearer /, '') || '';
-    if (!(await validateToken(raw))) {
-      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-    }
+  if (!(await adminOrDevice(req))) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   const body = await req.json().catch(() => ({}));
   const id = String(body?.id || '');

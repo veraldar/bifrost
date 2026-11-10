@@ -1,0 +1,170 @@
+# harness-bench v1 task battery — tasks are DATA. Adding a task = add a block here.
+# Fields: id, category, prompt, grade:{method, expected}, max_words?, seed_doc?
+# Grade methods (grader.py, all deterministic):
+#   contains        — every string in expected[] appears in the reply (case-insensitive)
+#   not_contains     — none of expected[] appear in the reply
+#   contains_and_not_contains — expected: [...], forbidden: [...] (voice-brevity)
+#   code            — expected: {filename, tests_dir} — suite writes hidden pytest tests to tmpdir
+#   word_cap        — expected: {max, contains?} — reply ≤ max words (hyphenated = 1)
+# Categories v1: code / extraction / voice-brevity / multi-turn
+tasks:
+  # ---- code (hidden-test graded; the suite owns the tests, the model never sees them) ----
+  - id: code-fizzbuzz
+    category: code
+    prompt: >-
+      Write a python module `fizz.py` that defines exactly one function
+      fizzbuzz(n: int) -> str: returns "FizzBuzz" when n is divisible by 3 and 5,
+      "Fizz" when divisible by 3 only, "Buzz" when divisible by 5 only,
+      else the decimal string of n. No side effects at import time.
+    grade:
+      method: code
+      expected:
+        filename: fizz.py
+        tests_dir: tests/code-fizzbuzz
+
+  - id: code-parentheses
+    category: code
+    prompt: >-
+      Write a python module `parens.py` with a function is_balanced(s: str) -> bool
+      that returns True iff every '(' in s has a matching ')' in the correct order.
+      Ignore all other characters. Empty string is balanced.
+    grade:
+      method: code
+      expected:
+        filename: parens.py
+        tests_dir: tests/code-parentheses
+
+  - id: code-wordcount
+    category: code
+    prompt: >-
+      Write a python module `wc.py` with a function word_counts(text: str) -> dict
+      returning a mapping of lowercase words to occurrence counts. Words are runs of
+      [a-z0-9']+; case is folded; apostrophes inside words are kept. Use only the
+      standard library.
+    grade:
+      method: code
+      expected:
+        filename: wc.py
+        test_extra: |
+          import re
+          def _norm(w):  # gold word tokenizer, shared ground truth with the prompt
+              return re.findall(r"[a-z0-9']+", text.lower())
+        tests_dir: tests/code-wordcount
+
+  # ---- extraction (seeded doc + string-contains) ----
+  - id: extract-invoice
+    category: extraction
+    prompt: >-
+      From the document below report: (1) the invoice total, (2) the due date,
+      (3) the customer's contact email. One line each.
+    seed_doc: |
+      INVOICE #2026-1148
+      Bill To: Halvorsen Marine Supply
+      Contact: billing@halvorsen-marine.example
+      Date issued: 2026-09-30
+      Items:
+        2 x Mooring line 12mm x 15m ......... 118.00
+        1 x Anchor kit 8kg .................. 64.50
+        3 x Zinc anode set .................. 87.75
+      Subtotal: 270.25
+      VAT (25%): 67.56
+      TOTAL DUE: 337.81
+      Payment terms: net 21 days. Due date: 2026-10-21.
+      Late payments accrue 1.5% monthly interest.
+    grade:
+      method: contains
+      expected: ["337.81", "2026-10-21", "billing@halvorsen-marine.example"]
+
+  - id: extract-logscan
+    category: extraction
+    prompt: >-
+      From the log below: which request id failed, and what was its HTTP status?
+      Answer in the form <request id> <status>.
+    seed_doc: |
+      2026-10-27T09:14:02Z req_8812 GET /v1/session 200 12ms
+      2026-10-27T09:14:03Z req_8813 POST /v1/message 200 8ms
+      2026-10-27T09:14:05Z req_8814 POST /v1/message 429 6ms
+      2026-10-27T09:14:07Z req_8815 GET /v1/session 200 11ms
+      2026-10-27T09:14:09Z req_8816 DELETE /v1/session/ses_9 204 5ms
+      2026-10-27T09:15:22Z req_8817 POST /v1/message 200 9ms
+      2026-10-28T09:16:10Z req_8818 GET /v1/config 200 7ms
+      2026-10-28T09:16:44Z req_8819 POST /v1/message 500 41ms
+    grade:
+      method: contains
+      expected: ["req_8819", "500"]
+
+  - id: extract-resume
+    category: extraction
+    prompt: >-
+      From the CV below, what years did the candidate work at Nordvik Labs,
+      and what was their title there?
+    seed_doc: |
+      CV — Astrid Berge
+      2014-2017  Junior Developer, Fjordware AS
+      2017-2019  Backend Developer, Nordvik Labs
+      2019-2023  Senior Backend Developer, Nordvik Labs
+      2023-      Principal Engineer, Berge Consulting
+      Skills: Go, Python, PostgreSQL, kubernetes
+    grade:
+      method: contains
+      expected: ["2017", "2023", "Senior Backend Developer"]
+
+  # ---- voice-brevity (word cap + correctness) ----
+  - id: voice-definition
+    category: voice-brevity
+    prompt: What is a git rebase? Answer in one breath, at most 25 words.
+    grade:
+      method: word_cap
+      expected: {max: 25, contains: ["commit", "branch"]}
+    max_words: 25
+
+  - id: voice-troubleshoot
+    category: voice-brevity
+    prompt: >-
+      A docker container exits immediately with code 137. What does 137 mean and
+      what is the most likely cause? At most 25 words.
+    grade:
+      method: word_cap
+      expected: {max: 25, contains: ["kill", "memory"]}
+    max_words: 25
+
+  - id: voice-status
+    category: voice-brevity
+    prompt: >-
+      Without running anything, give the single git command to see which branch
+      you are on and recent commits. At most 15 words.
+    grade:
+      method: word_cap
+      expected: {max: 15, contains: ["git log"]}
+    max_words: 15
+
+  # ---- multi-turn (3-turn thread; graded on final state — context discipline) ----
+  - id: multi-bug-hunt
+    category: multi-turn
+    prompt: >-
+      I have a python script that reads a CSV and writes JSON, and it fails with
+      UnicodeDecodeError. What is the likely cause?
+    turn2: >-
+      Right. Now assume the file is written in ISO-8859-1 — write the exact open()
+      call that fixes it, nothing else.
+    turn3: >-
+      Keep that fix. Additionally the JSON output must use ensure_ascii=False and
+      UTF-8. Now state all three fixes as one numbered list.
+    grade:
+      method: contains
+      expected: ["encoding='iso-8859-1'", "ensure_ascii=False", "utf-8"]
+
+  - id: multi-spec-drift
+    category: multi-turn
+    prompt: >-
+      Design a URL shortener: I want a POST /shorten that returns a code like abc123.
+      Confirm the shape in one sentence.
+    turn2: >-
+      Change of spec: the code must be exactly 8 characters, alphanumeric, and we
+      store an expiry timestamp. Confirm what changed.
+    turn3: >-
+      Final review of the full spec so far: confirm code length, expiry, and the
+      endpoint path in one short list. Do not invent anything beyond what was agreed.
+    grade:
+      method: contains
+      expected: ["8", "expir", "/shorten"]

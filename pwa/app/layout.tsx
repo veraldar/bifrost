@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
 import { ThemeProvider } from 'next-themes';
+import { DeviceAuth } from '@/components/device-auth';
 import { DiagBoot } from '@/components/diag-boot';
 import { FreshReload } from '@/components/fresh-reload';
 import { ThemeColor } from '@/components/theme-color';
@@ -46,6 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           <ThemeColor />
           <DiagBoot />
+          <DeviceAuth />
           <FreshReload />
           {children}
         </ThemeProvider>

@@ -1,0 +1,36 @@
+MISSION: YGG-VS-OC — the comparative lab that was owed: yggdrasil (the root, Rust) vs opencode as brain,
+under DIFFERENT session-management strategies, judged on quality + performance. Simulation-only proof
+(rule 10-09): the user is never the test burden; compressed, repeatable scenarios; the evidence is the
+matrix, not anecdotes.
+
+WHAT WAS ALREADY PROVEN (do not re-prove): the v0.7 gate (V07-GATE-FINAL, overnight) — yggdrasil is
+STABLE on the stack: 8/8 matrix, 57/0 general e2e, PASS-REAL upstream. What was NEVER proven: that the
+rust root is BETTER than opencode, or which session strategy serves it best. This lab closes that.
+
+SESSION-MANAGEMENT VARIANTS TO COMPARE (the user's exact ask):
+  A. baseline: opencode :4096, flat session store, one model (how v0.6 always ran)
+  B. yggdrasil: main session spawns a SUB-SESSION per task (roots pattern — context handed off)
+  C. yggdrasil: NEW TOPIC in main (one long main, topic switching)
+  D. yggdrasil: new session + MODEL SWAP per task (model-per-session)
+The same battery of tasks runs through each variant. Tasks must be real to this project
+(summarize a session store slice, plan a small refactor, answer a docs question from context,
+multi-turn code fix in a scratch worktree) — NOT toy prompts.
+
+METRICS per variant, captured per task, machine-readable (one jsonl + a summary table):
+  - performance: time-to-first-token, total turn time, p50/p95 across the battery
+  - quality: blind judge (a different model grades outputs 1–10 against a rubric, judge never
+    sees which variant produced it), plus objective checks (does the refactor build? does the
+    answer cite real session facts?)
+  - discipline: context growth over turns, token cost per task, drift/error rate
+HARD RULES: opencode store = READ-ONLY (:4096). yggdrasil runs against a THROWAWAY data dir
+(YGG_DATA_DIR to a lab dir, NOT ~/.local/share/yggdrasil — the real MAIN store is sacred, never
+write to it, never touch ses_770b899884cf47718e054f6f2702630c). Scratch worktrees only — do NOT
+commit to lab/sandbox, release/v0.7, or any product line; DRAIN-DRIFT is mid-flight on lab/sandbox.
+Model budget: z.ai coding plan; keep the battery bounded (e.g. ≤12 tasks × 4 variants), note cost.
+
+DELIVERABLE: docs/labs/ygg-vs-oc-report.md — the full matrix, the verdict (which variant wins on
+quality, which on performance, does yggdrasil beat opencode or merely match it), the honest
+inconclusives, and a RECOMMENDATION for how veraldar should run sessions (this feeds the
+coordination-design work: main↔sub spawning, model-per-session). Machine evidence in
+docs/labs/ygg-vs-oc/*.jsonl. If the verdict is "no meaningful difference", say so plainly —
+a null result retires a superstition, which is also progress.

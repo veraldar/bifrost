@@ -1,0 +1,1 @@
+{"build": "cffa786+wip", "den": 25, "device": "box", "from": "scripts/test-metrics.sh", "metric": "e2e_pass_rate", "num": 25, "suite": "test-metrics.sh", "ts": "2026-10-27", "unit": "ratio", "v": 1, "value": 1.0, "wave": "2026-10-27-s14-ledger"}

@@ -1,0 +1,4 @@
+Run: git -C ~/Work/bifrost log --oneline -40
+Count how many of the last 40 commits start with each leading type word (the
+first token before a colon or space, e.g. "docs", "drift-guard"). Answer ONLY
+the top 2 as "type=count, type=count", nothing else.

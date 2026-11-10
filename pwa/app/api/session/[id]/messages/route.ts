@@ -8,7 +8,7 @@ import { bustCache } from '@/lib/oc-cache';
 import { buildParts, forward, runEnded } from '@/lib/oc-forward';
 import { isRunLive, liveSince, runEndedAt } from '@/lib/oc-live';
 import { enqueue, queuedItems } from '@/lib/oc-queue';
-import { bustSearchResults, bustTranscript } from '@/lib/oc-transcript';
+import { bustSearchResults, bustTranscript, stripCtxTag } from '@/lib/oc-transcript';
 import { ensureWatchdog, lastEventAt } from '@/lib/oc-watchdog';
 import { PENDING_TTL_MS } from '@/lib/pending-ttl';
 
@@ -18,6 +18,7 @@ type SendBody = {
   text?: string;
   images?: string[];
   files?: { name: string; content: string }[];
+  mode?: string;
 };
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -27,11 +28,12 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     const sid = await resolveId(id);
     const msgs = await ocFetch(`/session/${sid}/message`);
     const out = msgs.map((m: any) => {
-      const text = (m.parts || [])
+      const raw = (m.parts || [])
         .filter((p: any) => p.type === 'text')
         .map((p: any) => p.text || '')
         .join('\n')
         .trim();
+      const text = stripCtxTag(raw);
       // tool-only steps stay invisible on the phone: the busy indicator
       // already shows activity, ⚙ lines were just clutter (user req)
       return {
@@ -41,6 +43,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
           .filter((p: any) => p.type === 'image' || p.mime?.startsWith('image/'))
           .map((p: any) => p.url || p.data || null),
         time: m.info?.time?.created || 0,
+        // self-measuring pipeline: ms to the first streamed delta (voice users
+        // feel this as time-to-first-sound; undefined on pre-stamp turns)
+        firstDelta: m.info?.time?.first_delta,
         // assistant replies stream: time.completed only lands when the run
         // finished. The hands-free auto-listen must speak COMPLETE replies —
         // speaking a growing message mid-run reads out a fragment.
@@ -147,6 +152,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
           text: String(body.text || ''),
           images: body.images || [],
           files: body.files || [],
+          mode: body.mode,
         });
         console.log(`[queue] enqueue ${sid} (depth ${queuedItems(sid).length})`);
         bustCache();
@@ -157,6 +163,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       // fire-and-forget: reply lands via transcript polling. The POST only
       // resolves when the whole run finishes — that window IS the live-run
       // flag, and its end fires Web Push (wakes a frozen phone) + cache bust
+      console.log(`[oc] prompt mode=${body.mode || 'text'} session=${sid}`);
       forward(sid, id, body);
       bustCache();
       bustTranscript(sid);

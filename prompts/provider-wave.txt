@@ -1,0 +1,10 @@
+MISSION: PROVIDERS + VISIBILITY + LOCATIONS (opus; the user's orders 10-28). Context first: read the tail of the root session ses_770b899884cf47718e054f6f2702630c on :4100 (the last 20 messages) — find where the AGI claude-code work left off in MAIN and continue from there, do not redo.
+
+FACT: the root yggdrasil returns 429 code 1310 (the zai weekly/monthly limit, resets 2026-10-29 03:44) and the FRONTEND SHOWS NOTHING. The user was blind to why their tree stopped answering.
+
+WORK:
+1. PROVIDER SYSTEM for the root (parity with opencode): the config layer where a user adds/switches providers — Ollama, an API key (any anthropic-shaped or OpenAI-shaped upstream), another coding plan — via (a) the cmd/file interface at the root level (the config + the env), (b) the bifrost UI surface later. The catalog + the health check + the fallback order (on 429/quota: degrade to the next provider INSTEAD OF dying silently). The user keys stay user-owned (law: your-LLM-your-key, no-pay-raw-API). Deliver: the spec + the implementation for the ROOT level (yggdrasil config), the e2e for the switch + the fallback.
+2. ERROR VISIBILITY: a 429/quota/auth upstream error MUST reach the frontend — the session page shows a banner: "provider limit exhausted, resets <time>" (the rate_limit error carries the reset time — surface it). The queued turns must not silently vanish; reply with the error as a system turn. E2e: the 429 → the banner shows.
+3. LOCATION AUDIT: inventory every working tree the fleet uses (bifrost, bifrost-sandbox, lane2-merge, lane3-*, the stray clones) — which services run from which cwd (the units' actual paths), the duplicates/stale copies, the one-true-location map, the migration/cleanup list. Deliver as docs/reviews/locations-audit.md + fix the unit cwds where safe.
+4. TWO-ROOTS LAW check: :443 live / :8443 next-slot must ALWAYS be different builds (the consent evolution permanent). Verify scripts/next-slot.sh + promote.sh never collapse them again; add the guard.
+Constraints: STABLE live untouched except the runbook paths; the fleet rules 10-08..10-11 apply; commit per slice; docs/reviews/provider-wave.md as the report.

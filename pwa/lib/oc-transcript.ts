@@ -6,6 +6,16 @@ import { ocFetch } from '@/lib/oc';
 
 export type TMsg = { role: string; text: string; time: number; low: string };
 
+/** Context tag the voice agent appends to hands-free commits (req 10-02 mode
+ *  awareness): protocol for opencode's LLM ("reply will be spoken — keep it
+ *  short"), never content. Stripped from every phone surface; kept in
+ *  opencode's raw transcript and in diag evidence. */
+const CTX_TAG_RE = /\s*\[ctx:[^\]]*\]\s*$/;
+
+export function stripCtxTag(text: string): string {
+  return text.replace(CTX_TAG_RE, '').trim();
+}
+
 const MAX_SESSIONS = 100;
 const cache = new Map<string, { updated: number; msgs: TMsg[] }>();
 
@@ -20,11 +30,13 @@ export async function loadTranscript(sid: string, updated = 0): Promise<TMsg[]> 
   const msgs: TMsg[] = raw
     .map((m) => ({
       role: m.info?.role || m.role || '',
-      text: (m.parts || [])
-        .filter((p) => p.type === 'text')
-        .map((p) => p.text || '')
-        .join('\n')
-        .trim(),
+      text: stripCtxTag(
+        (m.parts || [])
+          .filter((p) => p.type === 'text')
+          .map((p) => p.text || '')
+          .join('\n')
+          .trim()
+      ),
       time: m.info?.time?.created || 0,
       low: '',
     }))

@@ -16,7 +16,7 @@ type Batch = {
   client?: string;
   page?: string;
   reason?: string;
-  events?: { t: number; kind: string; msg: string }[];
+  events?: { t: number; kind: string; msg: string; m?: string }[];
 };
 
 export async function POST(req: Request) {
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     const day = new Date().toISOString().slice(0, 10);
     const lines = events.map(
       (e) =>
-        `${new Date(e.t).toISOString()} [${e.kind}] (${b.page || '?'} · ${b.client || 'anon'}) ${String(e.msg).slice(0, 2000)}`
+        `${new Date(e.t).toISOString()} [${e.kind}${e.m ? `·${e.m}` : ''}] (${b.page || '?'} · ${b.client || 'anon'}) ${String(e.msg).slice(0, 2000)}`
     );
     await mkdir(DIR, { recursive: true });
     await appendFile(path.join(DIR, `diag-${day}.log`), lines.join('\n') + '\n');

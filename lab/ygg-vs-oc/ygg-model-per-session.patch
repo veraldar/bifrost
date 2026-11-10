@@ -1,0 +1,56 @@
+--- /dev/fd/63	2026-10-27 20:16:02.493816736 +0100
++++ src/main.rs	2026-10-27 20:16:02.487378834 +0100
+@@ -957,6 +957,14 @@
+ /// as an SSE event, accumulating it into `full` (an abort keeps the partial text), and
+ /// assembles streamed `tool_calls` fragments by index. Also accepts a non-streaming
+ /// JSON reply.
++/// YGG-VS-OC lab patch (variant D, model-per-session): the model `POST /api/session/:id/model`
++/// recorded on the session drives its upstream calls; no recorded model = the configured one.
++fn session_model(st: &AppState, session_id: &str) -> String {
++    st.sessions.lock().unwrap().get(session_id)
++        .and_then(|s| s.info["model"]["id"].as_str().map(String::from))
++        .unwrap_or_else(|| st.config.model.clone())
++}
++
+ async fn relay(
+     st: &AppState,
+     session_id: &str,
+@@ -969,7 +977,7 @@
+         return relay_anthropic(st, session_id, convo, tx, full).await;
+     }
+     let url = format!("{}/chat/completions", cfg.base_url.trim_end_matches('/'));
+-    let mut body = json!({ "model": cfg.model, "messages": convo, "stream": true });
++    let mut body = json!({ "model": session_model(st, session_id), "messages": convo, "stream": true });
+     if cfg.tools_enabled {
+         body["tools"] = tools::schemas();
+     }
+@@ -1057,9 +1065,9 @@
+ 
+ /// Slice 7: an anthropic-dialect request — `{base}/v1/messages`, the key as both
+ /// `x-api-key` and bearer (providers differ), `anthropic-version`.
+-fn anthropic_request(st: &AppState, convo: &[Value], tools: Option<&Value>, stream: bool) -> reqwest::RequestBuilder {
++fn anthropic_request(st: &AppState, model: &str, convo: &[Value], tools: Option<&Value>, stream: bool) -> reqwest::RequestBuilder {
+     let cfg = &st.config;
+-    let body = anthropic::body(&cfg.model, cfg.max_tokens, convo, tools, stream);
++    let body = anthropic::body(model, cfg.max_tokens, convo, tools, stream);
+     let mut req = st.http.post(anthropic::messages_url(&cfg.base_url)).json(&body).header("anthropic-version", anthropic::VERSION);
+     if let Some(key) = &cfg.api_key {
+         req = req.header("x-api-key", key).bearer_auth(key);
+@@ -1080,7 +1088,7 @@
+ ) -> Result<Vec<ToolCall>, String> {
+     let cfg = &st.config;
+     let tools = cfg.tools_enabled.then(tools::schemas);
+-    let resp = anthropic_request(st, convo, tools.as_ref(), true).send().await.map_err(|e| format!("request failed: {e}"))?;
++    let resp = anthropic_request(st, &session_model(st, session_id), convo, tools.as_ref(), true).send().await.map_err(|e| format!("request failed: {e}"))?;
+     let status = resp.status();
+     if !status.is_success() {
+         let body = resp.text().await.unwrap_or_default();
+@@ -1134,7 +1142,7 @@
+ /// The roll-up call in the anthropic dialect: the summarizer prompt rides in `system`.
+ async fn summarize_anthropic(st: &AppState, messages: &Value) -> Result<String, String> {
+     let convo = messages.as_array().cloned().unwrap_or_default();
+-    let resp = anthropic_request(st, &convo, None, false).send().await.map_err(|e| format!("request failed: {e}"))?;
++    let resp = anthropic_request(st, &st.config.model, &convo, None, false).send().await.map_err(|e| format!("request failed: {e}"))?;
+     let status = resp.status();
+     let body = resp.text().await.map_err(|e| format!("read failed: {e}"))?;
+     if !status.is_success() {

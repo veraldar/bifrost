@@ -1,0 +1,1 @@
+MISSION: S6 PHONE-SHOT (v07-reflection-and-plan §7.2). scripts/phone-shot.mjs — Playwright, Pixel-class viewport, states = door, returning front page, MAIN, settings; saves artifacts/*.png. Done-check: the 10-27 glyph shows as a png in one call against the pre-bb6e265 build. Report docs/reviews/s6-phone-shot.md. Never touch live.

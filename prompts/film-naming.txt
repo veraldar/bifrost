@@ -1,0 +1,30 @@
+MISSION: naming coherence on veraldar.org — the film section says what we sell. AGI judges freely.
+
+Session FILM-NAMING. Trees: ~/Work/veraldar-site (deployed) + ~/Work/bifrost-sandbox (lab/sandbox,
+:8090 → :8443, the built-in film). Live stack untouched. Commit per slice, report
+docs/reviews/film-naming-report.md. Do NOT touch docs/urd/.
+
+USER CONCERN (verbatim intent, 10-22):
+1. "the far vision" is the wrong framing for the film at https://veraldar.org/#&film. It should be
+   represented as WHAT IT IS — what bifrost + yggdrasil actually do today, even if not finished:
+   this is what we SELL. Sell the real thing, not a dream.
+2. It must be COHERENT with the ~15s movie later on the same site — the user likes BOTH; each has its
+   place. The issue is not the pieces but the STORY and TERMS that connect them.
+3. Terminology worry: veraldar, yggdrasil, root, trunk, branch, bifrost — five+ names before a
+   first-timer understands one product. The user is not sure the terms are right, but LIKES the tree
+   cosmology (see the js-movie-far-vision artifact: roots on different hardware, trunk, branch, phone).
+   Judge it, don't defend it.
+
+YOUR TASK — ASSESS, JUDGE, FIX GAPS (your call, evidence-first):
+- Survey how the names appear across veraldar.org (hero, three-names, tree diagram, #&film, the 15s
+  movie, door handoff, /start) and in the app door. Where does a first-timer drown? Where does a name
+  appear before it is earned?
+- Propose the minimal coherent naming ladder (e.g. a term may be USED in the film only AFTER it is
+  taught, or taught in the moment it first appears; possibly demote/rename "the far vision" to what
+  the product does today; possibly one hero sentence that carries the cosmology without five nouns).
+  Keep the brand voice (docs/brand/*). Cut where in doubt — depth on demand ("why these names?").
+- Then BUILD the fix on veraldar.org (+ app door if touched): headings, captions, voice lines
+  (re-render only if lines change — pre-recorded pack rules apply), and the handoff coherence between
+  #&film and the 15s movie.
+- State plainly in the report: what you changed, what you kept and why, what you recommend NOT to
+  change (with reasons) — the user will veto later if they disagree.

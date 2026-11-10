@@ -1,14 +1,18 @@
-//! Device tokens — the S1 auth seam, shared contract between the PWA
-//! (mints/revokes) and the bridge (validates). One JSON file, both runtimes:
-//! the PWA is the source of truth, the bridge only ever verifies.
+//! Device credentials — the S1 auth seam, shared contract between the PWA
+//! (mints / rotates / revokes: pwa/lib/devices.ts) and the bridge (verifies).
+//! One JSON file, two runtimes; the PWA is the only writer (atomic rename).
 //!
-//! File shape (pwa data dir, chmod 600, gitignored):
-//! { "devices": [ { "id", "name", "token_hash", "created", "revoked" } ] }
-//! token_hash = lowercase hex sha256 of the raw bearer token.
-//! Raw tokens are shown ONCE at pairing and never stored.
+//! v2 shape (camelCase, as the PWA writes it):
+//! { "version": 2, "killEpoch": n,
+//!   "devices": [ { "id", "revoked",
+//!                  "access": [ { "hash", "exp" (unix ms), "region" } ], … } ] }
+//! hash = lowercase hex sha256 of the raw bearer token. Raw tokens never touch
+//! the file. Access tokens are short-lived and region-bound; the bridge also
+//! re-checks every LIVE peer (revocation / kill epoch / expiry) — see bridge.rs.
 
-use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use sha2::{Digest, Sha256};
 
@@ -17,118 +21,165 @@ pub fn hash_token(raw: &str) -> String {
     d.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-pub struct TokenStore {
-    path: PathBuf,
-    cache: std::sync::Mutex<Cache>,
+pub fn now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
 }
 
-struct Cache {
-    loaded_at: std::time::Instant,
-    valid: std::collections::HashSet<String>,
-    /// v4: token_hash → root allowlist claim (missing = empty list)
-    roots: std::collections::HashMap<String, Vec<String>>,
-    /// v4 root-link: device ids of unrevoked devices (the link-token `dev`
-    /// claim names an ID, not a bearer token — validated against this set)
-    devs: std::collections::HashSet<String>,
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Deny {
+    Missing,
+    Invalid,
+    Expired,
+    Revoked,
+    Region,
 }
+
+impl Deny {
+    pub fn why(self) -> &'static str {
+        match self {
+            Deny::Missing => "missing",
+            Deny::Invalid => "invalid",
+            Deny::Expired => "expired",
+            Deny::Revoked => "revoked",
+            Deny::Region => "region",
+        }
+    }
+    /// what the client must do next (same contract as the PWA middleware)
+    pub fn reauth(self) -> &'static str {
+        match self {
+            Deny::Expired | Deny::Region => "refresh",
+            _ => "pair",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Grant {
+    pub device: String,
+    pub exp_ms: u64,
+    /// the region the grant was checked in
+    pub region: String,
+}
+
+#[derive(Default)]
+struct Snapshot {
+    epoch: u64,
+    revoked: HashMap<String, bool>,
+    /// access hash → (device, exp ms, region)
+    access: HashMap<String, (String, u64, String)>,
+}
+
+pub struct TokenStore {
+    path: PathBuf,
+    cache: std::sync::Mutex<(Instant, Snapshot)>,
+}
+
+const RELOAD: Duration = Duration::from_millis(300);
 
 impl TokenStore {
     pub fn open(path: impl Into<PathBuf>) -> TokenStore {
         TokenStore {
             path: path.into(),
-            cache: std::sync::Mutex::new(Cache {
-                loaded_at: std::time::Instant::now() - Duration::from_secs(3600),
-                valid: Default::default(),
-                roots: Default::default(),
-                devs: Default::default(),
-            }),
+            cache: std::sync::Mutex::new((Instant::now() - Duration::from_secs(3600), Snapshot::default())),
         }
     }
 
-    /// Validate a raw bearer token against the CURRENT file (mtime-aware,
-    /// re-reads at most once per second so revocation lands within seconds).
-    pub fn validate(&self, raw: &str) -> bool {
-        self.claims(raw).is_some()
+    fn with<T>(&self, f: impl FnOnce(&Snapshot) -> T) -> T {
+        self.with_fresh(false, f)
     }
 
-    /// Validate + return the device's root-allowlist claim (v4 TOKEN LAW).
-    /// Empty list = anonymous-class device: the public/local root only.
-    pub fn claims(&self, raw: &str) -> Option<Vec<String>> {
+    fn with_fresh<T>(&self, force: bool, f: impl FnOnce(&Snapshot) -> T) -> T {
+        let mut c = self.cache.lock().unwrap();
+        if force || c.0.elapsed() > RELOAD {
+            c.0 = Instant::now();
+            c.1 = std::fs::read_to_string(&self.path)
+                .ok()
+                .and_then(|t| serde_json::from_str::<RegFile>(&t).ok())
+                .map(|r| r.snapshot())
+                .unwrap_or_default();
+        }
+        f(&c.1)
+    }
+
+    /// A live, unexpired access token issued in `region`. A token minted
+    /// milliseconds ago may postdate the cache: a miss re-reads the file once.
+    pub fn check(&self, raw: &str, region: &str) -> Result<Grant, Deny> {
+        match self.lookup(raw, region, false) {
+            Err(Deny::Invalid) => self.lookup(raw, region, true),
+            other => other,
+        }
+    }
+
+    fn lookup(&self, raw: &str, region: &str, force: bool) -> Result<Grant, Deny> {
         let raw = raw.trim();
         if raw.len() < 16 {
-            return None;
+            return Err(Deny::Missing);
         }
         let hash = hash_token(raw);
-        let mut cache = self.cache.lock().unwrap();
-        let reload = cache.loaded_at.elapsed() > Duration::from_secs(1)
-            || mtime_newer(&self.path, cache.loaded_at);
-        if reload {
-            cache.loaded_at = std::time::Instant::now();
-            cache.valid.clear();
-            cache.roots.clear();
-            cache.devs.clear();
-            if let Ok(txt) = std::fs::read_to_string(&self.path) {
-                if let Ok(v) = serde_json::from_str::<TokenFile>(&txt) {
-                    for d in v.devices {
-                        if !d.revoked {
-                            cache.valid.insert(d.token_hash.clone());
-                            cache.roots.insert(d.token_hash, d.roots);
-                            if let Some(id) = d.id {
-                                cache.devs.insert(id);
-                            }
-                        }
-                    }
-                }
+        self.with_fresh(force, |s| {
+            let (device, exp, reg) = s.access.get(&hash).ok_or(Deny::Invalid)?;
+            if s.revoked.get(device).copied().unwrap_or(true) {
+                return Err(Deny::Revoked);
             }
-        }
-        cache.valid.contains(&hash).then(|| {
-            cache.roots.get(&hash).cloned().unwrap_or_default()
+            if *exp < now_ms() {
+                return Err(Deny::Expired);
+            }
+            if reg != region {
+                return Err(Deny::Region);
+            }
+            Ok(Grant { device: device.clone(), exp_ms: *exp, region: region.to_string() })
         })
     }
 
-    /// v4 root-link: is this device ID known and unrevoked? (link-token
-    /// `dev` claim validation — same file, same 1s-reload law as claims).
-    pub fn knows_dev(&self, id: &str) -> bool {
-        let _ = self.claims_probe();
-        self.cache.lock().unwrap().devs.contains(id)
+    /// The device still exists and is not revoked.
+    pub fn device_live(&self, id: &str) -> bool {
+        self.with(|s| s.revoked.get(id) == Some(&false))
     }
 
-    /// warm the cache without needing a bearer token
-    fn claims_probe(&self) {
-        let _ = self.claims("::__rootlink_probe_token__::");
+    pub fn kill_epoch(&self) -> u64 {
+        self.with(|s| s.epoch)
     }
 }
 
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct TokenFile {
+struct RegFile {
+    #[serde(default)]
+    kill_epoch: u64,
     #[serde(default)]
     devices: Vec<DeviceEntry>,
 }
 
 #[derive(serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct DeviceEntry {
-    token_hash: String,
+    id: String,
     #[serde(default)]
     revoked: bool,
-    /// optional id (devices.ts always writes it) — root-link `dev` checks
     #[serde(default)]
-    id: Option<String>,
-    /// v4 TOKEN LAW: roots this device may name on a branch request.
-    /// Missing = empty = local (public) root only.
-    #[serde(default)]
-    roots: Vec<String>,
+    access: Vec<AccessEntry>,
 }
 
-fn mtime_newer(path: &Path, at: std::time::Instant) -> bool {
-    match std::fs::metadata(path).and_then(|m| m.modified()) {
-        Ok(mtime) => {
-            let age = mtime.elapsed().unwrap_or(Duration::ZERO);
-            // newer than `at` if file mtime age < time since `at`
-            age < at.elapsed()
+#[derive(serde::Deserialize)]
+struct AccessEntry {
+    hash: String,
+    exp: u64,
+    #[serde(default)]
+    region: String,
+}
+
+impl RegFile {
+    fn snapshot(self) -> Snapshot {
+        let mut s = Snapshot { epoch: self.kill_epoch, ..Default::default() };
+        for d in self.devices {
+            s.revoked.insert(d.id.clone(), d.revoked);
+            for a in d.access {
+                s.access.insert(a.hash, (d.id.clone(), a.exp, a.region));
+            }
         }
-        Err(_) => false,
+        s
     }
 }
 

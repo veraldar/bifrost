@@ -1,0 +1,31 @@
+MISSION: small UX fixes batch — door text option + stuck typed message + the standing queue. AGI decides and builds.
+
+Session UX-BATCH. Tree: ~/Work/bifrost-sandbox (lab/sandbox, :8090 → :8443). Live stack untouched.
+Commit per fix, e2e for each, short report docs/reviews/ux-batch-report.md. Do NOT touch docs/urd/.
+
+THE USER'S TWO NEW REPORTS (10-22, verbatim intent):
+1. THE DOOR HAS NO TEXT OPTION. The app onboarding (components/tree-door.tsx) is voice-only at the
+   first-voice-turn step (mic attach, hold to talk). A first-timer may prefer to type — MAIN already
+   HAS a keyboard mode (session/[slug]/page.tsx, "keyboard mode — mic device released"). FIX: the
+   door's first-turn step offers "or type" as a first-class alternative (same turn, same "you are in"
+   outcome); typing must prove the round-trip just like voice does.
+2. TYPED MESSAGE STAYS. The user typed text and the message "stays" — reproduce in MAIN keyboard mode:
+   send a text turn; check whether the draft/composer keeps the text, the optimistic echo never resolves,
+   or no assistant reply ever lands (voice path works, text path may be broken — check the POST route,
+   the pending-ttl logic lib/pending-ttl.ts, and the 785 comment "prompt stays in the transcript").
+   Find the truth with e2e, fix, prove with a typed-turn test.
+
+PLUS THE STANDING QUEUE (from voice testing + user reports, same tree):
+3. HOTWORD: "bifrost" loses its attack at utterance start ("Eifelst/Efron/Ifrast"). Add it as a
+   hotword/bias term in the STT config if the engine supports it; otherwise the documented workaround
+   (beat of silence) stays. Prove what you can; be honest if the engine can't.
+4. ECHO: TTS playback bleeds into the mic and my replies come back as user turns (multiple sightings).
+   Implement echo handling — suppress mic input while TTS plays (duck/pause the track or gate the VAD),
+   livekit-integration style, minimal invasive. Prove with the replay test: playback must not produce
+   a user turn.
+5. VOICE-TEST ROOM: the PWA always joins room "main", so voice tests pollute the user's main session.
+   Add a test toggle (settings or long-press) that joins room "voice-test" → its own session, so tests
+   never touch MAIN. Prove: toggle on → turns land in voice-test session, main untouched.
+
+DEFINITION OF DONE: all five fixed or honestly documented (if an engine can't do 3, say so), e2e green,
+report with one test line per fix for the user to verify.

@@ -10,6 +10,12 @@
 //!   YGG_UPSTREAM_STYLE     slice 7: `openai` (default: `{base}/chat/completions`) | `anthropic`
 //!                          (`{base}/v1/messages`, block SSE; `anthropic.rs`)
 //!   YGG_MAX_TOKENS         anthropic dialect's required `max_tokens` (default 16384)
+//!   YGG_DEFAULT_VARIANT    thinking variant stamped on every NEW session as `info.model.variant`:
+//!                          `high` (default) | `low` | `off`. Anthropic dialect only: `high` adds
+//!                          `thinking:{type:enabled,budget_tokens:YGG_THINK_HIGH}` to the body, low/off
+//!                          omit it. Resolved once at session create (cache law: constant for the
+//!                          session's life; a model switch keeps it; unstamped legacy sessions = off)
+//!   YGG_THINK_HIGH         thinking budget_tokens for `high` (default 8192; must be < YGG_MAX_TOKENS)
 //!   YGG_UPSTREAM_MODEL     model name (default: gpt-4o-mini)
 //!   YGG_LISTEN             bind address (default: 127.0.0.1:4096)
 //!   YGG_DATA_DIR           on-disk store (default: ./data); one `session/<id>.json` per session
@@ -326,6 +332,18 @@ struct Config {
     /// Voice-first mode: speech-shaped system prompt + speech sanitizer on stored text.
     voice: bool,
     voice_max_words: usize,
+    /// variant stamped on new sessions (high|low|off) + the `high` thinking budget
+    default_variant: String,
+    think_high: u64,
+}
+
+/// `YGG_DEFAULT_VARIANT` → a valid variant (empty = `high`).
+fn resolve_variant(raw: &str) -> Result<String, String> {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "" => Ok("high".into()),
+        v @ ("high" | "low" | "off") => Ok(v.into()),
+        other => Err(format!("YGG_DEFAULT_VARIANT: unknown variant {other:?} (high | low | off)")),
+    }
 }
 
 /// PER-TURN voice note (voice-turn-brevity): appended as the tail of every
@@ -589,6 +607,9 @@ async fn create_session(State(st): State<AppState>, body: Option<Json<Value>>) -
     let now = now_ms();
     let title = body["title"].as_str().filter(|t| !t.is_empty()).unwrap_or("New session");
     let mut info = json!({ "id": id, "title": title, "time": { "created": now, "updated": now } });
+    // variant stamp: resolved ONCE here, never per turn (cache law)
+    let provider = st.config.catalog["default"].as_object().and_then(|d| d.keys().next().cloned()).unwrap_or_else(|| "yggdrasil".into());
+    info["model"] = json!({ "id": st.config.model, "providerID": provider, "variant": st.config.default_variant });
     if let Some(parent) = body["parentID"].as_str() {
         info["parentID"] = json!(parent);
     }
@@ -707,8 +728,14 @@ async fn switch_model(State(st): State<AppState>, Path(id): Path<String>, Json(b
     if !known {
         return bad_request(&format!("unknown model {pid}/{mid}"));
     }
-    let model = json!({ "id": mid, "providerID": pid });
-    match with_session(&st, &id, |s| s.info["model"] = model) {
+    let mut model = json!({ "id": mid, "providerID": pid });
+    match with_session(&st, &id, |s| {
+        // the variant stamp survives a model switch (thinking stays constant per session)
+        if let Some(v) = s.info["model"].get("variant").cloned() {
+            model["variant"] = v;
+        }
+        s.info["model"] = model
+    }) {
         Some(()) => StatusCode::NO_CONTENT.into_response(),
         None => not_found(&id),
     }
@@ -938,6 +965,8 @@ struct Run {
     first_token_seen: bool,
     /// the turn being answered carried VOICE_TURN_NOTE (LAT voice_note=0|1)
     voice_note: bool,
+    /// chars of upstream `thinking` this run (LAT reasoning_chars)
+    reasoning_chars: usize,
 }
 
 impl Run {
@@ -1002,9 +1031,9 @@ impl Run {
             .map(|p| p.iter().filter(|x| x["type"] == "tool").count())
             .unwrap_or(0);
         eprintln!(
-            "LAT phase={} total_ms={} ttfb_ms={} steps={} tool_steps={} msg_parts={} calls={} retries={} first_token={} voice_note={}",
+            "LAT phase={} total_ms={} ttfb_ms={} steps={} tool_steps={} msg_parts={} calls={} retries={} first_token={} voice_note={} reasoning_chars={}",
             phase, total, ttfb, steps, tool_steps, steps, self.upstream_calls, self.retries, self.first_token_seen,
-            self.voice_note as u8
+            self.voice_note as u8, self.reasoning_chars
         );
         self.msg["info"]["time"]["latency"] = json!({
             "total_ms": total,
@@ -1048,6 +1077,7 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<V
         retries: 0,
         first_token_seen: false,
         voice_note,
+        reasoning_chars: 0,
     };
     let outcome = {
         let fut = agent_loop(st, id, history, tx, &mut run);
@@ -1454,9 +1484,15 @@ async fn relay(
 
 /// Slice 7: an anthropic-dialect request — `{base}/v1/messages`, the key as both
 /// `x-api-key` and bearer (providers differ), `anthropic-version`.
-fn anthropic_request(st: &AppState, convo: &[Value], tools: Option<&Value>, stream: bool) -> reqwest::RequestBuilder {
+fn anthropic_request(
+    st: &AppState,
+    convo: &[Value],
+    tools: Option<&Value>,
+    stream: bool,
+    thinking: Option<&Value>,
+) -> reqwest::RequestBuilder {
     let cfg = &st.config;
-    let body = anthropic::body(&cfg.model, cfg.max_tokens, convo, tools, stream);
+    let body = anthropic::body(&cfg.model, cfg.max_tokens, convo, tools, stream, thinking);
     let mut req = st.http.post(anthropic::messages_url(&cfg.base_url)).json(&body).header("anthropic-version", anthropic::VERSION);
     if let Some(key) = &cfg.api_key {
         req = req.header("x-api-key", key).bearer_auth(key);
@@ -1480,7 +1516,10 @@ async fn relay_anthropic(
     let first_delta_ms = &mut run.first_delta_ms;
     let full = &mut run.text;
     let tools = cfg.tools_enabled.then(tools::schemas);
-    let req = anthropic_request(st, convo, tools.as_ref(), true);
+    // thinking comes from the session's create-time stamp only (unstamped legacy session = none)
+    let variant = st.sessions.lock().unwrap().get(session_id).and_then(|s| s.info["model"]["variant"].as_str().map(String::from));
+    let thinking = anthropic::thinking_for(variant.as_deref(), cfg.think_high);
+    let req = anthropic_request(st, convo, tools.as_ref(), true, thinking.as_ref());
     let t_req = std::time::Instant::now();
     let resp = send_with_retry(&req, &mut run.retries).await?;
     run.upstream_calls += 1;
@@ -1512,6 +1551,7 @@ async fn relay_anthropic(
             return Err(format!("upstream error: {}", v["error"]));
         }
         let (text, calls, stop) = anthropic::parse_message(&v);
+        run.reasoning_chars += anthropic::reasoning_chars(&v);
         if stop.as_deref() == Some("max_tokens") {
             eprintln!("upstream stopped at max_tokens ({}); raise YGG_MAX_TOKENS", cfg.max_tokens);
         }
@@ -1544,6 +1584,7 @@ async fn relay_anthropic(
             }
         }
     }
+    run.reasoning_chars += dec.reasoning_chars;
     if dec.stop_reason.as_deref() == Some("max_tokens") {
         eprintln!("upstream stopped at max_tokens ({}); raise YGG_MAX_TOKENS", cfg.max_tokens);
     }
@@ -1553,7 +1594,7 @@ async fn relay_anthropic(
 /// The roll-up call in the anthropic dialect: the summarizer prompt rides in `system`.
 async fn summarize_anthropic(st: &AppState, messages: &Value) -> Result<String, String> {
     let convo = messages.as_array().cloned().unwrap_or_default();
-    let resp = anthropic_request(st, &convo, None, false).send().await.map_err(|e| format!("request failed: {e}"))?;
+    let resp = anthropic_request(st, &convo, None, false, None).send().await.map_err(|e| format!("request failed: {e}"))?;
     let status = resp.status();
     let body = resp.text().await.map_err(|e| format!("read failed: {e}"))?;
     if !status.is_success() {
@@ -1641,10 +1682,21 @@ async fn main() {
         Dialect::Anthropic => anthropic::messages_url(&base_url),
     };
     eprintln!("upstream: {dialect:?} dialect, POST {upstream_url}");
+    let default_variant = resolve_variant(&std::env::var("YGG_DEFAULT_VARIANT").unwrap_or_default()).unwrap_or_else(|e| {
+        eprintln!("{e}");
+        std::process::exit(2);
+    });
+    let (max_tokens, think_high) = (env_num("YGG_MAX_TOKENS", 16_384).max(1), env_num("YGG_THINK_HIGH", 8192));
+    if think_high >= max_tokens {
+        eprintln!("YGG_THINK_HIGH ({think_high}) must be < YGG_MAX_TOKENS ({max_tokens})");
+        std::process::exit(2);
+    }
     let config = Config {
+        default_variant,
+        think_high,
         base_url,
         dialect,
-        max_tokens: env_num("YGG_MAX_TOKENS", 16_384).max(1),
+        max_tokens,
         api_key: std::env::var("YGG_UPSTREAM_API_KEY").ok().filter(|k| !k.is_empty()),
         catalog: load_catalog(&model),
         model,
@@ -1917,6 +1969,7 @@ mod speed_law_tests {
             retries: 0,
             first_token_seen: false,
             voice_note: false,
+            reasoning_chars: 0,
         }
     }
 
@@ -2038,6 +2091,14 @@ mod voice_turn_tests {
     }
 
     #[test]
+    fn default_variant_resolution() {
+        assert_eq!(resolve_variant(""), Ok("high".into()));
+        assert_eq!(resolve_variant(" Low "), Ok("low".into()));
+        assert_eq!(resolve_variant("off"), Ok("off".into()));
+        assert!(resolve_variant("max").is_err());
+    }
+
+    #[test]
     fn lat_row_reports_voice_note() {
         let mut run = Run {
             msg: make_message("s", "assistant", vec![]),
@@ -2048,6 +2109,7 @@ mod voice_turn_tests {
             retries: 0,
             first_token_seen: false,
             voice_note: true,
+            reasoning_chars: 0,
         };
         run.lat_log("ok"); // the eprintln row ends voice_note=1; must not panic
     }

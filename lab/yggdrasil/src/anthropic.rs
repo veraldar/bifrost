@@ -24,8 +24,9 @@
 //!
 //! Response: block SSE (`message_start`, `content_block_start/delta/stop` with `text_delta`
 //! and `input_json_delta`, `message_delta` with `stop_reason`, `message_stop`, `ping`,
-//! `error`) or a plain JSON message. `thinking` blocks are ignored, like the OpenAI
-//! dialect ignores reasoning deltas (reasoning passthrough = slice 6c).
+//! `error`) or a plain JSON message. `thinking` deltas are counted (`reasoning_chars`), never
+//! relayed or stored (reasoning passthrough = slice 6c). The request asks for thinking
+//! only when the session variant is `high` (`thinking_for`).
 
 use std::collections::HashMap;
 
@@ -39,7 +40,7 @@ pub fn messages_url(base: &str) -> String {
     if base.ends_with("/v1") { format!("{base}/messages") } else { format!("{base}/v1/messages") }
 }
 
-pub fn body(model: &str, max_tokens: u64, convo: &[Value], tools: Option<&Value>, stream: bool) -> Value {
+pub fn body(model: &str, max_tokens: u64, convo: &[Value], tools: Option<&Value>, stream: bool, thinking: Option<&Value>) -> Value {
     let (system, messages) = convert(convo);
     let mut b = json!({ "model": model, "max_tokens": max_tokens, "messages": messages, "stream": stream });
     if !system.is_empty() {
@@ -48,7 +49,27 @@ pub fn body(model: &str, max_tokens: u64, convo: &[Value], tools: Option<&Value>
     if let Some(t) = tools {
         b["tools"] = self::tools(t);
     }
+    if let Some(t) = thinking {
+        b["thinking"] = t.clone();
+    }
     b
+}
+
+/// Session variant → the `thinking` body param. Only `high` asks for thinking; the value
+/// is a pure function of the session stamp + env, so it is byte-identical every turn.
+pub fn thinking_for(variant: Option<&str>, budget: u64) -> Option<Value> {
+    (variant == Some("high")).then(|| json!({ "type": "enabled", "budget_tokens": budget }))
+}
+
+/// Characters of `thinking` blocks in a non-streamed message.
+pub fn reasoning_chars(v: &Value) -> usize {
+    v["content"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|b| b["type"] == "thinking")
+        .map(|b| b["thinking"].as_str().unwrap_or_default().chars().count())
+        .sum()
 }
 
 pub fn tools(openai: &Value) -> Value {
@@ -151,6 +172,8 @@ pub struct Stream {
     open: HashMap<u64, usize>,
     pub stop_reason: Option<String>,
     pub stopped: bool,
+    /// chars of `thinking_delta` seen (LAT reasoning_chars)
+    pub reasoning_chars: usize,
 }
 
 impl Stream {
@@ -191,6 +214,7 @@ impl Stream {
                             call.args.push_str(d["partial_json"].as_str().unwrap_or_default());
                         }
                     }
+                    Some("thinking_delta") => self.reasoning_chars += d["thinking"].as_str().unwrap_or_default().chars().count(),
                     _ => {}
                 }
             }
@@ -319,7 +343,28 @@ mod tests {
         assert!(s.stopped && s.stop_reason.as_deref() == Some("tool_use"));
         assert_eq!((s.calls[0].name.as_str(), s.calls[0].args.as_str()), ("bash", "{\"command\":\"ls\"}"));
         assert_eq!(s.calls[1].args, "{\"filePath\":\"x\"}");
+        assert_eq!(s.reasoning_chars, 3);
         assert!(Stream::default().feed(&json!({"type":"error","error":{"type":"overloaded_error"}})).is_err());
+    }
+
+    #[test]
+    fn thinking_in_body_only_for_high() {
+        let convo = [json!({"role":"user","content":"a"})];
+        let t = thinking_for(Some("high"), 8192);
+        let b = body("m", 16384, &convo, None, true, t.as_ref());
+        assert_eq!(b["thinking"], json!({"type":"enabled","budget_tokens":8192}));
+        for v in [Some("low"), Some("off"), None] {
+            let b = body("m", 16384, &convo, None, true, thinking_for(v, 8192).as_ref());
+            assert!(b.get("thinking").is_none(), "{v:?}");
+        }
+        // constant across turns: identical bytes for identical stamp
+        assert_eq!(thinking_for(Some("high"), 8192), thinking_for(Some("high"), 8192));
+    }
+
+    #[test]
+    fn counts_reasoning_non_streamed() {
+        let v = json!({"content":[{"type":"thinking","thinking":"abcd"},{"type":"text","text":"x"}]});
+        assert_eq!(reasoning_chars(&v), 4);
     }
 
     #[test]

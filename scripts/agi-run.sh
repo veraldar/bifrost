@@ -38,6 +38,8 @@ ARTIFACT="${AGI_ARTIFACT:-}"
 BUDGET_MIN="${AGI_BUDGET_MIN:-}"
 WILL_DIR="${AGI_WILL_DIR:-$HOME/Work/bifrost/.agi-log/wills}"
 STATUS_FILE="${AGI_STATUS_FILE:-/tmp/sub-status.tsv}"
+
+
 while getopts "s:m:f:a:b:h" opt; do
   case "$opt" in
     s) SESSION="$OPTARG" ;;
@@ -72,6 +74,31 @@ _will_law="LANE-WILL (binding, owner 11-09): before going idle you MUST write yo
 case "$PROMPT" in *"LANE-WILL (binding"*) : ;; *) PROMPT="${PROMPT}
 
 ${_will_law}" ;; esac
+
+
+# --- launch dedupe (owner row 11-10): a RUNNING same-session lane owns the artifact —
+# a second launch stands down WITHOUT a will/stub (SKIPPED-DUP), so the watch never alarms.
+_dedup_skip() { # $1 = live pid
+  printf '%s\t%s\t-\tRUNNING\n' "$(date -u +%Y%m%dT%H%M%SZ-a1-$$)" "$SESSION" >>"${LOG_DIR:-$HOME/Work/bifrost/.agi-log}/log.tsv" 2>/dev/null || true
+  printf '%s\n' "lane SKIPPED-DUP $SESSION — same-session lane pid $1 already RUNNING, second launch stands down (no will, no stub) $(date -Iseconds)" >>"$STATUS_FILE" 2>/dev/null || true
+  echo "agi-run: [$SESSION] SKIPPED-DUP — live pid $1 owns this lane" >&2
+  exit 0
+}
+if [ -n "$SESSION" ] && [ "$SESSION" != "unknown" ]; then
+  _sess_pat="agi-lane-$(printf '%s' "$SESSION" | tr -c 'A-Za-z0-9_.-' '-')-*.service"
+  for _u in $(systemctl --user list-units "$_sess_pat" --no-legend --no-pager 2>/dev/null | awk '$4=="running"{print $1}'); do
+    _dedup_skip "unit $_u"   # name-keyed: catches lanes whose will was already consumed
+  done
+  for _w in "$WILL_DIR"/$(printf '%s' "$SESSION" | tr -c 'A-Za-z0-9_.-' '-').will; do
+    [ -f "$_w" ] || continue
+    _unit="$(grep -oP '^unit=\K\S+' "$_w" 2>/dev/null | head -1)"
+    if [ -n "$_unit" ] && [ "$_unit" != "none" ] && systemctl --user is-active --quiet "$_unit" 2>/dev/null; then
+      _dedup_skip "unit $_unit"   # inner lane registered its unit and it is RUNNING
+    fi
+    _wpid="$(grep -oP '^pid=\K\d+' "$_w" 2>/dev/null | head -1)"
+    [ -n "$_wpid" ] && kill -0 "$_wpid" 2>/dev/null && _dedup_skip "pid $_wpid"  # in-place lane (AGI_SYSTEMD=0)
+  done
+fi
 
 # --- will + budget registration (the watch's contract) ----------------------------------------
 # Will file: who, what artifact, budget window. $-expanded (no eval). Removed only on clean exit

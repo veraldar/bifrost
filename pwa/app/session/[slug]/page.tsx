@@ -28,6 +28,7 @@ import {
   stopSpeech,
   subscribeSpeech,
 } from '@/lib/speech';
+import { shouldAutoSpeak } from '@/lib/auto-speak';
 import { diagEvent, setDiagMode } from '@/lib/diag';
 import { clearAsked, ensureNotifyPermission, markAsked, notifyReply } from '@/lib/notify';
 import { PENDING_TTL_MS } from '@/lib/pending-ttl';
@@ -1510,6 +1511,12 @@ export default function SessionView({
     if (freeSpokeMsgRef.current === a.time) return;
     freeSpokeMsgRef.current = a.time;
     try {
+      if (!shouldAutoSpeak(a)) {
+        // quiet-assess: silent verdict reply — give the mic back, no voice
+        diagEvent('voice', 'auto-verdict reply — not spoken');
+        freeMicGiveBack();
+        return;
+      }
       startSpeech(a.text, slug);
     } catch {
       freeMicGiveBack(); // TTS failed to start — don't leave the mic hostage

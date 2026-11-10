@@ -49,6 +49,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
         // assistant replies stream: time.completed only lands when the run
         // finished. The hands-free auto-listen must speak COMPLETE replies —
         // speaking a growing message mid-run reads out a fragment.
+        autoReply: m.info?.meta?.autoReply === true ? true : undefined,
         done:
           (m.info?.role || m.role) === 'assistant' ? !!m.info?.time?.completed : undefined,
       };

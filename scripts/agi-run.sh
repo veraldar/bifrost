@@ -56,6 +56,16 @@ if [ -z "$PROMPT" ] && [ -n "$PROMPT_FILE" ]; then PROMPT="$(cat "$PROMPT_FILE")
 if [ -z "$PROMPT" ] && [ ! -t 0 ]; then PROMPT="$(cat)"; fi
 [ -z "$PROMPT" ] && { echo "agi-run: no prompt given (arg, -f FILE, or stdin)" >&2; exit 2; }
 
+# --- dispatch-time path check (owner 11-10): a typo'd artifact dir (/home/ddweeb_xyz/...) used to
+# spawn a whole lane whose stub then failed to write. Refuse BEFORE any will/spawn.
+if [ -n "$ARTIFACT" ]; then
+  _pdir="$(dirname "$ARTIFACT")"
+  if [ ! -d "$_pdir" ]; then
+    echo "agi-run: REFUSED — artifact parent dir does not exist: $_pdir (artifact $ARTIFACT) — typo? nothing spawned" >&2
+    exit 2
+  fi
+fi
+
 # --- canon header (owner [RUN] canon-enforce 10-31) ------------------------------------------
 # Every MAIN brief carries the construct contract (docs/CONSTRUCT.md, 10-30) as its first
 # lines. Sha pins the canon file — bump it whenever CONSTRUCT.md changes (canon-check.sh
@@ -147,6 +157,13 @@ lane_will_finish() { # $1 = final status, $2 = note
     echo "agi-run: [$SESSION] ended ($1) but same-name lane pid $_wpid is live — no stub, will left to it" >&2
     return 0
   fi
+  # name-keyed units: ANY live same-session unit owns the artifact (will pid may be dead/consumed)
+  local _lu
+  for _lu in $(systemctl --user list-units "agi-lane-$(printf '%s' "$SESSION" | tr -c 'A-Za-z0-9_.-' '-')-*.service" --no-legend --no-pager 2>/dev/null | awk '$4=="running"{print $1}'); do
+    [ "$_lu" = "${AGI_UNIT:-}.service" ] || [ "$_lu" = "${AGI_UNIT:-}" ] && continue
+    echo "agi-run: [$SESSION] ended ($1) but unit $_lu is live — no stub, no status line" >&2
+    return 0
+  done
   local adir; adir=$(dirname "$_abs_artifact"); mkdir -p "$adir" 2>/dev/null || true
   printf '# LANE FAILED — auto-stub by agi-run (LANE-WILL, owner 11-09)\n\n- lane: %s\n- final status: %s\n- note: %s\n- artifact the lane owed: %s (never written)\n- evidence: %s\n- dispatched: %s\n\nThe lane ended without writing its artifact. Partial state lives on its branch/logs above; the auto-watch has been notified.\n' \
     "$SESSION" "$1" "$2" "$_abs_artifact" "${LOG_DIR}/outputs/${RUNID_LAST:-unknown}.*" "$(date -Iseconds)" >"$_abs_artifact" 2>/dev/null || true

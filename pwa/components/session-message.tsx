@@ -13,6 +13,7 @@ export type Msg = {
   time: number;
   queued?: boolean;
   done?: boolean; // assistant: run completed (hands-free auto-listen gate)
+  autoReply?: boolean; // assistant: answered an auto-verdict request (quiet-assess: no auto-speak)
 };
 
 function htmlBlocks(text: string): string[] {

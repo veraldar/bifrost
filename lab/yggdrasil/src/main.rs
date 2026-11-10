@@ -339,6 +339,17 @@ fn is_voice_turn(msg: &Value) -> bool {
     msg["info"]["modality"] == "voice"
 }
 
+/// QUIET-ASSESS law (owner 11-10): the turn being answered was an automated
+/// verdict request (`info.meta.auto`), so its reply is stamped `info.meta.autoReply`
+/// and the deck does not speak it (unless it carries OWNER-ACTION:).
+fn is_auto_turn(history: &[Value]) -> bool {
+    history
+        .iter()
+        .rev()
+        .find(|m| m["info"]["role"] == "user" && !is_compaction(m))
+        .is_some_and(|m| m["info"]["meta"]["auto"] == true)
+}
+
 const VOICE_PROMPT: &str = "You are answering by voice. Answer in at most two short sentences. One thought per reply. No markdown, no emoji, no lists, no parentheses, no offers of more help. Plain words only.";
 
 /// Voice mode: shape model text for SPEECH — strip markdown, emoji and
@@ -436,6 +447,10 @@ struct PostMessage {
     /// Absent/anything else = plain text turn.
     #[serde(default)]
     modality: Option<String>,
+    /// Sender meta; only `auto` (an automated verdict request, not the owner
+    /// speaking) is kept. QUIET-ASSESS law: such a turn's reply is stamped autoReply.
+    #[serde(default)]
+    meta: Option<Value>,
 }
 
 fn now_ms() -> u64 {
@@ -730,6 +745,7 @@ async fn post_message(
     Json(body): Json<PostMessage>,
 ) -> Response {
     let modality = body.modality.clone();
+    let auto_turn = body.meta.as_ref().is_some_and(|m| m["auto"] == true);
     // Text parts go upstream; file parts (data: URLs) are stored so the transcript keeps them.
     let parts: Vec<Value> = body
         .parts
@@ -750,6 +766,9 @@ async fn post_message(
         // stored on the message: the note renders from history on EVERY later
         // turn too, so the cached prefix never changes (see VOICE_TURN_NOTE)
         user_msg["info"]["modality"] = json!("voice");
+    }
+    if auto_turn {
+        user_msg["info"]["meta"] = json!({ "auto": true });
     }
     let stored = with_session(&st, &id, |s| {
         // Freeze the meanwhile lines at creation (same moment as `created`).
@@ -1019,6 +1038,7 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<V
         .rev()
         .find(|m| m["info"]["role"] == "user" && !is_compaction(m))
         .is_some_and(is_voice_turn);
+    let auto_turn = is_auto_turn(&history);
     let mut run = Run {
         msg,
         text: String::new(),
@@ -1050,6 +1070,9 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<V
             }
             run.finish("interrupted");
             run.lat_log("ok");
+            if auto_turn {
+                run.msg["info"]["meta"] = json!({ "autoReply": true });
+            }
             replace_message(st, id, &run.msg);
             publish(st, "message.updated", json!({ "info": run.msg["info"] }));
             emit(st, tx, "message.completed", run.msg.clone()).await;
@@ -2001,6 +2024,17 @@ mod voice_turn_tests {
         assert!(!content(&after, 3).contains("[voice turn]"));
         // a second render of the same history is byte-identical
         assert_eq!(after, request_for(&msgs));
+    }
+
+    #[test]
+    fn auto_turn_detected_from_last_user_message() {
+        let mut auto = make_message("s", "user", vec![text_part("verdict?")]);
+        auto["info"]["meta"] = json!({ "auto": true });
+        let plain = make_message("s", "user", vec![text_part("hi")]);
+        let reply = make_message("s", "assistant", vec![text_part("ok")]);
+        assert!(is_auto_turn(&[auto.clone(), reply.clone()]));
+        assert!(!is_auto_turn(&[auto, reply.clone(), plain]));
+        assert!(!is_auto_turn(&[reply]));
     }
 
     #[test]

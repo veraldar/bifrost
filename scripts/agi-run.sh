@@ -84,7 +84,7 @@ _dedup_skip() { # $1 = live pid
   echo "agi-run: [$SESSION] SKIPPED-DUP — live pid $1 owns this lane" >&2
   exit 0
 }
-if [ -n "$SESSION" ] && [ "$SESSION" != "unknown" ]; then
+if [ -z "${AGI_IN_UNIT:-}" ] && [ -n "$SESSION" ] && [ "$SESSION" != "unknown" ]; then
   _sess_pat="agi-lane-$(printf '%s' "$SESSION" | tr -c 'A-Za-z0-9_.-' '-')-*.service"
   for _u in $(systemctl --user list-units "$_sess_pat" --no-legend --no-pager 2>/dev/null | awk '$4=="running"{print $1}'); do
     _dedup_skip "unit $_u"   # name-keyed: catches lanes whose will was already consumed

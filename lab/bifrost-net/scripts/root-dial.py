@@ -24,29 +24,40 @@ runs to dial the trunk. It proves the AGENT loop, not just a socket:
 
   GUARD LAW: plaintext ws carries link tokens and turn text — dialing
   outside private ranges (RFC1918/CGNAT/ULA/loopback/link-local) is
-  REFUSED unless --allow-public is passed explicitly.
+  REFUSED unless --allow-plaintext is passed explicitly. TLS (--tls)
+  always passes the guard: public wss is the SANCTIONED dial path.
+
+  TLS LAW: --tls wraps the socket with client-side TLS BEFORE the ws
+  handshake, SNI = --host. Verify against the system trust store, or
+  skip verification with --insecure-skip (self-signed lab certs only).
 
 Trunk config note (--listen law): [bridge.root-link].listen must be
 settable to a non-loopback addr for Mac-over-tailnet dial-ins
 (e.g. listen = "100.100.x.x:8473"); the default stays 127.0.0.1:port+1.
 """
-import base64, ipaddress, json, os, queue, socket, struct, subprocess, sys, threading, time
+import base64, ipaddress, json, os, queue, socket, ssl, struct, subprocess, sys, threading, time
 
 def b64u(b): return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
 
 USAGE = f"""usage: {os.path.basename(sys.argv[0])} --host HOST --port PORT --token-file FILE
-       [--exec "opencode run"] [--probe-exec "opencode --version"] [--allow-public]
+       [--exec "opencode run"] [--probe-exec "opencode --version"]
+       [--tls] [--insecure-skip] [--allow-plaintext] [--path /rootlink]
 
   --host/--port     trunk [bridge.root-link] listen address (default 127.0.0.1:8473)
+  --path            ws resource path (default /; e.g. /rootlink behind a router)
   --token-file      one single-use link token per line (burn-as-read on each dial)
   --exec            agent command run per root.job (the turn text is appended)
   --probe-exec      trivial agent exec that must SUCCEED to earn each root.pong
                     (default: "<first token of --exec> --version"; a failed
                     probe exec sends NO pong — the trunk counts the failure)
-  --allow-public    REQUIRED escape hatch to dial a non-private host over
-                    PLAINTEXT ws (link tokens + turn text ride the wire
-                    unencrypted). Private ranges are always allowed: RFC1918,
-                    CGNAT 100.64/10, ULA fc00::/7, loopback, link-local."""
+  --tls             wrap the socket in client TLS before the ws handshake
+                    (SNI = --host; verified against the system trust store)
+  --insecure-skip   with --tls: skip cert verification (self-signed lab certs
+                    ONLY — never on the open internet)
+  --allow-plaintext REQUIRED escape hatch to dial over PLAINTEXT ws (link
+                    tokens + turn text ride the wire unencrypted). Private
+                    ranges are always allowed without it: RFC1918, CGNAT
+                    100.64/10, ULA fc00::/7, loopback, link-local."""
 
 def private_host(host):
     """True iff EVERY resolved address of `host` is private/loopback/link-
@@ -67,15 +78,23 @@ def main():
         print(USAGE)
         return
     host, port = arg("--host", "127.0.0.1"), int(arg("--port", "8473"))
+    wpath = arg("--path", "/")          # ws resource path (caddy routes /rootlink* → trunk)
     tfile, default_exec = arg("--token-file"), arg("--exec", "opencode run")
     if not tfile:
-        raise SystemExit("usage: root-dial.py --host HOST --port PORT --token-file FILE [--exec ...] [--allow-public]")
-    allow_public = "--allow-public" in a
+        raise SystemExit("usage: root-dial.py --host HOST --port PORT --token-file FILE "
+                         "[--exec ...] [--tls] [--insecure-skip] [--allow-plaintext]")
+    use_tls = "--tls" in a
+    insecure_skip = "--insecure-skip" in a
+    allow_plaintext = "--allow-plaintext" in a
+    if insecure_skip and not use_tls:
+        raise SystemExit("--insecure-skip is meaningless without --tls")
+    if allow_plaintext and use_tls:
+        print("note: --allow-plaintext ignored — --tls already encrypts", file=sys.stderr)
 
-    if not allow_public and not private_host(host):
+    if not use_tls and not allow_plaintext and not private_host(host):
         raise SystemExit(f"refusing plaintext ws to non-private host {host!r} "
-                         f"(link tokens ride the wire) — use a private/tailnet "
-                         f"address or pass --allow-public")
+                         f"(link tokens ride the wire) — use --tls, a private "
+                         f"address, or pass --allow-plaintext")
 
     def fresh_token():
         with open(tfile) as f:
@@ -93,9 +112,18 @@ def main():
         token, left = fresh_token()
         try:
             s = socket.create_connection((host, port), timeout=10)
+            s.settimeout(None)          # READ LAW: block forever — the trunk's
+                                        # heartbeat (ping_secs) keeps the path
+                                        # alive; a fixed timeout kills the conn
+                                        # mid-job during long opencode runs
+            if use_tls:
+                ctx = ssl._create_unverified_context() if insecure_skip else ssl.create_default_context()
+                s = ctx.wrap_socket(s, server_hostname=host)   # SNI = --host
+                print(f"tls ok: {s.version()} cipher={s.cipher()[0]}"
+                      f"{' (UNVERIFIED)' if insecure_skip else ''}", flush=True)
         except OSError as e:
             raise SystemExit(f"connect failed: {e}")
-        s.sendall((f"GET / HTTP/1.1\r\nHost: {host}:{port}\r\nUpgrade: websocket\r\n"
+        s.sendall((f"GET {wpath} HTTP/1.1\r\nHost: {host}:{port}\r\nUpgrade: websocket\r\n"
                    f"Connection: Upgrade\r\nSec-WebSocket-Key: {b64u(os.urandom(16))}\r\n"
                    f"Sec-WebSocket-Version: 13\r\n\r\n").encode())
         buf = b""

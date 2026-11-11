@@ -1,0 +1,6 @@
+[Unit]
+Description=lat-p95 — coordinator <=5s law: p95 of MAIN steps=1 turns, alert on ok->breach
+
+[Service]
+Type=oneshot
+ExecStart=%h/Work/bifrost/scripts/lat-p95.sh

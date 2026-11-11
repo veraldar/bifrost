@@ -23,6 +23,7 @@
 //!                          `/config/providers` + `/agent` (default: one provider = the upstream model,
 //!                          agents build + plan)
 //!   YGG_PROJECT_DIR        slice 6a: where tools run / relative paths resolve (default: cwd)
+//!   YGG_MAIN_BASH_TIMEOUT_MS / YGG_MAIN_MAX_STEPS  caps for sessions titled [MAIN] (default 15000 ms / 6 steps)
 //!   YGG_MAX_STEPS          upstream calls per run before the loop gives up (default: 100)
 //!   YGG_BASH_TIMEOUT_MS    default bash tool timeout (default: 120000)
 //!   YGG_TOOLS              `0` = don't declare tools (plain relay, for tool-less upstreams)
@@ -70,6 +71,7 @@ use tokio::sync::{Notify, broadcast, mpsc, oneshot};
 use tokio_stream::wrappers::{BroadcastStream, ReceiverStream};
 
 mod anthropic;
+mod gate;
 mod rollup;
 mod tools;
 
@@ -326,6 +328,9 @@ struct Config {
     model: String,
     catalog: Value,
     max_steps: usize,
+    /// [MAIN]-titled sessions (the coordinator) get a hard leash: bash timeout cap + step cap.
+    main_bash_timeout_ms: u64,
+    main_max_steps: usize,
     tools_enabled: bool,
     rollup_tokens: usize,
     rollup_keep_tokens: usize,
@@ -360,6 +365,7 @@ fn is_voice_turn(msg: &Value) -> bool {
 /// QUIET-ASSESS law (owner 11-10): the turn being answered was an automated
 /// verdict request (`info.meta.auto`), so its reply is stamped `info.meta.autoReply`
 /// and the deck does not speak it (unless it carries OWNER-ACTION:).
+#[cfg(test)]
 fn is_auto_turn(history: &[Value]) -> bool {
     history
         .iter()
@@ -448,7 +454,8 @@ struct AppState {
     /// In-flight replies, keyed by session id; notified by `POST /session/:id/abort`.
     running: Arc<Mutex<HashMap<String, Arc<Notify>>>>,
     /// One run at a time per session (opencode serializes; stacked prompts wait their turn).
-    run_locks: Arc<Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>>,
+    /// Two-class gate: owner turns first, auto turns wait + coalesce (gate.rs).
+    run_locks: Arc<Mutex<HashMap<String, Arc<gate::RunGate>>>>,
     /// Global event bus feeding `GET /event`: `{type, properties}` JSON, opencode-style.
     bus: broadcast::Sender<Value>,
     data_dir: Arc<PathBuf>,
@@ -810,19 +817,33 @@ async fn post_message(
             user_msg["info"]["time"]["meanwhile"] = json!(mw);
         }
         s.messages.push(user_msg.clone());
+        collapse_stale_station(&mut s.messages);
     });
     if stored.is_none() {
         return not_found(&id);
     }
     publish(&st, "message.updated", json!({ "info": user_msg["info"] }));
 
-    let lock = st.run_locks.lock().unwrap().entry(id.clone()).or_default().clone();
+    let enqueued = std::time::Instant::now(); // LAT queue_ms: enqueue → run slot
+    let gate = st.run_locks.lock().unwrap().entry(id.clone()).or_default().clone();
+    let ticket = gate.ticket(auto_turn);
     let (tx, rx) = mpsc::channel::<Event>(64);
     let (done_tx, done_rx) = oneshot::channel::<Result<Value, String>>();
     tokio::spawn(async move {
-        let _turn = lock.lock().await;
-        let result = run_turn(&st, &id, &tx).await;
-        let _ = done_tx.send(result);
+        match gate.admit(&ticket).await {
+            gate::Admit::Go(mut permit) => {
+                let queue_ms = enqueued.elapsed().as_millis() as u64;
+                let result = run_turn(&st, &id, &tx, queue_ms, auto_turn).await;
+                permit.finish(&result);
+                let _ = done_tx.send(result);
+                // roll-up runs AFTER the reply, still inside the run slot (item 2)
+                rollup_after_reply(&st, &id, &tx).await;
+            }
+            gate::Admit::Coalesced(rx) => {
+                let _ = done_tx.send(rx.await.unwrap_or_else(|_| Err("coalesced auto turn dropped".into())));
+            }
+        }
+        drop(ticket);
     });
 
     if want_sse {
@@ -860,6 +881,7 @@ fn upstream_history(messages: &[Value]) -> Vec<Value> {
     // previous non-compaction user message's created ms; the chain runs over
     // the whole stored session so it survives the compaction boundary
     let mut prev: Option<i64> = None;
+    let mut skip_reply = false;
     for (i, m) in messages.iter().enumerate() {
         let role = m["info"]["role"].as_str().unwrap_or("user");
         let compaction = is_compaction(m);
@@ -869,6 +891,18 @@ fn upstream_history(messages: &[Value]) -> Vec<Value> {
             prev = created;
         }
         if i < start {
+            continue;
+        }
+        if role == "user" && !compaction {
+            skip_reply = false;
+            if let Some(d) = m["info"]["meta"]["digest"].as_str() {
+                // frozen one-line station turn; its autoReply is folded into the line
+                out.push(json!({ "role": "user", "content": d }));
+                skip_reply = true;
+                continue;
+            }
+        }
+        if role == "assistant" && skip_reply && m["info"]["meta"]["autoReply"] == true {
             continue;
         }
         if role != "assistant" {
@@ -922,6 +956,48 @@ fn upstream_history(messages: &[Value]) -> Vec<Value> {
     out
 }
 
+/// Station turns (auto user message + its autoReply) kept verbatim in the upstream view.
+const STATION_KEEP: usize = 3;
+
+fn first_line(s: &str, max: usize) -> String {
+    let l = s.lines().map(str::trim).find(|l| !l.is_empty()).unwrap_or_default();
+    let mut out: String = l.chars().take(max).collect();
+    if l.chars().count() > max {
+        out.push('…');
+    }
+    out
+}
+
+/// Item 2 (cache law): freeze each station turn older than the last `STATION_KEEP` into one
+/// line, stored on the user message (`info.meta.digest`) at store time. A digest is written
+/// once and never recomputed, so every later request renders the same bytes there. Owner turns
+/// and anything unanswered stay verbatim; the stored transcript (UI) is untouched.
+fn collapse_stale_station(messages: &mut [Value]) {
+    let autos: Vec<usize> = (0..messages.len())
+        .filter(|&i| messages[i]["info"]["role"] == "user" && messages[i]["info"]["meta"]["auto"] == true)
+        .collect();
+    if autos.len() <= STATION_KEEP {
+        return;
+    }
+    for &i in &autos[..autos.len() - STATION_KEEP] {
+        if messages[i]["info"]["meta"]["digest"].is_string() {
+            continue;
+        }
+        let answered = messages[i + 1..]
+            .iter()
+            .any(|m| m["info"]["role"] == "assistant" && m["info"]["time"]["completed"].is_number());
+        if !answered {
+            continue;
+        }
+        let reply = messages.get(i + 1).filter(|m| m["info"]["meta"]["autoReply"] == true && m["info"]["time"]["completed"].is_number());
+        let line = match reply {
+            Some(r) => format!("[station turn] {} => {}", first_line(&message_text(&messages[i]), 160), first_line(&message_text(r), 160)),
+            None => format!("[station turn] {}", first_line(&message_text(&messages[i]), 160)),
+        };
+        messages[i]["info"]["meta"]["digest"] = json!(line);
+    }
+}
+
 fn is_compaction(msg: &Value) -> bool {
     msg["parts"].as_array().is_some_and(|ps| ps.iter().any(|p| p["type"] == "compaction"))
 }
@@ -967,6 +1043,9 @@ struct Run {
     voice_note: bool,
     /// chars of upstream `thinking` this run (LAT reasoning_chars)
     reasoning_chars: usize,
+    /// LAT session=<id> queue_ms=<enqueue→run slot> (coordinator ≤5s law)
+    session: String,
+    queue_ms: u64,
 }
 
 impl Run {
@@ -1031,12 +1110,13 @@ impl Run {
             .map(|p| p.iter().filter(|x| x["type"] == "tool").count())
             .unwrap_or(0);
         eprintln!(
-            "LAT phase={} total_ms={} ttfb_ms={} steps={} tool_steps={} msg_parts={} calls={} retries={} first_token={} voice_note={} reasoning_chars={}",
+            "LAT phase={} total_ms={} ttfb_ms={} steps={} tool_steps={} msg_parts={} calls={} retries={} first_token={} voice_note={} reasoning_chars={} session={} queue_ms={}",
             phase, total, ttfb, steps, tool_steps, steps, self.upstream_calls, self.retries, self.first_token_seen,
-            self.voice_note as u8, self.reasoning_chars
+            self.voice_note as u8, self.reasoning_chars, self.session, self.queue_ms
         );
         self.msg["info"]["time"]["latency"] = json!({
             "total_ms": total,
+            "queue_ms": self.queue_ms,
             "ttfb_ms": ttfb,
             "upstream_calls": self.upstream_calls,
             "retries": self.retries,
@@ -1049,7 +1129,7 @@ impl Run {
 /// One run, called with the session's run lock held: snapshot history, create the
 /// un-completed assistant placeholder, run the agent loop (abortable), store the
 /// outcome, then `session.idle`. Returns the final assistant message (aborted ones included).
-async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<Value, String> {
+async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>, queue_ms: u64, auto_class: bool) -> Result<Value, String> {
     let history = st.sessions.lock().unwrap().get(id).map(|s| s.messages.clone());
     let Some(history) = history else { return Err(format!("session {id} not found")) };
 
@@ -1067,7 +1147,9 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<V
         .rev()
         .find(|m| m["info"]["role"] == "user" && !is_compaction(m))
         .is_some_and(is_voice_turn);
-    let auto_turn = is_auto_turn(&history);
+    // the gate class decides, not the newest stored user message: with owner-first ordering an
+    // owner turn can run while a later auto message is already stored (and vice versa)
+    let auto_turn = auto_class;
     let mut run = Run {
         msg,
         text: String::new(),
@@ -1078,6 +1160,8 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) -> Result<V
         first_token_seen: false,
         voice_note,
         reasoning_chars: 0,
+        session: id.to_string(),
+        queue_ms,
     };
     let outcome = {
         let fut = agent_loop(st, id, history, tx, &mut run);
@@ -1142,7 +1226,7 @@ async fn agent_loop(
     tx: &mpsc::Sender<Event>,
     run: &mut Run,
 ) -> Result<(), String> {
-    let mut convo = rollup_if_needed(st, id, tx, messages).await;
+    let mut convo = upstream_history(&messages); // roll-up runs AFTER the reply (rollup_after_reply)
     // TIME-AWARENESS + CACHE LAW: static preamble at position 0; each user
     // turn carries a header derived purely from stored created timestamps
     // (this turn's message was stamped ≈ now), so history is byte-stable.
@@ -1151,7 +1235,7 @@ async fn agent_loop(
     if st.config.voice {
         convo.insert(1, json!({ "role": "system", "content": VOICE_PROMPT }));
     }
-    let max = st.config.max_steps;
+    let max = step_cap(st.config.max_steps, st.config.main_max_steps, session_is_main(st, id));
     for _ in 0..max {
         if st.config.rollup_tokens > 0 {
             let n = rollup::prune(&mut convo, st.config.rollup_tokens);
@@ -1197,6 +1281,37 @@ async fn agent_loop(
         }
     }
     Err(format!("agent loop hit the step cap ({max} upstream calls) without a final reply"))
+}
+
+/// The coordinator session is the one titled `[MAIN]` (same rule as watch-landings resolve_main).
+fn is_main_title(title: &str) -> bool {
+    title.trim() == "[MAIN]"
+}
+
+fn session_is_main(st: &AppState, id: &str) -> bool {
+    st.sessions.lock().unwrap().get(id).is_some_and(|s| is_main_title(s.info["title"].as_str().unwrap_or_default()))
+}
+
+/// Upstream-call cap for a run: the MAIN cap never raises the global one.
+fn step_cap(global: usize, main_cap: usize, main: bool) -> usize {
+    if main { main_cap.min(global) } else { global }
+}
+
+/// Clamp a bash call's timeout to `cap_ms` (an absent timeout means the tool default).
+fn cap_bash_input(input: &mut Value, cap_ms: u64, default_ms: u64) {
+    let want = input["timeout"].as_u64().unwrap_or(default_ms);
+    if let Some(o) = input.as_object_mut() {
+        o.insert("timeout".into(), json!(want.min(cap_ms)));
+    }
+}
+
+/// Roll-up moved out of the turn (item 2): the reply is already delivered, so the
+/// synchronous summarize call never sits in the owner's latency.
+async fn rollup_after_reply(st: &AppState, id: &str, tx: &mpsc::Sender<Event>) {
+    let msgs = st.sessions.lock().unwrap().get(id).map(|s| s.messages.clone());
+    if let Some(msgs) = msgs {
+        let _ = rollup_if_needed(st, id, tx, msgs).await;
+    }
 }
 
 /// Slice 6b. Over the token limit at run start: summarize everything before the recent
@@ -1313,7 +1428,12 @@ async fn run_tool(st: &AppState, id: &str, tx: &mpsc::Sender<Event>, run: &mut R
     emit(st, tx, "message.part.updated", json!({ "sessionID": id, "part": part })).await;
 
     let res = match parsed {
-        Ok(input) => tools::run(&st.tools, &call.name, &input).await,
+        Ok(mut input) => {
+            if call.name == "bash" && session_is_main(st, id) {
+                cap_bash_input(&mut input, st.config.main_bash_timeout_ms, st.tools.bash_timeout.as_millis() as u64);
+            }
+            tools::run(&st.tools, &call.name, &input).await
+        }
         Err(e) => tools::ToolResult { ok: false, title: call.name.clone(), output: e, metadata: json!({}) },
     };
     if call.name == "todowrite" && res.ok {
@@ -1701,6 +1821,8 @@ async fn main() {
         catalog: load_catalog(&model),
         model,
         max_steps: env_num("YGG_MAX_STEPS", 100).max(1) as usize,
+        main_bash_timeout_ms: env_num("YGG_MAIN_BASH_TIMEOUT_MS", 15_000).max(1) as u64,
+        main_max_steps: env_num("YGG_MAIN_MAX_STEPS", 6).max(1) as usize,
         tools_enabled: std::env::var("YGG_TOOLS").map_or(true, |v| v != "0"),
         voice: std::env::var("YGG_VOICE").map_or(false, |v| v == "1"),
         voice_max_words: env_num("YGG_VOICE_MAX_WORDS", 60).max(5) as usize,
@@ -1970,6 +2092,8 @@ mod speed_law_tests {
             first_token_seen: false,
             voice_note: false,
             reasoning_chars: 0,
+            session: "ses_t".into(),
+            queue_ms: 42,
         }
     }
 
@@ -1990,6 +2114,8 @@ mod speed_law_tests {
         assert_eq!(lat["retries"], json!(0));
         assert_eq!(lat["first_token"], json!(true));
         assert_eq!(lat["phase"], json!("ok"));
+        assert_eq!(lat["queue_ms"], json!(42));
+        assert_eq!(run.session, "ses_t");
     }
 
     #[test]
@@ -2012,6 +2138,90 @@ mod speed_law_tests {
         let lat = &run.msg["info"]["time"]["latency"];
         assert_eq!(lat["ttfb_ms"], json!(0));
         assert_eq!(lat["first_token"], json!(false));
+    }
+}
+
+/// coordinator ≤5s law: MAIN leash + station-turn collapse.
+#[cfg(test)]
+mod law_tests {
+    use super::*;
+
+    #[test]
+    fn main_title_and_caps() {
+        assert!(is_main_title("[MAIN]"));
+        assert!(is_main_title(" [MAIN] "));
+        assert!(!is_main_title("[FIX] lane"));
+        assert_eq!(step_cap(100, 6, true), 6);
+        assert_eq!(step_cap(100, 6, false), 100);
+        assert_eq!(step_cap(4, 6, true), 4); // never raises the global cap
+        let mut a = json!({ "command": "sleep 600", "timeout": 600000 });
+        cap_bash_input(&mut a, 15000, 120000);
+        assert_eq!(a["timeout"], json!(15000));
+        let mut b = json!({ "command": "ls" }); // absent = tool default 120s, still capped
+        cap_bash_input(&mut b, 15000, 120000);
+        assert_eq!(b["timeout"], json!(15000));
+        let mut c = json!({ "command": "ls", "timeout": 2000 });
+        cap_bash_input(&mut c, 15000, 120000);
+        assert_eq!(c["timeout"], json!(2000)); // shorter requests untouched
+    }
+
+    fn pair(n: usize, auto: bool) -> [Value; 2] {
+        let mut u = make_message("s", "user", vec![text_part(&format!("landing {n}\nsecond line")) ]);
+        u["info"]["time"]["created"] = json!(1000 + n as i64 * 10);
+        let mut a = make_message("s", "assistant", vec![text_part(&format!("verdict {n}"))]);
+        a["info"]["time"]["completed"] = json!(1001 + n as i64 * 10);
+        if auto {
+            u["info"]["meta"] = json!({ "auto": true });
+            a["info"]["meta"] = json!({ "autoReply": true });
+        }
+        [u, a]
+    }
+
+    #[test]
+    fn station_history_collapses_beyond_last_three_and_is_frozen() {
+        let mut msgs: Vec<Value> = vec![];
+        msgs.extend(pair(0, false)); // owner turn: verbatim forever
+        for n in 1..=5 {
+            msgs.extend(pair(n, true));
+        }
+        collapse_stale_station(&mut msgs);
+        let h = upstream_history(&msgs);
+        // owner pair (2) + 2 collapsed single lines + 3 verbatim pairs (6)
+        assert_eq!(h.len(), 2 + 2 + 6);
+        assert_eq!(h[2]["content"], json!("[station turn] landing 1 => verdict 1"));
+        assert_eq!(h[3]["content"], json!("[station turn] landing 2 => verdict 2"));
+        assert_eq!(h[0]["content"], json!("landing 0\nsecond line"));
+        assert!(h[4]["content"].as_str().unwrap().contains("landing 3"));
+        // append-only: another station turn only changes the digest of the one aging out
+        let before = h[..4].to_vec();
+        msgs.extend(pair(6, true));
+        collapse_stale_station(&mut msgs);
+        let h2 = upstream_history(&msgs);
+        assert_eq!(&h2[..4], &before[..]);
+        assert_eq!(h2[4]["content"], json!("[station turn] landing 3 => verdict 3"));
+        // idempotent
+        let snap = upstream_history(&msgs);
+        collapse_stale_station(&mut msgs);
+        assert_eq!(snap, upstream_history(&msgs));
+    }
+
+    #[test]
+    fn unanswered_station_turn_is_not_collapsed() {
+        let mut msgs: Vec<Value> = vec![];
+        for n in 1..=3 {
+            msgs.extend(pair(n, true));
+        }
+        let mut pending = make_message("s", "user", vec![text_part("queued")]);
+        pending["info"]["meta"] = json!({ "auto": true });
+        // an old unanswered auto (no completed assistant after it) stays verbatim
+        let mut only = vec![pending.clone()];
+        for _ in 0..3 {
+            only.push(pending.clone());
+        }
+        collapse_stale_station(&mut only);
+        assert!(only.iter().all(|m| m["info"]["meta"]["digest"].is_null()));
+        collapse_stale_station(&mut msgs);
+        assert!(msgs.iter().all(|m| m["info"]["meta"]["digest"].is_null()));
     }
 }
 
@@ -2110,6 +2320,8 @@ mod voice_turn_tests {
             first_token_seen: false,
             voice_note: true,
             reasoning_chars: 0,
+            session: "s".into(),
+            queue_ms: 0,
         };
         run.lat_log("ok"); // the eprintln row ends voice_note=1; must not panic
     }

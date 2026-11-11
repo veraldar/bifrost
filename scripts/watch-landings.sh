@@ -35,10 +35,24 @@ mains.sort(key=lambda s: s.get("time", {}).get("updated", 0))
 print(mains[-1]["id"] if mains else "")' 2>/dev/null
 }
 
+# coordinator <=5s law (item 3ii): never post an auto wake into a MAIN that is mid-turn — the
+# brain would queue it behind (or coalesce it with) the owner's turn. Busy = the id is a key of
+# GET /session/status. Unreachable/garbled status counts as NOT busy (the POST then fails or lands
+# on its own). A busy skip returns 1, so the caller keeps the line pending and retries next poll.
+session_busy() { # $1 = session id
+  curl -s --max-time 5 "$BRAIN_URL/session/status" | python3 -c '
+import json, sys
+try:
+    sys.exit(0 if sys.argv[1] in json.load(sys.stdin) else 1)
+except Exception:
+    sys.exit(1)' "$1" 2>/dev/null
+}
+
 wake() { # $1 = session id, $2 = landing line
+  session_busy "$1" && return 1
   python3 - "$2" <<'PY' > "$WAKE_JSON"
 import json, sys
-print(json.dumps({"parts": [{"type": "text", "text": "LANE LANDED (auto-watch): " + sys.argv[1]}]}))
+print(json.dumps({"parts": [{"type": "text", "text": "LANE LANDED (auto-watch): " + sys.argv[1]}], "meta": {"auto": True}}))
 PY
   curl -s -X POST "$BRAIN_URL/session/$1/message" -H 'content-type: application/json' \
     -d @"$WAKE_JSON" --max-time 30 -o /dev/null
@@ -89,6 +103,7 @@ post_lane_line() { # $1 = full text; returns 0 when delivered (2xx), already del
   delivered_has "$key" && return 0               # already announced — skip, caller unpends
   sid="${SES_ID:-$(resolve_main)}"
   [ -n "$sid" ] || return 1
+  session_busy "$sid" && return 1                # MAIN mid-turn: keep pending, retry next poll
   python3 - "$text" "$MARKER" <<'PY' > "$WAKE_JSON"
 import json, sys
 print(json.dumps({"parts": [{"type": "text", "text": sys.argv[2] + sys.argv[1]}], "meta": {"auto": True}}))

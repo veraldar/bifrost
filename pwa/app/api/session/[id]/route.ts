@@ -48,7 +48,7 @@ function normalize(s: any, variants: string[]) {
       ? {
           providerID: s.model.providerID,
           modelID: base,
-          variant: level || null, // null = model default
+          variant: level || s.model.variant || null, // yggdrasil brain stamps the session's thinking variant (e.g. high)
           variants,
         }
       : null,

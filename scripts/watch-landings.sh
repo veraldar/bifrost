@@ -67,6 +67,7 @@ last_line() {
   printf '%s' "$l"
 }
 LAST=$(last_line)
+LASTN=$(wc -l <"$STATUS_FILE" 2>/dev/null || echo 0)
 
 # ---------- durable wake (opus review 9: a signal sent while :4100 is down must be
 # retried until a 2xx, never silently consumed) ----------
@@ -131,6 +132,23 @@ flush_pending() {
   done <"$STATUS_FILE.pending"
 }
 
+# ---------- better-loops (owner law: no lane ends PARTIAL and stops) ----------
+# A landing row names its artifact (…/x.md) or starts with the lane name (→ artifacts/<name>.md). The shared
+# helper scripts/lane-followup.sh reads the artifact's verdict and auto-dispatches a follow-up for
+# PARTIAL/BLOCKED/RIG/FAILED* (max 3 per chain, dedupe vs live lanes, DONE-GREEN/OWNER-GATED terminate).
+LF="${LF_SCRIPT:-$(dirname "$(readlink -f "$0")")/lane-followup.sh}"
+ART_DIR="${LF_ART_DIR:-$HOME/Work/bifrost/artifacts}"
+followup_row() { # $1 = one status row
+  local a
+  a=$(grep -oE '[^[:space:]="]+\.md' <<<"$1" | head -1)
+  if [ -z "$a" ]; then a="$ART_DIR/$(awk '{print $1}' <<<"$1" | tr 'A-Z' 'a-z').md"; fi
+  case "$a" in /*) : ;; *) a="$ART_DIR/$(basename "$a")" ;; esac
+  [ -f "$a" ] || return 0
+  timeout 60 "$LF" "$a" >>"${LF_WATCH_LOG:-/tmp/lane-followup-watch.log}" 2>&1 || true
+}
+# retro sweep: ONCE per watcher start (artifacts ≤48h, non-green, no live/covering follow-up)
+[ "${LF_SWEEP:-1}" = 1 ] && { timeout 120 "$LF" --sweep >>"${LF_WATCH_LOG:-/tmp/lane-followup-watch.log}" 2>&1 || true; }
+
 # ---------- LANE-WILL scan ----------
 pinged_marker() { printf '%s.pinged' "$1"; }
 
@@ -188,6 +206,11 @@ while true; do
   sleep "$POLL_SECS"
   flush_pending
   will_scan
+  NOWN=$(wc -l <"$STATUS_FILE" 2>/dev/null || echo 0)
+  if [ "$NOWN" -gt "$LASTN" ]; then
+    while IFS= read -r _row; do followup_row "$_row"; done < <(tail -n +"$((LASTN + 1))" "$STATUS_FILE" | head -20)
+  fi
+  LASTN=$NOWN
   CUR=$(last_line)
   if [ -n "$CUR" ] && [ "$CUR" != "$LAST" ]; then
     if post_lane_line "LANE LANDED (auto-watch): $CUR"; then

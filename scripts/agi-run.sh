@@ -80,7 +80,7 @@ ${PROMPT}" ;; esac
 # Every dispatched lane is told: write your artifact — even FAILED with partial state — BEFORE
 # going idle. If the lane dies without one, the harness writes the stub for it (guarantee below),
 # and the auto-watch re-kicks once, then escalates to the station.
-_will_law="LANE-WILL (binding, owner 11-09): before going idle you MUST write your brief's artifact file (even if it says FAILED + partial state). An idle lane with no artifact is auto-re-kicked once, then escalated."
+_will_law="LANE-WILL (binding, owner 11-09): before going idle you MUST write your brief's artifact file (even if it says FAILED + partial state). An idle lane with no artifact is auto-re-kicked once, then escalated. better-loops: an artifact whose verdict is PARTIAL/BLOCKED/RIG MUST carry a Next-actions: block (first line `# name — VERDICT: …`); a non-green verdict auto-dispatches a follow-up (max 3)."
 case "$PROMPT" in *"LANE-WILL (binding"*) : ;; *) PROMPT="${PROMPT}
 
 ${_will_law}" ;; esac
@@ -140,6 +140,13 @@ if [ -n "$ARTIFACT" ]; then
     "${PROMPT_FILE:--}" "${AGI_REKICK:+rekick=1}" >"$WILL_FILE" 2>/dev/null || WILL_FILE=""
 fi
 
+# better-loops: artifact delivered → the shared helper auto-dispatches a follow-up when its verdict is
+# non-green (same implementation the lane-watcher uses; dedupe + 3-iteration cap live there).
+lane_followup() { # $1 = absolute artifact path
+  [ "${AGI_FOLLOWUP_OFF:-0}" = 1 ] && return 0
+  LF_IGNORE_UNIT="${AGI_UNIT:-}" STATUS_FILE="$STATUS_FILE" timeout 60 "$(dirname "$(readlink -f "$0")")/lane-followup.sh" "$1" >&2 || true
+}
+
 # Exit guarantee: a lane that ends without having written its artifact still leaves the marker —
 # FAILED + partial state — so the station is never silently dark (owner law 11-09).
 lane_will_finish() { # $1 = final status, $2 = note
@@ -151,6 +158,7 @@ lane_will_finish() { # $1 = final status, $2 = note
   esac
   if [ -f "$_abs_artifact" ]; then
     rm -f "${WILL_FILE:-/nonexistent}" "${WILL_FILE:-/nonexistent}.pinged" "${WILL_FILE:-/nonexistent}.pinged.esc" 2>/dev/null
+    lane_followup "$_abs_artifact"
     return 0
   fi
   # same-name lane still alive owns this will + artifact: its death is the one to stub, not ours
@@ -177,6 +185,7 @@ lane_will_finish() { # $1 = final status, $2 = note
   fi
   printf '%s\n' "lane-will FAILED-STUB $SESSION artifact=$ARTIFACT status=$1${_sw} $(date -Iseconds)" >>"$STATUS_FILE" 2>/dev/null || true
   rm -f "${WILL_FILE:-/nonexistent}" "${WILL_FILE:-/nonexistent}.pinged" "${WILL_FILE:-/nonexistent}.pinged.esc" 2>/dev/null
+  [ -f "$_abs_artifact" ] && lane_followup "$_abs_artifact"
 }
 
 # --- one door, outside the caller's cgroup (S4): re-exec under systemd-run -------------------

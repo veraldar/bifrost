@@ -202,6 +202,84 @@ will_scan() {
   done
 }
 
+# ---------- SEND-WILL mirror (send-reliability-r1) ----------
+# scripts/send-lane.sh registers every dispatch intent in $SEND_WILL_DIR/<ts>.json. A dispatch must show a
+# matching row (session column == tag) in the agi-run ledger within SEND_ROW_SECS (60) of its ACK
+# (/tmp/acks/<ts>.txt; a worker still retrying is not "lost" yet; a dead worker with no ack is). Miss →
+# red-flag status row `SEND-LOST <tag>` (the landing flow then wakes MAIN) + ONE automatic re-send (same
+# req-id; the worker dedupes against the transcript). Second miss → `SEND-LOST-ESCALATED <tag>`, will
+# closed. Never loops. Own 15 s sub-loop so the check is not tied to the 60 s landing poll.
+SEND_WILL_DIR="${SEND_WILL_DIR:-/tmp/send-will}"
+SEND_ACK_DIR="${SEND_ACK_DIR:-/tmp/acks}"
+SEND_ROW_SECS="${SEND_ROW_SECS:-60}"
+SEND_SCAN_SECS="${SEND_SCAN_SECS:-15}"
+SEND_LOG_TSV="${SEND_LOG_TSV:-${AGI_LOG_DIR:-$HOME/Work/bifrost/.agi-log}/log.tsv}"
+SEND_LANE="${SEND_LANE:-$(dirname "$(readlink -f "$0")")/send-lane.sh}"
+send_log() { printf '%s %s\n' "$(date -Iseconds)" "$*" >>"$SEND_WILL_DIR/watch.log"; }
+send_will_mark() { # $1 = will file, rest = python statements on dict w
+  local f="$1"; shift
+  python3 - "$f" "$*" <<'PY'
+import json, sys, time
+w = json.load(open(sys.argv[1])); exec(sys.argv[2]); json.dump(w, open(sys.argv[1], "w"))
+PY
+}
+send_will_scan() {
+  local f alive verdict tag sess rid
+  for f in "$SEND_WILL_DIR"/*.json; do
+    case "$f" in *.payload.json) continue ;; esac
+    [ -e "$f" ] || return 0
+    pgrep -f -- "send-lane.sh --worker $f" >/dev/null 2>&1 && alive=1 || alive=0
+    verdict=$(python3 - "$f" "$SEND_ACK_DIR" "$SEND_LOG_TSV" "$SEND_ROW_SECS" "$alive" <<'PY'
+import datetime, json, os, sys, time
+f, ackdir, tsv, rowsecs, alive = sys.argv[1:6]
+w = json.load(open(f)); now = time.time()
+if not w.get("watch", True) or w.get("done"): print("SKIP"); sys.exit()
+def ep(s):
+    try: return datetime.datetime.fromisoformat(s).timestamp()
+    except Exception: return None
+acks = []
+try:
+    for ln in open(os.path.join(ackdir, w["ts"] + ".txt")):
+        d = dict(x.split("=", 1) for x in ln.rstrip("\n").split("\t") if "=" in x)
+        if ep(d.get("acked", "")): acks.append(ep(d["acked"]))
+except OSError: pass
+acks = [a for a in acks if a >= w.get("resend_epoch", 0) - 1]
+tag = w["tag"].upper()
+try:
+    for ln in open(tsv):
+        c = ln.rstrip("\n").split("\t")
+        if len(c) > 4 and c[2].upper() == tag and (ep(c[4]) or now) >= w["epoch"] - 5: print("CLOSED"); sys.exit()
+except OSError: pass
+miss = "ESCALATE" if w.get("resends", 0) else "LOST"
+if not acks: print("WAIT" if alive == "1" else miss); sys.exit()
+print(miss if now - max(acks) >= float(rowsecs) else "WAIT")
+PY
+)
+    case "$verdict" in LOST|ESCALATE|CLOSED) ;; *) continue ;; esac
+    tag=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["tag"])' "$f")
+    sess=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["session"])' "$f")
+    rid=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["reqid"])' "$f")
+    case "$verdict" in
+      CLOSED)
+        send_will_mark "$f" 'w["done"] = "row"'
+        send_log "ok $tag req-id=$rid (ledger row seen)" ;;
+      LOST)
+        printf '%s\tSEND-LOST %s\tsession=%s req-id=%s action=resend-1\n' "$(date -Iseconds)" "$tag" "$sess" "$rid" >>"$STATUS_FILE"
+        send_will_mark "$f" 'w["resends"] = 1; w["resend_epoch"] = time.time()'
+        "$SEND_LANE" --resend "$f" >>"$SEND_WILL_DIR/watch.log" 2>&1
+        send_log "SEND-LOST $tag req-id=$rid -> re-sent once" ;;
+      ESCALATE)
+        printf '%s\tSEND-LOST-ESCALATED %s\tsession=%s req-id=%s second miss, owner needed\n' "$(date -Iseconds)" "$tag" "$sess" "$rid" >>"$STATUS_FILE"
+        send_will_mark "$f" 'w["done"] = "escalated"'
+        send_log "SEND-LOST-ESCALATED $tag req-id=$rid (no further re-send)" ;;
+    esac
+  done
+}
+if [ "${SEND_SCAN:-1}" = 1 ]; then
+  ( while true; do sleep "$SEND_SCAN_SECS"; send_will_scan; done ) &
+  trap 'kill $! 2>/dev/null' EXIT
+fi
+
 while true; do
   sleep "$POLL_SECS"
   flush_pending

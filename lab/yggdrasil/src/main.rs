@@ -14,7 +14,8 @@
 //!                          `high` (default) | `low` | `off`. Anthropic dialect only: `high` adds
 //!                          `thinking:{type:enabled,budget_tokens:YGG_THINK_HIGH}` to the body, low/off
 //!                          omit it. Resolved once at session create (cache law: constant for the
-//!                          session's life; a model switch keeps it; unstamped legacy sessions = off)
+//!                          session's life; a model switch keeps it; unstamped legacy sessions follow
+//!                          this default, so `off` here is the one-line rollback for them too)
 //!   YGG_THINK_HIGH         thinking budget_tokens for `high` (default 8192; must be < YGG_MAX_TOKENS)
 //!   YGG_UPSTREAM_MODEL     model name (default: gpt-4o-mini)
 //!   YGG_LISTEN             bind address (default: 127.0.0.1:4096)
@@ -373,6 +374,11 @@ fn is_auto_turn(history: &[Value]) -> bool {
         .find(|m| m["info"]["role"] == "user" && !is_compaction(m))
         .is_some_and(|m| m["info"]["meta"]["auto"] == true)
 }
+
+/// Coordinator law (owner 11-11): the `[MAIN]` session answers from its own context and
+/// delegates everything else as ONE detached agi-run lane. MAIN-only system note after the
+/// preamble/voice note. Editing this constant resets [MAIN]'s provider cache once.
+const COORDINATOR_NOTE: &str = "You are the coordinator. If the answer is already in this conversation, answer it directly. Anything else (reading code or files, research, building, editing, testing) you do not do yourself: delegate it in ONE bash call, exactly `cd /home/dweeb_xyz/Work/bifrost && AGI_DETACH=1 bash scripts/agi-run.sh -s <short-name> -m sonnet -a /home/dweeb_xyz/Work/bifrost/.agi-log/artifacts/<short-name>.md -b <minutes> '<self-contained brief>'` (no ; | & $ ` > inside the brief), then reply in one line naming the lane. Never write or edit files yourself.";
 
 const VOICE_PROMPT: &str = "You are answering by voice. Answer in at most two short sentences. One thought per reply. No markdown, no emoji, no lists, no parentheses, no offers of more help. Plain words only.";
 
@@ -1079,6 +1085,8 @@ struct Run {
     /// LAT session=<id> queue_ms=<enqueue→run slot> (coordinator ≤5s law)
     session: String,
     queue_ms: u64,
+    /// LAT think=<budget_tokens sent upstream, 0 = no thinking param> (wire proof)
+    think: u64,
 }
 
 impl Run {
@@ -1143,9 +1151,9 @@ impl Run {
             .map(|p| p.iter().filter(|x| x["type"] == "tool").count())
             .unwrap_or(0);
         eprintln!(
-            "LAT phase={} total_ms={} ttfb_ms={} steps={} tool_steps={} msg_parts={} calls={} retries={} first_token={} voice_note={} reasoning_chars={} session={} queue_ms={}",
+            "LAT phase={} total_ms={} ttfb_ms={} steps={} tool_steps={} msg_parts={} calls={} retries={} first_token={} voice_note={} reasoning_chars={} session={} queue_ms={} think={}",
             phase, total, ttfb, steps, tool_steps, steps, self.upstream_calls, self.retries, self.first_token_seen,
-            self.voice_note as u8, self.reasoning_chars, self.session, self.queue_ms
+            self.voice_note as u8, self.reasoning_chars, self.session, self.queue_ms, self.think
         );
         self.msg["info"]["time"]["latency"] = json!({
             "total_ms": total,
@@ -1195,6 +1203,7 @@ async fn run_turn(st: &AppState, id: &str, tx: &mpsc::Sender<Event>, queue_ms: u
         reasoning_chars: 0,
         session: id.to_string(),
         queue_ms,
+        think: 0,
     };
     let outcome = {
         let fut = agent_loop(st, id, history, tx, &mut run);
@@ -1268,7 +1277,11 @@ async fn agent_loop(
     if st.config.voice {
         convo.insert(1, json!({ "role": "system", "content": VOICE_PROMPT }));
     }
-    let max = step_cap(st.config.max_steps, st.config.main_max_steps, session_is_main(st, id));
+    let main = session_is_main(st, id);
+    if main {
+        convo.insert(if st.config.voice { 2 } else { 1 }, json!({ "role": "system", "content": COORDINATOR_NOTE }));
+    }
+    let max = step_cap(st.config.max_steps, st.config.main_max_steps, main);
     for _ in 0..max {
         if st.config.rollup_tokens > 0 {
             let n = rollup::prune(&mut convo, st.config.rollup_tokens);
@@ -1669,9 +1682,10 @@ async fn relay_anthropic(
     let first_delta_ms = &mut run.first_delta_ms;
     let full = &mut run.text;
     let tools = cfg.tools_enabled.then(tools::schemas);
-    // thinking comes from the session's create-time stamp only (unstamped legacy session = none)
+    // thinking: the session's create-time stamp; an unstamped legacy session follows YGG_DEFAULT_VARIANT
     let variant = st.sessions.lock().unwrap().get(session_id).and_then(|s| s.info["model"]["variant"].as_str().map(String::from));
-    let thinking = anthropic::thinking_for(variant.as_deref(), cfg.think_high);
+    let thinking = anthropic::thinking_for(Some(variant.as_deref().unwrap_or(&cfg.default_variant)), cfg.think_high);
+    run.think = thinking.as_ref().and_then(|t| t["budget_tokens"].as_u64()).unwrap_or(0);
     let req = anthropic_request(st, convo, tools.as_ref(), true, thinking.as_ref());
     let t_req = std::time::Instant::now();
     let resp = send_with_retry(&req, &mut run.retries).await?;
@@ -2127,6 +2141,7 @@ mod speed_law_tests {
             reasoning_chars: 0,
             session: "ses_t".into(),
             queue_ms: 42,
+            think: 0,
         }
     }
 
@@ -2376,6 +2391,7 @@ mod voice_turn_tests {
             reasoning_chars: 0,
             session: "s".into(),
             queue_ms: 0,
+            think: 0,
         };
         run.lat_log("ok"); // the eprintln row ends voice_note=1; must not panic
     }

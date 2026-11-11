@@ -32,9 +32,10 @@ GAPKEY = re.compile(r"next[- ]actions?|gaps?\b|not done|recommend|remaining|todo
 
 
 def log(msg):
-    os.makedirs(LOGD, exist_ok=True)
-    with open(os.path.join(LOGD, "followups.log"), "a") as f:
-        f.write(f"{time.strftime('%Y-%m-%dT%H:%M:%S%z')}\t{msg}\n")
+    if not DRY:
+        os.makedirs(LOGD, exist_ok=True)
+        with open(os.path.join(LOGD, "followups.log"), "a") as f:
+            f.write(f"{time.strftime('%Y-%m-%dT%H:%M:%S%z')}\t{msg}\n")
     print(f"lane-followup: {msg}")
 
 
@@ -204,7 +205,7 @@ def evaluate(path, arts):
             f"{' MISSING-NEXT-ACTIONS' if missing else ''} artifact={out_art} prompt={pf}{' DRY' if DRY else ''}")
         if not DRY:
             r = subprocess.run([AGI_RUN, "-s", session, "-m", model, "-a", out_art, "-b", str(budget), "-f", pf],
-                               cwd=BIF, capture_output=True, text=True, env={**os.environ, "AGI_FOLLOWUP": "1"})
+                               cwd=BIF, capture_output=True, text=True, env={**os.environ, "AGI_FOLLOWUP": "1", "AGI_DETACH": "1"})
             if r.returncode != 0:
                 return log(f"{chain}: agi-run FAILED rc={r.returncode} {r.stderr.strip()[:200]} — counter not advanced")
         open(cf("n"), "w").write(str(n + 1))

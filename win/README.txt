@@ -1,42 +1,75 @@
-Veraldar — one-click install (root + trunk), Windows
-=====================================================
+Veraldar for Windows (0.2.0) - the Yggdrasil tree (root + trunk + branch app), inside WSL2
+================================================================
 
-What this installer does
-------------------------
-1. Installs to %LOCALAPPDATA%\veraldar (user scope — no admin prompt):
-   veraldar-launcher.bat (double-click entry) + this README.
-2. Creates a Start-Menu shortcut and a Desktop shortcut, both named "Veraldar".
-3. "Veraldar" (double-click) runs the bootstrap in one of two paths:
+Two ways in, ONE provisioner behind both (veraldar.ps1):
 
-   DOCKER PATH (if Docker Desktop is installed):
-     docker compose up brings up root (brain) + trunk (bridge) + the app;
-     this launcher then mints the first device and saves the join QR
-     (pair-qr.png) to the Desktop. Scan it with the phone camera, tap
-     Connect, talk.
+  A. Veraldar-Setup.exe  - per-user install into %LOCALAPPDATA%\Veraldar (no admin for the
+                           install itself), Veraldar tile on the Desktop + Start Menu.
+                           Double-click the tile (or say Yes to "Start it now?").
+  B. the one-paste line  - paste into PowerShell (see ONE-PASTE.md):
+       irm https://raw.githubusercontent.com/veraldar/bifrost/main/win/veraldar.ps1 | iex
+                           It lays down the same files + tiles, then runs.
 
-   NATIVE PYTHON PATH (what ships today — no Docker):
-     python3 mock upstream -> yggdrasil root -> bifrost-net trunk, transient
-     services on ports 8155-8159 (app 8155 / root 8156 / mock 8157 / trunk
-     8158+8159udp), first device minted via the real /api/pair surface, join
-     QR saved to Desktop as pair-qr.png. The phone must be on the same
-     Wi-Fi/LAN as this computer.
+What runs (first time ~20-30 min, later ~1 min)
+-----------------------------------------------
+1. Preflight: Windows build, CPU virtualization (BIOS/UEFI), >= 10 GB free disk.
+2. WSL2: `wsl --install --no-distribution` if missing - ONE admin prompt; if Windows needs a
+   restart it asks, and Veraldar continues by itself after the next sign-in (RunOnce).
+3. Phone reachability: networkingMode=mirrored in %USERPROFILE%\.wslconfig (per-user) +
+   inbound firewall rules, local network only: TCP 8195 (app) + 8198 (trunk signaling),
+   UDP 8199 (trunk media) - host rules + Hyper-V (WSL) rules, same admin prompt.
+4. The "Veraldar" WSL distro: Ubuntu 24.04 WSL rootfs from cloud-images.ubuntu.com, sha256
+   checked, `wsl --import` - never the Store, never the "create a UNIX user" prompt, never
+   the user's own Ubuntu, never the default distro (Docker Desktop's included).
+5. Inside it (wsl-bootstrap.sh, as root): first-run apt-get update + build deps, node 24
+   (nodejs.org tarball) + rust (rustup), blobless clone of github.com/veraldar/bifrost,
+   build once per source revision (the app: npm ci + next build; the root + the trunk:
+   cargo build of lab/yggdrasil + lab/bifrost-net), then
+   lab/layman-deploy/impl/layman-bootstrap.sh --stage with the PLAIN
+   runner (no systemd, no docker):
+       app 8195 / root (brain) 8196 / mock 8197 / trunk 8198 + 8199 udp
+   first device minted through the real /api/pair, QR payload = the /bridge join URL.
+6. Veraldar-Pair-QR.png lands on the real Desktop ([Environment]::GetFolderPath('Desktop'),
+   i.e. the OneDrive Desktop when OneDrive moved it) AND in %USERPROFILE%\Desktop; the
+   browser opens the app on http://localhost:8195 (the QR carries the PC's LAN IP).
+7. The window holds the stack: close it (or Ctrl+C) = Veraldar stops.
+
+Docker is NOT used (and not needed) on Windows. The mock brain answers until a provider
+key is set - by design. Voice on the phone needs https (LAN http = no mic): text works.
+
+Files
+-----
+  launcher.bat         the tile: hands over to veraldar.ps1 (CRLF; no execution-policy prompt)
+  veraldar.ps1         the provisioner (both entry paths; ASCII, Windows PowerShell 5.1)
+  wsl-bootstrap.sh     inner logic inside WSL2
+  layman-bootstrap.sh  bundled copy of lab/layman-deploy/impl/layman-bootstrap.sh
+  ONE-PASTE.md         the one line + the two hard stops (BIOS virtualization, admin)
+  logs (after a run)   veraldar-ps.log, bootstrap.log, admin-step.log, last-error.txt
+  repo only:           veraldar.nsi (installer source), wine-check.sh + check-ps.ps1 (the
+                       Linux-side gate), REAL-WINDOWS-CHECKLIST.md, REMOTE-PROVE.md
+  repo only, legacy:   installer.nsi, win-bootstrap.sh, gen-lnk.py, veraldar-*.lnk - the first
+                       wine sim (10-30, ports 8155); NOT shipped, kept for the record
+
+Build the installer
+-------------------
+  win/wine-check.sh                 (build + 7z payload proof + wine install/uninstall + ps checks)
+  or just:  docker run --rm -v "$PWD":/src -w /src/win debian:stable-slim bash -c \
+            "apt-get update -qq && apt-get install -y --no-install-recommends nsis && makensis veraldar.nsi"
 
 Uninstall
 ---------
-Run %LOCALAPPDATA%\veraldar\uninstall.exe (removes shortcuts + this folder;
-the running stage services stay until reboot or `systemctl --user stop win-sim-*`
-on the sim box / Task Manager end-task on real Windows).
+%LOCALAPPDATA%\Veraldar\Uninstall.exe - removes files, tiles, keys; asks whether to also remove
+the "Veraldar" distro (the built stack + paired phones). Firewall rules (admin):
+  Remove-NetFirewallRule -Name Veraldar-TCP,Veraldar-UDP
+  Remove-NetFirewallHyperVRule -Name Veraldar-HV-TCP,Veraldar-HV-UDP
 
-Sim honesty (this build was proven under wine on Linux, not on real Windows)
------------------------------------------------------------------------------
-wine is not Windows: the shortcut .lnk files, shell-folder redirection and
-DOS-path semantics were all simulated inside a wine prefix. What a real
-Windows box adds (and this sim could not prove): real Explorer shell,
-real .lnk handling, Docker Desktop, Windows python. The exact real-box steps:
-
-1. Download VeraldarSetup.exe, double-click, Next (installs to %LOCALAPPDATA%\veraldar).
-2. Double-click the Desktop shortcut "Veraldar".
-3. With Docker Desktop: compose up -> QR appears on Desktop. Without:
-   install Python 3.12 from python.org (tick "Add to PATH"), plus the two
-   prebuilt binaries (yggdrasil, bifrost-net) — see the repo's lab/layman-deploy.
-4. Scan pair-qr.png with the phone (same Wi-Fi), tap Connect to bridge, talk.
+Honesty: what is proven where
+-----------------------------
+PROVEN on Linux (11-10): the installer builds, its payload, silent install/uninstall, tiles
+and keys under wine; launcher.bat parses under wine cmd; veraldar.ps1 parses, uses only
+PowerShell 5.1 syntax and its helpers pass (check-ps.ps1); the WSL inner path end-to-end in
+a FRESH ubuntu:24.04 container (no systemd/node/docker): apt -> node -> rust -> clone ->
+build -> stack up -> pair -> QR on both "Desktops" (incl. "OneDrive - Contoso\Desktop").
+NOT PROVEN (needs a real Windows 11 box - REMOTE-PROVE.md): wsl --install + the restart,
+UAC, the firewall cmdlets, wsl --import of the rootfs, mirrored networking, Explorer tiles,
+the browser hand-off, and a phone joining over Wi-Fi.

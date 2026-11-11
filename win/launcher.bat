@@ -1,49 +1,48 @@
 @echo off
-REM launcher.bat — the one double-click: bring up Veraldar, show the QR, open the join URL.
-REM Installed by win/veraldar.nsi into %LOCALAPPDATA%\Veraldar\.
-REM Inner logic (proven on Linux via the bash twin, artifacts/win-qr-sim2-report.md):
-REM   1. find WSL2 + a Linux user distro          -> else: tell the user to install it, exit 2
-REM   2. drive wsl-bootstrap.sh inside WSL2        -> stage up, pair minted, QR png written
-REM   3. the QR lands on the WINDOWS Desktop       -> the user scans it with their phone
-REM   4. open the same join URL in the default browser (desktop preview of the phone flow)
+REM launcher.bat - the Veraldar desktop tile. Installed by Veraldar-Setup.exe (veraldar.nsi)
+REM or by the one-paste line into %LOCALAPPDATA%\Veraldar\ (or the folder picked in Setup).
+REM
+REM All the logic lives in veraldar.ps1 (ONE provisioner for both entry paths): WSL2 +
+REM the Veraldar distro + build + root/trunk/app on 8195-8199 + the QR on the Desktop.
+REM This file only hands over, and keeps the window open when something stopped.
+REM
+REM Hardening for real boxes:
+REM  - no ( ) blocks: a ")" in the user folder name (C:\Users\Jo (Work)) breaks them
+REM  - veraldar.ps1 is read + run as a script block: no execution-policy prompt, no -File
+REM  - CRLF line endings (win\.gitattributes keeps them): cmd mis-parses LF-only labels
 setlocal EnableExtensions
+title Veraldar - keep this window open (closing it stops Veraldar)
+set "VERALDAR_LOCAL=%~dp0"
+set "VERALDAR_PS1=%~dp0veraldar.ps1"
 
-set "INSTD=%~dp0"
-set "BASE=8195"
-set "BOOTSH=%INSTD%wsl-bootstrap.sh"
-set "WSLBASE=%INSTD%wsl"
-set "QRDIR=%USERPROFILE%\Desktop"
-set "QRFILE=%QRDIR%\Veraldar-Pair-QR.png"
+set "PSEXE=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
+if not exist "%VERALDAR_PS1%" goto nofile
+if exist "%PSEXE%" goto run
+set "PSEXE=powershell.exe"
+where powershell.exe >nul 2>&1
+if errorlevel 1 goto nops
 
-echo [veraldar] starting: stage ports %BASE%-%BASE%+4, QR png %QRFILE%
+:run
+"%PSEXE%" -NoProfile -ExecutionPolicy Bypass -Command "& ([ScriptBlock]::Create([IO.File]::ReadAllText($env:VERALDAR_PS1)))"
+set "RC=%ERRORLEVEL%"
+if "%RC%"=="0" exit /b 0
+echo.
+echo [veraldar] Veraldar stopped - the lines above say what to do next.
+echo [veraldar] logs: %~dp0veraldar-ps.log and %~dp0bootstrap.log
+pause
+exit /b %RC%
 
-REM ---- 1. WSL2 present? (first-run gap, stated plainly, no silent death) ----
-wsl.exe --status >nul 2>&1
-if errorlevel 1 (
-  echo [veraldar] WSL2 is missing.
-  echo [veraldar] Install it once with:   wsl --install -d Ubuntu
-  echo [veraldar] then reboot and double-click this shortcut again.
-  timeout /t 15 >nul
-  exit /b 2
-)
+:nofile
+echo [veraldar] veraldar.ps1 is missing next to this launcher: %~dp0
+echo [veraldar] Reinstall: run Veraldar-Setup.exe again, or paste into PowerShell:
+echo [veraldar]   irm https://raw.githubusercontent.com/veraldar/bifrost/main/win/veraldar.ps1 ^| iex
+pause
+exit /b 3
 
-REM ---- 2. bootstrap inside WSL2; QR png written straight to the Windows Desktop ----
-REM (%USERPROFILE%\Desktop seen from WSL via the automounted C: drive; the bash
-REM script resolves it to the Linux-side path it can actually write.)
-wsl.exe -- bash -c "chmod +x '%WSLBASE:\=/%/wsl-bootstrap.sh' 2>/dev/null; '%WSLBASE:\=/%/wsl-bootstrap.sh' --qr-dir '%QRDIR:\=/%' --print-qr-file '%QRFILE:\=/%' --ports %BASE%"
-if errorlevel 1 (
-  echo [veraldar] bootstrap FAILED - see the log: %WSLBASE%\bootstrap.log
-  timeout /t 30 >nul
-  exit /b 1
-)
-
-REM ---- 3. the join URL: the payload the QR encodes (written by the bootstrap) ----
-set /p JOINURL=<"%WSLBASE%\join-url.txt"
-echo [veraldar] join URL: %JOINURL%
-
-REM ---- 4. open it (browser preview on the desktop; the phone scans the QR) ----
-start "" "%JOINURL%"
-
-echo [veraldar] UP. Scan the QR with your phone ^(same Wi-Fi^): %QRFILE%
-timeout /t 20 >nul
-exit /b 0
+:nops
+echo [veraldar] Windows PowerShell 5.1 was not found - it ships with every Windows 10/11:
+echo [veraldar]   %SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe
+echo [veraldar] Repair Windows: open Command Prompt as administrator, run  sfc /scannow
+echo [veraldar] then restart and double-click Veraldar again.
+pause
+exit /b 4

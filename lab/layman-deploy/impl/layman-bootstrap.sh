@@ -13,12 +13,20 @@
 # Usage:
 #   scripts/layman-bootstrap.sh [--stage|--fresh-install] [--qr-dir DIR] [--print-qr-file PATH] [--ports BASE]
 #
+#     --down           stop a running layman stage (either runner) and exit.
 #     --stage          run ON this box from this checkout (default): stage the already-built
 #                      pwa/.next + prebuilt binaries into a fresh dir, own ports, own state.
 #     --fresh-install  behave as on a FRESH Linux computer: clone the repo into $BIFROST_DIR
 #                      (default ~/bifrost), npm ci + next build, system deps via docker compose
 #                      (LiveKit/speaches path from deploy/), THEN stage + QR. Slow (~10+ min).
 #                      This is the path the report's "paste this" block shows a layman.
+#
+# Env overrides (all optional; unset = the behaviour above, byte-for-byte):
+#   LAYMAN_REPO_ROOT     --stage against THIS tree instead of the script's own checkout
+#                        (win/wsl-bootstrap.sh runs a bundled copy against its clone)
+#   LAYMAN_ADVERTISE_IP  the LAN IP the QR carries (Windows knows its real NIC; WSL may not)
+#   LAYMAN_RUNNER        auto (default) | systemd | plain — plain = setsid background
+#                        processes, logs+pids in $STAGE.run/ (WSL / containers: no user bus)
 #
 # Exit 0 = stack healthy + QR printed. Nonzero = the exact failing step is in the output.
 set -euo pipefail
@@ -27,9 +35,11 @@ MODE="stage"
 QR_DIR=""
 QR_FILE=""   # --print-qr-file: EXACT png path (win/launcher.bat grabs it deterministically)
 PORT_BASE="${LAYMAN_PORT_BASE:-8145}"
+DOWN=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --stage) MODE="stage" ;;
+    --down) DOWN=1 ;;
     --fresh-install) MODE="fresh" ;;
     --qr-dir) QR_DIR="${2:?}"; shift ;;
     --print-qr-file) QR_FILE="${2:?}"; shift ;;
@@ -42,6 +52,33 @@ done
 say()  { echo "[layman] $*"; }
 fail() { echo "[layman] FAIL: $*" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
+
+STAGE="${LAYMAN_STAGE_DIR:-/tmp/layman-qr}"
+RUN_DIR="$STAGE.run"   # plain runner: <name>.pid + <name>.log (outside $STAGE — it is wiped on up)
+UNITS=(layman-mock layman-root layman-app layman-trunk)
+RUNNER="${LAYMAN_RUNNER:-auto}"
+if [[ "$RUNNER" == auto ]]; then
+  if have systemd-run && systemctl --user show-environment >/dev/null 2>&1; then RUNNER=systemd; else RUNNER=plain; fi
+fi
+plain_up() { # name workdir [K=V…] -- cmd…   (own session: the whole tree dies on one kill)
+  local name="$1" wd="$2"; shift 2; local envs=()
+  while [[ "$1" != -- ]]; do envs+=("$1"); shift; done; shift
+  mkdir -p "$RUN_DIR"
+  ( cd "$wd" && exec setsid env "${envs[@]}" "$@" ) >"$RUN_DIR/$name.log" 2>&1 </dev/null &
+  echo $! > "$RUN_DIR/$name.pid"
+}
+stage_down() { # only layman-* names — never live units
+  local u pid
+  for u in "${UNITS[@]}"; do
+    systemctl --user stop "$u" 2>/dev/null || true
+    systemctl --user reset-failed "$u" 2>/dev/null || true
+    [[ -f "$RUN_DIR/$u.pid" ]] || continue
+    pid="$(cat "$RUN_DIR/$u.pid")"
+    kill -TERM -- "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true
+    rm -f "$RUN_DIR/$u.pid"
+  done
+}
+if (( DOWN )); then stage_down; say "stage down (${UNITS[*]})"; exit 0; fi
 
 if [[ "$MODE" == "fresh" ]]; then
   # ---------- the FRESH-BOX path: what a layman actually pastes ----------
@@ -66,7 +103,7 @@ if [[ "$MODE" == "fresh" ]]; then
 else
   # ---------- the STAGE path (this box): reuse MAIN's built artifacts ----------
   # repo root = the script lives at <root>/lab/layman-deploy/impl/
-  ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+  ROOT="${LAYMAN_REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
   cd "$ROOT"
   [[ -f pwa/.next/BUILD_ID ]] || fail "pwa/.next/BUILD_ID missing — build first: cd pwa && npm run build"
 fi
@@ -77,11 +114,11 @@ YGG_PORT=$((PORT_BASE + 1))    # root: the brain
 MOCK_PORT=$((PORT_BASE + 2))   # mock provider behind the brain (on-network self-contained)
 BRIDGE_HTTP=$((PORT_BASE + 3)) # trunk: bifrost-net bridge signaling (POST /offer)
 BRIDGE_MEDIA=$((PORT_BASE + 4)) # trunk: bridge media UDP
-STAGE="${LAYMAN_STAGE_DIR:-/tmp/layman-qr}"
-IP="$(ip -4 route get 1.1.1.1 2>/dev/null | grep -o 'src [0-9.]*' | awk '{print $2}' | head -1 || true)"
+IP="${LAYMAN_ADVERTISE_IP:-}"
+[[ -n "$IP" ]] || IP="$(ip -4 route get 1.1.1.1 2>/dev/null | grep -o 'src [0-9.]*' | awk '{print $2}' | head -1 || true)"
 IP="${IP:-127.0.0.1}"
 
-say "stage dir: $STAGE · ports app:$PWA_PORT root:$YGG_PORT mock:$MOCK_PORT bridge:$BRIDGE_HTTP/$BRIDGE_MEDIA · LAN IP $IP"
+say "runner: $RUNNER · stage dir: $STAGE · ports app:$PWA_PORT root:$YGG_PORT mock:$MOCK_PORT bridge:$BRIDGE_HTTP/$BRIDGE_MEDIA · LAN IP $IP"
 
 # prebuilt pieces (staged, never rebuilt here):
 YGG_BIN="${YGG_BIN:-$PWD/lab/yggdrasil/target/release/yggdrasil}"
@@ -113,12 +150,10 @@ EOF
 printf '%s' "$ADMIN_TOKEN" > "$STAGE/state/admin-token" && chmod 600 "$STAGE/state/admin-token"
 
 # ---------- down any previous stage (only layman-* units — never live names) ----------
-for u in layman-mock layman-root layman-app layman-trunk; do
-  systemctl --user stop "$u" 2>/dev/null || true
-  systemctl --user reset-failed "$u" 2>/dev/null || true
-done
+stage_down
 
 # ---------- up: mock provider → root (brain) → app (PWA) → trunk (bridge) ----------
+if [[ "$RUNNER" == systemd ]]; then
 systemd-run --user -q --unit=layman-mock --collect -p Restart=on-failure \
   python3 "$MOCK_PY" "$MOCK_PORT"
 
@@ -132,16 +167,30 @@ systemd-run --user -q --unit=layman-root -p Type=exec -p Restart=on-failure -p R
   -E YGG_LISTEN="127.0.0.1:$YGG_PORT" -E YGG_DATA_DIR="$STAGE/ygg" -E YGG_PROJECT_DIR="$STAGE/proj" \
   -E YGG_MAX_TOKENS=16384 -E YGG_VOICE=1 -E YGG_VOICE_MAX_WORDS=60 \
   "$YGG_BIN"
+else # plain: same commands + env, no unit sandboxing (WSL/container stage)
+  plain_up layman-mock "$STAGE" -- python3 "$MOCK_PY" "$MOCK_PORT"
+  ( umask 0077; plain_up layman-root "$STAGE/proj" \
+    YGG_UPSTREAM_BASE_URL="http://127.0.0.1:$MOCK_PORT" YGG_UPSTREAM_STYLE=anthropic \
+    YGG_UPSTREAM_API_KEY=layman-key YGG_UPSTREAM_MODEL=mock \
+    YGG_LISTEN="127.0.0.1:$YGG_PORT" YGG_DATA_DIR="$STAGE/ygg" YGG_PROJECT_DIR="$STAGE/proj" \
+    YGG_MAX_TOKENS=16384 YGG_VOICE=1 YGG_VOICE_MAX_WORDS=60 -- "$YGG_BIN" )
+fi
 
 # ON-NETWORK: the phone joins over the LAN, so app + trunk bind 0.0.0.0 (the
 # QR points at $IP). Gates: /api/* behind BIFROST_AUTH=devices; the trunk's
 # signaling accepts ONLY a minted Bearer token (401 fail-closed — verified
 # in the e2e below); the brain + mock stay loopback-only.
+if [[ "$RUNNER" == systemd ]]; then
 systemd-run --user -q --unit=layman-app -p Restart=on-failure -p RestartSec=5 \
   -p WorkingDirectory="$STAGE/pwa" \
   -E PORT="$PWA_PORT" -E HOST=0.0.0.0 -E OPENCODE_URL="http://127.0.0.1:$YGG_PORT" \
   -E NODE_ENV=production \
   node node_modules/next/dist/bin/next start -p "$PWA_PORT" -H 0.0.0.0
+else
+  plain_up layman-app "$STAGE/pwa" PORT="$PWA_PORT" HOST=0.0.0.0 \
+    OPENCODE_URL="http://127.0.0.1:$YGG_PORT" NODE_ENV=production \
+    -- node node_modules/next/dist/bin/next start -p "$PWA_PORT" -H 0.0.0.0
+fi
 
 # trunk: bifrost-net bridge. Keypair minted once, kept in the stage state (idempotent).
 [[ -f "$STAGE/state/node.key" ]] || "$BRIDGE_BIN" keygen > "$STAGE/state/node.key"
@@ -159,15 +208,21 @@ opencode_url = "http://127.0.0.1:$YGG_PORT"
 speaches_url = "${SPEACHES_URL:-http://127.0.0.1:8000/v1}"
 candidates = ["127.0.0.1", "$IP"]
 EOF
+if [[ "$RUNNER" == systemd ]]; then
 systemd-run --user -q --unit=layman-trunk -p Restart=on-failure -p RestartSec=2 \
   -E SPEACHES_URL="${SPEACHES_URL:-http://127.0.0.1:8000/v1}" \
   "$BRIDGE_BIN" bridge -c "$STAGE/state/bridge.toml"
+else
+  plain_up layman-trunk "$STAGE" SPEACHES_URL="${SPEACHES_URL:-http://127.0.0.1:8000/v1}" \
+    -- "$BRIDGE_BIN" bridge -c "$STAGE/state/bridge.toml"
+fi
 
 wait_http() { # url secs label
   for _ in $(seq $(( $2 * 4 ))); do
     curl -sf -o /dev/null "$1" 2>/dev/null && return 0
     sleep 0.25
   done
+  if [[ "$RUNNER" == plain ]]; then fail "$3 did not answer: $1 (logs: $RUN_DIR/layman-*.log)"; fi
   fail "$3 did not answer: $1 (journalctl --user -u layman-* -n 50)"
 }
 wait_http "http://127.0.0.1:$MOCK_PORT/calls" 15 "mock provider"
@@ -225,5 +280,9 @@ say "  trunk  http://$IP:$BRIDGE_HTTP (the bridge; phone joins with the token)"
 say "  token  $TOKEN   (ALSO inside the QR — shown once)"
 say "  QR payload file: $QR_TXT  · png: $QR_PNG"
 say "  scan the QR with any camera app → opens /bridge pre-filled → tap Connect → talk."
+if [[ "$RUNNER" == plain ]]; then
+  say "  teardown: bash $0 --down   (logs: $RUN_DIR/)"
+else
 say "  teardown: systemctl --user stop layman-mock layman-root layman-app layman-trunk"
+fi
 say "-------------------------------------------------------------"

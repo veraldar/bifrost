@@ -96,3 +96,5 @@ roots, trunk (bifrost), branches, wells (mimir/urd/hvergelmir).
 Structure canon (10-30): `docs/CONSTRUCT.md` — veraldar = the org;
 yggdrasil = the tree; root = the brain; trunk = the private line
 (tailscale → webrtc → wireguard); branch = the end-user app (bifrost).
+
+- SEND-WILL law (11-11): every coordinator POST to a brain session goes through scripts/send-lane.sh (detached worker, 5 retries, msg_ ack to /tmp/acks/, client-side req-id dedupe). Never curl a session POST inline with the 15s bash cap; the watcher flags SEND-LOST and re-sends once.

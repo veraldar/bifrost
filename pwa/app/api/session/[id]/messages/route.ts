@@ -18,6 +18,7 @@ type SendBody = {
   text?: string;
   images?: string[];
   files?: { name: string; content: string }[];
+  async?: boolean;
 };
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -133,7 +134,29 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     ensureWatchdog(); // global-guarded across module graphs (oc-watchdog)
     const { id } = await ctx.params;
     const sid = await resolveId(id);
-    const body = await req.json();
+    // read + parse separately: a JSON.parse failure here means the body was
+    // corrupted IN TRANSIT (live 11-11: the phone's front bytes were lost on
+    // the degraded tailscale-serve h2 hop — server received a suffix of the
+    // data-url payload, V8 said "Unexpected non-whitespace character after
+    // JSON at position 1"). req.json() gives no forensic handle; text() does.
+    const raw = await req.text();
+    let body: SendBody;
+    try {
+      body = JSON.parse(raw) as SendBody;
+    } catch (e) {
+      // content-length vs received bytes + first chars pinpoint the cut
+      // offset for the infra report (serve/radio dropping body prefixes)
+      console.error(
+        `[messages] body corrupted in transit ${id}: content-length=${req.headers.get('content-length') || '?'} received=${raw.length} head=${JSON.stringify(raw.slice(0, 24))} · ${e}`
+      );
+      return NextResponse.json(
+        {
+          error:
+            'the upload was cut up by the connection — parts of it never arrived. Send again; if it keeps failing, toggle airplane mode once (it forces a fresh connection) and retry',
+        },
+        { status: 400 }
+      );
+    }
     const async = body.async === true;
     const parts = buildParts(body);
     if (!parts.length) return NextResponse.json({ error: 'empty' }, { status: 400 });

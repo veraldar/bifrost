@@ -1800,15 +1800,17 @@ export default function SessionView({
     const files = attachments
       .filter((a): a is Extract<Attach, { kind: 'file' }> => a.kind === 'file')
       .map((a) => ({ name: a.name, content: a.content }));
+    const atts = attachments;
     setAttachments([]);
     stickRef.current = true;
-    void sendTextAsync(text, images, files);
+    void sendTextAsync(text, images, files, atts);
   }
 
   async function sendTextAsync(
     text: string,
     images: string[],
-    files: { name: string; content: string }[]
+    files: { name: string; content: string }[],
+    atts: Attach[] = []
   ) {
     markAsked(slug);
     void ensureNotifyPermission();
@@ -1838,6 +1840,8 @@ export default function SessionView({
         const d = await r.json().catch(() => ({}));
         setError(d.error || `send failed (${r.status})`);
         setInput((prev) => (prev.trim() ? prev : text)); // draft back, no clobber
+        setAttachments(atts); // attachments back too (live 11-11: a corrupted
+        // upload used to destroy the picked images — re-attaching by hand ×3)
         setBusy(false);
       } else if (!willQueue) {
         addEcho(text, images); // queued sends come back via the poll instead
@@ -1846,6 +1850,7 @@ export default function SessionView({
     } catch {
       setError('send failed');
       setInput((prev) => (prev.trim() ? prev : text)); // draft back, no clobber
+      setAttachments(atts); // same as the !r.ok path
       setBusy(false);
     }
   }

@@ -56,7 +56,7 @@ use std::{
 
 use axum::{
     Json, Router,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::{HeaderMap, StatusCode, header},
     response::{
         IntoResponse, Response,
@@ -476,6 +476,11 @@ struct PostMessage {
     /// speaking) is kept. QUIET-ASSESS law: such a turn's reply is stamped autoReply.
     #[serde(default)]
     meta: Option<Value>,
+    /// silent-verdicts law: an internal turn (station/watcher traffic) is stored and
+    /// reaches the agent context, but the owner-facing transcript omits it.
+    /// Also accepted as `meta.internal` or `internal:true` on any part.
+    #[serde(default)]
+    internal: bool,
 }
 
 fn now_ms() -> u64 {
@@ -687,9 +692,24 @@ async fn session_status(State(st): State<AppState>) -> Json<Value> {
     Json(Value::Object(running.keys().map(|k| (k.clone(), json!({ "type": "busy" }))).collect()))
 }
 
-async fn list_messages(State(st): State<AppState>, Path(id): Path<String>) -> Response {
+/// Internal-flagged turn (silent-verdicts law): agent-visible, owner-hidden.
+fn is_internal(m: &Value) -> bool {
+    m["info"]["meta"]["internal"] == true
+}
+
+fn transcript(messages: &[Value], with_internal: bool) -> Vec<Value> {
+    messages.iter().filter(|m| with_internal || !is_internal(m)).cloned().collect()
+}
+
+/// Owner-facing transcript: internal turns are dropped unless `?internal=1` (debug/e2e).
+async fn list_messages(
+    State(st): State<AppState>,
+    Path(id): Path<String>,
+    Query(q): Query<HashMap<String, String>>,
+) -> Response {
+    let with_internal = q.get("internal").is_some_and(|v| v == "1" || v == "true");
     match st.sessions.lock().unwrap().get(&id) {
-        Some(s) => Json(Value::Array(s.messages.clone())).into_response(),
+        Some(s) => Json(Value::Array(transcript(&s.messages, with_internal))).into_response(),
         None => not_found(&id),
     }
 }
@@ -780,6 +800,9 @@ async fn post_message(
 ) -> Response {
     let modality = body.modality.clone();
     let auto_turn = body.meta.as_ref().is_some_and(|m| m["auto"] == true);
+    let internal = body.internal
+        || body.meta.as_ref().is_some_and(|m| m["internal"] == true)
+        || body.parts.iter().any(|p| p["internal"] == true);
     // Text parts go upstream; file parts (data: URLs) are stored so the transcript keeps them.
     let parts: Vec<Value> = body
         .parts
@@ -796,6 +819,11 @@ async fn post_message(
 
     // The user message lands at once (a stacked prompt is visible while it waits its turn).
     let mut user_msg = make_message(&id, "user", parts);
+    if internal {
+        for p in user_msg["parts"].as_array_mut().unwrap() {
+            p["internal"] = json!(true);
+        }
+    }
     if modality.as_deref() == Some("voice") {
         // stored on the message: the note renders from history on EVERY later
         // turn too, so the cached prefix never changes (see VOICE_TURN_NOTE)
@@ -803,6 +831,9 @@ async fn post_message(
     }
     if auto_turn {
         user_msg["info"]["meta"] = json!({ "auto": true });
+    }
+    if internal {
+        user_msg["info"]["meta"]["internal"] = json!(true);
     }
     let stored = with_session(&st, &id, |s| {
         // Freeze the meanwhile lines at creation (same moment as `created`).
@@ -822,7 +853,9 @@ async fn post_message(
     if stored.is_none() {
         return not_found(&id);
     }
-    publish(&st, "message.updated", json!({ "info": user_msg["info"] }));
+    if !internal {
+        publish(&st, "message.updated", json!({ "info": user_msg["info"] }));
+    }
 
     let enqueued = std::time::Instant::now(); // LAT queue_ms: enqueue → run slot
     let gate = st.run_locks.lock().unwrap().entry(id.clone()).or_default().clone();
@@ -2298,6 +2331,27 @@ mod voice_turn_tests {
         assert!(is_auto_turn(&[auto.clone(), reply.clone()]));
         assert!(!is_auto_turn(&[auto, reply.clone(), plain]));
         assert!(!is_auto_turn(&[reply]));
+    }
+
+    #[test]
+    fn internal_turn_in_agent_context_not_in_transcript() {
+        let mut internal = make_message("s", "user", vec![text_part("AUTO-VERDICT lane x landed")]);
+        internal["info"]["meta"] = json!({ "internal": true });
+        internal["parts"][0]["internal"] = json!(true);
+        let reply = make_message("s", "assistant", vec![text_part("noted")]);
+        let plain = make_message("s", "user", vec![text_part("hi")]);
+        let all = vec![internal, reply, plain];
+        // stored form keeps the flag (persisted JSON round-trip)
+        let rt: Vec<Value> = serde_json::from_str(&serde_json::to_string(&all).unwrap()).unwrap();
+        assert!(is_internal(&rt[0]) && rt[0]["parts"][0]["internal"] == true);
+        // agent context includes it
+        let ctx = serde_json::to_string(&upstream_history(&rt)).unwrap();
+        assert!(ctx.contains("AUTO-VERDICT lane x landed"), "{ctx}");
+        // owner transcript omits it; normal turns stay
+        let t = transcript(&rt, false);
+        assert_eq!(t.len(), 2);
+        assert!(t.iter().all(|m| !is_internal(m)));
+        assert_eq!(transcript(&rt, true).len(), 3);
     }
 
     #[test]

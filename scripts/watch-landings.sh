@@ -106,7 +106,7 @@ post_lane_line() { # $1 = full text; returns 0 when delivered (2xx), already del
   session_busy "$sid" && return 1                # MAIN mid-turn: keep pending, retry next poll
   python3 - "$text" "$MARKER" <<'PY' > "$WAKE_JSON"
 import json, sys
-print(json.dumps({"parts": [{"type": "text", "text": sys.argv[2] + sys.argv[1]}], "meta": {"auto": True}}))
+print(json.dumps({"parts": [{"type": "text", "text": sys.argv[2] + sys.argv[1]}], "meta": {"auto": True, "internal": True}, "internal": True}))
 PY
   [ "$(grep -o 'AUTO-VERDICT REQUEST:' "$WAKE_JSON" | wc -l)" = 1 ] || return 1
   code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BRAIN_URL/session/$sid/message" \

@@ -1,5 +1,11 @@
 # Bifrost — talk to your coding agent from your phone
 
+> **This repository is now [veraldar/yggdrasil](https://github.com/veraldar/yggdrasil)** — renamed from
+> `veraldar/bifrost`; every old link and clone URL redirects. Veraldar is the organization;
+> **yggdrasil** is its tree: a **root** (the brain — `lab/yggdrasil`), a **trunk** (the private line —
+> `agent/` + `deploy/`, Tailscale today), and a **branch** (the phone app — `pwa/`). **bifrost is the
+> first branch.** The install below still works as written.
+
 A voice-controlled opencode: speak or type on your phone (PWA), a LiveKit
 voice agent bridges your words to a local [opencode](https://github.com/anomalyco/opencode)
 server, and you get the answer back as text **and speech** — with markdown,

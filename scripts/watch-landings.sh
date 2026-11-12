@@ -275,6 +275,66 @@ PY
     esac
   done
 }
+# ---------- PENDING BRAIN SWAP ----------
+# The ONLY way a live brain binary gets deployed. /tmp/brain-swap.pending = JSON {unit, binary, sha}.
+# Applied at the first poll where MAIN is not busy AND no agi-lane-* unit is running: sha256 verify
+# (mismatch = SWAP-SHA-BAD, pending kept), sed the unit's frozen.conf ExecStart path, daemon-reload,
+# restart, verify exe basename + active -> SWAP-DONE <name> and the pending file is removed. Any
+# failure = SWAP-FAIL / SWAP-SHA-BAD row, pending kept; after 3 tries one SWAP-ESCALATE row, then quiet.
+# Env (tests): SWAP_PENDING · SWAP_LANE_GLOB (default 'agi-lane-*') · SWAP_UNIT_DIR.
+SWAP_PENDING="${SWAP_PENDING:-/tmp/brain-swap.pending}"
+SWAP_LANE_GLOB="${SWAP_LANE_GLOB:-agi-lane-*}"
+SWAP_UNIT_DIR="${SWAP_UNIT_DIR:-$HOME/.config/systemd/user}"
+swap_row() { printf '%s\t%s\t%s\n' "$(date -Iseconds)" "$1" "$2" >>"$STATUS_FILE"; }
+swap_scan() {
+  [ -f "$SWAP_PENDING" ] || return 0
+  local unit bin sha tries key n main lanes pid name why conf
+  { read -r unit; read -r bin; read -r sha; } < <(python3 -c '
+import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+    print(d["unit"]); print(d["binary"]); print(d["sha"])
+except Exception:
+    sys.exit(1)' "$SWAP_PENDING" 2>/dev/null)
+  if [ -z "$unit" ] || [ -z "$bin" ] || [ -z "$sha" ]; then
+    swap_row "SWAP-FAIL ?" "pending file unreadable: $SWAP_PENDING"; return 0
+  fi
+  tries="$SWAP_PENDING.tries"; key="$unit $bin $sha"
+  n=0; [ "$(head -n1 "$tries" 2>/dev/null)" = "$key" ] && n=$(sed -n 2p "$tries")
+  [ "${n:-0}" -ge 3 ] && return 0                      # exhausted + already escalated
+  lanes=$(systemctl --user list-units "$SWAP_LANE_GLOB" --state=running --no-legend 2>/dev/null | wc -l)
+  [ "$lanes" -gt 0 ] && return 0
+  main=$(resolve_main); [ -n "$main" ] && session_busy "$main" && return 0
+  name=$(basename "$bin")
+  swap_fail() { # $1 = TAG, $2 = why
+    n=$((n + 1)); printf '%s\n%s\n' "$key" "$n" >"$tries"
+    swap_row "$1 $name" "unit=$unit try=$n/3 $2"
+    [ "$n" -ge 3 ] && swap_row "SWAP-ESCALATE $name" "unit=$unit 3 failed tries, pending kept, owner needed"
+    return 0
+  }
+  [ -f "$bin" ] || { swap_fail SWAP-FAIL "binary missing: $bin"; return 0; }
+  [ "$(sha256sum "$bin" | cut -d' ' -f1)" = "$sha" ] || { swap_fail SWAP-SHA-BAD "expected $sha"; return 0; }
+  conf="$SWAP_UNIT_DIR/$unit.service.d/frozen.conf"
+  [ -f "$conf" ] || { swap_fail SWAP-FAIL "no $conf"; return 0; }
+  cp -p "$conf" "$conf.pre-swap.bak"
+  sed -i "s|^ExecStart=[^[:space:]][^[:space:]]*|ExecStart=$bin|" "$conf"
+  if systemctl --user daemon-reload && systemctl --user restart "$unit"; then
+    sleep 3
+    pid=$(systemctl --user show "$unit" -p MainPID --value)
+    if [ "$(systemctl --user is-active "$unit")" = active ] && [ "${pid:-0}" -gt 0 ] \
+       && [ "$(basename "$(readlink "/proc/$pid/exe")")" = "$name" ]; then
+      rm -f "$SWAP_PENDING" "$tries"
+      swap_row "SWAP-DONE $name" "unit=$unit sha=${sha:0:12} pid=$pid"
+      return 0
+    fi
+    why="restarted but not active on $name"
+  else
+    why="daemon-reload/restart failed"
+  fi
+  cp -p "$conf.pre-swap.bak" "$conf"; systemctl --user daemon-reload   # roll the conf back; pending stays
+  swap_fail SWAP-FAIL "$why"
+}
+
 if [ "${SEND_SCAN:-1}" = 1 ]; then
   ( while true; do sleep "$SEND_SCAN_SECS"; send_will_scan; done ) &
   trap 'kill $! 2>/dev/null' EXIT
@@ -284,6 +344,7 @@ while true; do
   sleep "$POLL_SECS"
   flush_pending
   will_scan
+  swap_scan
   NOWN=$(wc -l <"$STATUS_FILE" 2>/dev/null || echo 0)
   if [ "$NOWN" -gt "$LASTN" ]; then
     while IFS= read -r _row; do followup_row "$_row"; done < <(tail -n +"$((LASTN + 1))" "$STATUS_FILE" | head -20)

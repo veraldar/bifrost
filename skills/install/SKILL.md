@@ -39,7 +39,7 @@ This is the #1 macOS trap — check for it BEFORE the bootstrap:
 
 - Run LiveKit **natively**: `brew install livekit`, then a launchd unit
   (`~/Library/LaunchAgents/com.opencode.livekit.plist`) running
-  `livekit-server --config deploy/livekit.yaml`, KeepAlive+RunAtLoad. Keep
+  `livekit-server --config trunk/deploy/livekit.yaml`, KeepAlive+RunAtLoad. Keep
   speaches in Docker (it's TCP-only). Stop/skip the livekit compose service.
 - `rtc.ips.includes` in livekit.yaml must list the Mac's **tailscale IP**
   (e.g. `100.x.y.z/32`) — that's what phones dial.
@@ -52,8 +52,8 @@ This is the #1 macOS trap — check for it BEFORE the bootstrap:
 bash scripts/bootstrap.sh
 ```
 
-It mints all secrets, writes `deploy/.env`, `deploy/livekit.yaml` (ICE pinned
-to the detected IP), `trunk/.env`, `branch/.env.local` (VAPID keys included),
+It mints all secrets, writes `trunk/deploy/.env`, `trunk/deploy/livekit.yaml` (ICE pinned
+to the detected IP), `branch/voice/.env`, `branch/.env.local` (VAPID keys included),
 starts opencode/LiveKit/speaches/agent/PWA, and prints a verdict line
 (`READY` / `PARTIAL`) with an ok/skip/FAIL list. Idempotent — safe to re-run.
 
@@ -86,7 +86,7 @@ still be completely dead. If tailscale is on, ALSO check:
 2. `branch/.env.local` `LIVEKIT_URL` must be
    `wss://<host>.ts.net/livekit` — **never** `ws://127.0.0.1:7880` (the phone
    would dial itself; and plain ws:// from an HTTPS page is blocked anyway).
-   `trunk/.env` keeps the loopback URL — only the PWA needs the public one.
+   `branch/voice/.env` keeps the loopback URL — only the PWA needs the public one.
 3. Mint a token and check what the phone will receive:
    `curl -s -X POST http://127.0.0.1:8080/api/token -H 'Content-Type: application/json' -d '{"room":"canary"}'`
    → `serverUrl` must NOT contain `127.0.0.1`.
@@ -113,7 +113,7 @@ picker at `/theme` — nothing external to install.
 | PTT: "connecting…" never completes (signal OK, then silence) | LiveKit in Docker on macOS — UDP media range dies in the VM | §1a: native LiveKit + launchd |
 | PTT error `Unexpected end of JSON input` | `/api/token` 500 with empty body | check `branch/app/api/token/route.ts` prod guard is gone; route must return JSON errors |
 | Token returns `"serverUrl": "ws://127.0.0.1:7880"` | re-install minted env with loopback; serve mount missing | §3a steps 1–2 |
-| Audio sent, no message lands in chat, agent log shows `('user','')` empty turn | STT backend 404s (speaches registry has no whisper STT) → empty transcript, bridge skips | point `trunk/.env` SPEACHES_URL/STT_MODEL at a working backend (macOS: `deploy/mlx_wrapper.py`, Qwen3-ASR); verify via §3a step 7 |
+| Audio sent, no message lands in chat, agent log shows `('user','')` empty turn | STT backend 404s (speaches registry has no whisper STT) → empty transcript, bridge skips | point `branch/voice/.env` SPEACHES_URL/STT_MODEL at a working backend (macOS: `trunk/deploy/mlx_wrapper.py`, Qwen3-ASR); verify via §3a step 7 |
 | "get to speak" stuck at `synthesizing…` | `branch/.env.local` missing `SPEACHES_URL`/`TTS_MODEL` — deck's /api/tts hangs | add the TTS block to branch/.env.local, restart PWA |
 | Speech service down after reboot | service run via nohup/screen instead of a supervisor | every long-running piece under launchd (macOS) / systemd (Linux) |
 

@@ -51,7 +51,7 @@ if [[ "$MODE" == "fresh" ]]; then
     git clone --depth 1 https://github.com/veraldar/bifrost.git "$BIFROST_DIR"
   fi
   cd "$BIFROST_DIR"
-  # system deps: docker compose carries LiveKit + speaches (deploy/docker-compose.yml).
+  # system deps: docker compose carries LiveKit + speaches (trunk/deploy/docker-compose.yml).
   if ! have docker; then
     say "installing docker (official convenience script)"
     curl -fsSL https://get.docker.com | sh
@@ -83,10 +83,10 @@ say "stage dir: $STAGE · ports app:$PWA_PORT root:$YGG_PORT mock:$MOCK_PORT bri
 
 # prebuilt pieces (staged, never rebuilt here):
 YGG_BIN="${YGG_BIN:-$PWD/lab/yggdrasil/target/release/yggdrasil}"
-BRIDGE_BIN="${BRIDGE_BIN:-$PWD/lab/bifrost-net/target/release/bifrost-net}"
+BRIDGE_BIN="${BRIDGE_BIN:-$PWD/trunk/target/release/bifrost-net}"
 MOCK_PY="${MOCK_PY:-$PWD/lab/yggdrasil/mock/mock_upstream.py}"
 [[ -x "$YGG_BIN" ]]    || fail "brain binary missing: $YGG_BIN (lab/yggdrasil — cargo build --release)"
-[[ -x "$BRIDGE_BIN" ]] || fail "trunk binary missing: $BRIDGE_BIN (lab/bifrost-net — cargo build --release)"
+[[ -x "$BRIDGE_BIN" ]] || fail "trunk binary missing: $BRIDGE_BIN (trunk — cargo build --release)"
 [[ -f "$MOCK_PY" ]]    || fail "mock upstream missing: $MOCK_PY"
 
 rm -rf "$STAGE"; mkdir -p "$STAGE"/{pwa,state,proj,ygg}

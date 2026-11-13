@@ -61,7 +61,9 @@ lab/tool-policy/upstream.key
 lab/tool-policy/runs/
 # the tree's build outputs (root · trunk · branch)
 root/target/
-trunk/.venv/
+branch/voice/.venv/
+trunk/target/
+branch/voice/__pycache__/
 branch/.next/
 branch/.next.*/
 branch/node_modules/

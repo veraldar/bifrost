@@ -5,7 +5,7 @@ Fake yggdrasil: POST /session mints a session; POST /session/:id/message
 streams 3 sentences over ~5s as SSE deltas. OpenCodeLLM.ask_stream must
 yield the FIRST sentence <1.5s after start, all 3 in order, and flush the
 tail. Also proves the error path raises only before first yield.
-Run: uv run python trunk/scripts/stream-replay.py  →  PASS/FAIL
+Run: uv run python branch/voice/scripts/stream-replay.py  →  PASS/FAIL
 """
 import asyncio, json, re, sys, time, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))

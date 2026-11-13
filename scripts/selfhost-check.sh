@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Self-host smoke: proves the PWA part of the quickstart works from zero on
 # any clean box (or in a container/VM): clone → npm ci → build → boot → probe.
-# LiveKit/agent/opencode are covered by README steps + deploy/docker-compose.yml;
+# LiveKit/agent/opencode are covered by README steps + trunk/deploy/docker-compose.yml;
 # this script is the one-command "is my box able to run bifrost's PWA" check.
 # Usage: scripts/selfhost-check.sh [repo-url] [port]
 set -euo pipefail

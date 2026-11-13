@@ -2,7 +2,7 @@
 
 1. mint a token via the served PWA route (what the phone calls)
 2. join the room via the phone-facing wss URL (e.g. `.../livekit` through
-   `tailscale serve` — falls back to the LIVEKIT_URL of trunk/.env)
+   `tailscale serve` — falls back to the LIVEKIT_URL of branch/voice/.env)
 3. wait for the voice agent to appear in the room
 
 The 2026-10-01 incident: the phone's signal websocket connected but the
@@ -38,8 +38,8 @@ def http_json(url, method="GET", body=None, timeout=15):
         return json.loads(r.read().decode())
 
 
-def load_env(path="trunk/.env"):
-    # tiny parser: trunk/.env holds LIVEKIT_URL etc. (no quoting needs so far)
+def load_env(path="branch/voice/.env"):
+    # tiny parser: branch/voice/.env holds LIVEKIT_URL etc. (no quoting needs so far)
     d = {}
     try:
         with open(path) as f:

@@ -37,7 +37,7 @@ do_version() {
     local built; built="$(cat "$SANDBOX/branch/.next/BUILD_ID" 2>/dev/null)"
     echo "  :8090 serves build ${sb:-?} · built tree ${built:-none}$([ -n "$sb" ] && [ "$sb" != "$built" ] && echo '  ← MISMATCH: restart bifrost-sandbox (or rebuild)')"
     local dirty; dirty="$(git -C "$SANDBOX" status --porcelain pwa agent 2>/dev/null | wc -l)"
-    [ "$dirty" -gt 0 ] && echo "  sandbox tree has $dirty uncommitted branch/trunk path(s)"
+    [ "$dirty" -gt 0 ] && echo "  sandbox tree has $dirty uncommitted branch/ path(s)"
   fi
   # the TWO-ROOTS LAW (10-28): :443 and :8443 always serve different builds
   [ -x "$(dirname "$0")/two-roots.sh" ] && echo "  $("$(dirname "$0")/two-roots.sh" check 2>&1)"

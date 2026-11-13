@@ -52,7 +52,7 @@ clone() {  # $1 = release id -> $NEXT/$1 (idempotent)
     for f in "${STATE_LINKS[@]}"; do ln -sfn "$SANDBOX/$f" "$c.tmp/branch/$f"; done
     ln -sfn "$SANDBOX/.env.local" "$c.tmp/branch/.env.local"
     rm -rf "$c.tmp/env"   # the live env never travels into the next slot
-    (cd "$c.tmp/trunk" && rm -rf .venv && "$UV" sync --frozen -q) || die "agent venv sync failed"
+    (cd "$c.tmp/branch/voice" && rm -rf .venv && "$UV" sync --frozen -q) || die "agent venv sync failed"
     mv "$c.tmp" "$c"
   fi
   [[ "$(cat "$c/branch/.next/BUILD_ID")" == "$(build_id "$id")" ]] || die "clone BUILD_ID differs from the release"
@@ -97,7 +97,7 @@ case "$cmd" in
     # the agent: the clone's code, the next slot's env (lk-agent-ygg's), its own name + health port
     mapfile -t aenv < <(systemctl --user show lk-agent-ygg -p Environment --value | tr ' ' '\n' \
       | grep -E '^(LIVEKIT_URL|LIVEKIT_API_KEY|LIVEKIT_API_SECRET|SPEACHES_URL|STT_MODEL|TTS_MODEL|TTS_VOICE|VOICE_MODEL|AGENT_STREAM_TTS)=' | sed 's/^/--setenv=/')
-    systemd-run --user --quiet --unit=rc-agent --collect --working-directory="$c/trunk" \
+    systemd-run --user --quiet --unit=rc-agent --collect --working-directory="$c/branch/voice" \
       "${aenv[@]}" --setenv=OPENCODE_URL=http://127.0.0.1:4100 --setenv=AGENT_NAME=bifrost-rc \
       --setenv=AGENT_HTTP_PORT=$((port + 10000)) --setenv=UV_FROZEN=1 \
       "$UV" run agent.py start
@@ -123,10 +123,10 @@ case "$cmd" in
 WorkingDirectory=%h/.local/share/bifrost/next/current/branch
 EOF
     cat > "$UNITS/lk-agent-ygg.service.d/next-slot.conf" <<'EOF'
-# scripts/next-slot.sh on: the next slot's agent runs the release clone's trunk/ (live parity:
+# scripts/next-slot.sh on: the next slot's agent runs the release clone's branch/voice/ (live parity:
 # load threshold = the code's inf, not the lab pin). Undo: scripts/next-slot.sh off
 [Service]
-WorkingDirectory=%h/.local/share/bifrost/next/current/trunk
+WorkingDirectory=%h/.local/share/bifrost/next/current/branch/voice
 Environment=UV_FROZEN=1
 Environment=AGENT_LOAD_THRESHOLD=
 EOF

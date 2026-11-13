@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { AgentDispatchClient } from 'livekit-server-sdk';
 
-// same default as the token route (must match trunk/agent.py's agent_name)
+// same default as the token route (must match branch/voice/agent.py's agent_name)
 const AGENT_NAME = process.env.AGENT_NAME || 'bifrost';
 
 // Re-arm the voice agent for a room the phone is ALREADY connected to.

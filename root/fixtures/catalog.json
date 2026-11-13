@@ -1,5 +1,5 @@
 {
-  "_comment": "Lab model/trunk catalog for the bifrost e2e referee. Shape = opencode /config/providers + /agent. Model ids mirror the ones bifrost's settings spec exercises (think levels ride the <model>-think-<level> naming convention); utility agents + subagents are listed so the PWA's own filters are exercised. Every model routes to the single YGG_UPSTREAM_MODEL.",
+  "_comment": "Lab model/agent catalog for the bifrost e2e referee. Shape = opencode /config/providers + /agent. Model ids mirror the ones bifrost's settings spec exercises (think levels ride the <model>-think-<level> naming convention); utility agents + subagents are listed so the PWA's own filters are exercised. Every model routes to the single YGG_UPSTREAM_MODEL.",
   "providers": [
     {
       "id": "zai-coding-plan",

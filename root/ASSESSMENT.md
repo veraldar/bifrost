@@ -145,7 +145,7 @@ module-level `sessionId`, failing the rest of the file.
 | context: cleanup | ✓ | green |
 | history: swipe, touch swipe, input recall, cleanup (4) | ✓ 4/4 | green |
 | queue: mid-run send queues, cancel advances (+cleanup) | ✓ 2/2 | yggdrasil-gaps fixed: abort + busy placeholder + blocking post resolve on abort |
-| settings: tiles, think switch, rename, model picker, delete (5) | ✓ 5/5 | yggdrasil-gaps fixed: catalog, v2 model/trunk switch, GET/PATCH/DELETE session |
+| settings: tiles, think switch, rename, model picker, delete (5) | ✓ 5/5 | yggdrasil-gaps fixed: catalog, v2 model/agent switch, GET/PATCH/DELETE session |
 | states: home, empty→working→replied, search, cleanup (4) | ✓ 4/4 | green |
 | states: hands-free keyword status | excluded | **environment-gap** (LiveKit, same as base voice) |
 | subs: nest under parent, swipe-delete + undo (2) | ✓ 2/2 | yggdrasil-gap fixed: `parentID` on create. Hits :4096 directly, which is yggdrasil inside the netns |
@@ -201,7 +201,7 @@ Evidence: `/tmp/ygg-full2.log` (not kept). Rerun with `./run-e2e.sh --grep-inver
 - **install.sh does not start the service by default**, because it can't run without an upstream. `--now` enables and starts it, but only once a URL is set, and only when the unit dir is the one the user manager actually reads.
 - **PKGBUILD done** because it was cheap. It reuses the same unit template: `%h` specifiers for per-user config and data, and `Environment=YGG_DATA_DIR` as a default the env file can override. `!debug` keeps makepkg from emitting an empty -debug package, since the profile already strips the binary.
 - **One lab source change.** In `main.rs`, an *empty* `YGG_UPSTREAM_BASE_URL` now counts as unset. Before, the shipped template's `YGG_UPSTREAM_BASE_URL=` line started a healthy-looking server that failed on every message. Now it exits with status 2 and logs `YGG_UPSTREAM_BASE_URL is required`.
-- **README tells users to set `OPENCODE_URL` in both** `branch/.env.local` and `trunk/.env`. The voice agent reads it too (`trunk/agent.py:30`), and missing that would leave voice on opencode.
+- **README tells users to set `OPENCODE_URL` in both** `branch/.env.local` and `branch/voice/.env`. The voice agent reads it too (`branch/voice/agent.py:30`), and missing that would leave voice on opencode.
 
 # Slice 6a — tools + agent loop
 

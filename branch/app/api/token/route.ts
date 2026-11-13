@@ -8,7 +8,7 @@ import {
 } from 'livekit-server-sdk';
 import { resolveId } from '@/lib/oc';
 
-// must match trunk/agent.py: @server.rtc_session(agent_name=...)
+// must match branch/voice/agent.py: @server.rtc_session(agent_name=...)
 const AGENT_NAME = process.env.AGENT_NAME || 'bifrost';
 
 type ConnectionDetails = {

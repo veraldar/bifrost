@@ -1,6 +1,6 @@
 //! bifrost-net configuration — explicit, never auto-detected.
 //!
-//! The livekit.yaml scar (deploy/livekit.yaml): the incumbent auto-detected
+//! The livekit.yaml scar (trunk/deploy/livekit.yaml): the incumbent auto-detected
 //! docker-bridge IPs as ICE candidates and the phone had NO media path until
 //! IPs were hand-pinned. Here, advertised candidates are config or nothing —
 //! `check` warns loudly when they are missing.

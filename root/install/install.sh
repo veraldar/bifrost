@@ -141,7 +141,7 @@ Next steps:
   3. Check it:            curl -s http://$LISTEN/session
   4. Point bifrost at it: set OPENCODE_URL=http://$LISTEN in BOTH
                             bifrost/branch/.env.local   (phone UI proxy)
-                            bifrost/trunk/.env       (voice agent)
+                            bifrost/branch/voice/.env       (voice agent)
                           then: systemctl --user restart lk-pwa lk-agent
   (or run ./install.sh without --brain-only: it installs and wires the whole stack)
   Logs: journalctl --user -u yggdrasil -f
@@ -276,13 +276,13 @@ BRAIN_URL=http://$BRAIN_LISTEN
 if on bridge; then
   if [ -n "${BRIDGE_BINARY:-}" ]; then SRC=$BRIDGE_BINARY
   elif [ -x "$HERE/bifrost-net" ]; then SRC=$HERE/bifrost-net
-  elif [ -x "$ROOT/lab/bifrost-net/target/release/bifrost-net" ]; then SRC=$ROOT/lab/bifrost-net/target/release/bifrost-net
+  elif [ -x "$ROOT/trunk/target/release/bifrost-net" ]; then SRC=$ROOT/trunk/target/release/bifrost-net
   else
     command -v cargo >/dev/null || { [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"; }
     command -v cargo >/dev/null || die "no prebuilt bifrost-net and no cargo. Put the binary next to install.sh, or install Rust (pacman -S rust) and re-run"
     say "building the bridge (cargo build --release --locked)"
-    cargo build --release --locked --manifest-path "$ROOT/lab/bifrost-net/Cargo.toml"
-    SRC=$ROOT/lab/bifrost-net/target/release/bifrost-net
+    cargo build --release --locked --manifest-path "$ROOT/trunk/Cargo.toml"
+    SRC=$ROOT/trunk/target/release/bifrost-net
     NET+=("crates.io (cargo build of bifrost-net)")
   fi
   need_libs "$SRC"
@@ -434,20 +434,20 @@ if on agent; then
     AV=$BF_DATA/agent/venv
     mkdir -p "$BF_DATA/agent"
     [ -x "$AV/bin/python" ] || "$PY" -m venv "$AV"
-    if ! same "$ROOT/trunk/pyproject.toml" "$AV/.installed-pyproject"; then
+    if ! same "$ROOT/branch/voice/pyproject.toml" "$AV/.installed-pyproject"; then
       say "agent   installing livekit-agents into $AV (a few minutes)"
       NET+=("pypi.org (pip/uv: livekit-agents + plugins)")
       AGENT_DEPS=0
       if command -v uv >/dev/null; then
-        (cd "$ROOT/trunk" && UV_PROJECT_ENVIRONMENT=$AV uv sync --frozen --no-dev) && AGENT_DEPS=1
+        (cd "$ROOT/branch/voice" && UV_PROJECT_ENVIRONMENT=$AV uv sync --frozen --no-dev) && AGENT_DEPS=1
       else
-        mapfile -t DEPS < <(sed -n '/^dependencies = \[/,/^\]/p' "$ROOT/trunk/pyproject.toml" | sed -n 's/^ *"\(.*\)",\{0,1\}$/\1/p')
+        mapfile -t DEPS < <(sed -n '/^dependencies = \[/,/^\]/p' "$ROOT/branch/voice/pyproject.toml" | sed -n 's/^ *"\(.*\)",\{0,1\}$/\1/p')
         [ ${#DEPS[@]} -gt 0 ] && "$AV/bin/pip" install --disable-pip-version-check -q "${DEPS[@]}" && AGENT_DEPS=1
       fi
       if [ $AGENT_DEPS = 1 ]; then
         NET+=("huggingface.co + github (agent.py download-files: silero VAD, turn-detector)")
-        (cd "$ROOT/trunk" && "$AV/bin/python" agent.py download-files) || warn "agent: model pre-download failed — it retries on start"
-        cp "$ROOT/trunk/pyproject.toml" "$AV/.installed-pyproject"
+        (cd "$ROOT/branch/voice" && "$AV/bin/python" agent.py download-files) || warn "agent: model pre-download failed — it retries on start"
+        cp "$ROOT/branch/voice/pyproject.toml" "$AV/.installed-pyproject"
         CHANGED="${CHANGED}bifrost-agent.service "
       fi
       [ $AGENT_DEPS = 1 ] || { AGENT_GO=0; soft agent "pip could not install livekit-agents (output above) — fix and re-run"; }

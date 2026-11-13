@@ -14,7 +14,7 @@ probe() { curl -s -m 5 -o /dev/null -w '%{http_code}' "$1" 2>/dev/null; }
 
 # --- guardrails ---------------------------------------------------------------
 [[ "$(git branch --show-current)" == "main" ]] || fail "not on main — experiments belong on a branch"
-[[ -z "$(git status --porcelain branch/ trunk/ | head -1)" ]] || fail "uncommitted branch/trunk changes — commit or stash first (the live instance must serve a known commit)"
+[[ -z "$(git status --porcelain branch/ | head -1)" ]] || fail "uncommitted app/voice (branch/) changes — commit or stash first (the live instance must serve a known commit)"
 LAST_TAG="$(git describe --tags --abbrev=0 2>/dev/null || echo main)"
 # a run in flight would be orphaned by the restart — the watchdog would heal
 # it into an abort, but losing the user's in-flight answer is not "safe"
@@ -53,8 +53,8 @@ build_and_restart() {
   # completed join. This is the gate that catches that class. Only gated
   # when the voice stack is expected (LiveKit up + agent venv built) —
   # a text-only box without uv must not fail deploys.
-  if [[ "$(probe http://127.0.0.1:7880/)" != 000 && -d trunk/.venv ]]; then
-    (cd trunk && uv run scripts/join_canary.py "deploy-$(date +%s)" >>/tmp/deploy.log 2>&1) || return 1
+  if [[ "$(probe http://127.0.0.1:7880/)" != 000 && -d branch/voice/.venv ]]; then
+    (cd branch/voice && uv run scripts/join_canary.py "deploy-$(date +%s)" >>/tmp/deploy.log 2>&1) || return 1
   fi
   return 0
 }

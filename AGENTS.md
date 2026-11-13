@@ -9,12 +9,12 @@ Talk or type from the phone; the code you're changing lives here. Full architect
 - `docs/plan.md` — checklist board, work top-to-bottom. `docs/open-questions.md` — every unresolved decision lands there.
 
 ## Hardware
-This box runs everything. Mac Studio serves speech models (MLX Qwen3-ASR/TTS) on the LAN — endpoint in `trunk/.env` (`SPEACHES_URL`). Private IPs/hostnames/ssh: `docs/local.md` (gitignored). Tailnet-only, nothing public.
+This box runs everything. Mac Studio serves speech models (MLX Qwen3-ASR/TTS) on the LAN — endpoint in `branch/voice/.env` (`SPEACHES_URL`). Private IPs/hostnames/ssh: `docs/local.md` (gitignored). Tailnet-only, nothing public.
 
 ## Verify
 - pwa: `cd branch && npm run build` + e2e: `cd branch && npx playwright test`
-- agent: `cd trunk && uv run agent.py console` (local mic test)
-- deploy: `cd deploy && docker compose up -d`
+- agent: `cd branch/voice && uv run agent.py console` (local mic test)
+- deploy: `cd trunk/deploy && docker compose up -d`
 - live stack: `python3 scripts/gate.py` (is live healthy?) · ship: `scripts/promote.sh <commit> --label vX` · versions: `scripts/promote.sh --list` / `--switch <label>` · undo: `scripts/promote.sh --rollback` (again = redo)
 - live diag: `tail branch/.diag/$(date +%F).log`
 

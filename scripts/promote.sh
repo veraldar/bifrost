@@ -15,7 +15,7 @@
 #   scripts/promote.sh <ref> [--label L]     release a commit (the normal path)
 #   scripts/promote.sh --env-only [--label L] new release = live's build + the current
 #                                            draft env (seconds, no rebuild)
-#   scripts/promote.sh --snapshot [--label L] release HEAD + the branch/trunk WIP as it is
+#   scripts/promote.sh --snapshot [--label L] release HEAD + the branch/ WIP (app + voice) as it is
 #                                            now (overlay recorded; bootstrap/emergency)
 #   scripts/promote.sh --list                every built release (live / previous marked)
 #   scripts/promote.sh --switch <id|label>   live <- any built release, gated, no rebuild
@@ -73,8 +73,8 @@ seed_env() {
     } > "$ENV_DIR/live-pwa.env"
   fi
   if [[ ! -f "$ENV_DIR/live-agent.env" ]]; then
-    { echo "# lk-agent (live voice worker) — the only env of the live agent. Seeded $(date +%F) from trunk/.env."
-      grep -v -E '^\s*(#|$)' "$REPO/trunk/.env"
+    { echo "# lk-agent (live voice worker) — the only env of the live agent. Seeded $(date +%F) from branch/voice/.env."
+      grep -v -E '^\s*(#|$)' "$REPO/branch/voice/.env"
     } > "$ENV_DIR/live-agent.env"
   fi
   chmod 600 "$ENV_DIR"/live-*.env
@@ -103,7 +103,7 @@ EOF
   cat > "$UNITS/lk-agent.service.d/live.conf" <<'EOF'
 # Served from the frozen live release, never a worktree (scripts/promote.sh, docs/STABLE.md).
 [Service]
-WorkingDirectory=%h/.local/share/bifrost/live/trunk
+WorkingDirectory=%h/.local/share/bifrost/live/branch/voice
 EnvironmentFile=%h/.local/share/bifrost/live/env/live-agent.env
 Environment=UV_FROZEN=1
 EOF
@@ -374,7 +374,7 @@ LOG="$REL/build.log"
   "$NODE_BIN/npm" version --no-git-tag-version --allow-same-version "$VERSION${OVERLAY:++wip.$OVERLAY}" >/dev/null
   set -a; . "$ENV_DIR/live-pwa.env"; set +a
   GIT_CEILING_DIRECTORIES="$BIF" PATH="$NODE_BIN:$PATH" "$NODE_BIN/npm" run build
-  cd "$REL/trunk"
+  cd "$REL/branch/voice"
   "$UV" sync --frozen
 ) > "$LOG" 2>&1
 # (never `( set -e … ) || die`: bash ignores set -e inside an || list — a failed next build was staged as built)
@@ -383,7 +383,7 @@ LOG="$REL/build.log"
 
 BUILD_ID="$(cat "$REL/branch/.next/BUILD_ID")"
 # freeze the source (manifest catches any later edit; read-only says "don't")
-find "$REL/branch" "$REL/trunk" "$REL/scripts" \( -name node_modules -o -name .next -o -name .venv -o -name __pycache__ \) -prune \
+find "$REL/branch" "$REL/branch/voice" "$REL/scripts" \( -name node_modules -o -name .next -o -name .venv -o -name __pycache__ \) -prune \
   -o -type f -exec chmod a-w {} +
 MANIFEST="$(python3 "$REPO/scripts/gate.py" --manifest "$REL")"
 python3 - "$REL/RELEASE.json" <<EOF

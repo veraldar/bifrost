@@ -394,11 +394,11 @@ def check_labs(live_name):
 
 def probe_voice(agent_name):
     """The failure class of 10-06: a dispatch nobody answers. Room is created and deleted."""
-    envf = release_env("live-agent.env") or dotenv(DEV / "trunk/.env")
+    envf = release_env("live-agent.env") or dotenv(DEV / "branch/voice/.env")
     rel = LIVE.resolve() if LIVE.is_symlink() else DEV
-    py = rel / "trunk/.venv/bin/python"
+    py = rel / "branch/voice/.venv/bin/python"
     if not py.exists():
-        py = DEV / "trunk/.venv/bin/python"
+        py = DEV / "branch/voice/.venv/bin/python"
     code = r'''
 import asyncio, json, os, time
 from livekit import api

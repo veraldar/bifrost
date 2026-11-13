@@ -5,15 +5,15 @@ veraldar/            the world: all your trees            → veraldar.org
 └─ yggdrasil/        the tree: your computer, working for you   (this repository)
    ├─ root/          the brain: thinks, remembers — your AI key, or a model at home
    │  └─ extensions/ what plugs into the brain without touching it (the librarian: memory)
-   ├─ trunk/         the private line: carries your words, never public
-   └─ branch/        bifrost, the app in your hand — you talk; it listens
+   ├─ trunk/         the private line: carries your words, never public (bifrost-net: bridge, pairing, relay, root-link)
+   └─ branch/        bifrost, the app in your hand — you talk; it listens (the app + its voice agent)
 ```
 
 | folder | what lives there |
 |---|---|
 | `root/` | the brain (Rust): one door (MAIN) that runs a tree of sessions and agents, several roots as peers, the extension interface — see `root/ROOT-COORD.md`; `root/extensions/` (spec in `root/extensions/README.md`) |
-| `trunk/` | the voice agent and the deploy config that carry your words between phone and brain |
-| `branch/` | bifrost, the phone app (PWA) |
+| `trunk/` | bifrost-net (Rust): the bridge the phone pairs with by QR, the relay, the root-link between roots; `trunk/deploy/` the LiveKit media config |
+| `branch/` | bifrost, the phone app (PWA); `branch/voice/` its voice agent (speech in, the brain's words out) |
 | `sim/` | human simulations (an LLM plays you and only talks to MAIN) and the deterministic tree test |
 | `scripts/`, `skills/`, `docs/` | install, release and operating the box; the install skill; history and specs |
 
@@ -126,7 +126,7 @@ Everything is systemd-managed on omarchy (`lk-pwa`, `lk-agent`,
 > **Minimum hardware:** ONE Linux box (any machine that runs Docker + Node) +
 > your phone. No Mac needed — the CPU speech fallback (speaches, in the
 > compose) works out of the box; a Mac Studio running MLX speech models is an
-> optional quality upgrade (see `trunk/.env.example` → `SPEACHES_URL`).
+> optional quality upgrade (see `branch/voice/.env.example` → `SPEACHES_URL`).
 > Everything below runs on that one box; nothing needs to be public —
 > Tailscale is the only network requirement (install it on box + phone).
 
@@ -140,16 +140,16 @@ opencode auth login                          # configure your LLM provider key
 opencode serve --port 4096 &                 # REST server on 127.0.0.1:4096
 
 # 1. LiveKit + speech stack (cp example → real; edit .env LIVEKIT_KEYS and
-#    livekit.yaml ICE IPs for your network — see deploy/livekit.yaml.example;
+#    livekit.yaml ICE IPs for your network — see trunk/deploy/livekit.yaml.example;
 #    `tailscale ip` on the box gives the tailnet IP to pin)
-cd deploy && cp livekit.yaml.example livekit.yaml && docker compose up -d && cd ..
+cd trunk/deploy && cp livekit.yaml.example livekit.yaml && docker compose up -d && cd ../..
 
 # 2. Voice agent
-cd trunk && uv sync && cp .env.example .env  # edit values (SPEACHES_URL empty = CPU fallback)
+cd branch/voice && uv sync && cp .env.example .env  # edit values (SPEACHES_URL empty = CPU fallback)
 uv run agent.py dev                          # or a systemd unit
 
 # 3. PWA
-cd ../branch && npm install && cp .env.example .env.local  # edit values
+cd .. && npm install && cp .env.example .env.local    # edit values (from branch/voice up to branch/)
 npx web-push generate-vapid-keys --json      # paste into .env.local for push notifications
 npm run build && npm start                   # :8080
 tailscale serve --bg 8080                    # tailnet-only HTTPS

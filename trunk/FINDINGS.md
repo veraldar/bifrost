@@ -145,7 +145,7 @@ VERIFY: 3/3 PASS
 
 Studied the live stack first (this box runs the real thing):
 
-- **The scar in deploy/livekit.yaml**: LiveKit auto-detected docker-bridge
+- **The scar in trunk/deploy/livekit.yaml**: LiveKit auto-detected docker-bridge
   IPs as ICE candidates and the phone had **no media path** until IPs were
   hand-pinned to tailscale0 + LAN. This is the class of time-dependent
   behavior an API surface hides. bifrost-net must make "who can reach whom"

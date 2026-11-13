@@ -20,7 +20,7 @@ allowed_ips = ["10.7.0.2/32"]
 [webrtc]
 signaling = "0.0.0.0:17880"   # 7880 is LiveKit on this box
 media = "0.0.0.0:17881"
-# THE LIVEKIT SCAR (deploy/livekit.yaml): auto-detected ICE candidates were
+# THE LIVEKIT SCAR (trunk/deploy/livekit.yaml): auto-detected ICE candidates were
 # docker bridges and the phone had NO media path. Pin the IPs peers actually
 # reach — empty list = loopback-only dev mode.
 candidates = []

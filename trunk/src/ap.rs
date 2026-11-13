@@ -128,7 +128,26 @@ pub struct DialConfig {
     /// `/rootlink` streams (a remote root dialing in through the edge) go
     /// here — the root-link listener; None = not routed
     pub rootlink: Option<String>,
+    /// `/branch` streams (a paired phone naming a root — POST /branch, the
+    /// data channel's dispatch law over HTTPS) go here — the bridge's own
+    /// http listener; None = not routed. The client's real address rides
+    /// X-Forwarded-For next to [`edge_key`], so `/branch` checks the device
+    /// token against the region the ap saw, never the loopback hop.
+    pub branch: Option<String>,
     pub tokens: Arc<TokenStore>,
+}
+
+/// A per-process secret the ap dial-out stamps (`X-Bifrost-Edge`) on the
+/// streams it hands to this bridge's own http listener: it vouches for the
+/// X-Forwarded-For beside it. It never leaves the process; a client-sent
+/// copy is dropped at the edge (rewrite_head).
+pub fn edge_key() -> &'static str {
+    static KEY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    KEY.get_or_init(|| {
+        let mut b = [0u8; 32];
+        OsRng.fill_bytes(&mut b);
+        b.iter().map(|x| format!("{x:02x}")).collect()
+    })
 }
 
 // ---- identity ------------------------------------------------------------------
@@ -949,6 +968,9 @@ fn normalize_path(raw: &str) -> String {
 /// The S1 gate, on the bridge: /api/* needs a live device token issued in the
 /// region of the client's REAL address (as the ap saw it). /api/pair mints.
 fn gate(tokens: &TokenStore, req: &Req, ip: IpAddr) -> Result<(), Deny> {
+    if join_exempt(&req.method, &req.path) {
+        return Ok(());
+    }
     let p = normalize_path(&req.path);
     if !(p == "/api" || p.starts_with("/api/")) || p == "/api/pair" || p.starts_with("/api/pair/") {
         return Ok(());
@@ -962,11 +984,34 @@ fn gate(tokens: &TokenStore, req: &Req, ip: IpAddr) -> Result<(), Deny> {
     tokens.check(&raw, &region_of(ip)).map(|_| ())
 }
 
-fn rewrite_head(req: &Req, ip: IpAddr, upgrade: bool) -> Vec<u8> {
+/// The join contract's three calls that carry their own credential (or none, for
+/// the join itself) — docs/spec-join.md "Middleware": a new machine has no device
+/// token, and it reaches the hub through this edge. The app's middleware lets
+/// exactly these method + path shapes past its device gate; the edge mirrors it,
+/// on the RAW path (canonical form only — anything encoded or dotted is gated).
+///   POST ^/api/roots/join$ · GET ^/api/roots/join/[A-Za-z0-9_-]{8,64}$ ·
+///   POST ^/api/roots/[a-z0-9][a-z0-9-]{0,40}/tokens$
+fn join_exempt(method: &str, raw: &str) -> bool {
+    let path = raw.split(['?', '#']).next().unwrap_or("");
+    let Some(rest) = path.strip_prefix("/api/roots/") else { return false };
+    let b64u = |s: &str| (8..=64).contains(&s.len()) && s.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-' || c == b'_');
+    let root_id = |s: &str| {
+        (1..=41).contains(&s.len())
+            && !s.starts_with('-')
+            && s.bytes().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-')
+    };
+    match method {
+        "POST" => rest == "join" || rest.strip_suffix("/tokens").is_some_and(root_id),
+        "GET" => rest.strip_prefix("join/").is_some_and(b64u),
+        _ => false,
+    }
+}
+
+fn rewrite_head(req: &Req, ip: IpAddr, upgrade: bool, edge: bool) -> Vec<u8> {
     const DROP: &[&str] = &[
         "connection", "keep-alive", "proxy-connection", "forwarded", "x-forwarded-for",
         "x-forwarded-proto", "x-forwarded-host", "x-real-ip", "x-bifrost-peer",
-        "x-middleware-subrequest",
+        "x-middleware-subrequest", "x-bifrost-edge",
     ];
     let mut s = format!("{} {} {}\r\n", req.method, req.path, req.version);
     for (k, v) in &req.headers {
@@ -978,6 +1023,9 @@ fn rewrite_head(req: &Req, ip: IpAddr, upgrade: bool) -> Vec<u8> {
     s.push_str(&format!("X-Forwarded-For: {ip}\r\nX-Forwarded-Proto: https\r\n"));
     if let Some(h) = req.header("host") {
         s.push_str(&format!("X-Forwarded-Host: {h}\r\n"));
+    }
+    if edge {
+        s.push_str(&format!("X-Bifrost-Edge: {}\r\n", edge_key()));
     }
     s.push_str("\r\n");
     s.into_bytes()
@@ -1034,8 +1082,12 @@ async fn serve_stream(
         return reply(http_response(400, "Bad Request", "text/plain", "bad content-length\n"));
     };
     let upgrade = req.header("upgrade").is_some();
+    // a phone naming a root: the bridge's own /branch (it authenticates the
+    // device token itself, in the region of the address the ap saw)
+    let branch = cfg.branch.as_ref().filter(|_| rootlink.is_none() && p == "/branch");
     let target = match (rootlink, &cfg.livekit) {
         (Some(rl), _) => rl.clone(),
+        (None, _) if branch.is_some() => branch.cloned().unwrap_or_default(),
         (None, Some(lk)) if p == "/rtc" || p.starts_with("/rtc/") => lk.clone(),
         _ => cfg.upstream.clone(),
     };
@@ -1045,7 +1097,7 @@ async fn serve_stream(
     };
     let _ = up.set_nodelay(true);
     let (mut ur, mut uw) = up.into_split();
-    if uw.write_all(&rewrite_head(&req, ip, upgrade)).await.is_err() {
+    if uw.write_all(&rewrite_head(&req, ip, upgrade, branch.is_some())).await.is_err() {
         return reply(vec![]);
     }
     let (switched_tx, mut switched) = watch::channel(false);
@@ -1189,6 +1241,7 @@ pub fn selftest() -> Result<String, String> {
             livekit: None,
             tcp: HashMap::new(),
             rootlink: Some(rl_addr.to_string()),
+            branch: Some(up_addr.to_string()),
             tokens: Arc::new(TokenStore::open(&reg_path)),
         })
     };
@@ -1278,6 +1331,22 @@ pub fn selftest() -> Result<String, String> {
             return Err(format!("gate bypass via {sneaky}: {}", r.lines().next().unwrap_or("")));
         }
     }
+    // the join contract's own-credential calls pass (exact shapes), nothing next to them does
+    for (m, p) in [("POST", "/api/roots/join"), ("GET", "/api/roots/join/AbCd_-1234xyz"), ("POST", "/api/roots/mac-studio/tokens")] {
+        let r = text(&client(format!("{m} {p} HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n").into_bytes(), None)?);
+        if !r.starts_with("HTTP/1.1 200") || !r.contains(&format!("path={p};")) {
+            return Err(format!("join contract call {m} {p} gated at the edge: {}", r.lines().next().unwrap_or("")));
+        }
+    }
+    for (m, p) in [("GET", "/api/roots"), ("GET", "/api/roots/join"), ("POST", "/api/roots/join/AbCd_-1234xyz/approve"),
+                   ("GET", "/api/roots/join/AbCd_-1234xyz/view"), ("GET", "/api/roots/join/..%2f..%2fsessions"),
+                   ("POST", "/api/roots/../sessions/tokens"), ("POST", "/api/roots/%6aoin"), ("POST", "/api/roots/-x/tokens"),
+                   ("DELETE", "/api/roots/join")] {
+        let r = text(&client(format!("{m} {p} HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n").into_bytes(), None)?);
+        if !r.starts_with("HTTP/1.1 401") {
+            return Err(format!("gate bypass via {m} {p}: {}", r.lines().next().unwrap_or("")));
+        }
+    }
     let r = text(&client(b"GET /api/sessions HTTP/1.1\r\nHost: localhost\r\nAuthorization: Bearer wrong-token-0123456789\r\n\r\n".to_vec(), None)?);
     if !r.starts_with("HTTP/1.1 401") || !r.contains("\"why\":\"invalid\"") {
         return Err(format!("bad token not refused: {r}"));
@@ -1331,11 +1400,23 @@ pub fn selftest() -> Result<String, String> {
             return Err(format!("{p} reached past the edge: {}", r.lines().next().unwrap_or("")));
         }
     }
+    // 7. /branch: the bridge's own listener, with the edge key vouching for the
+    // real address; a client-sent X-Bifrost-Edge never crosses (anywhere)
+    let r = text(&client(b"POST /branch HTTP/1.1\r\nHost: localhost\r\nX-Bifrost-Edge: forged\r\nContent-Length: 2\r\n\r\n{}".to_vec(), None)?);
+    if !r.starts_with("HTTP/1.1 200") || !r.contains("path=/branch;") || !r.contains("edge=ok;") || !r.contains("xff=127.0.0.1;") {
+        return Err(format!("/branch did not reach the bridge with the edge key: {r}"));
+    }
+    let r = text(&client(b"GET / HTTP/1.1\r\nHost: localhost\r\nX-Bifrost-Edge: forged\r\n\r\n".to_vec(), None)?);
+    if !r.contains("edge=;") {
+        return Err(format!("a client-sent X-Bifrost-Edge crossed the edge: {r}"));
+    }
     let _ = std::fs::remove_dir_all(&dir);
     Ok(format!(
         "pin {}…; wrong pairing token 401 + wrong pin refused; GET / 200 + HSTS + XFF=real peer (spoofed dropped); \
          /api 401 missing/invalid + 9 path-normalization bypasses 401, Bearer+cookie pass, /api/pair open; 5000-byte POST exact + smuggled request dropped; \
-         websocket 101 + 3000 bytes echoed byte-exact; /rootlink → root-link listener (no device gate), plain GET 426, /_root 404 at the edge",
+         websocket 101 + 3000 bytes echoed byte-exact; /rootlink → root-link listener (no device gate), plain GET 426, /_root 404 at the edge; \
+         /branch → the bridge with the edge key, a client-sent edge key dropped; \
+         the join contract's 3 own-credential calls pass, 9 neighbours gated",
         &pin[..20]
     ))
 }
@@ -1402,8 +1483,13 @@ fn stub_upstream(mut s: std::net::TcpStream) {
     }
     let body_end = (head_end + want).min(buf.len());
     let extra = if buf.len() > body_end { "smuggled" } else { "" };
+    let edge = match req.header("x-bifrost-edge") {
+        Some(k) if k == edge_key() => "ok",
+        Some(_) => "forged",
+        None => "",
+    };
     let out = format!(
-        "path={};xff={};conn={};body={};{extra}",
+        "path={};xff={};conn={};edge={edge};body={};{extra}",
         req.path,
         req.header("x-forwarded-for").unwrap_or(""),
         req.header("connection").unwrap_or(""),

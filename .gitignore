@@ -69,3 +69,5 @@ branch/.next.*/
 branch/node_modules/
 sim/__pycache__/
 root/extensions/**/__pycache__/
+root/target-bookworm/
+trunk/target-bookworm/

@@ -147,6 +147,8 @@ live peer on its next sweep. Recovery = scan a fresh QR. Measured: severed in ~0
   same registry, `dtls_cert_file`, `public_url`, `candidates = ["<lan-ip>"]`,
   `media = "<lan-ip>:<port>"`.
 - Pair: open `/pair` on the box's own screen → scan with the phone.
+- Join another machine to this box's tree (its own root, approved from the paired phone):
+  `docs/spec-join.md`.
 - Validate: `scripts/v09-ladder.sh` — the whole box in a private network namespace (mock
   upstream → yggdrasil → `node server.mjs` → the v0.9 bridge) running `branch/e2e/{auth,
   pair-ladder,bridge}.spec.ts`.

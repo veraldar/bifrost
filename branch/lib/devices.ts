@@ -21,6 +21,12 @@
  *
  * v1 entries (non-expiring `tokenHash`, no region) carry no v2 credential and
  * read as revoked — the device re-pairs once.
+ *
+ * `roots` (the bridge's v4 TOKEN LAW allowlist, trunk/src/tokens.rs: which
+ * roots this device may name; missing = the local root only) rides through
+ * every rewrite untouched. A join approval adds to it with addDeviceRoot,
+ * which edits that ONE record in the raw file and leaves every other record —
+ * v1 or v2 — exactly as it was.
  */
 import { createHash, randomBytes } from 'crypto';
 import { chmod, readFile, rename, writeFile } from 'fs/promises';
@@ -54,6 +60,8 @@ export type Device = {
   refreshExp: number;
   prevRefresh: Array<{ hash: string; at: number }>;
   access: Access[];
+  /** v4 root allowlist (trunk/src/tokens.rs); absent = local root only */
+  roots?: string[];
 };
 
 type PairCode = { hash: string; exp: number; name: string; created: string; used?: string };
@@ -100,6 +108,9 @@ function upgrade(d: Partial<Device> & { tokenHash?: string }): Device {
     refreshExp: Number(d.refreshExp) || 0,
     prevRefresh: Array.isArray(d.prevRefresh) ? d.prevRefresh : [],
     access: Array.isArray(d.access) ? d.access : [],
+    // the bridge reads it from this same file: dropping it on a token
+    // rotation would silently cut the device off from its roots
+    roots: Array.isArray(d.roots) ? d.roots.filter((r) => typeof r === 'string') : undefined,
   };
 }
 
@@ -118,7 +129,7 @@ async function readRegistry(): Promise<Registry> {
   }
 }
 
-async function writeRegistry(reg: Registry): Promise<void> {
+async function writeRegistry(reg: Registry | Record<string, unknown>): Promise<void> {
   const tmp = `${DEVICES_FILE}.${process.pid}.tmp`;
   await writeFile(tmp, JSON.stringify(reg, null, 2) + '\n', { mode: 0o600 });
   await chmod(tmp, 0o600).catch(() => {});
@@ -136,18 +147,23 @@ function prune(reg: Registry) {
 }
 
 // one writer process; serialize read-modify-write so concurrent refreshes
-// cannot lose each other's rotation
-let chain: Promise<unknown> = Promise.resolve();
+// cannot lose each other's rotation. The chain lives on globalThis: every
+// route bundle that imports this module must queue on the SAME chain.
+const g = globalThis as { __bifrostDevicesChain?: Promise<unknown> };
+function serialize<T>(fn: () => Promise<T>): Promise<T> {
+  const run = (g.__bifrostDevicesChain ?? Promise.resolve()).then(fn);
+  g.__bifrostDevicesChain = run.catch(() => {});
+  return run;
+}
+
 function mutate<T>(fn: (reg: Registry) => T): Promise<T> {
-  const run = chain.then(async () => {
+  return serialize(async () => {
     const reg = await readRegistry();
     const out = fn(reg);
     prune(reg);
     await writeRegistry(reg);
     return out;
   });
-  chain = run.catch(() => {});
-  return run;
 }
 
 function newDevice(reg: Registry, name: string, region: string): Device {
@@ -332,5 +348,50 @@ export function killSwitch(): Promise<{ epoch: number; severed: number }> {
     reg.killEpoch += 1;
     reg.killedAt = new Date().toISOString();
     return { epoch: reg.killEpoch, severed };
+  });
+}
+
+/**
+ * Every root id any device's allowlist names (v1 or v2 records) — a new root
+ * id must never be one of these, or a device would reach a machine nobody
+ * approved for it.
+ */
+export async function allowlistedRoots(): Promise<Set<string>> {
+  const out = new Set<string>();
+  try {
+    const parsed = JSON.parse(await readFile(DEVICES_FILE, 'utf8'));
+    for (const d of Array.isArray(parsed.devices) ? parsed.devices : []) {
+      for (const r of Array.isArray(d?.roots) ? d.roots : []) {
+        if (typeof r === 'string') out.add(r);
+      }
+    }
+  } catch {
+    /* no registry yet */
+  }
+  return out;
+}
+
+/**
+ * Join approval: add `root` to ONE live v2 device's `roots` allowlist. Edits
+ * that record in the raw file — every other record (v1 `tokenHash` entries
+ * included) is written back exactly as read — on the same serialized chain as
+ * every other registry write. false = no such live device.
+ */
+export function addDeviceRoot(id: string, root: string): Promise<boolean> {
+  return serialize(async () => {
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(await readFile(DEVICES_FILE, 'utf8'));
+    } catch {
+      return false;
+    }
+    const list = Array.isArray(parsed.devices) ? (parsed.devices as Array<Partial<Device>>) : [];
+    const d = list.find((x) => x?.id === id);
+    if (!d || d.revoked || typeof d.refreshHash !== 'string') return false;
+    const roots = Array.isArray(d.roots) ? d.roots.filter((r) => typeof r === 'string') : [];
+    if (!roots.includes(root)) roots.push(root);
+    d.roots = roots;
+    await writeRegistry(parsed);
+    return true;
   });
 }

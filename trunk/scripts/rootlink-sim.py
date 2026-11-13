@@ -30,7 +30,8 @@ asserts the whole law:
                and a takeover-displaced conn reconnects with its NEXT
                file token; an empty token file exits LOUDLY
   T10 guard    root-dial.py REFUSES plaintext ws to a non-private host
-               unless --allow-public (probe never connects)
+               unless --allow-plaintext; --tls (wss) always passes the
+               guard (probe never connects on refusal)
 
 LAW: the health probe is AGENT-level — root-dial must EXEC the agent
 to earn each root.pong; a dial script that pongs without exec is a
@@ -543,8 +544,8 @@ max_inflight = 1
         # ---- T10 (sim3 GAP-B 4): plaintext-ws public-range guard ----
         # host 1.2.3.4 is public (ipaddress: is_private False, no DNS
         # dependency); the guard must exit BEFORE any connection. The
-        # --allow-public leg gets a FRESH token so its failure is
-        # downstream (the connect), never the guard.
+        # --allow-plaintext and --tls legs get a FRESH token so their failure
+        # is downstream (the connect), never the guard.
         guard_tf = os.path.join(dir_, "guard-tokens.txt")
         with open(guard_tf, "w") as f:
             f.write(mint_link_token(secret, "mac-d", "dev_d") + "\n")
@@ -553,14 +554,16 @@ max_inflight = 1
                                capture_output=True, text=True, timeout=20)
         expect(guard.returncode != 0 and "refusing plaintext ws" in guard.stderr,
                f"public host refused BEFORE connecting: rc={guard.returncode} {guard.stderr.strip()[:80]}")
-        guard_ok = subprocess.run([sys.executable, REAL_DIAL, "--host", "1.2.3.4",
-                                   "--port", "9999", "--token-file", guard_tf,
-                                   "--allow-public"],
-                                  capture_output=True, text=True, timeout=20)
-        expect(guard_ok.returncode != 0 and "refusing" not in guard_ok.stderr
-               and "refusing" not in guard_ok.stdout
-               and "connect failed" in guard_ok.stderr,
-               f"--allow-public passes the guard, fails at the connect: rc={guard_ok.returncode} {guard_ok.stderr.strip()[-60:]}")
+        for flag in ("--allow-plaintext", "--tls"):
+            with open(guard_tf, "w") as f:
+                f.write(mint_link_token(secret, "mac-d", "dev_d") + "\n")
+            guard_ok = subprocess.run([sys.executable, REAL_DIAL, "--host", "1.2.3.4",
+                                       "--port", "9999", "--token-file", guard_tf, flag],
+                                      capture_output=True, text=True, timeout=20)
+            expect(guard_ok.returncode != 0 and "refusing" not in guard_ok.stderr
+                   and "refusing" not in guard_ok.stdout
+                   and "connect failed" in guard_ok.stderr,
+                   f"{flag} passes the guard, fails at the connect: rc={guard_ok.returncode} {guard_ok.stderr.strip()[-60:]}")
 
         print("ROOTLINK-SIM: ALL 10 GREEN (routing, single-use, takeover, anonymous-refused, close-reap, "
               "wedged-unlink, in-flight-cap, mint-cli, dial-exec, public-guard)")

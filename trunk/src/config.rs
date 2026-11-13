@@ -21,7 +21,33 @@ pub struct Config {
     pub webrtc: Option<WebRtcConfig>,
     #[serde(default)]
     pub bridge: Option<BridgeConfigSection>,
+    /// dial OUT to an access point (bifrost-net ap) and serve browsers through it
+    #[serde(default)]
+    pub ap: Option<ApDialSection>,
 }
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ApDialSection {
+    /// the access point's bridge channel, e.g. "wss://ap.example.org/ap"
+    pub url: String,
+    /// the ap's identity: "sha-256 AA:BB:…" of its TLS public key (SPKI) —
+    /// `bifrost-net ap-pin CERT.pem` prints it; survives renewals with --reuse-key
+    pub pin: String,
+    /// pairing-scoped credential the ap admits (its sha-256 sits in ap.toml)
+    pub token: String,
+    /// the local PWA browsers are served from
+    #[serde(default = "default_ap_upstream")]
+    pub upstream: String,
+    /// LiveKit signaling: /rtc goes here when set (the voice path's websocket)
+    #[serde(default)]
+    pub livekit: Option<String>,
+    /// raw TCP forwards the ap may name → local target, e.g. { livekit-ice = "127.0.0.1:7881" }
+    #[serde(default)]
+    pub tcp: std::collections::HashMap<String, String>,
+}
+
+fn default_ap_upstream() -> String { "127.0.0.1:8090".into() }
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -59,6 +85,13 @@ pub struct BridgeConfigSection {
     /// Remote entries carry NO endpoint: link-token dial-in only.
     #[serde(default)]
     pub roots: Vec<RootEntry>,
+    /// persisted DTLS identity — its fingerprint is what the pairing QR pins.
+    /// Unset = a fresh identity per run (every paired phone must re-scan).
+    #[serde(default)]
+    pub dtls_cert_file: Option<String>,
+    /// the signaling URL phones dial (e.g. "http://192.168.1.10:7890")
+    #[serde(default)]
+    pub public_url: Option<String>,
 }
 
 /// v4 [bridge.root-link] — the root dial-in ws plane (rootlink.rs).
@@ -292,6 +325,36 @@ impl Config {
             if b.candidates.is_empty() {
                 lines.push("bridge: WARNING no candidates pinned — loopback-only mode".to_string());
             }
+            match &b.dtls_cert_file {
+                Some(p) => lines.push(format!("bridge: DTLS identity persisted at {p} (GET /identity → the pairing QR pins it)")),
+                None => lines.push(
+                    "bridge: WARNING no dtls_cert_file — a fresh DTLS identity per run (every paired phone must re-scan)"
+                        .to_string(),
+                ),
+            }
+            if let Some(u) = &b.public_url {
+                lines.push(format!("bridge: phones dial {u}"));
+            }
+            let rl_on = b.root_link.as_ref().is_some_and(|r| r.enabled);
+            let rl_secret = b.root_link_secret.as_deref().is_some_and(|s| !s.trim().is_empty());
+            lines.push(match (rl_on, rl_secret) {
+                (true, true) => format!(
+                    "bridge: root-link dial-in ON (ws {})",
+                    b.root_link
+                        .as_ref()
+                        .and_then(|r| r.listen.clone())
+                        .unwrap_or_else(|| format!("127.0.0.1:{}", http.port() + 1))
+                ),
+                (true, false) => "bridge: WARNING [bridge.root-link] enabled but root_link_secret is empty — dial-in stays OFF".to_string(),
+                _ => "bridge: root-link dial-in off".to_string(),
+            });
+        }
+
+        if let Some(a) = &self.ap {
+            if self.bridge.is_none() {
+                return Err("[ap] dials out FOR the bridge — it needs a [bridge] section".into());
+            }
+            lines.push(format!("ap: dial-out to {} (pinned), browsers served from {}", a.url, a.upstream));
         }
 
         if self.mesh.is_none() && self.webrtc.is_none() && self.bridge.is_none() {
@@ -299,5 +362,73 @@ impl Config {
         }
 
         Ok(lines)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Config;
+
+    /// root/install/install.sh writes exactly this shape (values aside) —
+    /// every field it emits must parse (deny_unknown_fields stays on).
+    #[test]
+    fn installer_bridge_toml_parses() {
+        let toml = r#"
+[node]
+name = "host"
+private_key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+
+[bridge]
+http = "0.0.0.0:7890"
+media = "192.168.1.10:7891"
+tokens_file = "/var/lib/bifrost/devices.json"
+candidates = ["192.168.1.10"]
+dtls_cert_file = "/var/lib/bifrost/bridge-dtls.json"
+public_url = "http://192.168.1.10:7890"
+"#;
+        let c: Config = toml::from_str(toml).expect("installer bridge.toml must parse");
+        let b = c.bridge.unwrap();
+        assert_eq!(b.dtls_cert_file.as_deref(), Some("/var/lib/bifrost/bridge-dtls.json"));
+        assert_eq!(b.public_url.as_deref(), Some("http://192.168.1.10:7890"));
+    }
+
+    /// both lines at once: root-link plane + pairing identity + [ap] dial-out
+    /// (the section deploy-vps.sh writes) in one bridge.toml
+    #[test]
+    fn merged_bridge_toml_parses() {
+        let toml = r#"
+[node]
+name = "host"
+private_key = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+
+[bridge]
+http = "127.0.0.1:7890"
+media = "127.0.0.1:7891"
+tokens_file = "devices.json"
+root_link_secret = "s"
+dtls_cert_file = "dtls.json"
+public_url = "http://127.0.0.1:7890"
+
+[bridge.root-link]
+enabled = true
+ping_secs = 3
+max_inflight = 1
+
+[ap]
+url = "wss://ap.example.org/ap"
+pin = "sha-256 AA:BB"
+token = "00"
+upstream = "127.0.0.1:8090"
+tcp = { livekit-ice = "127.0.0.1:7881" }
+"#;
+        let c: Config = toml::from_str(toml).expect("merged bridge.toml must parse");
+        assert!(c.bridge.as_ref().unwrap().root_link.as_ref().unwrap().enabled);
+        assert_eq!(c.ap.unwrap().tcp.get("livekit-ice").map(String::as_str), Some("127.0.0.1:7881"));
+    }
+
+    #[test]
+    fn unknown_bridge_field_still_rejected() {
+        let toml = "[node]\nname = \"h\"\nprivate_key = \"k\"\n[bridge]\nhttp = \"a\"\nmedia = \"b\"\ntokens_file = \"c\"\nbogus = 1\n";
+        assert!(toml::from_str::<Config>(toml).is_err());
     }
 }

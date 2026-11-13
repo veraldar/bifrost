@@ -1,8 +1,5 @@
 //! `bridge` subcommand: run the v0.9 bridge from a config file.
 
-use std::net::{SocketAddr, TcpListener, UdpSocket};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use std::time::Duration;
 
 use crate::bridge::{self, BridgeConfig};
@@ -50,6 +47,10 @@ pub fn run(path: &str) -> Result<(), String> {
         root_link_listen: cfg.root_link.as_ref().and_then(|rl| rl.listen.clone()),
         root_link_ping_secs: cfg.root_link.as_ref().map(|rl| rl.ping_secs).unwrap_or(15),
         root_link_max_inflight: cfg.root_link.as_ref().map(|rl| rl.max_inflight).unwrap_or(1),
+        // v0.9 pairing identity: /identity publishes the persisted DTLS fingerprint
+        name: loaded.config.node.name.clone(),
+        dtls_cert_file: cfg.dtls_cert_file.clone().map(Into::into),
+        public_url: cfg.public_url.clone(),
     })?;
 
     println!(
@@ -60,10 +61,25 @@ pub fn run(path: &str) -> Result<(), String> {
         "  bridge: opencode {} | speaches {} | tokens {}",
         cfg.opencode_url, cfg.speaches_url, cfg.tokens_file
     );
+    println!("  bridge: identity {} (GET /identity → the pairing QR pins it)", handle.fingerprint);
+    match handle.root_link_port {
+        Some(p) => println!("  bridge: root-link dial-in ws on port {p} (link-token first frame)"),
+        None => println!("  bridge: root-link dial-in off"),
+    }
+    if let Some(apc) = loaded.config.ap.as_ref() {
+        println!("  bridge: access point {} → browsers served from {} (dial-out, pinned)", apc.url, apc.upstream);
+        crate::ap::spawn_dialer(crate::ap::DialConfig {
+            url: apc.url.clone(),
+            pin: apc.pin.clone(),
+            token: apc.token.clone(),
+            upstream: apc.upstream.clone(),
+            livekit: apc.livekit.clone(),
+            tcp: apc.tcp.clone(),
+            tokens: std::sync::Arc::new(crate::tokens::TokenStore::open(cfg.tokens_file.clone())),
+        });
+    }
     println!("bifrost-net bridge serving — Ctrl-C to stop");
 
-    let stop = Arc::new(AtomicBool::new(false));
-    let _ = stop;
     loop {
         std::thread::sleep(Duration::from_secs(3600));
     }

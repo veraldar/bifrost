@@ -5,11 +5,26 @@
 //! track: mic → Opus → (voice.commit) → speaches STT → opencode prompt →
 //! reply → speaches TTS → Opus back to the phone.
 //!
-//! Auth (S1 seam): Bearer device token required on /offer (tokens.rs — the
-//! PWA mints, the bridge verifies). The DTLS session established through that
-//! exchange IS the authenticated session. Honest limit: token lifetime = the
-//! session lifetime; rotation needs a reconnect. Revocation blocks new
-//! signaling within ~1s.
+//! Auth (S1 seam): a live device credential is required on /offer and
+//! /branch (tokens.rs — the app mints, the bridge verifies): a v2 access token
+//! (short-lived, bound to the region of the REAL socket address) or a v1
+//! device token (`tokenHash`, no expiry, no region). The DTLS session
+//! established through that exchange IS the authenticated session, and it
+//! stays accountable: every live peer is re-checked every 500ms and SEVERED
+//! (a `severed` notice with the reason, then disconnect) when its device is
+//! revoked, the kill epoch moves (kill-switch), or its access token lapses
+//! without an `auth.refresh` over the channel.
+//!
+//! Identity (trust-on-first-scan): ONE persisted DTLS certificate for every
+//! peer, so its sha-256 fingerprint is stable — GET /identity publishes it for
+//! the pairing QR, the phone pins it, and the browser refuses any answer (and
+//! any DTLS handshake) that does not carry it. Signaling is the trunk's own
+//! HTTP: no signaling server exists. CORS is open (no cookies are ever read),
+//! so the phone's app can dial the bridge directly.
+//!
+//! Root-link (v4): roots dial IN on their own ws listener (bridge port + 1 by
+//! default, rootlink.rs); a turn naming a root rides that root's link, gated
+//! by the device's `roots` allowlist (TOKEN LAW, bound at the admit gate).
 
 use std::collections::HashMap;
 use std::io::Read;
@@ -24,13 +39,16 @@ use str0m::media::{MediaData, MediaKind, MediaTime};
 use str0m::net::{Protocol, Receive};
 use str0m::{Candidate, Event, Input, Output, Rtc};
 
+use str0m::config::DtlsCert;
+
 use crate::cand;
 use crate::opencode::OpencodeClient;
 use crate::registry::{new_pending, Registry, RESULT_WAIT};
 use crate::roots::{resolve_root, root_allowed, RootSel};
 use crate::speech::{resample_to_48k, Pcm, SpeechClient};
+use crate::region::region_of;
 use crate::ws;
-use crate::tokens::{bearer, TokenStore};
+use crate::tokens::{bearer, now_ms, Grant, TokenStore};
 
 pub struct BridgeConfig {
     pub http: SocketAddr,
@@ -55,6 +73,12 @@ pub struct BridgeConfig {
     pub root_link_ping_secs: u64,
     /// v4c GAP-A: per-root in-flight cap (default 1; 0 = unlimited)
     pub root_link_max_inflight: u64,
+    /// v0.9 pairing: box name published on /identity (goes into the QR)
+    pub name: String,
+    /// persisted DTLS identity (base64 DER json, chmod 600); None = ephemeral
+    pub dtls_cert_file: Option<std::path::PathBuf>,
+    /// the signaling URL phones dial (LAN address); None = http://<bind>
+    pub public_url: Option<String>,
 }
 
 pub struct BridgeHandle {
@@ -62,6 +86,8 @@ pub struct BridgeHandle {
     pub media: SocketAddr,
     /// v4: the root dial-in ws port when the plane is LIVE (None = off)
     pub root_link_port: Option<u16>,
+    /// "sha-256 AB:CD:…" of the persisted DTLS certificate
+    pub fingerprint: String,
     stop: Arc<AtomicBool>,
 }
 
@@ -73,18 +99,33 @@ impl Drop for BridgeHandle {
 
 const RUN_TIMEOUT: Duration = Duration::from_secs(120);
 const FRAME_SAMPLES: usize = 960; // 20ms @ 48k
+/// how often every live peer is re-checked against the registry
+const RECHECK: Duration = Duration::from_millis(500);
+/// an access token may lapse this long before the peer is severed (renewal
+/// rides `auth.refresh` over the channel a minute before expiry)
+const EXPIRY_GRACE_MS: u64 = 30_000;
 
-/// v4: a peer crossing the admit gate — rtc + its device's root allowlist
-/// (TOKEN LAW: bound at /offer, dispatch trusts only this).
+/// A peer crossing the admit gate — rtc + the credential it is accountable
+/// to (v0.9) + its device's root allowlist (v4 TOKEN LAW: bound at /offer,
+/// dispatch trusts only this) + the kill epoch it was admitted under.
 pub struct Admit {
     pub rtc: Rtc,
-    pub roots: Vec<String>,
+    pub grant: Grant,
+    pub epoch: u64,
 }
 
 struct Peer {
     rtc: Rtc,
     /// v4 TOKEN LAW: root allowlist bound at /offer from the device token
     roots: Vec<String>,
+    /// the credential this peer is accountable to
+    device: String,
+    exp_ms: u64,
+    epoch: u64,
+    /// region of the /offer that admitted this peer — renewals must match it
+    /// (NOT the media path: a multi-homed client's ICE checks arrive from
+    /// several local interfaces, so the datagram source flaps)
+    region: String,
     mid: Option<str0m::media::Mid>,
     pt: Option<str0m::media::Pt>,
     channels: Vec<str0m::channel::ChannelId>,
@@ -183,6 +224,8 @@ enum ClientOp {
 
 pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
     let stop = Arc::new(AtomicBool::new(false));
+    let cert = load_or_create_cert(cfg.dtls_cert_file.as_deref())?;
+    let fingerprint = fingerprint_of(&cert);
 
     let media_sock = UdpSocket::bind(cfg.media).map_err(|e| format!("bridge media bind: {e}"))?;
     media_sock.set_nonblocking(true).map_err(|e| e.to_string())?;
@@ -202,7 +245,6 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
         Ordering::SeqCst,
     );
 
-    let (job_tx, job_rx): (SyncSender<Job>, Receiver<Job>) = sync_channel(64);
     let speech = Arc::new(SpeechClient::new(
         cfg.speaches_url.clone(),
         &cfg.stt_model,
@@ -346,20 +388,31 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
         });
     }
 
-    // signaling thread: POST /offer + Bearer device token
+    // signaling thread: GET /identity, POST /offer (+ device credential),
+    // POST /branch (spliced to the pool), CORS
     {
         let stop = stop.clone();
         let candidates = advertise_ips.clone();
         let tokens = tokens.clone();
+        let cert = cert.clone();
+        let identity = serde_json::json!({
+            "name": cfg.name,
+            "fingerprint": fingerprint,
+            "signal": cfg.public_url.clone().unwrap_or_else(|| format!("http://{http_addr}")),
+            "version": env!("CARGO_PKG_VERSION"),
+        })
+        .to_string();
         // v4: every ws-looking request on /offer is REFUSED — root dial-in
         // lives on its own listener (see the plane above). Keeping the
         // refusal here makes the architecture explicit instead of silent.
         let roots_reg = roots_reg.clone();
         let oc = oc.clone();
         let branch_tx = branch_tx.clone();
-        std::thread::spawn(move || loop {
-            let Ok(Some(request)) = server.recv_timeout(Duration::from_millis(100)) else {
-                continue;
+        std::thread::spawn(move || while !stop.load(Ordering::SeqCst) {
+            let request = match server.recv_timeout(Duration::from_millis(100)) {
+                Ok(Some(r)) => r,
+                Ok(None) => continue,
+                Err(_) => break,
             };
             let ws_looks = ws::ws_requested(&request).is_some();
             if ws_looks {
@@ -379,27 +432,32 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
                 let _ = branch_tx.send(request);
                 continue;
             }
-            // ---- existing branch signaling (unchanged law) ----
+            // ---- branch signaling: /identity, /offer ----
             handle_signaling_request(
                 request,
                 &candidates,
                 media_addr,
                 advertise_ips[0],
                 &tokens,
+                &cert,
+                &identity,
                 &admit_tx,
                 &roots_reg,
                 &oc,
             );
         });
     }
+
     // main RTC loop
     {
         let stop = stop.clone();
+        let tokens = tokens.clone();
         let out_rx = Arc::new(Mutex::new(out_rx));
         std::thread::spawn(move || {
             let mut peers: HashMap<usize, Peer> = HashMap::new();
             let mut next_id = 0usize;
             let mut buf = vec![0u8; 4000];
+            let mut last_check = Instant::now();
 
             loop {
                 if stop.load(Ordering::SeqCst) {
@@ -488,7 +546,11 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
                             media_pos_ms: 0,
                             // v4 TOKEN LAW: the device's root allowlist,
                             // bound at /offer — dispatch trusts only this.
-                            roots: adm.roots,
+                            roots: adm.grant.roots,
+                            device: adm.grant.device,
+                            exp_ms: adm.grant.exp_ms,
+                            epoch: adm.epoch,
+                            region: adm.grant.region,
                         },
                     );
                 }
@@ -562,6 +624,14 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
                                 Event::ChannelOpen(cid, _) => p.channels.push(cid),
                                 Event::ChannelData(cd) => {
                                     if let Ok(txt) = std::str::from_utf8(&cd.data) {
+                                        // v0.9: in-band credential renewal,
+                                        // answered inline (cached map lookup)
+                                        if let Some(reply) = auth_refresh(&tokens, p, txt) {
+                                            if let Some(mut ch) = p.rtc.channel(cd.id) {
+                                                let _ = ch.write(false, reply.as_bytes());
+                                            }
+                                            continue;
+                                        }
                                         let opus = match serde_json::from_str::<serde_json::Value>(txt)
                                         {
                                             Ok(v) if v.get("op").and_then(|o| o.as_str()) == Some("voice.commit") =>
@@ -604,6 +674,38 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
                     }
                 }
 
+                // v0.9 accountability sweep: revoked / kill-switch / lapsed →
+                // severed (a v1 credential never lapses: exp = NO_EXPIRY)
+                if last_check.elapsed() >= RECHECK {
+                    last_check = Instant::now();
+                    let epoch = tokens.kill_epoch();
+                    let doomed: Vec<(usize, &'static str)> = peers
+                        .iter()
+                        .filter_map(|(id, p)| {
+                            let why = if epoch != p.epoch {
+                                "kill-switch"
+                            } else if !tokens.device_live(&p.device) {
+                                "revoked"
+                            } else if now_ms() > p.exp_ms.saturating_add(EXPIRY_GRACE_MS) {
+                                "token expired"
+                            } else if !p.rtc.is_alive() {
+                                "gone"
+                            } else {
+                                return None;
+                            };
+                            Some((*id, why))
+                        })
+                        .collect();
+                    for (id, why) in doomed {
+                        if let Some(mut p) = peers.remove(&id) {
+                            sever(&mut p, why, &media_sock);
+                            if why != "gone" {
+                                println!("  bridge: severed peer {} ({}) — {why}", id, p.device);
+                            }
+                        }
+                    }
+                }
+
                 std::thread::sleep(Duration::from_millis(2));
             }
         });
@@ -613,31 +715,172 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
         http: http_addr,
         media: media_addr,
         root_link_port,
+        fingerprint,
         stop,
     })
 }
 
+/// Tell the peer why, flush that last message onto the wire, then hang up.
+fn sever(p: &mut Peer, why: &str, sock: &UdpSocket) {
+    if p.rtc.is_alive() {
+        p.write_all(&serde_json::json!({ "op": "severed", "why": why }).to_string());
+        let _ = p.rtc.handle_input(Input::Timeout(Instant::now()));
+        while let Ok(out) = p.rtc.poll_output() {
+            match out {
+                Output::Transmit(t) => {
+                    let _ = sock.send_to(&t.contents, t.destination);
+                }
+                Output::Timeout(_) => break,
+                Output::Event(_) => {}
+            }
+        }
+    }
+    p.rtc.disconnect();
+}
+
+/// `auth.refresh {token}` — rebind a live peer to a fresh credential (same
+/// device, same region as the /offer that admitted the peer). Answered
+/// inline on the RTC loop: the registry check is a cached map lookup.
+fn auth_refresh(tokens: &TokenStore, p: &mut Peer, txt: &str) -> Option<String> {
+    let v: serde_json::Value = serde_json::from_str(txt).ok()?;
+    if v.get("op").and_then(|o| o.as_str()) != Some("auth.refresh") {
+        return None;
+    }
+    let req = v.get("req").and_then(|r| r.as_u64()).unwrap_or(0);
+    let token = v.get("token").and_then(|t| t.as_str()).unwrap_or_default();
+    Some(
+        match tokens.check(token, &p.region) {
+            Ok(g) if g.device == p.device => {
+                p.exp_ms = g.exp_ms;
+                serde_json::json!({ "req": req, "ok": true, "exp": g.exp_ms })
+            }
+            Ok(_) => serde_json::json!({ "req": req, "ok": false, "err": "token belongs to another device" }),
+            Err(d) => serde_json::json!({ "req": req, "ok": false, "err": d.why(), "reauth": d.reauth() }),
+        }
+        .to_string(),
+    )
+}
+
+/// CORS: the token IS the gate (no cookies are ever read), so the bridge is
+/// origin-permissive by design; Private-Network lets an https PWA dial a LAN
+/// bridge directly.
+fn cors<T: std::io::Read>(r: tiny_http::Response<T>) -> tiny_http::Response<T> {
+    let h = |k: &str, v: &str| tiny_http::Header::from_bytes(k.as_bytes(), v.as_bytes()).unwrap();
+    r.with_header(h("Access-Control-Allow-Origin", "*"))
+        .with_header(h("Access-Control-Allow-Headers", "Authorization, Content-Type"))
+        .with_header(h("Access-Control-Allow-Methods", "GET, POST, OPTIONS"))
+        .with_header(h("Access-Control-Allow-Private-Network", "true"))
+        .with_header(h("Cache-Control", "no-store"))
+}
+
+fn json_response(status: u16, body: String) -> tiny_http::Response<std::io::Cursor<Vec<u8>>> {
+    cors(
+        tiny_http::Response::from_string(body)
+            .with_status_code(status)
+            .with_header(tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap()),
+    )
+}
+
+// ---- DTLS identity ---------------------------------------------------------
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct CertFile {
+    certificate: String,
+    private_key: String,
+}
+
+/// Load the persisted DTLS identity, or mint one and persist it (chmod 600).
+fn load_or_create_cert(path: Option<&std::path::Path>) -> Result<DtlsCert, String> {
+    use base64::Engine as _;
+    let b64 = base64::engine::general_purpose::STANDARD;
+    if let Some(path) = path {
+        if let Ok(txt) = std::fs::read_to_string(path) {
+            let f: CertFile = serde_json::from_str(&txt).map_err(|e| format!("dtls cert {}: {e}", path.display()))?;
+            return Ok(DtlsCert {
+                certificate: b64.decode(f.certificate).map_err(|e| e.to_string())?,
+                private_key: b64.decode(f.private_key).map_err(|e| e.to_string())?,
+            });
+        }
+    }
+    let cert = str0m::crypto::from_feature_flags()
+        .dtls_provider
+        .generate_certificate()
+        .ok_or("crypto provider cannot generate a DTLS certificate")?;
+    if let Some(path) = path {
+        let f = CertFile {
+            certificate: b64.encode(&cert.certificate),
+            private_key: b64.encode(&cert.private_key),
+        };
+        std::fs::write(path, serde_json::to_string(&f).unwrap()).map_err(|e| format!("dtls cert write: {e}"))?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
+        }
+    }
+    Ok(cert)
+}
+
+/// The SDP form: "sha-256 AB:CD:…" over the DER certificate.
+pub fn fingerprint_of(cert: &DtlsCert) -> String {
+    use sha2::Digest as _;
+    let d = sha2::Sha256::digest(&cert.certificate);
+    let hex: Vec<String> = d.iter().map(|b| format!("{b:02X}")).collect();
+    format!("sha-256 {}", hex.join(":"))
+}
+
 // ---------------------------------------------------------------------------
-// branch signaling (POST /offer) — the v2c law, extracted verbatim so the
-// ws root-link dial can share the same listener/port.
+// branch signaling (GET /identity, POST /offer) — the v2c candidate law + the
+// v0.9 pairing law (pinned DTLS identity, region-checked credential).
 // ---------------------------------------------------------------------------
 
+/// The 401 every signaling/branch gate answers: `why` + what the client must
+/// do next (`reauth`: refresh | pair) — the PWA middleware's contract.
+fn deny_response(why: &str, reauth: &str) -> tiny_http::Response<std::io::Cursor<Vec<u8>>> {
+    json_response(
+        401,
+        serde_json::json!({ "error": "device token required", "why": why, "reauth": reauth }).to_string(),
+    )
+}
+
+/// Bearer credential → Grant, checked in the region of the REAL socket
+/// address (never a header a client could fake).
+fn authorize(request: &tiny_http::Request, tokens: &TokenStore) -> Result<Grant, crate::tokens::Deny> {
+    let auth = request
+        .headers()
+        .iter()
+        .find(|h| h.field.equiv("Authorization"))
+        .map(|h| h.value.as_str().to_string())
+        .unwrap_or_default();
+    let raw = bearer(&auth).ok_or(crate::tokens::Deny::Missing)?;
+    let region = request.remote_addr().map(|a| region_of(a.ip())).unwrap_or_default();
+    tokens.check(raw, &region)
+}
+
+#[allow(clippy::too_many_arguments)]
 fn handle_signaling_request(
     mut request: tiny_http::Request,
     candidates: &[IpAddr],
     media_addr: SocketAddr,
     advertise_ip: IpAddr,
     tokens: &Arc<TokenStore>,
+    cert: &DtlsCert,
+    identity: &str,
     admit_tx: &SyncSender<Admit>,
     roots_reg: &Arc<Registry>,
     oc: &Arc<OpencodeClient>,
 ) {
     let url = request.url().trim_end_matches('/').to_string();
+    let method = request.method().clone();
     // CORS: the PWA (any origin) posts offers with an Authorization header —
     // the token IS the gate, so the bridge is origin-permissive by design.
-    let preflight = request.method() == &tiny_http::Method::Options;
-    if preflight {
+    if method == tiny_http::Method::Options {
         let _ = request.respond(cors(tiny_http::Response::empty(204)));
+        return;
+    }
+    // v0.9: the pairing QR pins this fingerprint (trust-on-first-scan)
+    if url == "/identity" {
+        let _ = request.respond(json_response(200, identity.to_string()));
         return;
     }
     // v4: POST /branch — the SAME dispatch law as the data channel, over
@@ -647,46 +890,33 @@ fn handle_signaling_request(
         handle_branch(request, tokens, roots_reg, oc);
         return;
     }
-    if url != "/offer" {
+    if url != "/offer" || method != tiny_http::Method::Post {
         let _ = request.respond(cors(tiny_http::Response::from_string("bifrost bridge")));
         return;
     }
-    let auth = request
-        .headers()
-        .iter()
-        .find(|h| h.field.equiv("Authorization"))
-        .map(|h| h.value.as_str().to_string())
-        .unwrap_or_default();
-    let Some(raw) = bearer(&auth) else {
-        let _ = request.respond(
-            cors(tiny_http::Response::from_string("device token required")
-                .with_status_code(401)),
-        );
-        return;
+    let grant = match authorize(&request, tokens) {
+        Ok(g) => g,
+        Err(d) => {
+            let _ = request.respond(deny_response(d.why(), d.reauth()));
+            return;
+        }
     };
-    if !tokens.validate(raw) {
-        let _ = request.respond(cors(
-            tiny_http::Response::from_string("unknown or revoked device").with_status_code(401),
-        ));
-        return;
-    }
+    let epoch = tokens.kill_epoch();
+    let bad = |msg: String| json_response(400, serde_json::json!({ "error": msg }).to_string());
     let mut body = String::new();
     let _ = request.as_reader().read_to_string(&mut body);
     // Chrome is trickle-only: the offer SDP carries NO candidates; they
     // arrive in the same POST as a `candidates` array (gathered client-side).
+    // The body is the SdpOffer json ({type, sdp}) + that optional array.
     let parsed: serde_json::Value = match serde_json::from_str(&body) {
         Ok(v) => v,
         Err(e) => {
-            let _ = request.respond(cors(
-                tiny_http::Response::from_string(format!("bad offer: {e}")).with_status_code(400),
-            ));
+            let _ = request.respond(bad(format!("bad offer: {e}")));
             return;
         }
     };
     let Some(sdp_str) = parsed.get("sdp").and_then(|s| s.as_str()) else {
-        let _ = request.respond(cors(
-            tiny_http::Response::from_string("offer missing sdp").with_status_code(400),
-        ));
+        let _ = request.respond(bad("bad offer: missing sdp".into()));
         return;
     };
     // v2c: purge forbidden addresses the client REMEMBERS about us (old
@@ -701,9 +931,7 @@ fn handle_signaling_request(
     let offer = match SdpOffer::from_sdp_string(&sdp_str) {
         Ok(o) => o,
         Err(e) => {
-            let _ = request.respond(cors(
-                tiny_http::Response::from_string(format!("bad sdp: {e}")).with_status_code(400),
-            ));
+            let _ = request.respond(bad(format!("bad sdp: {e}")));
             return;
         }
     };
@@ -729,7 +957,8 @@ fn handle_signaling_request(
                 .collect()
         })
         .unwrap_or_default();
-    let mut rtc = Rtc::new(Instant::now());
+    // v0.9: every peer shares the ONE persisted DTLS identity the QR pinned
+    let mut rtc = Rtc::builder().set_dtls_cert(cert.clone()).build(Instant::now());
     // v2c emission: advertise ONLY the filtered list, public/reachable first
     // (str0m nominates the highest-priority pair — the public path must
     // lead), else loopback (0.0.0.0 is not a valid ICE candidate — this
@@ -752,10 +981,7 @@ fn handle_signaling_request(
     let answer = match rtc.sdp_api().accept_offer(offer) {
         Ok(a) => a,
         Err(e) => {
-            let _ = request.respond(cors(
-                tiny_http::Response::from_string(format!("offer rejected: {e}"))
-                    .with_status_code(400),
-            ));
+            let _ = request.respond(bad(format!("offer rejected: {e}")));
             return;
         }
     };
@@ -763,9 +989,8 @@ fn handle_signaling_request(
     // in signaling-stable state, and the answer must already exist before
     // the browser can pair — this ordering is the ICE make-or-break.
     for c in &trickle {
-        match str0m::Candidate::from_sdp_string(c) {
-            Ok(cand) => rtc.add_remote_candidate(cand),
-            Err(_) => {} // malformed trickle lines are ignored
+        if let Ok(cand) = str0m::Candidate::from_sdp_string(c) {
+            rtc.add_remote_candidate(cand); // malformed trickle lines are ignored
         }
     }
     eprintln!(
@@ -775,17 +1000,13 @@ fn handle_signaling_request(
         trickle.len()
     );
     let body = serde_json::to_string(&answer).expect("answer json");
-    // v4 TOKEN LAW: bind the device's root-allowlist claim at the admit
-    // gate — dispatch trusts ONLY this (never anything from the wire).
-    let roots_claim = tokens.claims(&raw).unwrap_or_default();
-    if admit_tx.send(Admit { rtc, roots: roots_claim }).is_err() {
+    // v4 TOKEN LAW: the device's root-allowlist claim rides the grant into
+    // the admit gate — dispatch trusts ONLY this (never anything from the
+    // wire). v0.9: the grant + epoch make the peer accountable (sweep).
+    if admit_tx.send(Admit { rtc, grant, epoch }).is_err() {
         return;
     }
-    let _ = request.respond(cors(
-        tiny_http::Response::from_string(body).with_header(
-            tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap(),
-        ),
-    ));
+    let _ = request.respond(json_response(200, body));
 }
 
 /// v4: POST /branch — one turn, Bearer device token, optional "root" claim.
@@ -799,20 +1020,22 @@ fn handle_branch(
     roots_reg: &Arc<Registry>,
     oc: &Arc<OpencodeClient>,
 ) {
-    let auth = request
-        .headers()
-        .iter()
-        .find(|h| h.field.equiv("Authorization"))
-        .map(|h| h.value.as_str().to_string())
-        .unwrap_or_default();
-    let Some(raw) = bearer(&auth) else {
-        let _ = request.respond(cors(tiny_http::Response::from_string(
-            r#"{"ok":false,"err":"device token required"}"#,
-        ).with_status_code(401)));
-        return;
+    // same gate as /offer: a live credential in the caller's real region
+    // (a present-but-unknown token is refused too — never "anonymous")
+    let grant = match authorize(&request, tokens) {
+        Ok(g) => g,
+        Err(d) => {
+            let _ = request.respond(json_response(
+                401,
+                serde_json::json!({ "ok": false, "err": "device token required",
+                                    "why": d.why(), "reauth": d.reauth() })
+                .to_string(),
+            ));
+            return;
+        }
     };
     // the device's root allowlist (TOKEN LAW — empty = anonymous-class)
-    let roots_claim = tokens.claims(raw).unwrap_or_default();
+    let roots_claim = grant.roots;
     let mut body = String::new();
     let _ = request.as_reader().read_to_string(&mut body);
     let Ok(v) = serde_json::from_str::<serde_json::Value>(&body) else {
@@ -1096,13 +1319,25 @@ fn handle_req(
         }
         ClientOp::Prompt { id, text } => {
             let sid = oc.resolve(&id)?;
-            oc.prompt(&sid, &text)?;
-            // run lifecycle: notify the client when the assistant replies
+            // opencode's POST /message resolves only when the run completes
+            // (pwa/lib/oc-live.ts) — so the prompt runs off-worker and its
+            // return IS run.done; the reply text rides the notice
             let oc2 = oc.clone();
             let out_tx2 = out_tx.clone();
             let sid2 = sid.clone();
             std::thread::spawn(move || {
-                let _ = out_tx2.send(wait_run_done(&oc2, client, &sid2));
+                let json = match oc2.prompt(&sid2, &text) {
+                    Ok(()) => {
+                        let reply = oc2
+                            .transcript(&sid2)
+                            .ok()
+                            .and_then(|m| last_assistant_text(&m))
+                            .unwrap_or_default();
+                        serde_json::json!({ "op": "run.done", "id": sid2, "reply": reply })
+                    }
+                    Err(e) => serde_json::json!({ "op": "run.done", "id": sid2, "error": e }),
+                };
+                let _ = out_tx2.send(Outcome::Notice { client, json: json.to_string() });
             });
             Ok(reply_json(
                 client,
@@ -1130,7 +1365,6 @@ fn handle_req(
     }
 }
 
-/// Poll the transcript until an assistant message lands (count grows).
 /// v4: send one turn to a link-root and WAIT for its result (bounded).
 /// Clean errors — never a panic — on unknown/refused/dead root or timeout.
 fn root_turn(
@@ -1197,32 +1431,9 @@ fn root_turn(
     Ok(Outcome::RootReply(obj))
 }
 
-/// v4: a link-root's answer, waiting for the worker to stamp peer coords.
-
+/// v4: trunk-minted dispatch id for a root turn.
 fn dispatch_tid() -> String {
     format!("t{}", uuid_like())
-}
-
-fn wait_run_done(oc: &OpencodeClient, client: usize, sid: &str) -> Outcome {
-    let before = oc.transcript(sid).map(|m| assistant_count(&m)).unwrap_or(0);
-    let start = Instant::now();
-    loop {
-        if start.elapsed() > RUN_TIMEOUT {
-            return Outcome::Notice {
-                client,
-                json: r#"{"op":"run.done","timeout":true}"#.into(),
-            };
-        }
-        std::thread::sleep(Duration::from_millis(1200));
-        if let Ok(msgs) = oc.transcript(sid) {
-            if assistant_count(&msgs) > before {
-                return Outcome::Notice {
-                    client,
-                    json: serde_json::json!({"op":"run.done","id":sid}).to_string(),
-                };
-            }
-        }
-    }
 }
 
 fn assistant_count(msgs: &[crate::opencode::MessageInfo]) -> usize {
@@ -1386,52 +1597,101 @@ fn encode_opus_stream(pcm48: &[i16]) -> Vec<Vec<u8>> {
 // ---------------------------------------------------------------------------
 
 pub fn bridge_test() -> Result<(), String> {
-    const TIMEOUT: Duration = Duration::from_secs(15);
+    use crate::tokens::{hash_token, now_ms};
 
-    // temp tokens file: one device, raw token known to the test
-    let raw = format!("bfnt-{}", uuid_like());
-    let hash = crate::tokens::hash_token(&raw);
+    // ONE temp registry in BOTH shapes the app writes (the test plays the
+    // writer): v2 devices with region-bound, expiring access tokens, and a
+    // v1 device — camelCase `tokenHash`, no expiry, no region (the V9.2 scar:
+    // this test once wrote snake_case `token_hash`, which no reader accepts).
     let dir = std::env::temp_dir().join(format!("bfn-v9-{}", uuid_like()));
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let tokens_path = dir.join("devices.json");
-    let tokens_json = serde_json::json!({
-        "devices": [{"id": "dev_e2e", "name": "e2e", "token_hash": hash, "created": "now", "revoked": false}]
-    });
-    std::fs::write(&tokens_path, tokens_json.to_string()).map_err(|e| e.to_string())?;
+    let v1_tok = format!("bfnd-v1-{}", uuid_like());
+    let write_reg = |epoch: u64, devs: &[(&str, bool, &str, u64, &str)], v1_revoked: bool| {
+        let mut devices: Vec<_> = devs
+            .iter()
+            .map(|(id, revoked, raw, exp, region)| {
+                serde_json::json!({
+                    "id": id, "name": id, "revoked": revoked,
+                    "access": [{ "hash": hash_token(raw), "exp": exp, "region": region }],
+                })
+            })
+            .collect();
+        devices.push(serde_json::json!({
+            "id": "dev_v1", "name": "v1", "tokenHash": hash_token(&v1_tok),
+            "created": "now", "revoked": v1_revoked, "roots": [],
+        }));
+        let reg = serde_json::json!({ "version": 2, "killEpoch": epoch, "devices": devices, "codes": [] });
+        let tmp = tokens_path.with_extension("tmp");
+        std::fs::write(&tmp, reg.to_string()).and_then(|_| std::fs::rename(&tmp, &tokens_path))
+    };
+    let ok_tok = format!("bfnd-ok-{}", uuid_like());
+    let lan_tok = format!("bfnd-lan-{}", uuid_like());
+    let old_tok = format!("bfnd-old-{}", uuid_like());
+    let two_tok = format!("bfnd-two-{}", uuid_like());
+    let later = now_ms() + 600_000;
+    let mut devs = vec![
+        ("dev_ok", false, ok_tok.as_str(), later, "loopback"),
+        ("dev_lan", false, lan_tok.as_str(), later, "lan:10.9.9.0/24"),
+        ("dev_old", false, old_tok.as_str(), now_ms() - 1, "loopback"),
+        ("dev_two", false, two_tok.as_str(), later, "loopback"),
+    ];
+    write_reg(0, &devs, false).map_err(|e| e.to_string())?;
 
+    let oc_url = std::env::var("OPENCODE_URL").unwrap_or_else(|_| "http://127.0.0.1:4096".into());
     let handle = start(BridgeConfig {
         http: "127.0.0.1:0".parse().unwrap(),
         media: "127.0.0.1:0".parse().unwrap(),
         tokens_file: tokens_path.clone(),
-        opencode_url: std::env::var("OPENCODE_URL").unwrap_or_else(|_| "http://127.0.0.1:4096".into()),
+        opencode_url: oc_url.clone(),
         speaches_url: std::env::var("SPEACHES_URL").unwrap_or_else(|_| "http://127.0.0.1:8000/v1".into()),
         stt_model: "Systran/faster-whisper-small".into(),
         tts_model: "speaches-ai/Kokoro-82M-v1.0-ONNX".into(),
         tts_voice: "af_heart".into(),
         candidates: vec![IpAddr::from([127, 0, 0, 1])],
-        // v9 e2e stays on the legacy surface: root-link OFF here (the
-        // rootlink-sim.py harness is the root-link plane's own test).
+        // v9 e2e: root-link OFF here (the rootlink-sim.py harness is the
+        // root-link plane's own test).
         root_link_secret: None,
         root_ids: vec![],
         root_link_enabled: false,
         root_link_listen: None,
         root_link_ping_secs: 15,
         root_link_max_inflight: 1,
+        name: "selftest".into(),
+        dtls_cert_file: Some(dir.join("dtls.json")),
+        public_url: None,
     })
     .map_err(|e| e.to_string())?;
 
-    // auth negatives first (no token, wrong token)
-    let no_auth = http_post(handle.http, "/offer", None, "{}")?;
-    if !no_auth.0.starts_with("401") {
-        return Err(format!("bridge accepted an offer WITHOUT a token: {}", no_auth.0));
+    // identity: persisted, stable across restarts, published for the QR
+    let again = load_or_create_cert(Some(&dir.join("dtls.json")))?;
+    if fingerprint_of(&again) != handle.fingerprint {
+        return Err("persisted DTLS identity changed across a reload".into());
     }
-    let bad_auth = http_post(handle.http, "/offer", Some("bfnt-not-a-real-token-value"), "{}")?;
-    if !bad_auth.0.starts_with("401") {
-        return Err(format!("bridge accepted an offer with a WRONG token: {}", bad_auth.0));
+    let id = http_get(handle.http, "/identity")?;
+    if !id.contains(&handle.fingerprint) {
+        return Err(format!("/identity does not publish the fingerprint: {id}"));
     }
 
-    // the real client: browser-shaped peer with the `app` data channel
-    let mut c = V9Client::connect(handle.http, handle.media, &raw)?;
+    // auth negatives (no token, wrong token, wrong region, expired)
+    for (tok, want) in [
+        (None, "missing"),
+        (Some("bfnd-not-a-real-token-value"), "invalid"),
+        (Some(lan_tok.as_str()), "region"),
+        (Some(old_tok.as_str()), "expired"),
+    ] {
+        let (status, body) = http_post(handle.http, "/offer", tok, "{}")?;
+        if !status.starts_with("401") || !body.contains(want) {
+            return Err(format!("offer with {want} credential answered {status} {body}"));
+        }
+    }
+
+    // the real client: browser-shaped peer with the `app` data channel (v2)
+    let mut c = V9Client::connect(handle.http, handle.media, &ok_tok)?;
+    let fp_hex = handle.fingerprint.trim_start_matches("sha-256 ");
+    if !c.answer.contains(fp_hex) {
+        return Err("bridge answer does not carry the pinned fingerprint".into());
+    }
 
     let hello = c.roundtrip(1, r#"{"op":"hello","req":1}"#)?;
     if !hello.contains("\"bridge\"") {
@@ -1458,23 +1718,79 @@ pub fn bridge_test() -> Result<(), String> {
         return Err(format!("transcript malformed: {tr}"));
     }
 
-    // revocation lands within the store's 1s refresh: revoke -> new offer 401
-    let tokens_json = serde_json::json!({
-        "devices": [{"id": "dev_e2e", "name": "e2e", "token_hash": hash, "created": "now", "revoked": true}]
-    });
-    std::fs::write(&tokens_path, tokens_json.to_string()).map_err(|e| e.to_string())?;
-    std::thread::sleep(Duration::from_millis(1300));
-    let revoked = http_post(handle.http, "/offer", Some(&raw), "{}")?;
+    // v1 device token (camelCase tokenHash, the tree's app shape) opens the
+    // SAME pinned identity and speaks the same channel protocol
+    let mut cv1 = V9Client::connect(handle.http, handle.media, &v1_tok)?;
+    if !cv1.answer.contains(fp_hex) {
+        return Err("v1 answer does not carry the pinned fingerprint".into());
+    }
+    let list_v1 = cv1.roundtrip(1, r#"{"op":"session.list","req":1}"#)?;
+    if !list_v1.contains(&sid) {
+        return Err(format!("v1 peer: session list missing {sid}: {list_v1}"));
+    }
+
+    // auth.refresh over the channel: a token of ANOTHER device is refused
+    let other = c.roundtrip(5, &serde_json::json!({"op":"auth.refresh","req":5,"token":two_tok}).to_string())?;
+    if !other.contains("another device") {
+        return Err(format!("auth.refresh accepted a foreign token: {other}"));
+    }
+    let _ = oc_delete(&oc_url, &sid);
+
+    // revoke MID-SESSION: the live peer is severed with the reason
+    devs[0].1 = true;
+    write_reg(0, &devs, false).map_err(|e| e.to_string())?;
+    let t0 = Instant::now();
+    c.await_notice("severed", "revoked", Duration::from_secs(4))?;
+    let revoke_ms = t0.elapsed().as_millis();
+    let revoked = http_post(handle.http, "/offer", Some(&ok_tok), "{}")?;
     if !revoked.0.starts_with("401") {
         return Err("REVOKED token still opens the bridge".into());
     }
 
+    // the v1 device is just as accountable: revoke → severed, then 401
+    write_reg(0, &devs, true).map_err(|e| e.to_string())?;
+    let t2 = Instant::now();
+    cv1.await_notice("severed", "revoked", Duration::from_secs(4))?;
+    let revoke_v1_ms = t2.elapsed().as_millis();
+    let revoked_v1 = http_post(handle.http, "/offer", Some(&v1_tok), "{}")?;
+    if !revoked_v1.0.starts_with("401") || !revoked_v1.1.contains("revoked") {
+        return Err(format!("REVOKED v1 token still opens the bridge: {revoked_v1:?}"));
+    }
+
+    // kill-switch: the epoch moves → every live peer severed
+    let mut c2 = V9Client::connect(handle.http, handle.media, &two_tok)?;
+    c2.roundtrip(1, r#"{"op":"hello","req":1}"#)?;
+    write_reg(1, &devs, true).map_err(|e| e.to_string())?;
+    let t1 = Instant::now();
+    c2.await_notice("severed", "kill-switch", Duration::from_secs(4))?;
+    let kill_ms = t1.elapsed().as_millis();
+
     drop(c);
+    drop(cv1);
+    drop(c2);
     drop(handle);
     let _ = std::fs::remove_dir_all(&dir);
 
-    println!("    401 without/with wrong token; hello+session.create+list+transcript over the channel; revoked token 401; opencode session {sid}");
+    println!(
+        "    identity pinned+stable; 401 missing/invalid/region/expired; hello+create+list+transcript over the channel; \
+         v1 tokenHash device admitted (same pin); foreign auth.refresh refused; revoke mid-session → severed in {revoke_ms}ms \
+         (v1: {revoke_v1_ms}ms); kill epoch → severed in {kill_ms}ms"
+    );
     Ok(())
+}
+
+fn http_get(addr: SocketAddr, path: &str) -> Result<String, String> {
+    use std::io::Write as _;
+    let mut s = TcpStream::connect(addr).map_err(|e| format!("connect: {e}"))?;
+    let req = format!("GET {path} HTTP/1.1\r\nHost: bridge\r\nConnection: close\r\n\r\n");
+    s.write_all(req.as_bytes()).map_err(|e| e.to_string())?;
+    let mut raw = String::new();
+    s.read_to_string(&mut raw).map_err(|e| e.to_string())?;
+    Ok(raw.split("\r\n\r\n").nth(1).unwrap_or_default().to_string())
+}
+
+fn oc_delete(base: &str, sid: &str) -> Result<(), String> {
+    ureq::delete(&format!("{base}/session/{sid}")).call().map(|_| ()).map_err(|e| e.to_string())
 }
 
 fn uuid_like() -> String {
@@ -1521,6 +1837,8 @@ fn http_post(
 /// Browser-shaped str0m client: opens the `app` data channel, speaks JSON.
 struct V9Client {
     rtc: Rtc,
+    /// the raw signaling answer (fingerprint check)
+    answer: String,
     sock: UdpSocket,
     buf: Vec<u8>,
     cid: Option<str0m::channel::ChannelId>,
@@ -1554,6 +1872,7 @@ impl V9Client {
 
         Ok(V9Client {
             rtc,
+            answer: body,
             sock,
             buf: vec![0u8; 4000],
             cid: Some(cid),
@@ -1602,6 +1921,25 @@ impl V9Client {
                 Err(_) => break,
             }
         }
+    }
+
+    /// Wait for a server notice `{"op": op, "why": why}`.
+    fn await_notice(&mut self, op: &str, why: &str, within: Duration) -> Result<(), String> {
+        let deadline = Instant::now() + within;
+        while Instant::now() < deadline {
+            self.pump();
+            let hit = self.inbox.iter().any(|m| {
+                serde_json::from_str::<serde_json::Value>(m).is_ok_and(|v| {
+                    v.get("op").and_then(|o| o.as_str()) == Some(op)
+                        && v.get("why").and_then(|w| w.as_str()) == Some(why)
+                })
+            });
+            if hit {
+                return Ok(());
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        Err(format!("no {op}/{why} notice within {within:?} (inbox: {:?})", self.inbox))
     }
 
     fn roundtrip(&mut self, req: u64, json: &str) -> Result<String, String> {
@@ -1740,21 +2078,4 @@ fn correlate(a: &[i16], b: &[i16]) -> f64 {
         return 0.0;
     }
     num / (da.sqrt() * db.sqrt())
-}
-
-fn cors<T: std::io::Read>(r: tiny_http::Response<T>) -> tiny_http::Response<T> {
-    use tiny_http::Header;
-    r.with_header(
-        Header::from_bytes(&b"Access-Control-Allow-Origin"[..], &b"*"[..]).unwrap(),
-    )
-    .with_header(
-        Header::from_bytes(
-            &b"Access-Control-Allow-Headers"[..],
-            &b"Authorization, Content-Type"[..],
-        )
-        .unwrap(),
-    )
-    .with_header(
-        Header::from_bytes(&b"Access-Control-Allow-Methods"[..], &b"POST, OPTIONS"[..]).unwrap(),
-    )
 }

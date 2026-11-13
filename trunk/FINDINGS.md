@@ -189,3 +189,58 @@ Studied the live stack first (this box runs the real thing):
   userspace processes, which is what a VPS binary would actually embed.
 - Echo test = relay seam, not a load-bearing SFU (no simulcast/bwe/NACK
   chaos). str0m has these; M0 didn't test them.
+
+## A + B merged (trunk-merge, 2026-11-13)
+
+Two lines of this crate had diverged since `f7a15ffb` (the real fork point;
+`merge-base root-coord origin/main` reports `09d5e681`, but that commit is
+already on line A, and root-coord's own merge `b14cc43c` kept B's side of every
+shared file, which dropped A's `mod` lines and A's bridge changes):
+
+- **A** (this `trunk/`): room relay, candidate hygiene (`cand.rs`), root-link
+  dial-in (`rootlink.rs`, `roots.rs`, `registry.rs`, `ws.rs`), `POST /branch`,
+  `rootlink mint`.
+- **B** (root-coord `3b4792c9`): v0.9 pairing (persisted DTLS identity on
+  `GET /identity`, region-checked `/offer`, revoke/kill/expiry severing live
+  peers, in-band `auth.refresh`), the access point (`ap.rs`, `region.rs`), plus
+  root-dial `--tls` from `0799aec2`.
+
+They are now **one crate** with every module compiled (`mod ap, cand, region,
+registry, rootlink, roots, ws` all present). Shared files were merged 3-way
+(`git merge-file`, base `f7a15ffb`), keeping both behaviours:
+
+| File | Resolution |
+|---|---|
+| `tokens.rs` | One reader for **both** schemas in one file: v1 (`tokenHash`, no expiry, no region, `roots` allowlist) and v2 (`killEpoch`, `access[{hash,exp,region}]`). `check(raw, region) → Grant{device, exp_ms, region, roots}`; `knows_dev` re-reads the file once on a miss (a device paired milliseconds before its root dials in). |
+| `bridge.rs` | A's signaling (v2c candidate law, trickle, ws refusal, `/branch` pool, room relay, root turns) + B's identity/pin, region-checked grant at `/offer` **and** `/branch`, accountability sweep, `auth.refresh`, `severed` notices, JSON 401 `{why, reauth}`. Prompt runs off-worker and its return is `run.done {reply}` (B). The signaling loop honours `stop` again. |
+| `config.rs` | Union: `[bridge]` root-link fields + `dtls_cert_file`, `public_url`; `[ap]` dial-out section. `deny_unknown_fields` kept; tests pin the installer's exact `bridge.toml`. |
+| `main.rs`, `bridge_main.rs`, `opencode.rs`, `Cargo.*` | Both subcommand sets and dependency sets; B's `MessageInfo::role()` (top-level or nested `info.role`). |
+
+**Subcommands:** `keygen` · `check -c` · `selftest m0|m1|v9|ap` · `serve -c` ·
+`bridge -c` · `rootlink mint` · `ap -c` · `ap-token` · `ap-pin` · `ap-cert`.
+
+**What each proof shows:**
+- `selftest m0`: the WireGuard mesh (boringtun) rejects an impostor key, and str0m echoes WebRTC media byte-exact.
+- `selftest m1`: the config-driven mesh with timers, rekey and stats, plus cross-forwarded WebRTC relay byte-exact.
+- `selftest v9`:
+  - **V9.2:** one DTLS identity, stable across restarts and published on `/identity` (the answer carries the pinned fingerprint).
+  - **V9.2:** `/offer` answers 401 for a missing, invalid, wrong-region or expired credential.
+  - **V9.2:** a v2 access token and a v1 `tokenHash` token both open the channel. hello, create, list and transcript work against a live opencode.
+  - **V9.2:** `auth.refresh` with another device's token is refused.
+  - **V9.2:** revoking a device (v2 or v1) mid-session gets the live peer `severed` in about 0.5 s. A kill-epoch bump severs everyone.
+  - **V9.3:** Opus goes through speaches STT and TTS round-trip.
+  - **Bug fixed here:** V9.2 used to write snake_case `token_hash`, which the camelCase reader rejected (`401 unknown or revoked device`).
+- `selftest ap`: TLS edge plus a pinned dial-out channel. A wrong pairing token or pin is refused, and the `/api` gate covers 9 path-normalization bypasses. POSTs and websockets come through byte-exact.
+- `scripts/rootlink-sim.py`: all 10 checks GREEN against this binary. They cover routing, single-use, takeover, the allowlist, reaping, wedged-root unlink, the in-flight cap, the mint CLI, the real root-dial exec leg, and the plaintext guard. T10 now exercises `--allow-plaintext` and `--tls`.
+- `m0-verify.sh` 3/3; `m1-verify.sh` 5/5; `ap-verify.sh` 15/15 (run with `AP_UPSTREAM` = a stub, never the running app).
+
+**How pairing identity and root-link fit:** one bridge process on `http`.
+- **Port `http`** serves `GET /identity` (the QR pins it), `POST /offer` (the phone, DTLS-pinned) and `POST /branch` (harnesses).
+- **Port `http`+1** is the root-link ws (loopback by default, `[bridge.root-link].listen`). It is off unless `enabled = true` and `root_link_secret` are both set.
+- **`devices.json`** is shared. A device's `roots` allowlist rides its grant into the peer. Its `id` is what a link-token's `dev` claim must name.
+- **The sweep** severs a revoked device's phone. New root links for that `dev` are refused.
+- **The `[ap]` dial-out** reuses the same registry for its `/api` gate.
+
+**Honest limits:**
+- **v1 tokens never expire and are region-free** (A's contract). The v2 PWA treats v1 entries as revoked and re-pairs them, so the two writers must not share one file expecting different v1 semantics.
+- **Root links already up are not cut on revoke.** Only new dials are refused.

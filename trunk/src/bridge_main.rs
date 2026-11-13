@@ -91,6 +91,19 @@ pub fn run(path: &str) -> Result<(), String> {
             Some(t) => println!("  bridge: access point /rootlink → root-link {t} (link-token auth, no device gate)"),
             None => println!("  bridge: access point /rootlink not routed (root-link off)"),
         }
+        // a paired phone names a root over HTTPS: POST /branch reaches this
+        // bridge's own listener (device token checked in the phone's region)
+        let own = handle.http;
+        let branch = std::net::SocketAddr::new(
+            if own.ip().is_unspecified() {
+                if own.is_ipv4() { std::net::IpAddr::from([127, 0, 0, 1]) } else { std::net::Ipv6Addr::LOCALHOST.into() }
+            } else {
+                own.ip()
+            },
+            own.port(),
+        )
+        .to_string();
+        println!("  bridge: access point /branch → {branch} (device token, the phone's region)");
         crate::ap::spawn_dialer(crate::ap::DialConfig {
             url: apc.url.clone(),
             pin: apc.pin.clone(),
@@ -99,6 +112,7 @@ pub fn run(path: &str) -> Result<(), String> {
             livekit: apc.livekit.clone(),
             tcp: apc.tcp.clone(),
             rootlink,
+            branch: Some(branch),
             tokens: std::sync::Arc::new(crate::tokens::TokenStore::open(cfg.tokens_file.clone())),
         });
     }

@@ -880,8 +880,31 @@ fn authorize(request: &tiny_http::Request, tokens: &TokenStore) -> Result<Grant,
         .map(|h| h.value.as_str().to_string())
         .unwrap_or_default();
     let raw = bearer(&auth).ok_or(crate::tokens::Deny::Missing)?;
-    let region = request.remote_addr().map(|a| region_of(a.ip())).unwrap_or_default();
-    tokens.check(raw, &region)
+    tokens.check(raw, &request_region(request))
+}
+
+/// The region of the address a request really came from: its socket, except
+/// for a stream the access-point dial-out handed over (it comes from this host,
+/// with the client's address in X-Forwarded-For, believed only beside this
+/// process's edge key — a secret that never leaves the process). A wrong key
+/// or a bad address = no region (fail closed).
+fn request_region(request: &tiny_http::Request) -> String {
+    let Some(sock) = request.remote_addr().map(|a| a.ip()) else { return String::new() };
+    let header = |name: &'static str| {
+        request.headers().iter().find(|h| h.field.equiv(name)).map(|h| h.value.as_str().trim().to_string())
+    };
+    match header("X-Bifrost-Edge") {
+        Some(k) => {
+            if !crate::roots::ct_eq(k.as_bytes(), crate::ap::edge_key().as_bytes()) {
+                return String::new();
+            }
+            header("X-Forwarded-For")
+                .and_then(|x| x.parse::<IpAddr>().ok())
+                .map(region_of)
+                .unwrap_or_default()
+        }
+        _ => region_of(sock),
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

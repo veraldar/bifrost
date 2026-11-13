@@ -318,3 +318,41 @@ same `YGG_PEER_TOKEN` (sent as `x-ygg-peer`, which the switchboard passes).
 - The conn loop keeps its 2 s read tick. A queued `root.job` can wait up to 2 s; switchboard frames are written directly and do not wait. A 250 ms tick turned rootlink-sim T5's drained-turn answer into a "health probe failed" answer, so the tick stayed.
 - root-dial reads and writes one TLS socket from several threads, as `--tls` already did.
 - The data-channel path carries `dev` the same way, but only `/branch` is exercised here.
+
+## The whole tree with a simulated phone (trunk-full, 2026-11-13)
+
+`sim/trunk-full-e2e.sh` (+ `branch/e2e/trunk-full.spec.ts`, `sim/trunk-full-joiner.py`) runs
+the hub box, an access point on a fake public address (`ap.tree.test`, self-signed cert),
+and a new machine on another address, all in private namespaces (user, net, mount, pid),
+deterministically on the mock. The phone (Chromium, Pixel 7) only ever talks to the ap; the
+run asserts that from every request and websocket it made. Steps: pair by QR · MAIN answers
+· join by QR (the phone approves, the machine collects its tokens and links through
+`wss://ap/rootlink`) · MAIN delegates to the joined root and the report comes home · the
+phone names the root itself (`/branch`) · revoke from the console → refused.
+
+**Two bugs it found, fixed in `ap.rs`:**
+- **A new machine could not join through the access point.** The edge's `/api` gate
+  refused `POST /api/roots/join` (and the poll and the refill) with 401 `missing`, because
+  only `/api/pair` was exempt. The join contract's three own-credential calls now pass the
+  edge with the same exact method and path shapes the app's middleware exempts. The match
+  is on the raw path, so anything encoded or dotted is still gated (`selftest ap` checks
+  3 passes and 9 neighbours refused).
+- **A phone could not name a root from outside the LAN.** `/branch` lives on the bridge,
+  and the ap sent everything except `/rootlink` and `/rtc` to the app, which answered 404.
+  The dial-out now hands `/branch` streams to the bridge's own listener. They come from
+  this host, so the client's address rides X-Forwarded-For next to `X-Bifrost-Edge`, a
+  per-process secret only the dial-out stamps. `/branch` then checks the device token in the
+  region of the phone's real address (the check is shared with `/offer`, which the edge
+  still does not route). Without the key, a request keeps its socket's region. A wrong key
+  means no region (fail closed). A client-sent `X-Bifrost-Edge` is dropped at the edge.
+
+**Still by hand (named, not hidden):**
+- **The hub brain does not learn a joined root.** `YGG_PEERS` is static env, and the join
+  writes `roots.json` and `devices.json` only. The sim plays the operator: it adds
+  `<id>=http://127.0.0.1:<bridge>/_root/<id>` and restarts the brain.
+- **The app has no screen for naming a root.** The phone's `/branch` call is the page's
+  own `fetch`, with the token from `/api/pair/refresh`. The `/bridge` page's data channel
+  cannot cross the ap: `/offer` and media are not tunneled.
+- **The joined root's peer name must equal the hub brain's `YGG_ROOT_NAME`.** Reports go to
+  `report_to.root`. root-join's draft `rootjoin.py` names that peer `hub`, so a hub brain
+  named anything else gets no reports from a root it set up.

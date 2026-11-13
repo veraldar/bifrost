@@ -1,7 +1,8 @@
 # spec — join a new machine to the tree (contract v1, hub side)
 
 Status: built on `hub-join` (branch/). The joining side is `root/install/join.sh`. This
-spec is the contract between the two. Validated by `scripts/v09-ladder.sh e2e/join.spec.ts`.
+spec is the contract between the two. Validated by `scripts/v09-ladder.sh e2e/join.spec.ts`, and
+end to end through an access point (a simulated phone approves) by `sim/trunk-full-e2e.sh`.
 
 ## The shape in one paragraph
 
@@ -66,9 +67,11 @@ device gate:
 - `GET ^/api/roots/join/[A-Za-z0-9_-]{8,64}$`
 - `POST ^/api/roots/[a-z0-9][a-z0-9-]{0,40}/tokens$`
 
-Each carries its own credential, or none for the join itself. They still get a per-address
-burst guard (`BIFROST_PAIR_BURST`, 1/s), so poll no faster than every 2 s. Every other path
-under `/api/roots` goes through the device gate.
+Each carries its own credential, or none for the join itself. The access point's edge gate
+(`trunk/src/ap.rs`) lets the same three shapes through, so a new machine can join through
+the public URL. They still get a per-address burst guard (`BIFROST_PAIR_BURST`, 1/s), so
+poll no faster than every 2 s. Every other path under `/api/roots` goes through the device
+gate.
 
 Routes 2, 3, 6 and `view` also check for a **device** inside the route. The admin token and
 the box console are not devices: they can never approve, because a device id has to become

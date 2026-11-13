@@ -3076,7 +3076,12 @@ async fn main() {
     peers::spawn_watch(&state);
     ext::spawn_watch(&state);
     spawn_harness_models(&state);
-    eprintln!("root {} · peers: {}", state.config.peers.me, state.config.peers.list.iter().map(|(n, u)| format!("{n}={u}")).collect::<Vec<_>>().join(", "));
+    eprintln!(
+        "root {} · peers: {}{}",
+        state.config.peers.me,
+        if state.config.peers.list.is_empty() { "none".to_string() } else { state.config.peers.list.iter().map(|(n, u)| format!("{n}={u}")).collect::<Vec<_>>().join(", ") },
+        state.config.peers.from.as_ref().map(|f| format!(" · learning linked roots from {f} (via {})", state.config.peers.via)).unwrap_or_default()
+    );
 
     let listener = tokio::net::TcpListener::bind(&listen).await.expect("bind");
     eprintln!("yggdrasil listening on {listen}");

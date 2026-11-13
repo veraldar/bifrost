@@ -66,6 +66,7 @@ class Hub:
         self.approve_tokens = 4
         self.refill_tokens = 8
         self.refill_status = 200
+        self.hub_name = "home-box"                # the hub brain's root name, sent as `hub` (None = not sent)
         self.base = ""
         self.stopping = False
 
@@ -76,13 +77,14 @@ class Hub:
         with self.lock:
             return next(reversed(self.joins)) if self.joins else None
 
-    def approve(self, req):
+    def approve(self, req, hub_name=...):
         with self.lock:
             j = self.joins[req]
             root_id = "%s-%d" % (j["name"], len(self.roots) + 1)
             toks = self.mint(self.approve_tokens)
             self.roots[root_id] = {"secret": secrets.token_hex(16), "issued": set(toks), "used": set()}
-            j.update(status="approved", root_id=root_id, tokens=toks, peer_token=secrets.token_hex(12))
+            j.update(status="approved", root_id=root_id, tokens=toks, peer_token=secrets.token_hex(12),
+                     hub=self.hub_name if hub_name is ... else hub_name)
             return root_id
 
     def refuse(self, req):
@@ -165,9 +167,12 @@ def make_handler(hub):
                 if j["status"] == "approved" and not j["delivered"]:
                     j["delivered"] = True
                     r = hub.roots[j["root_id"]]
-                    return self.reply(200, {"status": "approved", "root_id": j["root_id"], "root_secret": r["secret"],
-                                            "link_tokens": j["tokens"], "peer_token": j["peer_token"], "hub": "local",
-                                            "rootlink_url": hub.base.replace("https://", "wss://") + "/rootlink"})
+                    ans = {"status": "approved", "root_id": j["root_id"], "root_secret": r["secret"],
+                           "link_tokens": j["tokens"], "peer_token": j["peer_token"],
+                           "rootlink_url": hub.base.replace("https://", "wss://") + "/rootlink"}
+                    if j["hub"] is not None:
+                        ans["hub"] = j["hub"]
+                    return self.reply(200, ans)
                 if time.time() > j["deadline"] or j["delivered"]:
                     return self.reply(410, {"status": "expired"})
                 return self.reply(202, {"status": "pending"})
@@ -449,6 +454,9 @@ def run_tests(hub, new_env, tmp):
         if decode_png(p) != t:
             bad.append(n)
     check("qr: 105 payload lengths (1..400 bytes, QR versions 1-15) decode exactly", not bad, "failed lengths %s" % bad)
+    names = [rootjoin.hub_name_of(a) for a in ({"hub": "home-box"}, {}, {"hub": ""}, {"hub": "local"})]
+    check("hub name: the approval's `hub` is the name; none / empty / an older hub's \"local\" -> \"hub\"",
+          names == ["home-box", "hub", "hub", "hub"], str(names))
 
     # --- T1 join + approve, live (nohup supervisor): brain up, dialer linked through wss /rootlink
     print("\n[join] first join, approve on the (fake) phone, live services", flush=True)
@@ -481,10 +489,11 @@ def run_tests(hub, new_env, tmp):
     env_lines = [l for l in open(os.path.join(a.dir, "brain.env")).read().splitlines() if l and not l.startswith("#")]
     want = ["YGG_UPSTREAM_BASE_URL=http://127.0.0.1:9/v1", "YGG_UPSTREAM_API_KEY=" + KEY, "YGG_UPSTREAM_MODEL=test-model",
             "YGG_LISTEN=127.0.0.1:%d" % a.brain_port, "YGG_DATA_DIR=%s/data" % a.dir, "YGG_PROJECT_DIR=%s" % a.home,
-            "YGG_ROOT_NAME=%s" % root_id, "YGG_PEERS=hub=http://127.0.0.1:%d/local" % a.peer_port,
+            "YGG_ROOT_NAME=%s" % root_id, "YGG_PEERS=home-box=http://127.0.0.1:%d/local" % a.peer_port,
             "YGG_PEER_TOKEN=%s" % j["peer_token"]]
-    check("brain.env: exactly upstream + listen/data/project/root name/peers/peer token", env_lines == want,
-          "\n".join(env_lines))
+    check("brain.env: exactly upstream + listen/data/project/root name/peers (the hub brain by its name)/peer token",
+          env_lines == want, "\n".join(env_lines))
+    check("state: root.json keeps the hub brain's name", r.get("hub_name") == "home-box", str(r.get("hub_name")))
     py = shutil.which("python3")
     dial = [l for l in open(os.path.join(a.dir, "bin", "run-dialer")).read().splitlines() if l.startswith("exec ")]
     want_dial = ("exec '{py}' '{d}/bin/root-dial.py' --tls --host 'localhost' --port {hp} --path '/rootlink' "
@@ -497,8 +506,8 @@ def run_tests(hub, new_env, tmp):
     check("live: the dialer linked to the trunk on /rootlink with a valid token and EARNED a pong (brain probe)",
           link and link["path"] == "/rootlink", str(hub.links))
     br = brain_root(a.brain_port)
-    check("live: the brain answers GET /root as this root, peer 'hub' configured",
-          br and br.get("name") == root_id and br.get("peers") == ["hub"], str(br))
+    check("live: the brain answers GET /root as this root, peer 'home-box' (the hub brain) configured",
+          br and br.get("name") == root_id and br.get("peers") == ["home-box"], str(br))
     toks = a.tokens()
     check("refill: before the first dial 4 < 5 tokens -> one refill (+8), the dial burned 1 -> 11 left",
           hub.counts["refill"] == 1 and len(toks) == 11 and link["token"] not in toks and len(set(toks)) == 11,
@@ -560,11 +569,13 @@ def run_tests(hub, new_env, tmp):
     check("resume: re-run without --hub resumes the same request (same name, CA), no new POST",
           hub.counts["join"] == joins0 and "resuming the join request" in b.out()
           and b.out().count("asking %s" % hub.base) == 1)
-    hub.approve(breq)
+    hub.approve(breq, hub_name=None)   # an older hub: no `hub` in its answer
     rc = p.wait(60)
     check("resume: approved -> exit 0 as 'bravo'; --no-start started nothing", rc == 0 and b.sup_pid() is None
           and b.root()["name"] == "bravo" and hub.joins[breq]["root_id"] == b.root()["root_id"]
           and not os.path.exists(os.path.join(b.dir, "run", "supervise.pid")), "rc=%s" % rc)
+    check("older hub (no name in the answer): the hub brain's peer is called 'hub', as before",
+          "YGG_PEERS=hub=http://127.0.0.1:%d/local\n" % b.peer_port in open(os.path.join(b.dir, "brain.env")).read())
 
     # --- T4 refused / expired / unreachable exit cleanly
     print("\n[refused / expired / unreachable]", flush=True)
@@ -591,6 +602,13 @@ def run_tests(hub, new_env, tmp):
     rc = e.run(args)
     check("unreachable hub: exit 1 with 'cannot reach the hub', no state",
           rc == 1 and "cannot reach the hub" in e.out() and not os.path.exists(os.path.join(e.dir, "root.json")), "rc=%s" % rc)
+    g = new_env("golf")
+    hub.auto, hub.hub_name = "approve", "bad name/../x"
+    rc = g.run(g.first_args())
+    hub.auto, hub.hub_name = None, "home-box"
+    check("bad hub name: exit 1, 'not a plain name' said, no root.json, nothing started",
+          rc == 1 and "not a plain name" in g.out() and not os.path.exists(os.path.join(g.dir, "root.json"))
+          and g.sup_pid() is None, "rc=%s" % rc)
     f = new_env("foxtrot")
     rc = f.run(["--hub", hub.base, "--cacert", f.cacert, "--brain-bin", f.brain_bin, "--supervisor", "nohup"])
     check("no upstream (non-interactive): exit 64 BEFORE any join request", rc == 64 and "no model upstream" in f.out()

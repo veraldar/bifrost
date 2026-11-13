@@ -5,7 +5,7 @@
   rootjoin.py refill --state DIR [--min 5] [--every SECS]
   rootjoin.py brain-env --state DIR --out FILE --listen ADDR --data DIR --project DIR --peer-port P [--upstream FILE]
   rootjoin.py dial  --state DIR            KEY=value lines for the dialer: TLS HOST PORT PATH
-  rootjoin.py get   --state DIR KEY        one non-secret field of root.json (root_id hub name rootlink_url hub_peer)
+  rootjoin.py get   --state DIR KEY        one non-secret field of root.json (root_id hub name rootlink_url hub_name)
   rootjoin.py qr    TEXT [--png P]         the QR in the terminal (and as a PNG)
   rootjoin.py probe URL                    exit 0 iff GET URL answers 2xx within 4 s (the dialer's health exec)
 
@@ -16,6 +16,8 @@ The hub's join contract (client side):
   POST <hub>/api/roots/join {name, os, host}  -> 201 {req, secret, code, approve_url, poll_url, expires_in}
   GET  <poll_url>  x-join-secret: <secret>    -> 202 pending | 200 approved {root_id, root_secret,
        link_tokens, rootlink_url, peer_token, hub} (once) | 410 {status: refused|expired}
+       `hub` is the hub brain's root NAME: this root's brain peers with it as
+       YGG_PEERS <hub>=http://127.0.0.1:<peer port>/local, so reports addressed to that name go home.
   POST <hub>/api/roots/<root_id>/tokens  x-root-secret  -> 200 {link_tokens}
 
 Secrets (join secret, root secret, link tokens, peer token, upstream key) only ever go to files of
@@ -224,18 +226,28 @@ def poll(o, pend, pend_path, root_path):
         time.sleep(interval * 2)
 
 
+def hub_name_of(ans):
+    """The hub brain's root name from the approval (`hub`). A hub that sends none, or the literal
+    "local" (hubs before the name was sent: that was the switchboard's address, not a name), is
+    called "hub" as before."""
+    name = ans.get("hub")
+    return "hub" if name in (None, "", "local") else name
+
+
 def save_approval(o, pend, ans, pend_path, root_path):
     root_id, secret = ans.get("root_id"), ans.get("root_secret")
     toks = good_tokens(ans.get("link_tokens"))
-    hub_peer = ans.get("hub") or "local"
+    hub_name = hub_name_of(ans)
     if not (isinstance(root_id, str) and SAFE_ID.match(root_id)):
         fail("the hub's root_id %r is not a plain name" % (root_id,))
     if not (isinstance(secret, str) and secret):
         fail("the hub's approval has no root_secret")
     if toks is None:
         fail("the hub's link_tokens are not a list of tokens")
-    if not (isinstance(hub_peer, str) and SAFE_ID.match(hub_peer)):
-        fail("the hub's name %r is not a plain name" % (hub_peer,))
+    if not (isinstance(hub_name, str) and SAFE_ID.match(hub_name)):
+        fail("the hub's name %r is not a plain name" % (hub_name,))
+    if hub_name == root_id:
+        fail("the hub's name %r is this root's own id" % (hub_name,))
     link = ans.get("rootlink_url") or ""
     if not link:          # not given: the hub's own access point, /rootlink
         u = urllib.parse.urlsplit(pend["hub"])
@@ -244,7 +256,7 @@ def save_approval(o, pend, ans, pend_path, root_path):
         fail("the hub's rootlink_url %r is not a ws:// or wss:// URL" % link)
     peer_token = ans.get("peer_token") or ""
     root = {"hub": pend["hub"], "name": pend.get("name") or o.name, "root_id": root_id, "root_secret": secret,
-            "rootlink_url": link, "peer_token": str(peer_token), "hub_peer": hub_peer,
+            "rootlink_url": link, "peer_token": str(peer_token), "hub_name": hub_name,
             "joined_at": time.strftime("%Y-%m-%dT%H:%M:%S%z")}
     write_tokens(os.path.join(o.state, "link-tokens"), toks)
     write_private(root_path, json.dumps(root, indent=1) + "\n")
@@ -343,7 +355,13 @@ def cmd_brain_env(o):
              "# After editing: re-run join.sh (or restart the brain service).", ""]
     lines += ["%s=%s" % (k, vals[k]) for k in order]
     if root:
-        peers = "hub=http://127.0.0.1:%d/%s" % (o.peer_port, root.get("hub_peer") or "local")
+        # the hub brain by its own name (reports go to report_to.root = that name), always through the
+        # dialer's peer port to `local` — the trunk's word for the hub brain. A root.json from before the
+        # name was kept (no hub_name) keeps the old name "hub".
+        hub_name = root.get("hub_name") or "hub"
+        if not SAFE_ID.match(hub_name) or hub_name == root["root_id"]:
+            fail("root.json: the hub's name %r is not a plain name other than this root's" % (hub_name,))
+        peers = "%s=http://127.0.0.1:%d/local" % (hub_name, o.peer_port)
         lines += ["", "YGG_LISTEN=%s" % o.listen, "YGG_DATA_DIR=%s" % o.data, "YGG_PROJECT_DIR=%s" % o.project,
                   "YGG_ROOT_NAME=%s" % root["root_id"], "YGG_PEERS=%s" % peers]
         if root.get("peer_token"):
@@ -382,7 +400,7 @@ def cmd_get(o):
     if o.key == "pending_hub":                       # the hub of a join still waiting for approval, if any
         say((load_json(os.path.join(o.state, "pending.json")) or {}).get("hub", ""))
         return 0
-    if o.key not in ("root_id", "hub", "name", "rootlink_url", "hub_peer", "joined_at"):
+    if o.key not in ("root_id", "hub", "name", "rootlink_url", "hub_name", "joined_at"):
         fail("get: %s is not a readable field" % o.key)
     root = load_json(os.path.join(o.state, "root.json")) or fail("not joined: no root.json in %s" % o.state)
     say(str(root.get(o.key, "")))

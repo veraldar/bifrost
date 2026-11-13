@@ -71,6 +71,10 @@ pub fn run(path: &str) -> Result<(), String> {
         "  bridge: switchboard — http://{}/_root/<root>/<path> (loopback) reaches a linked root's brain; `local` = {}",
         handle.http, cfg.opencode_url
     );
+    println!(
+        "  bridge: linked roots — GET http://{}/_roots (loopback; the hub brain's YGG_PEERS_FROM)",
+        handle.http
+    );
     if let Some(apc) = loaded.config.ap.as_ref() {
         println!("  bridge: access point {} → browsers served from {} (dial-out, pinned)", apc.url, apc.upstream);
         // a remote root dials wss://<ap>/rootlink: that stream goes to the

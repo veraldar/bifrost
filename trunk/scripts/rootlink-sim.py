@@ -39,7 +39,8 @@ asserts the whole law:
   T12 switch   http frames through the switchboard: hub→root (/_root/<id>/
                on the bridge, loopback only), root→hub (`local`, via the
                dialer's --peer-port), root→root; only content-type +
-               x-ygg-peer cross; status + bodies (300 KB) byte-exact
+               x-ygg-peer cross; status + bodies (300 KB) byte-exact;
+               GET /_roots lists the linked roots (loopback, no browser)
   T13 claim    a root whose link-token roots claim excludes the target is
                refused 403 (`*` admits any; `local` always allowed)
   T14 edge     the root-link THROUGH the access point: ap (self-signed test
@@ -762,6 +763,17 @@ upstream = "127.0.0.1:{hub.srv.server_address[1]}"
         expect(st == 502 and b"not linked" in b, f"unlinked root = clean 502: {st} {b[:80]}")
         st, h, b = http_call(HTTP_PORT, "GET", "/_root/mac-e/root", headers={"origin": "https://evil.example"})
         expect(st == 403, f"/_root refuses browser requests (Origin): {st}")
+        # the hub brain learns its peers: GET /_roots lists the linked roots (YGG_PEERS_FROM)
+        st, h, b = http_call(HTTP_PORT, "GET", "/_roots")
+        rl = json.loads(b) if st == 200 else []
+        ids = [r.get("id") for r in rl]
+        expect(st == 200 and h.get("content-type") == "application/json" and {"mac-e", "mac-f"} <= set(ids)
+               and ids == sorted(ids) and all(isinstance(r.get("since"), int) and r["since"] <= time.time() * 1000 for r in rl),
+               f"/_roots lists the linked roots [{{id, since}}]: {st} {b[:160]}")
+        st, h, b = http_call(HTTP_PORT, "GET", "/_roots", headers={"sec-fetch-mode": "cors"})
+        st2, h, b2 = http_call(HTTP_PORT, "GET", "/_roots", headers={"x-forwarded-for": "6.6.6.6"})
+        st3, h, b3 = http_call(HTTP_PORT, "POST", "/_roots", b"{}")
+        expect(st == 403 and st2 == 403 and st3 == 405, f"/_roots: browser 403, proxied 403, POST 405: {st} {st2} {st3}")
         st, h, b = http_call(pe, "GET", "/local/root")
         expect(st == 200 and json.loads(b) == {"name": "H"}, f"root→hub: mac-e's peer port reached the hub brain (local): {st} {b[:60]}")
         st, h, b = http_call(pe, "POST", "/local/tree/report", b'{"proxy":"p1","event":{"x":1}}',

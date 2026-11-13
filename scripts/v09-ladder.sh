@@ -53,7 +53,7 @@ env -i PATH="$PATH" HOME="$STATE" YGG_UPSTREAM_BASE_URL="http://127.0.0.1:$MOCK/
   YGG_UPSTREAM_MODEL=mock YGG_UPSTREAM_API_KEY=mock-key YGG_CATALOG="$ROOT/root/fixtures/catalog.json" \
   YGG_PROVIDERS="$STATE/none.json" YGG_DATA_DIR="$STATE/ygg" YGG_PROJECT_DIR="$STATE/proj" \
   YGG_ARTIFACTS_DIR="$STATE/artifacts" YGG_LISTEN="127.0.0.1:$YGG" YGG_PEER_TOKEN="$PEER" \
-  "$YGG_BIN" >"$STATE/ygg.log" 2>&1 &
+  YGG_ROOT_NAME=home "$YGG_BIN" >"$STATE/ygg.log" 2>&1 &
 pids+=($!)
 
 KEY=$("$BIN" keygen | sed -n 's/^private_key = "\(.*\)"/\1/p')

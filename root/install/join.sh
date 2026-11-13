@@ -278,6 +278,7 @@ else
 fi
 ROOT_ID=$("$PY" "$HELPER" get --state "$DIR" root_id)
 HUB=$("$PY" "$HELPER" get --state "$DIR" hub)
+HUB_NAME=$("$PY" "$HELPER" get --state "$DIR" hub_name); HUB_NAME=${HUB_NAME:-hub}   # the hub brain's root name
 SUP=$(pick_supervisor)
 [ -n "$OLD_SUP" ] && [ "$OLD_SUP" != "$SUP" ] && stop_services
 write_conf "$HUB" "$SUP"
@@ -489,6 +490,7 @@ fi
 cat <<EOF
 
   root      $ROOT_ID  ($NAME on $OS) of $HUB
+  home      the hub brain "$HUB_NAME" (YGG_PEERS $HUB_NAME=http://127.0.0.1:$PEER_PORT/local: reports go home there)
   services  $SUP: brain $BRAIN_URL · dialer -> $([ "$D_TLS" = 1 ] && echo wss || echo ws)://$D_HOST:$D_PORT$D_PATH · token refill every 5 min
   files     $DIR  (root.json, link-tokens, brain.env: mode 600)
   logs      $(case $SUP in systemd) echo "journalctl --user -u yggdrasil-root-brain -u yggdrasil-root-dial -f" ;; *) echo "$LOG/" ;; esac)

@@ -181,8 +181,9 @@ What happens:
    request, and re-running resumes it with the same QR.
 4. **Save.** It stores `root_secret`, the single-use **link tokens** (mode 600) and `rootlink_url`.
    Then it writes `brain.env`: loopback `YGG_LISTEN`, `YGG_DATA_DIR`,
-   `YGG_ROOT_NAME=<root_id>`, `YGG_PEERS=hub=http://127.0.0.1:<peer port>/local` and
-   `YGG_PEER_TOKEN`.
+   `YGG_ROOT_NAME=<root_id>`, `YGG_PEERS=<hub>=http://127.0.0.1:<peer port>/local` and
+   `YGG_PEER_TOKEN`. `<hub>` is the hub brain's root name, from the approval's `hub` (`hub`
+   when an older hub sends none). The joined root's reports go home to that name.
 5. **Start.** It runs the brain plus
    `root-dial.py --tls --host --port --path --token-file --brain --peer-port`. Before every dial,
    and every 5 minutes, it tops up the link tokens through
@@ -195,7 +196,7 @@ What happens:
 | **nohup** (no user manager: containers, WSL without systemd) | `bin/supervise` restarts all three. Logs are in `log/`. After a reboot, run `join.sh` again or `bin/start` |
 
 Everything lives in `~/.local/share/yggdrasil-root` (`--dir`, mode 700): `root.json` (root id, root
-secret, hub, rootlink URL), `link-tokens`, `brain.env`, `root.conf` (ports, name; no secrets),
+secret, hub, the hub brain's name, rootlink URL), `link-tokens`, `brain.env`, `root.conf` (ports, name; no secrets),
 `bin/` (`yggdrasil`, `root-dial.py`, `rootjoin.py`, `run-brain`, `run-dialer`, `start`, `stop`),
 `data/`, `log/`.
 

@@ -433,6 +433,12 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
                 Ok(None) => continue,
                 Err(_) => break,
             };
+            // the box's own brain learns which roots are linked (loopback
+            // only, same guards as /_root/; answered inline, never blocks)
+            if is_roots_list_url(request.url()) {
+                roots_list(request, &roots_reg);
+                continue;
+            }
             // the switchboard's hub end: the box's own brain calls a linked
             // root (loopback only; blocks up to 120 s → its own thread)
             if request.url() == "/_root" || request.url().starts_with("/_root/") || request.url().starts_with("/_root?") {
@@ -1197,6 +1203,39 @@ fn root_call_guard(request: &tiny_http::Request) -> Result<(), &'static str> {
         return Err("/_root carries plain HTTP, not websockets");
     }
     Ok(())
+}
+
+/// `/_roots` (query ignored) — the linked-roots list, not a switchboard call.
+fn is_roots_list_url(url: &str) -> bool {
+    url.split('?').next() == Some("/_roots")
+}
+
+/// The linked roots as the box's own brain reads them (`YGG_PEERS_FROM`):
+/// `[{"id", "since"}]`, `since` = unix ms the current link came up.
+fn roots_list_json(linked: &[(String, Instant)]) -> String {
+    let now = now_ms();
+    let rows: Vec<serde_json::Value> = linked
+        .iter()
+        .map(|(id, since)| serde_json::json!({ "id": id, "since": now.saturating_sub(since.elapsed().as_millis() as u64) }))
+        .collect();
+    serde_json::Value::Array(rows).to_string()
+}
+
+/// `GET /_roots` — the same guards as `/_root/` (loopback, no browser or
+/// proxy headers); every other method is 405.
+fn roots_list(request: tiny_http::Request, reg: &Registry) {
+    if let Err(why) = root_call_guard(&request) {
+        let _ = request.respond(switch_response(HttpReply::error(403, &why.replace("/_root", "/_roots"))));
+        return;
+    }
+    if request.method() != &tiny_http::Method::Get {
+        let _ = request.respond(switch_response(HttpReply::error(405, "/_roots is GET only")));
+        return;
+    }
+    let mut headers = serde_json::Map::new();
+    headers.insert("content-type".into(), serde_json::json!("application/json"));
+    let body = roots_list_json(&reg.linked_since()).into_bytes();
+    let _ = request.respond(switch_response(HttpReply { status: 200, headers, body }));
 }
 
 /// `ANY /_root/<id>/<rest>` → (id, "/<rest>") — the query rides along.
@@ -2259,5 +2298,26 @@ mod switch_url_tests {
         assert_eq!(s("/_root/mac/"), Some(("mac".into(), "/".into())));
         assert_eq!(s("/_root/"), None);
         assert_eq!(s("/_root//x"), None);
+    }
+
+    #[test]
+    fn roots_list_is_its_own_path() {
+        use super::is_roots_list_url;
+        assert!(is_roots_list_url("/_roots") && is_roots_list_url("/_roots?x=1"));
+        assert!(!is_roots_list_url("/_roots/") && !is_roots_list_url("/_root") && !is_roots_list_url("/_rootsx"));
+        // a root literally named `s` stays reachable on the switchboard
+        assert_eq!(split_root_url("/_root/s/root"), Some(("s".into(), "/root".into())));
+    }
+
+    #[test]
+    fn roots_list_shape() {
+        use std::time::{Duration, Instant};
+        let up = Instant::now() - Duration::from_secs(5);
+        let v: serde_json::Value = serde_json::from_str(&super::roots_list_json(&[("mac".into(), up)])).unwrap();
+        let since = v[0]["since"].as_u64().unwrap();
+        let ago = crate::tokens::now_ms() - since;
+        assert_eq!(v[0]["id"], "mac");
+        assert!((4_900..10_000).contains(&ago), "since is {ago} ms ago");
+        assert_eq!(super::roots_list_json(&[]), "[]");
     }
 }

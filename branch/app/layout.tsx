@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
-import localFont from 'next/font/local';
 import { ThemeProvider } from 'next-themes';
+import localFont from 'next/font/local';
+import { DeviceAuth } from '@/components/device-auth';
 import { DiagBoot } from '@/components/diag-boot';
 import { FreshReload } from '@/components/fresh-reload';
 import { ThemeColor } from '@/components/theme-color';
@@ -50,7 +51,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="oz">
         <ThemeProvider
           attribute="data-theme"
-          themes={['aether', 'terminus', 'drift', 'divergence', 'transcendence', 'control', 'utopia', 'stagnation']}
+          themes={[
+            'aether',
+            'terminus',
+            'drift',
+            'divergence',
+            'transcendence',
+            'control',
+            'utopia',
+            'stagnation',
+          ]}
           defaultTheme="aether"
           // a world flip is one attribute, zero morph: transitions are
           // suppressed for the swap frame
@@ -58,6 +68,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           <ThemeColor />
           <DiagBoot />
+          {/* devices mode: a 401 reauth hint → one refresh + retry, or /pair (tailnet: inert) */}
+          <DeviceAuth />
           <FreshReload />
           {children}
         </ThemeProvider>

@@ -4,6 +4,13 @@ Status: built in v0.9.0 (release/v0.9.0). Review law: `docs/reviews/agi-roadmap-
 Part 15 (GO-WITH-CHANGES). This spec is what the code does; `RELEASE-REPORT.md` says what
 is proven and what is not.
 
+In this tree the app half lives in `branch/` and the bridge half in `trunk/` (bifrost-net, v0.9 merged).
+
+**Additions in this tree** (not in v0.9.0): `/bridge` pins the QR's box key too (same rule as
+`/p2p`); the user's own access point is configuration (`BIFROST_TURN_*`, `branch/lib/ice.ts`,
+default none); `x-bifrost-peer` is read only in a process `server.mjs` started (plain
+`next start` in devices mode fails closed instead of trusting a client-sent header).
+
 ## The shape in one paragraph
 
 The phone pairs to the **box**, not to a network. The box shows a QR; the phone scans it;
@@ -140,4 +147,7 @@ live peer on its next sweep. Recovery = scan a fresh QR. Measured: severed in ~0
   same registry, `dtls_cert_file`, `public_url`, `candidates = ["<lan-ip>"]`,
   `media = "<lan-ip>:<port>"`.
 - Pair: open `/pair` on the box's own screen → scan with the phone.
-- Validate: `scripts/v09-ladder.sh <lan-ip>` (RELEASE-REPORT.md).
+- Validate: `scripts/v09-ladder.sh` — the whole box in a private network namespace (mock
+  upstream → yggdrasil → `node server.mjs` → the v0.9 bridge) running `branch/e2e/{auth,
+  pair-ladder,bridge}.spec.ts`.
+

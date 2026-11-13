@@ -7,19 +7,46 @@
  *   - `app` data channel: session list/create, prompt, transcript, run.done
  *   - audio track up: mic → bridge → STT → opencode
  *   - audio track down: TTS reply → <audio> playback
- * Token from /pair gates the signaling offer.
+ *
+ * Pinned (paired by scanning the box QR at /pair — lib/p2p.ts): the bridge
+ * URL and the box key come from the QR, the access token from this device's
+ * session (/api/pair/refresh), and an answer whose DTLS fingerprint is not
+ * the pinned one is refused before setRemoteDescription — not a byte of app
+ * data reaches an impostor (spec-pairing "trust on first scan"). The pin
+ * holds for EVERY bridge URL, including one a link hands over: a URL can
+ * never switch the check off. The token is renewed over the channel
+ * (auth.refresh) before it lapses, and a `severed` notice (revoke,
+ * kill-switch) ends the link with its reason.
+ *
+ * Unpinned (a token pasted or handed over in `?t=`, e.g. the layman QR): the
+ * old flow, no box key to check — the page says so.
+ *
+ * ICE: `/api/ice` — `[]` (LAN host candidates) unless the box configured the
+ * user's own access point (lib/ice.ts). Never a third-party STUN/TURN.
  *
  * This page proves the seam end-to-end; graduating it INTO the main session
  * page (replacing the livekit path by default) is the v1.0 merge.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { type Pin, PinMismatch, assertPinned, iceServers, loadPin } from '@/lib/p2p';
 
 type Msg = { role?: string; parts?: unknown };
 type ChatLine = { who: 'you' | 'bifrost' | 'sys'; text: string };
 
+/** this device's own session (the HttpOnly refresh cookie) → a fresh access token */
+async function sessionToken(): Promise<{ accessToken: string; expiresIn: number } | null> {
+  try {
+    const r = await fetch('/api/pair/refresh', { method: 'POST' });
+    return r.ok ? r.json() : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function BridgePage() {
   const [token, setToken] = useState('');
   const [bridgeUrl, setBridgeUrl] = useState('');
+  const [pin, setPin] = useState<Pin | null>(null);
   const [state, setState] = useState('idle');
   const [lines, setLines] = useState<ChatLine[]>([]);
   const [draft, setDraft] = useState('');
@@ -36,26 +63,27 @@ export default function BridgePage() {
   const commitAt = useRef(0);
   const dcRttRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // a token the user typed or a link handed over wins over the session's own
+  const explicitToken = useRef(false);
+  const renewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const micRef = useRef(false);
 
   const say = useCallback((who: ChatLine['who'], text: string) => {
     setLines((l) => [...l.slice(-200), { who, text }]);
   }, []);
 
-  const send = useCallback(
-    (payload: Record<string, unknown>): Promise<string> => {
-      return new Promise((resolve, reject) => {
-        const dc = dcRef.current;
-        if (!dc || dc.readyState !== 'open') return reject(new Error('data channel not open'));
-        const req = reqCounter.current++;
-        pendingReplies.current.set(req, resolve);
-        dc.send(JSON.stringify({ ...payload, req }));
-        setTimeout(() => {
-          if (pendingReplies.current.delete(req)) reject(new Error(`timeout on ${payload.op}`));
-        }, 15000);
-      });
-    },
-    []
-  );
+  const send = useCallback((payload: Record<string, unknown>): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const dc = dcRef.current;
+      if (!dc || dc.readyState !== 'open') return reject(new Error('data channel not open'));
+      const req = reqCounter.current++;
+      pendingReplies.current.set(req, resolve);
+      dc.send(JSON.stringify({ ...payload, req }));
+      setTimeout(() => {
+        if (pendingReplies.current.delete(req)) reject(new Error(`timeout on ${payload.op}`));
+      }, 15000);
+    });
+  }, []);
 
   const refreshTranscript = useCallback(
     async (id: string) => {
@@ -69,7 +97,9 @@ export default function BridgePage() {
           const who = role === 'assistant' ? 'bifrost' : role === 'user' ? 'you' : 'sys';
           const parts = Array.isArray(m.parts) ? m.parts : [];
           const text = parts
-            .map((p) => (p && typeof p === 'object' && 'text' in p ? String((p as { text: string }).text) : ''))
+            .map((p) =>
+              p && typeof p === 'object' && 'text' in p ? String((p as { text: string }).text) : ''
+            )
             .join('');
           if (text) chat.push({ who, text });
         }
@@ -81,21 +111,54 @@ export default function BridgePage() {
     [send]
   );
 
+  // renew a minute before the access token lapses: the bridge severs a peer
+  // whose credential runs out (30 s grace) and rebinds it on auth.refresh
+  const scheduleRenew = useCallback(
+    (expiresIn: number) => {
+      if (renewTimer.current) clearTimeout(renewTimer.current);
+      renewTimer.current = setTimeout(
+        async () => {
+          if (dcRef.current?.readyState !== 'open') return;
+          const fresh = await sessionToken();
+          if (!fresh) return;
+          await send({ op: 'auth.refresh', token: fresh.accessToken }).catch(() => {});
+          scheduleRenew(fresh.expiresIn);
+        },
+        Math.max(5, expiresIn - 60) * 1000
+      );
+    },
+    [send]
+  );
+
   const connect = useCallback(async () => {
     setState('connecting');
     try {
-      const t = token.trim();
-      if (t.length < 16) throw new Error('paste the device token from /pair');
+      const pinned = loadPin();
+      let t = token.trim();
+      let expiresIn = 0;
+      if (pinned && !explicitToken.current) {
+        const fresh = await sessionToken();
+        if (fresh) {
+          t = fresh.accessToken;
+          expiresIn = fresh.expiresIn;
+        }
+      }
+      if (t.length < 16) throw new Error('pair this device first: scan the box QR at /pair');
       localStorage.setItem('bifrost_device', t);
-      const url = bridgeUrl.trim() || `http://${location.hostname}:18080`;
+      const typed = bridgeUrl.trim() || pinned?.bridge || `http://${location.hostname}:18080`;
+      const url = typed.replace(/\/$/, '');
       localStorage.setItem('bifrost_bridge', url);
 
-      const pc = new RTCPeerConnection({ iceServers: [] });
+      const pc = new RTCPeerConnection({ iceServers: await iceServers(t) });
       pcRef.current = pc;
 
-      // audio up: mic (Playwright drives it with a real-speech WAV fixture)
-      const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
-      for (const track of mic.getAudioTracks()) pc.addTrack(track, mic);
+      // audio up: mic (Playwright drives it with a real-speech WAV fixture).
+      // Browsers open the mic on a secure origin only — on plain http://<lan>
+      // the link still carries text and the reply audio down.
+      const mic = await navigator.mediaDevices?.getUserMedia({ audio: true }).catch(() => null);
+      micRef.current = !!mic;
+      if (mic) for (const track of mic.getAudioTracks()) pc.addTrack(track, mic);
+      else pc.addTransceiver('audio', { direction: 'recvonly' });
 
       // app data channel
       const dc = pc.createDataChannel('app');
@@ -103,18 +166,22 @@ export default function BridgePage() {
       dc.onopen = async () => {
         setState('channel-open');
         try {
-          await send({ op: 'hello' });
-          // transport latency: 5 channel round-trips (P2P leg quality)
-          const pings: number[] = [];
+          // transport latency: 5 channel round-trips (P2P leg quality); hello
+          // is the one op every bridge generation answers
+          const rtts: number[] = [];
           for (let i = 0; i < 5; i++) {
             const t0 = performance.now();
-            await send({ op: 'ping', t: i });
-            pings.push(Math.round(performance.now() - t0));
+            await send({ op: 'hello' });
+            rtts.push(Math.round(performance.now() - t0));
           }
-          const avg = Math.round(pings.reduce((a, b) => a + b, 0) / pings.length);
+          const avg = Math.round(rtts.reduce((a, b) => a + b, 0) / rtts.length);
           dcRttRef.current = avg;
           setState('connected');
-          say('sys', `bridge connected · channel RTT ~${avg}ms`);
+          say(
+            'sys',
+            `bridge connected · ${pinned ? 'box key pinned' : 'unpinned'} · channel RTT ~${avg}ms`
+          );
+          if (expiresIn) scheduleRenew(expiresIn);
         } catch (e) {
           setState(`hello failed: ${e}`);
         }
@@ -126,6 +193,12 @@ export default function BridgePage() {
           if (pending) {
             pendingReplies.current.delete(Number(v.req));
             pending(ev.data);
+            return;
+          }
+          if (v.op === 'severed') {
+            if (renewTimer.current) clearTimeout(renewTimer.current);
+            setState(`severed: ${v.why || 'by the box'}`);
+            pc.close();
             return;
           }
           if (v.op === 'run.done' && sidRef.current) {
@@ -149,13 +222,14 @@ export default function BridgePage() {
       };
       pc.ontrack = (ev) => {
         if (audioRef.current) {
-          audioRef.current.srcObject = ev.streams[0];
+          audioRef.current.srcObject = ev.streams[0] ?? new MediaStream([ev.track]);
           void audioRef.current.play().catch(() => {});
         }
       };
 
       // Chrome is trickle-only: candidates NEVER appear in offer.sdp — they
-      // fire via onicecandidate. Collect them and POST them alongside.
+      // fire via onicecandidate. Collect them and POST them alongside (and in
+      // the gathered local description, which a v0.9 bridge reads).
       const trickle: string[] = [];
       pc.onicecandidate = (ev) => {
         if (ev.candidate) trickle.push(ev.candidate.candidate);
@@ -170,24 +244,40 @@ export default function BridgePage() {
         });
         setTimeout(done, 2500); // cap: loopback gathers in ms
       });
+      const sdp = pc.localDescription?.sdp || offer.sdp;
       const r = await fetch(`${url}/offer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
-        body: JSON.stringify({ type: offer.type, sdp: offer.sdp, candidates: trickle }),
+        body: JSON.stringify({ type: offer.type, sdp, candidates: trickle }),
       });
       if (r.status === 401) throw new Error('bridge rejected the device token (pair first)');
       if (!r.ok) throw new Error(`bridge signaling failed: ${r.status}`);
-      const answer = await r.json();
+      const answer = (await r.json()) as RTCSessionDescriptionInit;
+      if (pinned) {
+        try {
+          assertPinned(answer.sdp || '', pinned);
+        } catch (e) {
+          pc.close();
+          throw e;
+        }
+      }
       await pc.setRemoteDescription(answer);
       setState('signaled — ICE running');
     } catch (e) {
-      setState(`error: ${e}`);
+      setState(
+        e instanceof PinMismatch
+          ? `refused: this bridge does not hold the box key this phone pinned — ${e.message}`
+          : `error: ${e}`
+      );
     }
-  }, [token, bridgeUrl, send, say, refreshTranscript]);
+  }, [token, bridgeUrl, send, say, refreshTranscript, scheduleRenew]);
 
   const ensureSession = useCallback(async () => {
     if (sidRef.current) return sidRef.current;
-    const r = await send({ op: 'session.create', name: `bridge-${new Date().toISOString().slice(11, 19)}` });
+    const r = await send({
+      op: 'session.create',
+      name: `bridge-${new Date().toISOString().slice(11, 19)}`,
+    });
     const v = JSON.parse(r);
     sidRef.current = v.id;
     setSid(v.id);
@@ -213,6 +303,10 @@ export default function BridgePage() {
 
   const commitVoice = useCallback(() => {
     const id = sidRef.current;
+    if (!micRef.current) {
+      setVoiceState('no microphone (refused, or not https — browsers open it on https only)');
+      return;
+    }
     if (!id) {
       setVoiceState('open a session first (send a text message)');
       return;
@@ -231,8 +325,18 @@ export default function BridgePage() {
     const qBridge = q.get('b');
     if (qToken) localStorage.setItem('bifrost_device', qToken);
     if (qBridge) localStorage.setItem('bifrost_bridge', qBridge);
+    // a credential in the address bar must not outlive the pickup (history, sync)
+    if (qToken || qBridge) history.replaceState(null, '', location.pathname);
+    explicitToken.current = !!qToken;
+    const p = loadPin();
+    setPin(p);
     setToken(qToken || localStorage.getItem('bifrost_device') || '');
-    setBridgeUrl(qBridge || localStorage.getItem('bifrost_bridge') || '');
+    // the QR's bridge outranks a stored one from an older (unpinned) pairing
+    setBridgeUrl(qBridge || p?.bridge || localStorage.getItem('bifrost_bridge') || '');
+    return () => {
+      if (renewTimer.current) clearTimeout(renewTimer.current);
+      pcRef.current?.close();
+    };
   }, []);
 
   return (
@@ -248,20 +352,40 @@ export default function BridgePage() {
       {state !== 'connected' ? (
         <div className="mt-6 flex flex-col gap-3">
           <p className="text-sm opacity-70">
-            Paste the device token from <a className="underline" href="/pair">/pair</a> and
-            connect — everything (app + voice) rides one WebRTC session to the bridge.
+            {pin ? (
+              <>
+                Paired with {pin.box}. Connect — everything (app + voice) rides one WebRTC session
+                to the bridge, and only to a bridge that holds the box key.
+              </>
+            ) : (
+              <>
+                Scan the box QR at{' '}
+                <a className="underline" href="/pair">
+                  /pair
+                </a>{' '}
+                to pin the box key, or paste a device token and connect — everything (app + voice)
+                rides one WebRTC session to the bridge.
+              </>
+            )}
+          </p>
+          <p className="text-xs break-all opacity-60" data-testid="bridge-pin">
+            {pin ? `box key ${pin.fp}` : 'unpinned — no box key to check'}
           </p>
           <input
             data-testid="bridge-token"
             value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="bfnd-… device token"
+            onChange={(e) => {
+              explicitToken.current = true;
+              setToken(e.target.value);
+            }}
+            placeholder={pin ? 'device token (from this device’s pairing)' : 'bfnd-… device token'}
             className="rounded border bg-transparent px-3 py-2 text-sm"
           />
           <input
+            data-testid="bridge-url"
             value={bridgeUrl}
             onChange={(e) => setBridgeUrl(e.target.value)}
-            placeholder="bridge url (default http://host:18080)"
+            placeholder={pin ? pin.bridge : 'bridge url (default http://host:18080)'}
             className="rounded border bg-transparent px-3 py-2 text-sm"
           />
           <button
@@ -276,7 +400,11 @@ export default function BridgePage() {
         <>
           <div className="mt-3 flex-1 space-y-2 overflow-y-auto text-sm" data-testid="bridge-log">
             {lines.map((l, i) => (
-              <p key={i} className={l.who === 'bifrost' ? 'font-medium' : 'opacity-80'}>
+              <p
+                key={i}
+                data-who={l.who}
+                className={l.who === 'bifrost' ? 'font-medium' : 'opacity-80'}
+              >
                 <span className="mr-2 text-xs uppercase opacity-50">{l.who}</span>
                 {l.text}
               </p>

@@ -67,3 +67,18 @@ function hextets(a: string): number[] | null {
 }
 
 export const regionOfReq = (req: { headers: Headers }) => regionOf(peerOf(req));
+
+/**
+ * The "one client" key for per-address limits: an IPv4 address as is, an IPv6
+ * address by its /64 (one subscriber's prefix — rotating the low 64 bits must
+ * not buy a fresh budget). '' when there is no trustworthy peer.
+ */
+export function clientKey(ip: string): string {
+  let a = (ip || '').trim().toLowerCase().replace(/%.*$/, '');
+  if (a.startsWith('::ffff:') && a.includes('.')) a = a.slice(7);
+  if (!a.includes(':')) return a;
+  const g = hextets(a);
+  if (!g) return a;
+  const net = g.slice(0, 4).map((n) => n.toString(16));
+  return `${net.join(':')}::/64`;
+}

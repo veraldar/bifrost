@@ -11,7 +11,7 @@
  * upgrades a garbage or stale token (e2e: auth.spec).
  */
 import { timingSafeEqual } from 'crypto';
-import { checkAccess } from '@/lib/devices';
+import { type Device, checkAccess } from '@/lib/devices';
 import { regionOfReq } from '@/lib/region';
 
 export const bearerOf = (req: Request) =>
@@ -46,4 +46,19 @@ export async function adminOrDevice(req: Request): Promise<'admin' | 'device' | 
   const raw = presented || cookieOf(req, 'bifrost_device');
   if (raw) return (await checkAccess(raw, regionOfReq(req))).ok ? 'device' : null;
   return adminOk(req) ? 'admin' : null;
+}
+
+/**
+ * A live DEVICE only — never the admin token, the console or the tailnet. For
+ * actions that must name the device that took them (a join approval: its id
+ * becomes the dev claim of the root's link tokens).
+ */
+export async function deviceOf(req: Request): Promise<Device | null> {
+  const expected = process.env.BIFROST_ADMIN_TOKEN || '';
+  const presented = bearerOf(req);
+  const raw = presented && !(expected && same(presented, expected)) ? presented : '';
+  const token = raw || cookieOf(req, 'bifrost_device');
+  if (!token) return null;
+  const gate = await checkAccess(token, regionOfReq(req));
+  return gate.ok ? gate.device : null;
 }

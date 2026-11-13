@@ -10,7 +10,10 @@
  *     bifrost_device cookie), rate-limited per device — except the box's own
  *     console (loopback behind server.mjs) and the admin token. /api/pair/* mints and
  *     rotates credentials and authenticates inside each route (fail-closed);
- *     here it only gets the per-peer brute-force guard.
+ *     here it only gets the per-peer brute-force guard. So do the three join
+ *     endpoints a NEW machine calls (docs/spec-join.md) — join, poll with its
+ *     join secret, refill with its root secret: exact method + path shapes
+ *     only, everything else under /api/roots needs a device.
  *
  * 401 bodies say what the client must do next (`reauth`): `refresh` (expired
  * or region changed — present the refresh credential) or `pair` (scan again).
@@ -41,6 +44,14 @@ const REAUTH: Record<Deny, 'refresh' | 'pair'> = {
 
 const PAIR_BURST = Number(process.env.BIFROST_PAIR_BURST) || 60;
 
+// a joining machine holds no device token: these carry their own credential
+// (or, for the join itself, none — rate-limited per address in the route)
+const JOIN_OPEN: Array<[string, RegExp]> = [
+  ['POST', /^\/api\/roots\/join$/],
+  ['GET', /^\/api\/roots\/join\/[A-Za-z0-9_-]{8,64}$/],
+  ['POST', /^\/api\/roots\/[a-z0-9][a-z0-9-]{0,40}\/tokens$/],
+];
+
 const tooMany = (retryAfter: number) =>
   NextResponse.json(
     { error: 'rate limited' },
@@ -55,6 +66,11 @@ export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
   if (path.startsWith('/api/pair')) {
     const rl = rateTake(`peer:${peerOf(req) || 'unknown'}`, PAIR_BURST, 1);
+    return rl.ok ? NextResponse.next() : tooMany(rl.retryAfter);
+  }
+
+  if (JOIN_OPEN.some(([m, re]) => req.method === m && re.test(path))) {
+    const rl = rateTake(`join-peer:${peerOf(req) || 'unknown'}`, PAIR_BURST, 1);
     return rl.ok ? NextResponse.next() : tooMany(rl.retryAfter);
   }
 

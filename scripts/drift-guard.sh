@@ -25,12 +25,12 @@ FIXES='
 # (first === practice/sent/mic); main puts the door on the front page
 # (tree-door) and every session opens keyboard (10-02 fix #3). Same user
 # behavior, different structure — reviewed 10-27, HF-CLICK report §6.
-first-turn-tap|pwa/app/session/[slug]/page.tsx|first-turn: tap — released, nothing sent|bifrost
-ghost-click-guard|pwa/app/session/[slug]/page.tsx|freeGhostGuardRef|-
-tap-arm-reinterpret|pwa/app/session/[slug]/page.tsx|pttDownAtRef|-
+first-turn-tap|branch/app/session/[slug]/page.tsx|first-turn: tap — released, nothing sent|bifrost
+ghost-click-guard|branch/app/session/[slug]/page.tsx|freeGhostGuardRef|-
+tap-arm-reinterpret|branch/app/session/[slug]/page.tsx|pttDownAtRef|-
 # theme-dialects: ported to lab/sandbox 10-27 (be67d66, THEME-PORT report).
 # Probe is a value (the aether dialect ground), not the header comment.
-theme-dialects|pwa/styles/tokens.css|oz-bg: #07080e|-
+theme-dialects|branch/styles/tokens.css|oz-bg: #07080e|-
 # the 10-06 voice-outage fixes (79d53f1/c6a1b2d/232b25c) on the live agent never reached the
 # v0.7 agent (lane2/merge) — found 10-27 by RULER-V07, ported onto release/v0.7 by 3-way merge.
 # DRAINED 10-27 (DRAIN-DRIFT): lab/sandbox now carries all four (139109f, verbatim from release/v0.7 ca990ca).
@@ -53,11 +53,11 @@ agent-loopback-http|agent/agent.py|AGENT_HTTP_HOST|lane2-merge
 #   the fork never had), artifact-black-page (547cb89: md opened directly gets the black page),
 #   bifrost-auth-declared (7572aaa: BIFROST_AUTH replaces the IS_VERCEL_PREVIEW guard; tailnet-only
 #   box, no exposure change). artifact-meta (56730fa) + device pairing (9c0425e) are features, not fixes.
-tts-generation-lock|pwa/app/api/tts/stream/route.ts|withTtsGenerationLock|-
-oc-headers-timeout|pwa/lib/oc.ts|headersTimeout|-
-agent-rearm|pwa/app/session/[slug]/page.tsx|api/dispatch|release-v07
-artifact-black-page|pwa/app/api/artifact/[name]/route.ts|sec-fetch-dest|release-v07
-bifrost-auth-declared|pwa/app/api/token/route.ts|BIFROST_AUTH|release-v07
+tts-generation-lock|branch/app/api/tts/stream/route.ts|withTtsGenerationLock|-
+oc-headers-timeout|branch/lib/oc.ts|headersTimeout|-
+agent-rearm|branch/app/session/[slug]/page.tsx|api/dispatch|release-v07
+artifact-black-page|branch/app/api/artifact/[name]/route.ts|sec-fetch-dest|release-v07
+bifrost-auth-declared|branch/app/api/token/route.ts|BIFROST_AUTH|release-v07
 '
 
 ROOTS=("$@")

@@ -1,0 +1,14 @@
+# ~/.config/systemd/user/ygg-librarian.service — the librarian extension next to the live root.
+# Paths assume the repo is checked out at ~/yggdrasil — adjust them to your checkout.
+# The root finds it through YGG_EXTENSIONS=librarian=http://127.0.0.1:4310 (deploy-live.sh sets both).
+[Unit]
+Description=yggdrasil librarian extension (memory: index, recent, facts)
+After=lk-yggdrasil.service
+
+[Service]
+ExecStart=/usr/bin/python3 %h/yggdrasil/root/extensions/librarian/librarian.py --root http://127.0.0.1:4100 --port 4310 --db %h/.local/share/yggdrasil/librarian.db --artifacts %h/yggdrasil/artifacts
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

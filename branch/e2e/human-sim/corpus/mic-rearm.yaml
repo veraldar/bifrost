@@ -1,0 +1,12 @@
+id: mic-rearm
+bug: agent-rearm — after a reply finished playing the mic stayed muted / deck not back to listening
+gold: "cycle != listening or mic muted >3s after last played.t1"
+mode: hf
+turns: [{ via: text, say: "Reply with exactly: pong" }]
+mock: { delay_ms: 0, reply: pong }
+assert: { kind: mic-rearm, params: { within_ms: 3000 } }
+expect_current: GREEN
+seed:
+  env: "HSIM_SEED=mic-rearm"
+  rig: "init script mutes the mic track when playback ends"
+  revert-sha: "agent-rearm fix (needs a build, not wired)"

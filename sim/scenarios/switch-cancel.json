@@ -1,0 +1,41 @@
+{
+ "id": "switch-cancel",
+ "title": "Rapid topic switching, a cancellation, a vague follow-up",
+ "persona": "A scatterbrained hobbyist firing off ideas from the couch. Very short messages, lowercase, jumps between topics, refers to things vaguely.",
+ "goals": [
+  "Start three small python things: a dice roller CLI (folder dice), a random haiku generator script (folder haiku), and a csv-to-json converter CLI (folder csv2json), each with pytest tests.",
+  "Shortly after, cancel the haiku one \u2014 you don't want it anymore.",
+  "Then ask for the dice thing to support notation like 3d6+2 (without naming the folder).",
+  "Finally ask for a status of everything."
+ ],
+ "script": [
+  "Fire the three requests as three separate very short messages, one after another.",
+  "Within a couple of minutes, cancel the haiku thing.",
+  "Then ask for the 3d6+2 notation in vague words ('the dice thing').",
+  "Wait for results, then ask for a status of everything and finish."
+ ],
+ "max_minutes": 40,
+ "max_turns": 12,
+ "checks": [
+  {
+   "name": "dice supports 3d6+2",
+   "cmd": "cd dice && python3 -m pytest -q >/tmp/pytest.$$.out 2>&1 && echo PYTEST-OK || tail -5 /tmp/pytest.$$.out && grep -rnE '3d6\\+2|[+-]\\s*\\\\d|modifier' . --include=*.py | head -3",
+   "expect": "PYTEST-OK"
+  },
+  {
+   "name": "csv2json tests pass",
+   "cmd": "cd csv2json && python3 -m pytest -q >/tmp/pytest.$$.out 2>&1 && echo PYTEST-OK || tail -5 /tmp/pytest.$$.out",
+   "expect": "PYTEST-OK"
+  },
+  {
+   "name": "haiku cancelled (archived)",
+   "kind": "archived_match",
+   "title": "haiku"
+  },
+  {
+   "name": "no duplicate sessions (<=3 under main)",
+   "kind": "max_children_of_main",
+   "value": 3
+  }
+ ]
+}

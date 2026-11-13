@@ -1,0 +1,36 @@
+{
+ "id": "deep-lead",
+ "title": "One bigger project split into parallel parts, looped until green",
+ "persona": "A senior engineer who likes things done properly but types very little. Expects the AI to organize the work itself.",
+ "goals": [
+  "Get a tiny key-value store built in a folder named kvstore: a python library module (get/set/delete/keys, persisted to a JSON file), a command-line interface on top of it, and a small HTTP server (python standard library http.server) exposing GET/PUT/DELETE /kv/<key>, each with pytest tests.",
+  "It should be split into parts worked on in parallel, not done by one session in sequence.",
+  "Everything must end with the whole test suite passing; you want main to keep looping until it does."
+ ],
+ "script": [
+  "Give the whole request in one or two messages and say it can be split up and done in parallel.",
+  "Wait for main to come back. If it reports partial progress, tell it to keep going until all tests pass.",
+  "At the end ask how many tests there are and whether they all pass."
+ ],
+ "max_minutes": 50,
+ "max_turns": 12,
+ "checks": [
+  {
+   "name": "kvstore tests pass",
+   "cmd": "cd kvstore && python3 -m pytest -q >/tmp/pytest.$$.out 2>&1 && echo PYTEST-OK || tail -5 /tmp/pytest.$$.out",
+   "expect": "PYTEST-OK",
+   "timeout": 240
+  },
+  {
+   "name": "kvstore has cli + server",
+   "cmd": "cd kvstore && grep -rlE 'http.server|HTTPServer' . --include=*.py | head -2 && grep -rlE 'argparse|sys.argv' . --include=*.py | head -2",
+   "expect": "py"
+  },
+  {
+   "name": "tree depth >= 2 (parts under a lead)",
+   "kind": "min_depth",
+   "value": 2,
+   "archived_ok": true
+  }
+ ]
+}

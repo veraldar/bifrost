@@ -1,0 +1,19 @@
+# bifrost bridge — pairing identity + P2P transport (bifrost-net), systemd user unit.
+# install.sh fills in the @…@ paths. Its config (@CONF@/bridge.toml, mode 600) holds
+# the node's private key; tokens_file is the SAME devices.json the app writes.
+[Unit]
+Description=bifrost bridge — pairing identity + P2P transport (bifrost-net)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+WorkingDirectory=@STATE@
+Environment=BIFROST_DEVICES_FILE=@STATE@/devices.json
+ExecStart=@BIN@/bifrost-net bridge -c @CONF@/bridge.toml
+Restart=on-failure
+RestartSec=3
+UMask=0077
+
+[Install]
+WantedBy=default.target

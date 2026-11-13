@@ -6,7 +6,7 @@
 # What it does, in order:
 #   1. preflight: gh auth OK? (else print the 1-minute fix and stop)
 #   2. re-derive the yggdrasil split from the CURRENT bifrost brain tip (deterministic
-#      subtree split of lab/yggdrasil/) and fast-forward ~/Work/yggdrasil master to it
+#      subtree split of root/) and fast-forward ~/Work/yggdrasil master to it
 #   3. create github.com/veraldar/yggdrasil (private) if missing; push master + its tags
 #   4. push EVERYTHING in veraldar/bifrost: every branch (creating missing remotes),
 #      every missing tag — via scripts/push-all.sh -c  (no force, ever)
@@ -19,6 +19,11 @@
 #   YGG_DIR        the yggdrasil repo (default ~/Work/yggdrasil)
 #   BIF_DIR        the bifrost repo (default ~/Work/bifrost)
 set -u
+
+# OBSOLETE since 2026-11-13: veraldar/yggdrasil is the WHOLE tree (renamed from veraldar/bifrost,
+# matching veraldar.org); the old brain-only split is archived as yggdrasil-brain-split-2026-10.
+echo "publish-all: obsolete — veraldar/yggdrasil is the whole repo now; push branches with scripts/push-all.sh" >&2
+exit 2
 
 BIF_BRANCH="${BIF_BRANCH:-wave/root-provider-toolscope}"
 YGG_DIR="${YGG_DIR:-$HOME/Work/yggdrasil}"
@@ -44,9 +49,9 @@ git clone -q --no-hardlinks "$BIF_DIR" "$TMP/bifrost"
 B="origin/$BIF_BRANCH"
 git -C "$TMP/bifrost" checkout -q --detach "$B" 2>/dev/null || {
   say "FATAL: branch $BIF_BRANCH not found in $BIF_DIR"; exit 1; }
-TIP=$(git -C "$TMP/bifrost" log -1 --format=%H "$B" -- lab/yggdrasil/)
+TIP=$(git -C "$TMP/bifrost" log -1 --format=%H "$B" -- root/)
 say "brain tip in bifrost: $(git -C "$TMP/bifrost" log --oneline -1 "$TIP" | head -c 90)"
-SPLIT=$(git -C "$TMP/bifrost" subtree split -P lab/yggdrasil "$TIP" 2>/dev/null | tail -1)
+SPLIT=$(git -C "$TMP/bifrost" subtree split -P root "$TIP" 2>/dev/null | tail -1)
 [ -n "$SPLIT" ] || { say "FATAL: subtree split produced nothing"; exit 1; }
 say "split tip: $SPLIT ($(git -C "$TMP/bifrost" rev-list --count "$SPLIT") commits)"
 

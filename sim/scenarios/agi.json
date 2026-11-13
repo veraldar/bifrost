@@ -1,0 +1,24 @@
+{
+  "id": "agi",
+  "title": "Ask MAIN to use AGI (Claude Code on Opus) for a hard task",
+  "persona": "A developer who saves the strongest agent for the hard parts. Short phone messages; refers to it simply as 'AGI'.",
+  "goals": [
+    "Have the AGI agent (not the default builder) write a python module in a folder named intervals that merges overlapping time intervals and computes the total covered duration, with thorough pytest tests including edge cases.",
+    "Then, as a follow-up to the same AGI session, ask it to add a function that returns the gaps between intervals.",
+    "Get confirmation that all tests pass."
+  ],
+  "script": [
+    "Ask main to give the intervals job to AGI, in your own short words.",
+    "Wait for main to come back with the result.",
+    "Send the gaps follow-up (it should go to the same AGI session).",
+    "Ask whether all tests pass, then finish."
+  ],
+  "brain_env": {"SIM_HARNESS": "1"},
+  "max_minutes": 35, "max_turns": 10,
+  "checks": [
+    {"name": "intervals tests pass", "cmd": "cd intervals && python3 -m pytest -q >/tmp/pytest.$$.out 2>&1 && echo PYTEST-OK || tail -5 /tmp/pytest.$$.out", "expect": "PYTEST-OK"},
+    {"name": "gaps implemented", "cmd": "grep -rniE 'def [a-z_]*gap' intervals --include=*.py | head -3", "expect": "gap"},
+    {"name": "an AGI session did the work", "kind": "child_profile", "agent": "AGI"},
+    {"name": "follow-up reused the session (<=1 under main)", "kind": "max_children_of_main", "value": 1}
+  ]
+}

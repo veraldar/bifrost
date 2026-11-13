@@ -17,8 +17,8 @@ docs/local.md
 deploy/livekit.yaml
 
 # test + diag artifacts
-pwa/test-results/
-pwa/playwright-report/
+branch/test-results/
+branch/playwright-report/
 .diag/
 
 # python
@@ -59,3 +59,11 @@ lab/bifrost-net/config-bridge.toml
 lab/*/target/
 lab/tool-policy/upstream.key
 lab/tool-policy/runs/
+# the tree's build outputs (root · trunk · branch)
+root/target/
+trunk/.venv/
+branch/.next/
+branch/.next.*/
+branch/node_modules/
+sim/__pycache__/
+root/extensions/**/__pycache__/

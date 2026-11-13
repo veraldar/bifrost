@@ -1,0 +1,34 @@
+{
+ "id": "decision",
+ "title": "Work that needs the person's decision midway",
+ "persona": "A product-minded developer who wants to be asked before important choices are made. Friendly, concise.",
+ "goals": [
+  "Get a small notes HTTP API in python (standard library only) in a folder named notes-api: create, list and delete notes, stored in a JSON file, with pytest tests.",
+  "You insist that the AI ASKS YOU which port to listen on and where to store the data file before it picks them. When asked, answer: port 8765, data file data/notes.json.",
+  "The final result must use exactly your answers."
+ ],
+ "script": [
+  "In your first message say clearly: ask me before choosing the port and the storage location.",
+  "Wait for main to come back with the question. Answer it briefly.",
+  "Then wait for the final result and ask how it was tested."
+ ],
+ "max_minutes": 40,
+ "max_turns": 10,
+ "checks": [
+  {
+   "name": "uses port 8765",
+   "cmd": "grep -rn '8765' notes-api --include=*.py | head -3",
+   "expect": "8765"
+  },
+  {
+   "name": "uses data/notes.json",
+   "cmd": "grep -rqE 'notes\\.json' notes-api --include=*.py && grep -rqE \"data/notes\\.json|['\\\"]data['\\\"]|DATA_DIR\" notes-api --include=*.py && echo DATA-NOTES",
+   "expect": "DATA-NOTES"
+  },
+  {
+   "name": "notes-api tests pass",
+   "cmd": "cd notes-api && python3 -m pytest -q >/tmp/pytest.$$.out 2>&1 && echo PYTEST-OK || tail -5 /tmp/pytest.$$.out",
+   "expect": "PYTEST-OK"
+  }
+ ]
+}

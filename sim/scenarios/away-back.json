@@ -1,0 +1,35 @@
+{
+ "id": "away-back",
+ "title": "Hand off two tasks, leave, come back: what happened?",
+ "persona": "A parent with little time: hands things off and leaves the phone. Writes quickly, sometimes speaks into the mic.",
+ "goals": [
+  "Get a python unit converter CLI (length, weight, temperature) with pytest tests, folder name units.",
+  "Get a python script that parses a markdown todo list (- [ ] / - [x]) and prints done/open counts, with pytest tests, folder name todo-count.",
+  "Come back later and get an accurate account of what happened, without having to ask about each project separately."
+ ],
+ "script": [
+  "Ask for both in one or two quick messages, then say you are going out for a while and main should tell you when things are done.",
+  "Then wait a long time (several minutes, use long waits) \u2014 do not write anything while waiting, even if main reports.",
+  "When you come back, ask 'so what happened?' as a VOICE message (voice:true).",
+  "Finish when you know whether both are done and tested."
+ ],
+ "max_minutes": 40,
+ "max_turns": 8,
+ "checks": [
+  {
+   "name": "units tests pass",
+   "cmd": "cd units && python3 -m pytest -q >/tmp/pytest.$$.out 2>&1 && echo PYTEST-OK || tail -5 /tmp/pytest.$$.out",
+   "expect": "PYTEST-OK"
+  },
+  {
+   "name": "todo-count tests pass",
+   "cmd": "cd todo-count && python3 -m pytest -q >/tmp/pytest.$$.out 2>&1 && echo PYTEST-OK || tail -5 /tmp/pytest.$$.out",
+   "expect": "PYTEST-OK"
+  },
+  {
+   "name": "main came back unprompted",
+   "kind": "proactive_report",
+   "value": 1
+  }
+ ]
+}

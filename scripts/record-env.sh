@@ -9,7 +9,7 @@ WITH_TESTS=0
 [[ "${1:-}" == "--with-tests" ]] && WITH_TESTS=1
 
 node_v=$(node --version 2>/dev/null || echo -)
-next_v=$(node -p "require('$PWD/pwa/node_modules/next/package.json').version" 2>/dev/null || echo -)
+next_v=$(node -p "require('$PWD/branch/node_modules/next/package.json').version" 2>/dev/null || echo -)
 py_v=$(python3 --version 2>/dev/null | cut -d' ' -f2 || echo -)
 uv_v=$(uv --version 2>/dev/null | awk '{print $2}' || echo -)
 docker_v=$(docker --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo -)
@@ -22,13 +22,13 @@ date_utc=$(date -u '+%Y-%m-%d %H:%M')
 
 tests_col='skipped'
 if [[ $WITH_TESTS -eq 1 ]]; then
-  cd pwa
+  cd branch
   if out=$(npx playwright test 2>&1 | tail -1); then tests_col="$out"; else tests_col="FAILED — $out"; fi
   cd ..
 fi
 
 if [[ $WITH_TESTS -eq 1 ]]; then
-  cd pwa
+  cd branch
   if out=$(npx playwright test 2>&1 | tail -1 | xargs); then tests_col="$out"; else tests_col="FAILED — $out"; fi
   cd ..
 fi

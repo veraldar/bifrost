@@ -7,7 +7,7 @@ Speaks the exact API shapes the livekit agent already consumes:
   GET  /v1/models, GET /healthz
 
 Run:  python -m uvicorn voice_server:app --host 127.0.0.1 --port 8000
-Then: agent/.env -> SPEACHES_URL=http://127.0.0.1:8000/v1  (LOCAL=1, zero code change)
+Then: trunk/.env -> SPEACHES_URL=http://127.0.0.1:8000/v1  (LOCAL=1, zero code change)
 """
 from __future__ import annotations
 

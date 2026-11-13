@@ -23,7 +23,7 @@ set -euo pipefail
 BIF="${BIFROST_HOME:-$HOME/.local/share/bifrost}"; RELS="$BIF/releases"; NEXT="$BIF/next"
 UNITS="${BIFROST_UNITS:-$HOME/.config/systemd/user}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
-SANDBOX="$HOME/Work/bifrost-sandbox/pwa"
+SANDBOX="$HOME/Work/bifrost-sandbox/branch"
 NODE_BIN="${NODE_BIN:-$HOME/.local/share/mise/installs/node/26.8.1/bin}"
 UV="${UV:-$HOME/.local/share/mise/installs/uv/latest/.mise-bins/uv}"
 STATE_LINKS=(.diag .push-subs.json .oc-live.json .oc-queue.json .devices.json)
@@ -43,19 +43,19 @@ build_id() { python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["bu
 
 clone() {  # $1 = release id -> $NEXT/$1 (idempotent)
   local id="$1" c="$NEXT/$1" f
-  [[ -s "$RELS/$id/pwa/.next/BUILD_ID" ]] || die "$id has no build"
+  [[ -s "$RELS/$id/branch/.next/BUILD_ID" ]] || die "$id has no build"
   if [[ ! -d "$c" ]]; then
     mkdir -p "$NEXT"
     cp -a --reflink=auto "$RELS/$id" "$c.tmp" || die "clone failed"
     chmod -R u+w "$c.tmp"
     # the next slot's state, never live's (the release links them to the trunk repo = live's)
-    for f in "${STATE_LINKS[@]}"; do ln -sfn "$SANDBOX/$f" "$c.tmp/pwa/$f"; done
-    ln -sfn "$SANDBOX/.env.local" "$c.tmp/pwa/.env.local"
+    for f in "${STATE_LINKS[@]}"; do ln -sfn "$SANDBOX/$f" "$c.tmp/branch/$f"; done
+    ln -sfn "$SANDBOX/.env.local" "$c.tmp/branch/.env.local"
     rm -rf "$c.tmp/env"   # the live env never travels into the next slot
-    (cd "$c.tmp/agent" && rm -rf .venv && "$UV" sync --frozen -q) || die "agent venv sync failed"
+    (cd "$c.tmp/trunk" && rm -rf .venv && "$UV" sync --frozen -q) || die "agent venv sync failed"
     mv "$c.tmp" "$c"
   fi
-  [[ "$(cat "$c/pwa/.next/BUILD_ID")" == "$(build_id "$id")" ]] || die "clone BUILD_ID differs from the release"
+  [[ "$(cat "$c/branch/.next/BUILD_ID")" == "$(build_id "$id")" ]] || die "clone BUILD_ID differs from the release"
   echo "$c"
 }
 
@@ -64,14 +64,14 @@ matrix_pwa() {  # $1 = clone dir -> $1.matrix/pwa: the same build, its OWN state
   # queue/live-run files (its watchdog forwards the other's queued turns), its diag log, and its push
   # subscriptions (e2e runs pushed to the user's phone). The matrix serve starts empty and pushes nowhere.
   local c="$1" m="$1.matrix" f
-  if [[ ! -d "$m/pwa" ]]; then
+  if [[ ! -d "$m/branch" ]]; then
     mkdir -p "$m"
-    cp -a --reflink=auto "$c/pwa" "$m/pwa.tmp" || die "matrix copy failed"
+    cp -a --reflink=auto "$c/branch" "$m/pwa.tmp" || die "matrix copy failed"
     for f in "${STATE_LINKS[@]}"; do rm -rf "${m:?}/pwa.tmp/$f"; done
     mkdir -p "$m/pwa.tmp/.diag"
-    mv "$m/pwa.tmp" "$m/pwa"
+    mv "$m/pwa.tmp" "$m/branch"
   fi
-  echo "$m/pwa"
+  echo "$m/branch"
 }
 
 served_build() {  # $1 = port -> the BUILD_ID the running server reports (v0.7 pwa: /api/build)
@@ -97,13 +97,13 @@ case "$cmd" in
     # the agent: the clone's code, the next slot's env (lk-agent-ygg's), its own name + health port
     mapfile -t aenv < <(systemctl --user show lk-agent-ygg -p Environment --value | tr ' ' '\n' \
       | grep -E '^(LIVEKIT_URL|LIVEKIT_API_KEY|LIVEKIT_API_SECRET|SPEACHES_URL|STT_MODEL|TTS_MODEL|TTS_VOICE|VOICE_MODEL|AGENT_STREAM_TTS)=' | sed 's/^/--setenv=/')
-    systemd-run --user --quiet --unit=rc-agent --collect --working-directory="$c/agent" \
+    systemd-run --user --quiet --unit=rc-agent --collect --working-directory="$c/trunk" \
       "${aenv[@]}" --setenv=OPENCODE_URL=http://127.0.0.1:4100 --setenv=AGENT_NAME=bifrost-rc \
       --setenv=AGENT_HTTP_PORT=$((port + 10000)) --setenv=UV_FROZEN=1 \
       "$UV" run agent.py start
     systemd-run --user --quiet --unit=rc-pwa --collect --working-directory="$mp" \
       --setenv=OPENCODE_URL=http://127.0.0.1:4100 --setenv=AGENT_NAME=bifrost-rc --setenv=HOST=127.0.0.1 \
-      --setenv=BIFROST_AUTH=tailnet --setenv=YGG_ENV_FILE="$HOME/Work/bifrost/lab/yggdrasil/yggdrasil.env" "${art[@]}" \
+      --setenv=BIFROST_AUTH=tailnet --setenv=YGG_ENV_FILE="$HOME/Work/bifrost/root/yggdrasil.env" "${art[@]}" \
       "$NODE_BIN/node" node_modules/next/dist/bin/next start -p "$port" -H 127.0.0.1
     wait_build "$port" "$(build_id "$id")" || die "rc-pwa :$port does not serve build $(build_id "$id")"
     say "matrix serve: http://127.0.0.1:$port = $id (build $(build_id "$id")), agent bifrost-rc, brain :4100"
@@ -120,13 +120,13 @@ case "$cmd" in
 # scripts/next-slot.sh on: the next slot serves a FROZEN release clone, not the worktree.
 # Undo: scripts/next-slot.sh off
 [Service]
-WorkingDirectory=%h/.local/share/bifrost/next/current/pwa
+WorkingDirectory=%h/.local/share/bifrost/next/current/branch
 EOF
     cat > "$UNITS/lk-agent-ygg.service.d/next-slot.conf" <<'EOF'
-# scripts/next-slot.sh on: the next slot's agent runs the release clone's agent/ (live parity:
+# scripts/next-slot.sh on: the next slot's agent runs the release clone's trunk/ (live parity:
 # load threshold = the code's inf, not the lab pin). Undo: scripts/next-slot.sh off
 [Service]
-WorkingDirectory=%h/.local/share/bifrost/next/current/agent
+WorkingDirectory=%h/.local/share/bifrost/next/current/trunk
 Environment=UV_FROZEN=1
 Environment=AGENT_LOAD_THRESHOLD=
 EOF

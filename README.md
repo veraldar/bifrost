@@ -1,4 +1,25 @@
-# Bifrost — talk to your coding agent from your phone
+# yggdrasil — the tree: your computer, working for you
+
+```
+veraldar/            the world: all your trees            → veraldar.org
+└─ yggdrasil/        the tree: your computer, working for you   (this repository)
+   ├─ root/          the brain: thinks, remembers — your AI key, or a model at home
+   │  └─ extensions/ what plugs into the brain without touching it (the librarian: memory)
+   ├─ trunk/         the private line: carries your words, never public
+   └─ branch/        bifrost, the app in your hand — you talk; it listens
+```
+
+| folder | what lives there |
+|---|---|
+| `root/` | the brain (Rust): one door (MAIN) that runs a tree of sessions and agents, several roots as peers, the extension interface — see `root/ROOT-COORD.md`; `root/extensions/` (spec in `root/extensions/README.md`) |
+| `trunk/` | the voice agent and the deploy config that carry your words between phone and brain |
+| `branch/` | bifrost, the phone app (PWA) |
+| `sim/` | human simulations (an LLM plays you and only talks to MAIN) and the deterministic tree test |
+| `scripts/`, `skills/`, `docs/` | install, release and operating the box; the install skill; history and specs |
+
+This repository was `veraldar/bifrost` until 2026-11-13; every old link and clone URL redirects.
+
+## Bifrost — talk to your coding agent from your phone
 
 A voice-controlled opencode: speak or type on your phone (PWA), a LiveKit
 voice agent bridges your words to a local [opencode](https://github.com/anomalyco/opencode)
@@ -26,7 +47,7 @@ that for you). Prefer manual setup? Keep reading.
 
 > One-click Vercel deploy of the PWA: after cloning, set the env vars
 > `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` (see
-> `pwa/.env.example`). Text-mode needs `OPENCODE_URL` reachable from the
+> `branch/.env.example`). Text-mode needs `OPENCODE_URL` reachable from the
 > deployment — keep opencode private (Tailscale), it has shell access!
 
 ## Using other AIs (Claude Code, Codex, …)
@@ -84,10 +105,10 @@ Phone (PWA: Next.js)                        Omarchy desktop
 Everything is systemd-managed on omarchy (`lk-pwa`, `lk-agent`,
 `opencode-serve`) + docker compose — reboots self-heal.
 
-- **PWA (`pwa/`)** — Next.js 15 + Tailwind 4. Sessions list, transcript with
+- **PWA (`branch/`)** — Next.js 15 + Tailwind 4. Sessions list, transcript with
   markdown (Streamdown), image/file attachments, sandboxed HTML preview,
   pixel-art UI (pixelarticons), push-to-talk & hands-free voice modes.
-- **Proxy (`pwa/app/api/*`)** — the phone never talks to opencode directly;
+- **Proxy (`branch/app/api/*`)** — the phone never talks to opencode directly;
   the Next server proxies sessions/messages/tokens and stays the single
   auth/seam point. Also receives frontend diagnostics (`/api/diag`), log-only.
 - **Agent (`agent/`)** — Python `livekit-agents` worker. Custom `llm.LLM`
@@ -97,7 +118,7 @@ Everything is systemd-managed on omarchy (`lk-pwa`, `lk-agent`,
   to tailnet + LAN IPs so phone media flows over Tailscale) + speaches STT/TTS.
 - **Diagnostics** — the PWA records console errors, crashes, network timings,
   and taps, uploads them in batches, and they are logged server-side
-  (`journalctl` + `pwa/.diag/*.log`). Log-only by design: no automatic fix
+  (`journalctl` + `branch/.diag/*.log`). Log-only by design: no automatic fix
   sessions (a past auto-`autofix` experiment was removed as a bad idea).
 
 ## One-click install (self-host)
@@ -105,7 +126,7 @@ Everything is systemd-managed on omarchy (`lk-pwa`, `lk-agent`,
 > **Minimum hardware:** ONE Linux box (any machine that runs Docker + Node) +
 > your phone. No Mac needed — the CPU speech fallback (speaches, in the
 > compose) works out of the box; a Mac Studio running MLX speech models is an
-> optional quality upgrade (see `agent/.env.example` → `SPEACHES_URL`).
+> optional quality upgrade (see `trunk/.env.example` → `SPEACHES_URL`).
 > Everything below runs on that one box; nothing needs to be public —
 > Tailscale is the only network requirement (install it on box + phone).
 
@@ -124,11 +145,11 @@ opencode serve --port 4096 &                 # REST server on 127.0.0.1:4096
 cd deploy && cp livekit.yaml.example livekit.yaml && docker compose up -d && cd ..
 
 # 2. Voice agent
-cd agent && uv sync && cp .env.example .env  # edit values (SPEACHES_URL empty = CPU fallback)
+cd trunk && uv sync && cp .env.example .env  # edit values (SPEACHES_URL empty = CPU fallback)
 uv run agent.py dev                          # or a systemd unit
 
 # 3. PWA
-cd ../pwa && npm install && cp .env.example .env.local  # edit values
+cd ../branch && npm install && cp .env.example .env.local  # edit values
 npx web-push generate-vapid-keys --json      # paste into .env.local for push notifications
 npm run build && npm start                   # :8080
 tailscale serve --bg 8080                    # tailnet-only HTTPS

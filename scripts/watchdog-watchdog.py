@@ -18,7 +18,7 @@ import urllib.request
 
 BASE = "http://127.0.0.1:4096"
 W2W_SESSION = "ses_efc36f2e5ffegLFSSrkkIvo565"  # stellar-planet MAIN WATCHDOG WATCHDOG
-LAB = pathlib.Path.home() / "Work/bifrost/lab/yggdrasil"
+LAB = pathlib.Path.home() / "Work/bifrost/root"
 DAWN = LAB / "DAWN-REPORT.md"
 STATE = pathlib.Path.home() / ".local/state/watchdog-watchdog"
 LOG = STATE / "log"

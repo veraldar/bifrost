@@ -9,11 +9,11 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CMD="${1:-status}"
 
 up() {
-  cd "$ROOT/lab/yggdrasil"
+  cd "$ROOT/root"
   [ -x target/release/yggdrasil ] || { echo "[test-stack] no yggdrasil binary — cargo build --release first"; return 1; }
   set -a; [ -f yggdrasil.env ] && source yggdrasil.env; set +a
   setsid nohup ./target/release/yggdrasil >/tmp/ygg-test.log 2>&1 </dev/null &
-  cd "$ROOT/pwa"
+  cd "$ROOT/branch"
   # own env: brain=yggdrasil, dispatch=bifrost-ygg — process env beats .env.local
   setsid nohup env OPENCODE_URL=http://127.0.0.1:4100 AGENT_NAME=bifrost-ygg \
     npx next start -p 8090 >/tmp/pwa-test.log 2>&1 </dev/null &

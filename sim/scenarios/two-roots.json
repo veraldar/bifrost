@@ -1,0 +1,63 @@
+{
+ "id": "two-roots",
+ "title": "Two roots: work placed on the machine that has the data, reports flow home",
+ "persona": "A developer with two machines at home: their main computer and a 'lab machine'. Short messages, doesn't know file paths on the lab machine.",
+ "root_name": "home",
+ "root_note": "the user's main computer",
+ "peers": [
+  {
+   "name": "lab",
+   "note": "the lab machine: holds the company sales data (sales/ folder) and the big disk",
+   "seed": {
+    "sales/sales_2026.csv": "date,region,product,units,unit_price\n2026-01-15,north,widget,51,12\n2026-01-15,north,gadget,29,30\n2026-01-15,south,widget,60,12\n2026-01-15,south,gadget,16,30\n2026-01-15,east,widget,19,12\n2026-01-15,east,gadget,78,30\n2026-01-15,west,widget,22,12\n2026-01-15,west,gadget,56,30\n2026-02-15,north,widget,84,12\n2026-02-15,north,gadget,17,30\n2026-02-15,south,widget,74,12\n2026-02-15,south,gadget,37,30\n2026-02-15,east,widget,14,12\n2026-02-15,east,gadget,21,30\n2026-02-15,west,widget,65,12\n2026-02-15,west,gadget,63,30\n2026-03-15,north,widget,18,12\n2026-03-15,north,gadget,40,30\n2026-03-15,south,widget,21,12\n2026-03-15,south,gadget,80,30\n2026-03-15,east,widget,64,12\n2026-03-15,east,gadget,17,30\n2026-03-15,west,widget,82,12\n2026-03-15,west,gadget,25,30\n2026-04-15,north,widget,38,12\n2026-04-15,north,gadget,90,30\n2026-04-15,south,widget,90,12\n2026-04-15,south,gadget,84,30\n2026-04-15,east,widget,17,12\n2026-04-15,east,gadget,83,30\n2026-04-15,west,widget,84,12\n2026-04-15,west,gadget,60,30\n2026-05-15,north,widget,16,12\n2026-05-15,north,gadget,38,30\n2026-05-15,south,widget,15,12\n2026-05-15,south,gadget,81,30\n2026-05-15,east,widget,27,12\n2026-05-15,east,gadget,47,30\n2026-05-15,west,widget,63,12\n2026-05-15,west,gadget,28,30\n2026-06-15,north,widget,79,12\n2026-06-15,north,gadget,25,30\n2026-06-15,south,widget,83,12\n2026-06-15,south,gadget,49,30\n2026-06-15,east,widget,81,12\n2026-06-15,east,gadget,33,30\n2026-06-15,west,widget,23,12\n2026-06-15,west,gadget,84,30\n"
+   }
+  }
+ ],
+ "goals": [
+  "Get an analysis of the sales data that lives on the lab machine: total revenue per region (units x unit_price) and the best month, saved as a markdown report next to the data on the lab machine. You don't know the exact path, only that the data is on the lab machine.",
+  "Meanwhile on this home computer: get a tiny python script that prints a greeting for a given name, with pytest tests, in a folder named greet.",
+  "Finally ask which region had the most revenue and how much."
+ ],
+ "script": [
+  "Ask for the sales analysis first, mentioning it's on the lab machine.",
+  "Then ask for the greet script.",
+  "Wait for main to come back; ask the final question; finish."
+ ],
+ "max_minutes": 35,
+ "max_turns": 10,
+ "checks": [
+  {
+   "name": "report written on the lab root",
+   "root_sim": "two-roots-lab",
+   "cmd": "ls sales/*.md && grep -iE 'north|south|east|west' sales/*.md | head -3",
+   "expect": "md"
+  },
+  {
+   "name": "main reports the top region (south)",
+   "kind": "main_says",
+   "regex": "south"
+  },
+  {
+   "name": "main reports its revenue (14526)",
+   "kind": "main_says",
+   "regex": "14[,. ]?526|14526"
+  },
+  {
+   "name": "analysis ran as a proxy on lab",
+   "kind": "proxy_on",
+   "title": "sales|revenue|analy",
+   "root": "lab"
+  },
+  {
+   "name": "greet tests pass on home",
+   "cmd": "cd greet && python3 -m pytest -q >/tmp/pytest.$$.out 2>&1 && echo PYTEST-OK || tail -5 /tmp/pytest.$$.out",
+   "expect": "PYTEST-OK"
+  },
+  {
+   "name": "no greet work on lab",
+   "root_sim": "two-roots-lab",
+   "cmd": "test ! -d greet && echo clean",
+   "expect": "clean"
+  }
+ ]
+}

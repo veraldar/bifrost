@@ -17,7 +17,7 @@ now=$(date -u +%FT%TZ)
 repos=(
   "$HOME/Work/bifrost:bifrost"
   "$HOME/Work/yggdrasil:yggdrasil"
-  "$HOME/Work/lab/yggdrasil:lab-yggdrasil-legacy"
+  "$HOME/Work/root:lab-yggdrasil-legacy"
   "$HOME/Work/bifrost-sandbox:bifrost-sandbox"
 )
 

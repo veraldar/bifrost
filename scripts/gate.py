@@ -187,7 +187,7 @@ def check_release():
         mark("PASS", "release.frozen", f"{meta.get('label')} · {rel.name} · source {meta.get('source')} · manifest {cur[:12]}")
     else:
         mark("FAIL", "release.frozen", f"{rel.name}: source edited after promote (manifest {cur[:12]} != {str(meta.get('manifest_sha256'))[:12]})")
-    disk_id = (rel / "pwa/.next/BUILD_ID").read_text().strip() if (rel / "pwa/.next/BUILD_ID").exists() else ""
+    disk_id = (rel / "branch/.next/BUILD_ID").read_text().strip() if (rel / "branch/.next/BUILD_ID").exists() else ""
     if disk_id and disk_id == meta.get("build_id"):
         mark("PASS", "release.build", f".next BUILD_ID {disk_id} = the promoted build")
     else:
@@ -244,7 +244,7 @@ def check_coherence(worker):
     pwa_pid = unit("lk-pwa", "MainPID")
     penv = proc_env(pwa_pid)
     rel = LIVE.resolve() if LIVE.is_symlink() else DEV
-    pfile = dotenv(rel / "pwa/.env.local")
+    pfile = dotenv(rel / "branch/.env.local")
     p_name = penv.get("AGENT_NAME") or pfile.get("AGENT_NAME")
     p_brain = penv.get("OPENCODE_URL") or pfile.get("OPENCODE_URL")
     # the agent's effective env = its .env (load_dotenv, no override) under the process env
@@ -394,11 +394,11 @@ def check_labs(live_name):
 
 def probe_voice(agent_name):
     """The failure class of 10-06: a dispatch nobody answers. Room is created and deleted."""
-    envf = release_env("live-agent.env") or dotenv(DEV / "agent/.env")
+    envf = release_env("live-agent.env") or dotenv(DEV / "trunk/.env")
     rel = LIVE.resolve() if LIVE.is_symlink() else DEV
-    py = rel / "agent/.venv/bin/python"
+    py = rel / "trunk/.venv/bin/python"
     if not py.exists():
-        py = DEV / "agent/.venv/bin/python"
+        py = DEV / "trunk/.venv/bin/python"
     code = r'''
 import asyncio, json, os, time
 from livekit import api

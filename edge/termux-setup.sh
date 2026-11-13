@@ -16,5 +16,5 @@ echo "== models (~200MB, one-time) =="
 bash edge/get_models.sh
 
 echo "== start =="
-echo "SPEACHES_URL=http://127.0.0.1:8000/v1  <- put this in agent/.env for LOCAL=1"
+echo "SPEACHES_URL=http://127.0.0.1:8000/v1  <- put this in trunk/.env for LOCAL=1"
 cd edge && exec python -m uvicorn voice_server:app --host 127.0.0.1 --port 8000

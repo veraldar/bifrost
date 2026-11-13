@@ -15,7 +15,7 @@ git clone --depth 1 "$REPO_URL" "$WORK/repo" >/dev/null 2>&1
 
 echo "[selfhost] node $(node --version), npm $(npm --version)"
 echo "[selfhost] npm ci (clean deps)"
-cd "$WORK/repo/pwa"
+cd "$WORK/repo/branch"
 npm ci --no-audit --no-fund >/dev/null
 
 echo "[selfhost] next build"

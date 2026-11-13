@@ -28,14 +28,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-// playwright lives in pwa/node_modules — this script sits in scripts/, where ESM
+// playwright lives in branch/node_modules — this script sits in scripts/, where ESM
 // resolution cannot see it; fall back to the explicit path.
 let chromium;
 try {
   ({ chromium } = await import('playwright'));
 } catch {
   ({ chromium } = await import(
-    pathToFileURL(path.resolve(path.dirname(new URL(import.meta.url).pathname), '../pwa/node_modules/playwright/index.mjs')).href
+    pathToFileURL(path.resolve(path.dirname(new URL(import.meta.url).pathname), '../branch/node_modules/playwright/index.mjs')).href
   ));
 }
 
@@ -43,7 +43,7 @@ const BASE = (process.env.PW_BASE_URL || 'http://127.0.0.1:8080').replace(/\/$/,
 const QR = process.env.PW_QR || '/tmp/layman-qr/pair-qr.png';
 const STAGE_MODE = process.argv.includes('--stage');
 const HEADLESS = process.env.PW_HEADLESS !== '0';
-const WAV = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../pwa/e2e/fixtures/voice.wav');
+const WAV = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../branch/e2e/fixtures/voice.wav');
 
 const log = (...a) => console.log('[scan-sim]', ...a);
 const die = (m) => { console.error('[scan-sim] FAIL:', m); process.exit(1); };

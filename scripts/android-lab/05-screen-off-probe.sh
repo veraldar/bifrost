@@ -83,7 +83,7 @@ mkdir -p "$OUT"
 scp -q "mac:Library/android-lab/screen-off/*" "$OUT/" 2>/dev/null || true
 slug=$(grep -o '"name": "[^"]*"' "$OUT/report.json" 2>/dev/null | head -1 | cut -d'"' -f4 || true)
 if [ -n "$slug" ]; then
-  grep -h "$slug" "$REPO"/pwa/.diag/*.log 2>/dev/null | tail -60 > "$OUT/diag.log" || true
+  grep -h "$slug" "$REPO"/branch/.diag/*.log 2>/dev/null | tail -60 > "$OUT/diag.log" || true
 fi
 ls -la "$OUT"
 line=$(grep '^PROBE RESULT:' /tmp/screen-off-probe.out | tail -1)

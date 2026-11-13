@@ -1,0 +1,12 @@
+id: footer-text
+bug: hf-strip r3 — the strip/footer showed a phase word ("heard…") while the user held PTT
+gold: "footer innerText matches /heard/i during PTT hold"
+mode: ptt
+turns: [{ hold_ms: 1500 }]
+mock: { delay_ms: 0, reply: pong }
+assert: { kind: footer-text, params: { forbid: "heard" } }
+expect_current: GREEN
+seed:
+  env: "HSIM_SEED=footer-text"
+  rig: "init script injects the word 'heard' into the strip (detector sensitivity)"
+  revert-sha: "hf-strip round3 (needs a build, not wired)"

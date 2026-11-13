@@ -3,20 +3,20 @@
 Talk or type from the phone; the code you're changing lives here. Full architecture: `README.md`.
 
 ## Map
-- `pwa/` — Next.js 15 phone client. `/api/*` proxy is the ONLY seam to opencode (phone never talks to it directly).
+- `branch/` — Next.js 15 phone client. `/api/*` proxy is the ONLY seam to opencode (phone never talks to it directly).
 - `agent/` — Python livekit-agents worker: STT → opencode → TTS. Room slug = session slug.
 - `deploy/` — docker compose: LiveKit (host net) + speaches fallback.
 - `docs/plan.md` — checklist board, work top-to-bottom. `docs/open-questions.md` — every unresolved decision lands there.
 
 ## Hardware
-This box runs everything. Mac Studio serves speech models (MLX Qwen3-ASR/TTS) on the LAN — endpoint in `agent/.env` (`SPEACHES_URL`). Private IPs/hostnames/ssh: `docs/local.md` (gitignored). Tailnet-only, nothing public.
+This box runs everything. Mac Studio serves speech models (MLX Qwen3-ASR/TTS) on the LAN — endpoint in `trunk/.env` (`SPEACHES_URL`). Private IPs/hostnames/ssh: `docs/local.md` (gitignored). Tailnet-only, nothing public.
 
 ## Verify
-- pwa: `cd pwa && npm run build` + e2e: `cd pwa && npx playwright test`
-- agent: `cd agent && uv run agent.py console` (local mic test)
+- pwa: `cd branch && npm run build` + e2e: `cd branch && npx playwright test`
+- agent: `cd trunk && uv run agent.py console` (local mic test)
 - deploy: `cd deploy && docker compose up -d`
 - live stack: `python3 scripts/gate.py` (is live healthy?) · ship: `scripts/promote.sh <commit> --label vX` · versions: `scripts/promote.sh --list` / `--switch <label>` · undo: `scripts/promote.sh --rollback` (again = redo)
-- live diag: `tail pwa/.diag/$(date +%F).log`
+- live diag: `tail branch/.diag/$(date +%F).log`
 
 ## Production boundary (10-06 — full contract: docs/STABLE.md)
 Live (`lk-pwa` :8080 + `lk-agent`) runs a FROZEN release from `~/.local/share/bifrost/live`
@@ -52,7 +52,7 @@ reference it as `/api/artifact/<name>.<ext>`. Everything renders inline:
 ## Parallel sessions (avoid overlap)
 Before working: `git log --oneline -8` + read `docs/claims.md`. Working on something
 non-trivial? Claim it FIRST (one line: scope + files + session name), delete the claim
-when done. Commit small and often with req-linked messages — tests (cd pwa && npx
+when done. Commit small and often with req-linked messages — tests (cd branch && npx
 playwright test) are the referee: run them before claiming done. Never edit a file
 another session holds a claim on unless merging deliberately.
 

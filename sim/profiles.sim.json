@@ -1,0 +1,29 @@
+{
+ "default_agent": "build",
+ "agent": {
+  "coordinator": {
+   "model": "glm-5.3",
+   "variant": "off"
+  },
+  "lead": {
+   "model": "glm-5.3",
+   "variant": "high"
+  },
+  "build": {
+   "model": "glm-5.3-flash",
+   "variant": "high"
+  },
+  "research": {
+   "model": "glm-5.3-flash",
+   "variant": "high"
+  },
+  "plan": {
+   "model": "glm-5.3-flash",
+   "variant": "high"
+  },
+  "fix": {
+   "model": "glm-5.3",
+   "variant": "high"
+  }
+ }
+}

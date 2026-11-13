@@ -28,7 +28,7 @@ EDGE_PORT=8100 edge/.venv/bin/python -m uvicorn --app-dir edge voice_server:app 
 edge/.venv/bin/python edge/verify_edge.py http://127.0.0.1:8100
 ```
 
-`LOCAL=1` wiring = `agent/.env`: `SPEACHES_URL=http://127.0.0.1:8000/v1`
+`LOCAL=1` wiring = `trunk/.env`: `SPEACHES_URL=http://127.0.0.1:8000/v1`
 (server defaults to port 8000; `EDGE_PORT` overrides).
 
 ## Run (spare Android phone, Termux)

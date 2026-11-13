@@ -45,3 +45,6 @@ next-env.d.ts
 .push-subs.json
 .oc-live.json
 .oc-queue.json
+# paired devices (lib/devices.ts — sha256 hashes only, still never committed)
+.devices.json
+.devices.json.*.tmp

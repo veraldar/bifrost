@@ -14,7 +14,7 @@
 #          (join env: BIFROST_NET_BIN, BRIDGE_CONFIG,         polls → 20 link tokens → its brain
 #           ROOTLINK_URL=wss://ap…/rootlink, PEER token)      (yggdrasil on the mock) + root-dial.py
 #     brain "home" (yggdrasil on root/mock/mock_upstream.py)    --tls --cafile --path /rootlink
-#                                                              --brain --peer-port
+#       YGG_PEERS_FROM=bridge /_roots: learns joined roots      --brain --peer-port
 # Steps (branch/e2e/trunk-full.spec.ts): 1 pair by QR through the ap · 2 MAIN answers the phone ·
 # 3 join by QR, approved on the phone, the root links through the ap · 4 MAIN delegates to the
 # joined root over the trunk, the report comes home, the phone sees it · 5 the phone talks to the
@@ -71,25 +71,18 @@ trap cleanup EXIT
 python3 "$ROOT/root/mock/mock_upstream.py" "$MOCK" >"$STATE/mock.log" 2>&1 &
 pids+=($!)
 
-# the hub brain "home". Its peers are read from home.peers at every start: joining a root does
-# not reach the brain's YGG_PEERS (static env), so the spec plays the operator — it writes the
-# joined root there and restarts the brain (kill home.pid; this loop starts it again).
-: >"$STATE/home.peers"
-(
-  while [ ! -f "$STATE/.stop" ]; do
-    env -i PATH="$PATH" HOME="$STATE/home" YGG_UPSTREAM_BASE_URL="http://127.0.0.1:$MOCK" \
-      YGG_UPSTREAM_STYLE=anthropic YGG_UPSTREAM_API_KEY=mock YGG_UPSTREAM_MODEL=mock \
-      YGG_WAKE_DEBOUNCE_MS=400 YGG_PROVIDERS="$STATE/home/none.json" \
-      YGG_ARTIFACTS_DIR="$STATE/home/artifacts" YGG_DATA_DIR="$STATE/home/data" \
-      YGG_PROFILES="$STATE/home/agents.json" YGG_PROJECT_DIR="$STATE/home/work" \
-      YGG_LISTEN="127.0.0.1:$HOMEP" YGG_ROOT_NAME=home YGG_PEER_TOKEN="$PEER" \
-      YGG_PEERS="$(cat "$STATE/home.peers")" "$YGG_BIN" >>"$STATE/home.log" 2>&1 &
-    echo $! >"$STATE/home.pid"
-    wait $! || true
-    sleep 0.2
-  done
-) &
+# the hub brain "home": no static YGG_PEERS — it learns every root that links to the trunk from
+# the bridge's loopback list (YGG_PEERS_FROM → GET /_roots; reached through /_root/<id>). Started
+# once: the spec checks that a join reaches it without a restart (home.pid stays the same).
+env -i PATH="$PATH" HOME="$STATE/home" YGG_UPSTREAM_BASE_URL="http://127.0.0.1:$MOCK" \
+  YGG_UPSTREAM_STYLE=anthropic YGG_UPSTREAM_API_KEY=mock YGG_UPSTREAM_MODEL=mock \
+  YGG_WAKE_DEBOUNCE_MS=400 YGG_PROVIDERS="$STATE/home/none.json" \
+  YGG_ARTIFACTS_DIR="$STATE/home/artifacts" YGG_DATA_DIR="$STATE/home/data" \
+  YGG_PROFILES="$STATE/home/agents.json" YGG_PROJECT_DIR="$STATE/home/work" \
+  YGG_LISTEN="127.0.0.1:$HOMEP" YGG_ROOT_NAME=home YGG_PEER_TOKEN="$PEER" \
+  YGG_PEERS_FROM="http://127.0.0.1:$BR/_roots" "$YGG_BIN" >>"$STATE/home.log" 2>&1 &
 pids+=($!)
+echo $! >"$STATE/home.pid"
 
 # ---- the access point: TLS on the "internet" address, a self-signed test cert ----
 CERT=$("$BIN" ap-cert "$STATE/tls" "$AP_HOST" "$AP_IP")

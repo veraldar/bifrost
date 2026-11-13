@@ -16,6 +16,8 @@
 //!     (the bridge's opencode_url) and answers X.
 //!   * the hub brain's side: `ANY /_root/<id>/<rest>` on the bridge's http
 //!     listener (loopback only) → `http` to root <id> with from = `local`.
+//!     `GET /_roots` (same guards) lists the linked roots `[{id, since}]`, so
+//!     the hub brain learns its peers (yggdrasil `YGG_PEERS_FROM`).
 //!
 //! LAW: X may address Y only if X's link-token `roots` claim names Y or `*`
 //! (`local` — the trunk's own brain — is always allowed, as on /branch).

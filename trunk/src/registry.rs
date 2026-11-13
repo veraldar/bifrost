@@ -309,6 +309,21 @@ impl Registry {
         self.inner.lock().unwrap().keys().cloned().collect()
     }
 
+    /// The linked roots with the moment each conn came up, sorted by id
+    /// (`GET /_roots` — the hub brain learns its peers from this).
+    pub fn linked_since(&self) -> Vec<(String, Instant)> {
+        let mut v: Vec<(String, Instant)> = self
+            .inner
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(_, c)| !c.kill.load(Ordering::SeqCst))
+            .map(|(id, c)| (id.clone(), c.since))
+            .collect();
+        v.sort_by(|a, b| a.0.cmp(&b.0));
+        v
+    }
+
     /// Queue one job frame at a linked root (UNCAPPED legacy path — kept
     /// for the selftest surface; /branch dispatch uses `send_job_capped`).
     pub fn send_job(

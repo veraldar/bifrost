@@ -297,6 +297,9 @@ calls, 32 `local` performs.
 **Wiring.** Hub brain: `YGG_PEERS mac=http://127.0.0.1:<bridge http>/_root/mac`.
 Joined root's brain: `YGG_PEERS home=http://127.0.0.1:<P>/local`. Both use the
 same `YGG_PEER_TOKEN` (sent as `x-ygg-peer`, which the switchboard passes).
+Since roots-learn the hub brain can have `YGG_PEERS_FROM` instead of the
+hand-written line, and the join hands the joined root the name `home` (see the
+last section).
 
 **root-dial.py flags (new):** `--brain URL`, `--peer-port P`, `--cafile PEM`
 (trust a test CA or self-signed cert with `--tls`). `--path` already existed.
@@ -347,12 +350,58 @@ phone names the root itself (`/branch`) · revoke from the console → refused.
   means no region (fail closed). A client-sent `X-Bifrost-Edge` is dropped at the edge.
 
 **Still by hand (named, not hidden):**
-- **The hub brain does not learn a joined root.** `YGG_PEERS` is static env, and the join
-  writes `roots.json` and `devices.json` only. The sim plays the operator: it adds
-  `<id>=http://127.0.0.1:<bridge>/_root/<id>` and restarts the brain.
+- ~~**The hub brain does not learn a joined root.**~~ Closed by roots-learn (below).
 - **The app has no screen for naming a root.** The phone's `/branch` call is the page's
   own `fetch`, with the token from `/api/pair/refresh`. The `/bridge` page's data channel
   cannot cross the ap: `/offer` and media are not tunneled.
-- **The joined root's peer name must equal the hub brain's `YGG_ROOT_NAME`.** Reports go to
-  `report_to.root`. root-join's draft `rootjoin.py` names that peer `hub`, so a hub brain
-  named anything else gets no reports from a root it set up.
+- ~~**The joined root's peer name must equal the hub brain's `YGG_ROOT_NAME`.**~~ Closed by
+  roots-learn (below).
+
+## The tree learns its roots (roots-learn, 2026-11-13)
+
+Two gaps from trunk-full are closed. With them, a join needs no operator step on either side.
+
+**1. The hub brain learns joined roots by itself.**
+- **Bridge:** `GET http://127.0.0.1:<bridge http>/_roots` answers `[{"id","since"}]`. That is
+  the roots linked right now, sorted by id, with `since` = the unix ms the current link came
+  up. It has the same guards as `/_root/`: loopback only, refused with Origin, Sec-Fetch-*,
+  X-Forwarded-For, Forwarded or X-Real-IP, and no websocket. Other methods get 405. The ap
+  answers 404 for `/_roots` at the edge, as it does for `/_root`.
+- **Brain** (`root/src/peers.rs`): `YGG_PEERS_FROM=<that url>` and an optional
+  `YGG_PEERS_VIA=<url with {id}>`. The default for `YGG_PEERS_VIA` is
+  `<scheme://host:port of FROM>/_root/{id}`. The watch loop reads the list every 5 s and adds a
+  peer per linked root, named by its id. It reads each peer's `/root` at once, then every 60 s,
+  or every 15 s while the peer has never answered.
+- **Rules:** a static `YGG_PEERS` entry wins a name clash, and the brain never adds its own
+  name. A root that unlinks stays known and shows as unreachable after 3 minutes, like any
+  peer that is down.
+- **Unknown roots:** a call that names a root the brain does not know yet (`session_start …
+  root=<id>` right after the link) reads the list once before it fails.
+- **[roots] view, `GET /root` `peers`, `session_start`, report delivery:** all of these treat a
+  learned peer exactly like a static one.
+- **A fix found on the way:** a peer call refreshed the [roots] view's "seen" time on any answer.
+  Through the switchboard, an unlinked root answers 502 from the trunk, so a root that was gone
+  stayed "reachable" with its old summary forever. Now 502, 503 and 504 prove nothing.
+
+**2. The joined root uses the hub brain's real name for its way home.** The join's approval
+`hub` is now the hub brain's root name. The app asks `GET <OPENCODE_URL>/root` and reads
+`name`. Failing that it uses `YGG_ROOT_NAME`, and then `"hub"`. That name is also never given
+out as a root id. `rootjoin.py` checks the name like a root id, refuses one equal to its own
+`root_id`, keeps it in `root.json` as `hub_name`, and writes
+`YGG_PEERS <hub>=http://127.0.0.1:<peer port>/local`. A `root.json` from an older join, or an
+older hub that sends no name (or `"local"`), keeps the name `hub`. See docs/spec-join.md.
+
+**Proofs:**
+- `sim/trunk-full-e2e.sh` has no operator step any more. The hub brain starts once with
+  `YGG_PEERS_FROM` and no `YGG_PEERS`. Step 4a checks four things: `/_roots` lists `mac`; the
+  brain's `/root` `peers` becomes `[mac]` by itself; its log says `learned root mac`; and its
+  pid never changed. The joiner reads `hub: "home"` from the answer, and its brain's only peer
+  is `home`.
+- `rootlink-sim` T12 checks `/_roots`: it lists the linked roots, refuses a browser (403) and a
+  proxied request (403), and answers POST with 405. `selftest ap` checks that `/_roots`,
+  `/_roots?x=1` and `/%5froots` are 404 at the edge.
+- `join-test` checks the following:
+  - the hub's name reaches `brain.env`;
+  - the live brain's `peers` is `[home-box]`;
+  - an older hub, with no name, gets the peer `hub`;
+  - a bad name is refused with exit 1.

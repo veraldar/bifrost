@@ -13,7 +13,8 @@
  *     the roots registry next to devices.json, mode 600),
  *   - adds the root to the APPROVING device's allowlist in devices.json,
  *   - holds the raw result in this process's memory until the joiner collects
- *     it ONCE with its join secret.
+ *     it ONCE with its join secret. The result names the hub brain (`hub`: its
+ *     root name, asked of the brain), so the joined root's reports find home.
  *
  * At rest: hashes only (join secret, root secret). Raw link tokens and the
  * raw root secret exist only in memory between approval and the one
@@ -23,7 +24,8 @@
  * Env: BIFROST_ROOTS_FILE (default: roots.json beside BIFROST_DEVICES_FILE),
  * BIFROST_NET_BIN (default `bifrost-net` on PATH), BIFROST_ROOTLINK_SECRET_FILE
  * or BIFROST_BRIDGE_CONFIG (its `root_link_secret`), BIFROST_ROOTLINK_URL,
- * YGG_PEER_TOKEN, BIFROST_PUBLIC_URL; tuning BIFROST_JOIN_TTL_S (600),
+ * YGG_PEER_TOKEN, BIFROST_PUBLIC_URL, OPENCODE_URL (the hub brain: its GET /root
+ * names it) or YGG_ROOT_NAME; tuning BIFROST_JOIN_TTL_S (600),
  * BIFROST_JOIN_LIMIT / BIFROST_JOIN_WINDOW_S (5 per 600 s per client address),
  * BIFROST_ROOT_REFILL_LIMIT / BIFROST_ROOT_REFILL_WINDOW_S (6 per 3600 s per root).
  */
@@ -31,8 +33,10 @@ import { execFile } from 'child_process';
 import { createHash, randomBytes, randomInt, timingSafeEqual } from 'crypto';
 import { chmod, readFile, rename, writeFile } from 'fs/promises';
 import { dirname, join } from 'path';
+import { fetch as undiciFetch } from 'undici';
 import { promisify } from 'util';
 import { addDeviceRoot, allowlistedRoots, listDevices } from '@/lib/devices';
+import { OC } from '@/lib/oc';
 import { clientKey } from '@/lib/region';
 
 const run = promisify(execFile);
@@ -70,7 +74,8 @@ export type Approved = {
   link_tokens: string[];
   rootlink_url: string;
   peer_token: string;
-  hub: 'local';
+  /** the hub brain's root name: the joined root's peer for it (YGG_PEERS <hub>=…/local) */
+  hub: string;
 };
 
 type JoinReq = {
@@ -206,6 +211,31 @@ export function rootIdFor(name: string, taken: Set<string>): string {
     const id = n === 1 ? base : `${base}-${n}`;
     if (!RESERVED.has(id) && !taken.has(id)) return id;
   }
+}
+
+/** a root name a joined root can put in its YGG_PEERS (the joiner checks the same shape) */
+const ROOT_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+
+/**
+ * The hub brain's root NAME, handed to the joiner as `hub`. The joined root
+ * peers with the hub brain under this name, and the hub brain's sessions there
+ * report home to it (`report_to.root` = the brain's YGG_ROOT_NAME), so it must
+ * be the brain's own: asked of the brain (GET <OPENCODE_URL>/root → name), else
+ * this app's YGG_ROOT_NAME, else "hub".
+ */
+export async function hubBrainName(): Promise<string> {
+  try {
+    const r = await undiciFetch(`${OC}/root`, { signal: AbortSignal.timeout(3000) });
+    if (r.ok) {
+      const name = ((await r.json()) as { name?: unknown } | null)?.name;
+      if (typeof name === 'string' && ROOT_NAME.test(name)) return name;
+      console.warn(`join: the hub brain's name ${JSON.stringify(name)} is not a plain root name`);
+    }
+  } catch {
+    /* the brain is not answering: the env, then the default */
+  }
+  const env = (process.env.YGG_ROOT_NAME || '').trim();
+  return ROOT_NAME.test(env) ? env : 'hub';
 }
 
 /* ---------------- minting: the trunk's own CLI ---------------- */
@@ -391,7 +421,9 @@ export function refuseJoin(req: string, device: string): Promise<Decision> {
   });
 }
 
-export function approveJoin(req: string, device: string): Promise<Decision> {
+export async function approveJoin(req: string, device: string): Promise<Decision> {
+  // asked before the serialized section: a slow brain never holds up registry writes
+  const hub = await hubBrainName();
   return serialize(async () => {
     prune();
     const j = S.joins.get(req);
@@ -401,7 +433,13 @@ export function approveJoin(req: string, device: string): Promise<Decision> {
     if (st !== 'pending') return { http: 409, body: { error: `already ${st}`, status: st } };
 
     const f = await readRoots();
-    const taken = new Set([...f.roots.map((r) => r.id), ...(await allowlistedRoots())]);
+    // the hub brain's own name is never a joined root's id (it would be its own peer)
+    const taken = new Set([
+      ...f.roots.map((r) => r.id),
+      ...(await allowlistedRoots()),
+      hub,
+      hub.toLowerCase(),
+    ]);
     const root_id = rootIdFor(j.name || j.host, taken);
 
     // mint first: it has no side effects, so a misconfigured hub leaves the
@@ -445,7 +483,7 @@ export function approveJoin(req: string, device: string): Promise<Decision> {
       link_tokens,
       rootlink_url: process.env.BIFROST_ROOTLINK_URL || '',
       peer_token: process.env.YGG_PEER_TOKEN || '',
-      hub: 'local',
+      hub,
     };
     return {
       http: 200,

@@ -1060,7 +1060,7 @@ async fn serve_stream(
     }
     // the switchboard's hub end is the box's own business: never from the edge
     let np = normalize_path(&req.path);
-    if np == "/_root" || np.starts_with("/_root/") {
+    if np == "/_root" || np.starts_with("/_root/") || np == "/_roots" || np.starts_with("/_roots/") {
         return reply(http_response(404, "Not Found", "text/plain", "not here\n"));
     }
     if rootlink.is_none() {
@@ -1394,7 +1394,7 @@ pub fn selftest() -> Result<String, String> {
     if !r.starts_with("HTTP/1.1 426") {
         return Err(format!("plain GET /rootlink not refused: {}", r.lines().next().unwrap_or("")));
     }
-    for p in ["/_root/mac/root", "/%5froot/mac/root", "/x/../_root/mac"] {
+    for p in ["/_root/mac/root", "/%5froot/mac/root", "/x/../_root/mac", "/_roots", "/_roots?x=1", "/%5froots"] {
         let r = text(&client(format!("GET {p} HTTP/1.1\r\nHost: localhost\r\n\r\n").into_bytes(), None)?);
         if !r.starts_with("HTTP/1.1 404") {
             return Err(format!("{p} reached past the edge: {}", r.lines().next().unwrap_or("")));
@@ -1414,7 +1414,7 @@ pub fn selftest() -> Result<String, String> {
     Ok(format!(
         "pin {}…; wrong pairing token 401 + wrong pin refused; GET / 200 + HSTS + XFF=real peer (spoofed dropped); \
          /api 401 missing/invalid + 9 path-normalization bypasses 401, Bearer+cookie pass, /api/pair open; 5000-byte POST exact + smuggled request dropped; \
-         websocket 101 + 3000 bytes echoed byte-exact; /rootlink → root-link listener (no device gate), plain GET 426, /_root 404 at the edge; \
+         websocket 101 + 3000 bytes echoed byte-exact; /rootlink → root-link listener (no device gate), plain GET 426, /_root + /_roots 404 at the edge; \
          /branch → the bridge with the edge key, a client-sent edge key dropped; \
          the join contract's 3 own-credential calls pass, 9 neighbours gated",
         &pin[..20]

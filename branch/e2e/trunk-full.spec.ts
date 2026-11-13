@@ -19,10 +19,13 @@ import { type BrowserContext, type Page, devices, expect, test } from '@playwrig
  *   2 the phone talks to MAIN: "Reply with exactly: HELLO-PHONE" → the reply on its screen
  *   3 join: the new machine (sim/trunk-full-joiner.py, its own address) POSTs /api/roots/join
  *     through the ap and shows the approve QR (qrencode) → the phone scans it (zbarimg), sees
- *     the same code, taps "Add to my tree" → the machine's poll gets 20 link tokens + its root
- *     id → its brain + root-dial.py dial wss://ap.tree.test/rootlink → the hub's bridge shows
- *     the root LINKED and reaches its brain over the switchboard
- *   4 MAIN delegates over the trunk: the phone's message makes MAIN run session_start with
+ *     the same code, taps "Add to my tree" → the machine's poll gets 20 link tokens, its root
+ *     id and the hub brain's name ("home") → its brain (peer "home") + root-dial.py dial
+ *     wss://ap.tree.test/rootlink → the hub's bridge shows the root LINKED and reaches its brain
+ *     over the switchboard
+ *   4 the hub brain learns the joined root by itself (YGG_PEERS_FROM → the bridge's /_roots; no
+ *     restart, nothing written by hand) → MAIN delegates over the trunk: the phone's message
+ *     makes MAIN run session_start with
  *     root = the joined root → the session runs on that root's brain → its report comes home
  *     → the phone sees MAIN come back and the tree row on that root done with MAC-DONE
  *   5 the phone names the joined root itself: POST /branch {root} through the ap (its own
@@ -289,8 +292,6 @@ test('trunk full: phone ↔ ap ↔ hub ↔ joined root — pair, talk, join, del
             MAC_PORT,
             '--peer-port',
             PEER_PORT,
-            '--hub-brain',
-            'home',
           ],
           { stdio: ['ignore', out, out] }
         );
@@ -328,6 +329,8 @@ test('trunk full: phone ↔ ap ↔ hub ↔ joined root — pair, talk, join, del
         expect(root.tokens).toBe(20);
         expect(root.rootlink_url).toBe(`${AP.replace(/^https/, 'wss')}/rootlink`);
         expect(root.peer_token).toBe(process.env.PW_PEER_TOKEN);
+        // the hub brain's own root name (asked of the brain by the app): its way home
+        expect(root.hub).toBe('home');
         await expect(phone.getByTestId('join-status')).toContainText(rootId);
         const reg = JSON.parse(readFileSync(join(STATE, 'devices.json'), 'utf8'));
         expect(reg.devices.find((d: J) => d.id === deviceId)?.roots).toEqual([rootId]);
@@ -350,28 +353,34 @@ test('trunk full: phone ↔ ap ↔ hub ↔ joined root — pair, talk, join, del
         const r = await brain(BRIDGE, `/_root/${rootId}/root`);
         expect(r.status).toBe(200);
         expect(r.body.name).toBe(rootId);
+        // …whose one peer is the hub brain, by the name the join answered
+        expect(r.body.peers).toEqual(['home']);
       }
     );
 
     // ---------------------------------------------------------------- 4 MAIN delegates
     await step(
       '4a',
-      'operator: the hub brain learns the joined root (YGG_PEERS + restart)',
+      'the hub brain learns the joined root by itself (YGG_PEERS_FROM → /_roots; no restart)',
       async () => {
         expect(rootId, 'needs 3c').toBeTruthy();
-        writeFileSync(join(STATE, 'home.peers'), `${rootId}=${BRIDGE}/_root/${rootId}`);
-        const old = Number(readFileSync(join(STATE, 'home.pid'), 'utf8'));
-        process.kill(old, 'SIGTERM');
+        const pid = readFileSync(join(STATE, 'home.pid'), 'utf8').trim();
+        // the bridge lists it (loopback only) …
+        const listed = await brain(BRIDGE, '/_roots');
+        expect(listed.status).toBe(200);
+        expect((listed.body as unknown as J[]).map((r) => r.id)).toEqual([rootId]);
+        // … and the brain, which was never told, adds it as a peer and reads its /root
         await expect
-          .poll(
-            async () => {
-              const pid = Number(readFileSync(join(STATE, 'home.pid'), 'utf8'));
-              if (pid === old) return [];
-              return ((await brain(HOME, '/root')).body.peers as string[]) || [];
-            },
-            { timeout: 20_000 }
-          )
+          .poll(async () => ((await brain(HOME, '/root')).body.peers as string[]) || [], {
+            timeout: 20_000,
+          })
           .toEqual([rootId]);
+        expect(readFileSync(join(STATE, 'home.log'), 'utf8')).toContain(
+          `peers: learned root ${rootId} = ${BRIDGE}/_root/${rootId}`
+        );
+        // the same brain process all along: nothing restarted it
+        expect(readFileSync(join(STATE, 'home.pid'), 'utf8').trim()).toBe(pid);
+        expect(() => process.kill(Number(pid), 0)).not.toThrow();
       }
     );
 

@@ -4,6 +4,16 @@ Status: built on `hub-join` (branch/). The joining side is `root/install/join.sh
 spec is the contract between the two. Validated by `scripts/v09-ladder.sh e2e/join.spec.ts`, and
 end to end through an access point (a simulated phone approves) by `sim/trunk-full-e2e.sh`.
 
+**Change (roots-learn, 2026-11-13): `hub` is now the hub brain's root name.** Until then the
+approval's `hub` was the literal `"local"` (the switchboard's address for the hub brain), and
+the joining side named its peer for the hub brain `hub`. Reports from the joined root go to
+`report_to.root`, which is the hub brain's `YGG_ROOT_NAME`, so they only arrived when the hub
+brain happened to be named `hub`. Now the app asks its brain for the name and sends it, and
+the joining side writes `YGG_PEERS <hub>=http://127.0.0.1:<peer port>/local`. The address is
+always `/local`. A joiner that gets no `hub`, an empty one, or an older hub's `"local"` uses the
+name `hub`, as before. The other side of the same gap is closed in the hub brain: it learns
+every root that links to the trunk by itself (`YGG_PEERS_FROM`, below).
+
 ## The shape in one paragraph
 
 The **hub** is the box whose app is the access point's upstream. A **new machine** (Linux,
@@ -32,7 +42,7 @@ All are reached through the public URL (`BIFROST_PUBLIC_URL`).
 | 2 | `GET /join?r=<req>` (page) | a paired device. Without one, the page sends you to `/pair?unpaired=1` | name, os, host, the code; **Add to my tree** / **Refuse** |
 | 3a | `POST /api/roots/join/<req>/approve` | a paired device | `200 {status:"approved", root_id, name, os, host}` |
 | 3b | `POST /api/roots/join/<req>/refuse` | a paired device | `200 {status:"refused"}` |
-| 4 | `GET /api/roots/join/<req>`, header `x-join-secret` | the join secret | `202 {status:"pending"}`, `200 {status:"approved", root_id, root_secret, link_tokens[20], rootlink_url, peer_token, hub:"local"}` exactly once, or `410 {status:"refused"\|"expired"}` |
+| 4 | `GET /api/roots/join/<req>`, header `x-join-secret` | the join secret | `202 {status:"pending"}`, `200 {status:"approved", root_id, root_secret, link_tokens[20], rootlink_url, peer_token, hub}` exactly once, or `410 {status:"refused"\|"expired"}` |
 | 5 | `POST /api/roots/<root_id>/tokens`, header `x-root-secret` | the root credential | `200 {link_tokens[20]}` |
 | 6 | `GET /api/roots` | a paired device | `{roots:[{id, name, os, host, joined_at, delivered_at}]}` |
 | – | `GET /api/roots/join/<req>/view` | a paired device | the page's data: `{req, name, os, host, code, status, expires_at, root_id}`. Has no secrets |
@@ -44,6 +54,13 @@ Field details:
 - `approve_url` is `<public>/join?r=<req>`.
 - `poll_url` is `<public>/api/roots/join/<req>`.
 - `expires_in` is 600.
+- `hub` is the hub brain's root **name**. The app asks its brain when the owner approves:
+  `GET <OPENCODE_URL>/root` → `name` (3 s). If the brain does not answer, or its name is not a
+  plain root name, it uses the app's own `YGG_ROOT_NAME`, and failing that `"hub"`. A plain name
+  matches `^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`, the shape the trunk takes for a root id. The
+  joining side checks the same shape, refuses a name equal to its own `root_id`, and writes
+  `YGG_PEERS <hub>=http://127.0.0.1:<peer port>/local`. Do not name the hub brain `local`:
+  joiners read that as an older hub and use `hub`.
 - `name` is capped at 40 characters, `os` at 24, `host` at 64. Control, zero-width and
   bidi characters are stripped. Whitespace is collapsed. If `name` is empty, `host` is used.
   If both are empty, the answer is `400`.
@@ -85,6 +102,8 @@ Approval still needs a paired device, so joins are a devices-mode feature.
    The id must not be any of these:
    - `local`, which is the hub itself;
    - `join`, which is a route segment;
+   - the hub brain's own name (the `hub` it is handed), or that name in lower case. A root with
+     the hub brain's name would be its own peer on both sides;
    - an id already in `roots.json`;
    - an id that **any** device allowlist in `devices.json` already names, v1 or v2. A
      reused id would let an old device reach a machine nobody approved for it.
@@ -104,6 +123,10 @@ Approval still needs a paired device, so joins are a devices-mode feature.
 5. **Hold the result for the poller.** `{root_secret, link_tokens, rootlink_url, peer_token,
    hub}` is kept **in memory only**. The first poll with the right secret takes it, and it
    is dropped from memory as it is sent. That poll also stamps `delivered_at`.
+
+Approval does not touch the hub brain. Once the new root links, the bridge lists it on
+`GET /_roots`, and a hub brain started with `YGG_PEERS_FROM` adds it as a peer within about
+5 s. It needs no restart and no edit to `YGG_PEERS`.
 
 ## Security choices
 
@@ -157,6 +180,8 @@ cookie or a Bearer token. A cross-site form or a framed `/join` page carries no 
 | `BIFROST_BRIDGE_CONFIG` | otherwise: the bridge's `bridge.toml`. The app reads its `root_link_secret` (one source of truth; the ladder uses this) |
 | `BIFROST_ROOTLINK_URL` | what the machine dials, e.g. `wss://ap.example.org:4443/rootlink` |
 | `YGG_PEER_TOKEN` | the hub brain's peer token. Handed out as `peer_token`; may be empty |
+| `OPENCODE_URL` | the hub brain. Its `GET /root` `name` is handed out as `hub` |
+| `YGG_ROOT_NAME` | the hub brain's name. It is used for `hub` only when the brain does not answer or gives no plain name (default `hub`) |
 | `BIFROST_ROOTS_FILE` | the roots registry (default: `roots.json` next to `devices.json`) |
 | `BIFROST_PUBLIC_URL` | base of `approve_url` and `poll_url`. It must be **https** wherever the poll crosses a network you do not own, because the poll carries the root credential |
 
@@ -165,6 +190,16 @@ The bridge must have:
 - `[bridge.root-link] enabled = true`;
 - the same `tokens_file` as the app's `BIFROST_DEVICES_FILE`, because the bridge checks the
   token's `dev` claim against it.
+
+The hub brain (yggdrasil) should have:
+- `YGG_PEERS_FROM=http://127.0.0.1:<bridge http>/_roots`. The bridge answers
+  `[{"id","since"}]` for the roots linked right now, to loopback clients without browser or
+  proxy headers, like `/_root/`. The brain reads the list every 5 s and adds a peer per linked
+  root: the name is the root's id, and the url is `YGG_PEERS_VIA` with `{id}` replaced. The
+  default is `<scheme://host:port of YGG_PEERS_FROM>/_root/{id}`, the switchboard. A static
+  `YGG_PEERS` entry wins a name clash, and the brain never adds its own name. A root that
+  unlinks stays known and shows as unreachable, like any peer that is down;
+- the same `YGG_PEER_TOKEN` as the app.
 
 ## Limits (known, not hidden)
 

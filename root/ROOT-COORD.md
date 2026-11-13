@@ -39,7 +39,10 @@ you ⇄ [MAIN] coordinator            the transcript you read: only you + MAIN
   `[inbox since your last turn]`. Automation posting to MAIN (watcher, lanes) lands here too.
 - **Tree tools** (managing profiles): `sessions_find`, `session_start` (+ `root`),
   `session_send`, `session_read`, `session_close`. Guards: depth 12, 24 open children, 60 wakes.
-- **Roots** (`peers.rs`): `YGG_PEERS name=url`, shared `YGG_PEER_TOKEN`. A session on another
+- **Roots** (`peers.rs`): `YGG_PEERS name=url`, shared `YGG_PEER_TOKEN`. A hub brain can also
+  learn its peers from the trunk: with `YGG_PEERS_FROM=http://127.0.0.1:<bridge>/_roots`, every
+  linked root becomes a peer named by its id, reached at `YGG_PEERS_VIA` (default `…/_root/{id}`).
+  Static entries win a name clash, and a root that unlinks stays listed as unreachable. A session on another
   root is a proxy here and real there; the peer digests its own turns and POSTs
   `/tree/report` home; reading or talking to the proxy (tree tools or the phone) forwards.
   `GET /root` describes a root; the door's `[roots]` view lists them so work goes where the
@@ -84,7 +87,7 @@ thinking off.
 ## Env
 
 `YGG_MODELS` (`id[:lite]`, comma list) · `YGG_EXTENSIONS` (`name=url`) · `YGG_EXT_TOKEN` · `YGG_ROLLUP_TOKENS` (200000) · `YGG_VISION_MODELS` · `YGG_ARTIFACTS_DIR` (review's only write) · `YGG_PROFILES` · `YGG_CONTEXT_FILES` · `YGG_ROOT_NAME` ·
-`YGG_ROOT_NOTE` · `YGG_PEERS` · `YGG_PEER_TOKEN` · `YGG_MAX_INFLIGHT` (upstream calls in flight, 6)
+`YGG_ROOT_NOTE` · `YGG_PEERS` · `YGG_PEERS_FROM` · `YGG_PEERS_VIA` · `YGG_PEER_TOKEN` · `YGG_MAX_INFLIGHT` (upstream calls in flight, 6)
 · `YGG_MAX_HARNESS` (3) · `YGG_DIGEST_MODEL` · `YGG_WAKE_DEBOUNCE_MS` (4000) ·
 `YGG_TREE_MAX_DEPTH` / `_CHILDREN` / `_WAKES`.
 

@@ -10,14 +10,14 @@ own address (--from):
   2. poll <poll_url> with x-join-secret every 2 s    → root.json (root_id, rootlink_url, hub,
      peer_token) + link.tokens (20 single-use tokens, mode 600)
   3. start this root's brain (yggdrasil on the mock: YGG_ROOT_NAME = the root id, YGG_PEERS
-     <hub brain>=http://127.0.0.1:<peer port>/<hub>) and trunk/scripts/root-dial.py dialing the
-     rootlink_url it was handed (wss through the access point, --cafile) → `linked` when up
+     <hub>=http://127.0.0.1:<peer port>/local — `hub` is the hub brain's root name, from the join
+     answer) and trunk/scripts/root-dial.py dialing the rootlink_url it was handed (wss through
+     the access point, --cafile) → `linked` when up
 
 Then it stays up, supervising both, until SIGTERM. Every file lands in --state.
 
     trunk-full-joiner.py --state DIR --hub https://ap.tree.test --cafile cert.pem --from 203.0.113.9
         --name mac --brain-bin yggdrasil --mock-url http://127.0.0.1:P --brain-port P --peer-port P
-        [--hub-brain home]
 """
 import argparse, http.client, json, os, signal, ssl, subprocess, sys, time, urllib.parse
 
@@ -69,7 +69,6 @@ def main():
     ap.add_argument("--mock-url", required=True)
     ap.add_argument("--brain-port", type=int, required=True)
     ap.add_argument("--peer-port", type=int, required=True)
-    ap.add_argument("--hub-brain", default="home", help="the hub brain's YGG_ROOT_NAME (reports go there)")
     o = ap.parse_args()
     os.makedirs(o.state, exist_ok=True)
     kids = []
@@ -133,7 +132,8 @@ def main():
            "YGG_LISTEN": f"127.0.0.1:{o.brain_port}", "YGG_DATA_DIR": os.path.join(data, "data"),
            "YGG_PROFILES": os.path.join(data, "agents.json"), "YGG_PROJECT_DIR": os.path.join(data, "work"),
            "YGG_ROOT_NAME": root["root_id"],
-           "YGG_PEERS": f"{o.hub_brain}=http://127.0.0.1:{o.peer_port}/{root['hub'] or 'local'}",
+           # the hub brain by the name the join answered (reports go to that name), via `local`
+           "YGG_PEERS": f"{root['hub'] or 'hub'}=http://127.0.0.1:{o.peer_port}/local",
            "YGG_PEER_TOKEN": root["peer_token"] or ""}
     kids.append(subprocess.Popen([o.brain_bin], env=env, stdout=open(os.path.join(o.state, "brain.log"), "w"),
                                  stderr=subprocess.STDOUT, cwd=data))

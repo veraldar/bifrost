@@ -261,7 +261,8 @@ test('join: QR approve → 20 link tokens once → bridge accepts → allowlist 
     expect(A.status).toBe('approved');
     expect(A.root_id).toBe('mac-studio');
     expect(A.root_secret).toMatch(/^[0-9a-f]{32}$/);
-    expect(A.hub).toBe('local');
+    // the hub brain's root name, asked of the brain (the ladder's is "home"): the joined root's way home
+    expect(A.hub).toBe('home');
     expect(A.peer_token).toBe(PEER);
     expect(A.rootlink_url).toMatch(/^wss?:\/\//);
     const toks = A.link_tokens as string[];
@@ -354,11 +355,12 @@ test('join: QR approve → 20 link tokens once → bridge accepts → allowlist 
 
   let undelivered: J = {};
   let undeliveredAt = 0;
-  await test.step('ids are unique: never an allowlisted id, never local, never a taken one', async () => {
+  await test.step('ids are unique: never an allowlisted id, never local, never a taken one, never the hub brain', async () => {
     const cases: Array<[number, string, string]> = [
       [4, 'Old Box', 'old-box-2'], // the v1 record's allowlist already names old-box
       [5, 'Mac Studio', 'mac-studio-2'],
       [6, 'local', 'local-2'],
+      [7, 'home', 'home-2'], // the hub brain is "home": a root by that name would be its own peer
     ];
     for (const [n, name, want] of cases) {
       const j = await joinFrom(at(n).base, at(n).from, { name, os: 'linux', host: `h${n}` });
@@ -375,7 +377,7 @@ test('join: QR approve → 20 link tokens once → bridge accepts → allowlist 
         ).toBe(200);
     }
     const mine = readDevices().devices.find((d) => d.id === deviceId);
-    expect(mine?.roots).toEqual(['mac-studio', 'old-box-2', 'mac-studio-2', 'local-2']);
+    expect(mine?.roots).toEqual(['mac-studio', 'old-box-2', 'mac-studio-2', 'local-2', 'home-2']);
   });
 
   await test.step('refuse: the phone says no → the poller gets 410 refused; approve after is 409', async () => {

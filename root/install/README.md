@@ -149,6 +149,78 @@ authentication). Check the brain alone:
 curl -s http://127.0.0.1:4100/session        # 200 + a JSON list
 ```
 
+## Join an existing tree
+
+`join.sh` makes another machine (Linux, WSL2 Ubuntu or macOS) one more **root** of a tree that
+already runs: the hub is up and your phone is paired with it. The new root only **dials out**,
+to the hub's public access point (`wss://<hub>/rootlink`). It needs no open port, no public IP
+and no certificate, and the phone doesn't have to be on the same Wi-Fi. No sudo.
+
+```sh
+git clone https://github.com/veraldar/yggdrasil.git && cd yggdrasil/root/install
+./join.sh --hub https://tree.example.org --upstream-env ~/model.env
+```
+
+`~/model.env` describes this root's model, in the same format as `yggdrasil.env`:
+`YGG_UPSTREAM_BASE_URL=…`, `YGG_UPSTREAM_API_KEY=…`, `YGG_UPSTREAM_MODEL=…` (plus
+`YGG_UPSTREAM_STYLE=anthropic` for an Anthropic-shaped API). You can also export those variables
+instead. If you run `join.sh` in a terminal without either, it asks for them, and the key is
+read without echo. The key is written only to `brain.env` (mode 600) and is never printed.
+
+What happens:
+1. **Brain binary.** It uses `--brain-bin`, then `bin/yggdrasil` from an earlier run, then
+   `root/target/release/yggdrasil`, then `~/.local/bin` or `PATH`. If none is there, it runs
+   `cargo build --release`. With no Rust either, it prints exactly what to install
+   (`build-essential pkg-config` + rustup, or `xcode-select --install` on macOS) and stops.
+2. **Join request.** `POST <hub>/api/roots/join {name, os, host}`. A **QR of the approve URL**
+   appears in the terminal (`qrencode -t ANSIUTF8` if it's installed, otherwise a built-in
+   encoder). It's also saved as a PNG (`--qr-png`, opened with `--open-qr`). The code and the URL
+   are printed below it.
+3. **Approve.** Scan the QR with the paired phone, check that the code on the phone matches, and
+   approve. `join.sh` polls until the request is approved, refused or expired. Ctrl-C keeps the
+   request, and re-running resumes it with the same QR.
+4. **Save.** It stores `root_secret`, the single-use **link tokens** (mode 600) and `rootlink_url`.
+   Then it writes `brain.env`: loopback `YGG_LISTEN`, `YGG_DATA_DIR`,
+   `YGG_ROOT_NAME=<root_id>`, `YGG_PEERS=hub=http://127.0.0.1:<peer port>/local` and
+   `YGG_PEER_TOKEN`.
+5. **Start.** It runs the brain plus
+   `root-dial.py --tls --host --port --path --token-file --brain --peer-port`. Before every dial,
+   and every 5 minutes, it tops up the link tokens through
+   `POST <hub>/api/roots/<root_id>/tokens` when fewer than 5 are left.
+
+| supervisor (`--supervisor auto` picks) | units |
+|---|---|
+| **systemd --user** (Linux, or WSL with systemd) | `yggdrasil-root-brain.service`, `yggdrasil-root-dial.service`, `yggdrasil-root-refill.timer` (+ linger, best effort) |
+| **launchd** (macOS) | `~/Library/LaunchAgents/org.veraldar.yggdrasil-root.{brain,dial,refill}.plist` |
+| **nohup** (no user manager: containers, WSL without systemd) | `bin/supervise` restarts all three. Logs are in `log/`. After a reboot, run `join.sh` again or `bin/start` |
+
+Everything lives in `~/.local/share/yggdrasil-root` (`--dir`, mode 700): `root.json` (root id, root
+secret, hub, rootlink URL), `link-tokens`, `brain.env`, `root.conf` (ports, name; no secrets),
+`bin/` (`yggdrasil`, `root-dial.py`, `rootjoin.py`, `run-brain`, `run-dialer`, `start`, `stop`),
+`data/`, `log/`.
+
+**Re-running is safe.** With an existing join, `join.sh` (no options needed) sends no new request.
+It refreshes the files and restarts only if something changed. `--rejoin` asks the hub again; the
+old join stays until the new one is approved. A different `--hub` without `--rejoin` is refused.
+`--stop` stops the services. Other options: `--name` (default: the hostname),
+`--brain-port`/`--peer-port` (default 4180/4181, or the next free pair), `--project-dir` (default
+`$HOME`), `--no-start`, `--build`. `--cacert` is only for tests against a self-signed hub.
+Exit codes: `0` joined and running · `3` refused on the phone · `4` expired · `64` usage · `1` other.
+
+**Windows:** `win/Veraldar-Setup.exe` (see `win/README.txt`). Its launcher checks for WSL2 (if it's
+missing, it prints `wsl --install -d Ubuntu` and stops). It asks for the hub once, clones this
+repo inside WSL (branch `BRANCH` in `launcher.bat`) and runs `join.sh`. The QR lands on the
+Windows Desktop and opens there. `keepalive.vbs` keeps WSL and the root running, and starts them
+at logon.
+
+**Tests:**
+- `./join-test.sh` runs locally; `./join-test.sh --docker` runs in a clean `ubuntu:24.04`. Both
+  use a fake hub that speaks the contract above and a fake trunk on `/rootlink` that needs the
+  real `root-dial.py` to link and earn a pong. They need `python3 openssl zbar-tools`, and `git`
+  for the WSL bootstrap case.
+- `win/launcher-test.sh` runs the installer, launcher and keepalive under wine with a recording
+  fake `wsl.exe`.
+
 ## Upgrade / uninstall
 
 Upgrade: `git pull`, then `./install.sh`. It rebuilds the app only if its sources changed,

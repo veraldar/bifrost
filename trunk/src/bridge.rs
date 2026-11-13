@@ -43,7 +43,8 @@ use str0m::config::DtlsCert;
 
 use crate::cand;
 use crate::opencode::OpencodeClient;
-use crate::registry::{new_pending, Registry, RESULT_WAIT};
+use crate::registry::{new_pending, Registry};
+use crate::switch::{HttpReq, HttpReply, Switchboard, MAX_BODY, PASS_HEADERS};
 use crate::roots::{resolve_root, root_allowed, RootSel};
 use crate::speech::{resample_to_48k, Pcm, SpeechClient};
 use crate::region::region_of;
@@ -73,6 +74,8 @@ pub struct BridgeConfig {
     pub root_link_ping_secs: u64,
     /// v4c GAP-A: per-root in-flight cap (default 1; 0 = unlimited)
     pub root_link_max_inflight: u64,
+    /// how long a branch turn waits for its root's result (secs; default 20)
+    pub root_link_result_secs: u64,
     /// v0.9 pairing: box name published on /identity (goes into the QR)
     pub name: String,
     /// persisted DTLS identity (base64 DER json, chmod 600); None = ephemeral
@@ -86,6 +89,9 @@ pub struct BridgeHandle {
     pub media: SocketAddr,
     /// v4: the root dial-in ws port when the plane is LIVE (None = off)
     pub root_link_port: Option<u16>,
+    /// the root dial-in listener's bound address (what an access point's
+    /// `/rootlink` stream is forwarded to); None = off
+    pub root_link_addr: Option<SocketAddr>,
     /// "sha-256 AB:CD:…" of the persisted DTLS certificate
     pub fingerprint: String,
     stop: Arc<AtomicBool>,
@@ -154,6 +160,8 @@ enum Job {
         root: String,
         /// v4: trunk-minted dispatch id (echoes back on every reply/notice)
         tid: Option<String>,
+        /// the device behind the turn (a link-root keeps one session per device)
+        dev: String,
     },
     Voice {
         client: usize,
@@ -163,6 +171,7 @@ enum Job {
         opus: Vec<Vec<u8>>,
         root: String,
         tid: Option<String>,
+        dev: String,
     },
 }
 
@@ -244,6 +253,10 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
         if cfg.root_link_max_inflight == 0 { 0 } else { cfg.root_link_max_inflight },
         Ordering::SeqCst,
     );
+    roots_reg.result_secs.store(cfg.root_link_result_secs.max(1), Ordering::SeqCst);
+    // the switchboard: brain-to-brain HTTP over the root links (switch.rs);
+    // `to = local` is this box's own brain
+    let switch = Switchboard::new((*roots_reg).clone(), &cfg.opencode_url);
 
     let speech = Arc::new(SpeechClient::new(
         cfg.speaches_url.clone(),
@@ -267,6 +280,7 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
     // TcpListener (loopback, default = bridge port + 1, config-overridable).
     // Same process, same ws.rs codec, same auth laws; /offer is untouched.
     let mut root_link_port: Option<u16> = None;
+    let mut root_link_addr: Option<SocketAddr> = None;
     if let (Some(secret), true) = (cfg.root_link_secret.clone(), cfg.root_link_enabled) {
         if !secret.is_empty() {
             let ping = cfg.root_link_ping_secs.max(3);
@@ -279,12 +293,15 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
             };
             let l = TcpListener::bind(listen)
                 .map_err(|e| format!("bridge root-link bind {listen}: {e}"))?;
-            root_link_port = Some(l.local_addr().map_err(|e| e.to_string())?.port());
+            let bound = l.local_addr().map_err(|e| e.to_string())?;
+            root_link_port = Some(bound.port());
+            root_link_addr = Some(bound);
             let plane = crate::rootlink::RootLinkPlane::new(
                 secret,
                 (*roots_reg).clone(),
                 tokens.clone(),
                 ping,
+                switch.clone(),
             );
             plane.spawn(l);
             eprintln!(
@@ -325,8 +342,8 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
             let job = job_rx.lock().unwrap().recv();
             let Ok(job) = job else { return };
             let outcome = match job {
-                Job::Req { client, cid, reply_to, op, root, tid } => {
-                    let mut outcome = handle_req(&oc, &out_tx, &roots_reg, client, cid, reply_to, op, &root, tid)
+                Job::Req { client, cid, reply_to, op, root, tid, dev } => {
+                    let mut outcome = handle_req(&oc, &out_tx, &roots_reg, client, cid, reply_to, op, &root, tid, &dev)
                         .unwrap_or_else(|e| {
                             Outcome::Reply {
                                 client,
@@ -349,10 +366,10 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
                     }
                     outcome
                 }
-                Job::Voice { client, cid, reply_to, sid, opus, root, tid } => {
+                Job::Voice { client, cid, reply_to, sid, opus, root, tid, dev } => {
                     voice_pipeline(
                         &speech, &oc, &out_tx, &roots_reg,
-                        client, cid, reply_to, &sid, &opus, &root, tid,
+                        client, cid, reply_to, &sid, &opus, &root, tid, &dev,
                     )
                     .unwrap_or_else(|e| Outcome::Notice {
                         client,
@@ -408,12 +425,20 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
         let roots_reg = roots_reg.clone();
         let oc = oc.clone();
         let branch_tx = branch_tx.clone();
+        let switch = switch.clone();
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         std::thread::spawn(move || while !stop.load(Ordering::SeqCst) {
             let request = match server.recv_timeout(Duration::from_millis(100)) {
                 Ok(Some(r)) => r,
                 Ok(None) => continue,
                 Err(_) => break,
             };
+            // the switchboard's hub end: the box's own brain calls a linked
+            // root (loopback only; blocks up to 120 s → its own thread)
+            if request.url() == "/_root" || request.url().starts_with("/_root/") || request.url().starts_with("/_root?") {
+                root_call_splice(request, &switch, &calls);
+                continue;
+            }
             let ws_looks = ws::ws_requested(&request).is_some();
             if ws_looks {
                 let _ = request.respond(
@@ -642,6 +667,7 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
                                             &job_tx,
                                             &out_tx,
                                             &p.roots,
+                                            &p.device,
                                             &roots_reg,
                                             *id,
                                             cd.id,
@@ -715,6 +741,7 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
         http: http_addr,
         media: media_addr,
         root_link_port,
+        root_link_addr,
         fingerprint,
         stop,
     })
@@ -1035,7 +1062,7 @@ fn handle_branch(
         }
     };
     // the device's root allowlist (TOKEN LAW — empty = anonymous-class)
-    let roots_claim = grant.roots;
+    let roots_claim = grant.roots.clone();
     let mut body = String::new();
     let _ = request.as_reader().read_to_string(&mut body);
     let Ok(v) = serde_json::from_str::<serde_json::Value>(&body) else {
@@ -1096,7 +1123,7 @@ fn handle_branch(
     if let Some(t) = v.get("text") {
         turn_body.insert("text".into(), t.clone());
     }
-    match root_turn(roots_reg, &sel, "", kind, serde_json::Value::Object(turn_body)) {
+    match root_turn(roots_reg, &sel, "", kind, serde_json::Value::Object(turn_body), &grant.device) {
         Ok(Outcome::RootReply(mut obj)) => {
             obj.insert("ok".into(), serde_json::json!(true));
             obj.insert("root".into(), serde_json::json!(sel));
@@ -1125,10 +1152,110 @@ fn handle_branch(
     }
 }
 
+/// How many `/_root/` calls may wait on roots at once.
+const MAX_ROOT_CALLS: usize = 32;
+
+/// Who may use `/_root/`: the box's own brain only — a LOOPBACK socket that
+/// is neither a proxied request (an edge in front would make every client
+/// look local) nor a browser (a web page on this box could otherwise drive a
+/// root's brain cross-site: browsers always send Origin / Sec-Fetch-*).
+fn root_call_guard(request: &tiny_http::Request) -> Result<(), &'static str> {
+    let local = request.remote_addr().is_some_and(|a| a.ip().to_canonical().is_loopback());
+    if !local {
+        return Err("/_root is for this box's own brain: loopback clients only");
+    }
+    for h in request.headers() {
+        let k = h.field.as_str().as_str().to_ascii_lowercase();
+        if ["origin", "forwarded", "x-forwarded-for", "x-real-ip"].contains(&k.as_str()) || k.starts_with("sec-fetch-") {
+            return Err("/_root refuses proxied and browser requests");
+        }
+    }
+    if ws::ws_requested(request).is_some() {
+        return Err("/_root carries plain HTTP, not websockets");
+    }
+    Ok(())
+}
+
+/// `ANY /_root/<id>/<rest>` → (id, "/<rest>") — the query rides along.
+fn split_root_url(url: &str) -> Option<(String, String)> {
+    let tail = url.strip_prefix("/_root/")?;
+    let cut = tail.find(['/', '?']).unwrap_or(tail.len());
+    let (id, rest) = tail.split_at(cut);
+    let rest = if rest.is_empty() {
+        "/".to_string()
+    } else if rest.starts_with('?') {
+        format!("/{rest}")
+    } else {
+        rest.to_string()
+    };
+    (!id.is_empty()).then(|| (id.to_string(), rest))
+}
+
+fn switch_response(reply: HttpReply) -> tiny_http::Response<std::io::Cursor<Vec<u8>>> {
+    let mut r = tiny_http::Response::from_data(reply.body).with_status_code(reply.status);
+    for (k, v) in &reply.headers {
+        if let (true, Some(v)) = (PASS_HEADERS.contains(&k.as_str()), v.as_str()) {
+            if let Ok(h) = tiny_http::Header::from_bytes(k.as_bytes(), v.as_bytes()) {
+                r = r.with_header(h);
+            }
+        }
+    }
+    r.with_header(tiny_http::Header::from_bytes(&b"Cache-Control"[..], &b"no-store"[..]).unwrap())
+}
+
+/// The signaling thread only checks and splices: the call waits on its own
+/// thread (a root may take up to the switchboard's 120 s to answer).
+fn root_call_splice(request: tiny_http::Request, switch: &Arc<Switchboard>, calls: &Arc<std::sync::atomic::AtomicUsize>) {
+    if let Err(why) = root_call_guard(&request) {
+        let _ = request.respond(switch_response(HttpReply::error(403, why)));
+        return;
+    }
+    if calls.fetch_add(1, Ordering::SeqCst) >= MAX_ROOT_CALLS {
+        calls.fetch_sub(1, Ordering::SeqCst);
+        let _ = request.respond(switch_response(HttpReply::error(503, "too many root calls in flight")));
+        return;
+    }
+    let (switch, calls) = (switch.clone(), calls.clone());
+    std::thread::spawn(move || {
+        handle_root_call(request, &switch);
+        calls.fetch_sub(1, Ordering::SeqCst);
+    });
+}
+
+fn handle_root_call(mut request: tiny_http::Request, switch: &Switchboard) {
+    let Some((to, path)) = split_root_url(request.url()) else {
+        let _ = request.respond(switch_response(HttpReply::error(404, "use /_root/<root id>/<path>")));
+        return;
+    };
+    let mut headers = serde_json::Map::new();
+    for h in request.headers() {
+        let k = h.field.as_str().as_str().to_ascii_lowercase();
+        if PASS_HEADERS.contains(&k.as_str()) {
+            headers.insert(k, serde_json::json!(h.value.as_str()));
+        }
+    }
+    let mut body = Vec::new();
+    if request.as_reader().take(MAX_BODY as u64 + 1).read_to_end(&mut body).is_err() {
+        let _ = request.respond(switch_response(HttpReply::error(400, "could not read the body")));
+        return;
+    }
+    if body.len() > MAX_BODY {
+        let _ = request.respond(switch_response(HttpReply::error(413, "body too large for the switchboard")));
+        return;
+    }
+    let reply = match HttpReq::new(request.method().as_str(), &path, headers, body) {
+        Ok(req) => switch.call_root(&to, req),
+        Err(e) => HttpReply::error(400, &e),
+    };
+    let _ = request.respond(switch_response(reply));
+}
+
+#[allow(clippy::too_many_arguments)]
 fn dispatch(
     job_tx: &Arc<SyncSender<Job>>,
     out_tx: &SyncSender<Outcome>,
     roots_claim: &[String],
+    device: &str,
     reg: &Registry,
     client: usize,
     cid: str0m::channel::ChannelId,
@@ -1188,6 +1315,7 @@ fn dispatch(
                 opus,
                 root: sel,
                 tid,
+                dev: device.to_string(),
             }),
             _ => None,
         })
@@ -1199,6 +1327,7 @@ fn dispatch(
             op,
             root: sel,
             tid,
+            dev: device.to_string(),
         })
     };
     if let Some(job) = job {
@@ -1236,6 +1365,7 @@ fn handle_req(
     op: ClientOp,
     root: &str,
     tid: Option<String>,
+    dev: &str,
 ) -> Result<Outcome, String> {
     // v4: ops that RESOLVE A SESSION are "turns" — a turn claimed at a
     // link-root rides that root's ws conn (trunk-local ops like hello /
@@ -1249,6 +1379,7 @@ fn handle_req(
                     tid.as_deref().unwrap_or(""),
                     "prompt",
                     serde_json::json!({ "session": id, "text": text }),
+                    dev,
                 );
             }
             ClientOp::Transcript { id } => {
@@ -1258,12 +1389,13 @@ fn handle_req(
                     tid.as_deref().unwrap_or(""),
                     "transcript",
                     serde_json::json!({ "session": id }),
+                    dev,
                 );
             }
             // session.list / session.create named at a remote root are turns
             // too — the remote brain owns its own session surface
             ClientOp::SessionList {} => {
-                return root_turn(roots, root, tid.as_deref().unwrap_or(""), "sessions", serde_json::json!({}));
+                return root_turn(roots, root, tid.as_deref().unwrap_or(""), "sessions", serde_json::json!({}), dev);
             }
             ClientOp::SessionCreate { name } => {
                 return root_turn(
@@ -1272,6 +1404,7 @@ fn handle_req(
                     tid.as_deref().unwrap_or(""),
                     "create",
                     serde_json::json!({ "name": name }),
+                    dev,
                 );
             }
             // hello / ping / room.say: trunk-local control plane
@@ -1372,8 +1505,14 @@ fn root_turn(
     root: &str,
     _tid: &str,
     kind: &str,
-    body: serde_json::Value,
+    mut body: serde_json::Value,
+    dev: &str,
 ) -> Result<Outcome, String> {
+    // the device behind the turn rides the job: a root running turns on its
+    // own brain keeps ONE session per device (root-dial --brain)
+    if let Some(obj) = body.as_object_mut() {
+        obj.insert("dev".into(), serde_json::json!(dev));
+    }
     // LINK LAW at the turn boundary: the allowlist lives at dispatch (it
     // holds the device claim); here we only re-check the dial state so a
     // root that died between dispatch and turn gets the clean error too.
@@ -1396,7 +1535,7 @@ fn root_turn(
     }
     let result = pending
         .rx
-        .recv_timeout(RESULT_WAIT);
+        .recv_timeout(roots.result_wait());
     // the slot is freed on result OR timeout — the cap never sticks
     roots.release_inflight(&tid_owned);
     let result = result.map_err(|_| format!("root '{root}' did not answer in time"))?;
@@ -1454,6 +1593,7 @@ fn voice_pipeline(
     opus: &[Vec<u8>],
     root: &str,
     _tid: Option<String>,
+    dev: &str,
 ) -> Result<Outcome, String> {
     // v4: a voice turn claimed at a link-root = STT rides the trunk (the
     // trunk's speaches is the house ear), but the PROMPT runs on the named
@@ -1478,6 +1618,7 @@ fn voice_pipeline(
             "",
             "prompt",
             serde_json::json!({ "session": sid_or_slug, "text": text, "voice": true }),
+            dev,
         )?;
         // stamp coords for the voice.reply notice
         if let Outcome::RootReply(mut obj) = outcome {
@@ -1657,6 +1798,7 @@ pub fn bridge_test() -> Result<(), String> {
         root_link_listen: None,
         root_link_ping_secs: 15,
         root_link_max_inflight: 1,
+        root_link_result_secs: 20,
         name: "selftest".into(),
         dtls_cert_file: Some(dir.join("dtls.json")),
         public_url: None,
@@ -2078,4 +2220,21 @@ fn correlate(a: &[i16], b: &[i16]) -> f64 {
         return 0.0;
     }
     num / (da.sqrt() * db.sqrt())
+}
+
+#[cfg(test)]
+mod switch_url_tests {
+    use super::split_root_url;
+
+    #[test]
+    fn root_urls_split_with_their_query() {
+        let s = |u: &str| split_root_url(u);
+        assert_eq!(s("/_root/mac/session/x/message?async=1&origin=none"),
+                   Some(("mac".into(), "/session/x/message?async=1&origin=none".into())));
+        assert_eq!(s("/_root/mac"), Some(("mac".into(), "/".into())));
+        assert_eq!(s("/_root/mac?x=1"), Some(("mac".into(), "/?x=1".into())));
+        assert_eq!(s("/_root/mac/"), Some(("mac".into(), "/".into())));
+        assert_eq!(s("/_root/"), None);
+        assert_eq!(s("/_root//x"), None);
+    }
 }

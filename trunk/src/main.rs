@@ -27,6 +27,7 @@ mod registry;
 mod rootlink;
 mod roots;
 mod speech;
+mod switch;
 mod tokens;
 mod keys;
 mod mesh;

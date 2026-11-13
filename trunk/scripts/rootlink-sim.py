@@ -32,6 +32,20 @@ asserts the whole law:
   T10 guard    root-dial.py REFUSES plaintext ws to a non-private host
                unless --allow-plaintext; --tls (wss) always passes the
                guard (probe never connects on refusal)
+  T11 brain    root-dial --brain: turns run on the root's own brain (a fake
+               brain HTTP server here) — ONE session per device, created on
+               first use (`trunk · <dev>`), reused after; health pongs are
+               earned by GET <brain>/root
+  T12 switch   http frames through the switchboard: hub→root (/_root/<id>/
+               on the bridge, loopback only), root→hub (`local`, via the
+               dialer's --peer-port), root→root; only content-type +
+               x-ygg-peer cross; status + bodies (300 KB) byte-exact
+  T13 claim    a root whose link-token roots claim excludes the target is
+               refused 403 (`*` admits any; `local` always allowed)
+  T14 edge     the root-link THROUGH the access point: ap (self-signed test
+               cert) ◀ box bridge dials out; root-dial --tls --cafile
+               --path /rootlink links, serves a turn and a switchboard call;
+               without the test CA the TLS dial is refused
 
 LAW: the health probe is AGENT-level — root-dial must EXEC the agent
 to earn each root.pong; a dial script that pongs without exec is a
@@ -39,15 +53,22 @@ LIE the trunk would believe.
 """
 import base64, hashlib, hmac, json, os, queue, shutil, socket, struct, subprocess, sys, tempfile, time
 import http.client, threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 BIN = os.path.join(os.path.dirname(__file__), "..", "target", "release", "bifrost-net")
-HTTP_PORT, WS_PORT = 8471, 8472
+HTTP_PORT = int(os.environ.get("SIM_HTTP_PORT", "8471"))
+WS_PORT = HTTP_PORT + 1
 RESULT_WAIT = 20  # registry.rs law
 
 def b64url(b): return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
 
-def mint_link_token(secret, root, dev):
-    payload = json.dumps({"v": 1, "root": root, "roots": [root], "dev": dev,
+def free_port():
+    with socket.socket() as so:
+        so.bind(("127.0.0.1", 0))
+        return so.getsockname()[1]
+
+def mint_link_token(secret, root, dev, roots=None):
+    payload = json.dumps({"v": 1, "root": root, "roots": roots or [root], "dev": dev,
                           "iat": int(time.time()), "jti": os.urandom(6).hex()},
                          separators=(",", ":")).encode()
     body = b64url(payload)
@@ -260,6 +281,102 @@ class RealRootDial:
         try: self.proc.kill()
         except Exception: pass
 
+class FakeBrain:
+    """A tiny brain HTTP API (the yggdrasil/opencode surface root-dial uses):
+    GET /root · GET|POST /session · GET|POST /session/<id>/message ·
+    POST /tree/report · ANY /echo… (echoes method, path, headers, body).
+    Its responses carry x-ygg-peer AND x-leak — only the first may cross."""
+    def __init__(self, name):
+        self.name, self.sessions, self.reports, self.root_hits = name, {}, [], 0
+        self.lock = threading.Lock()
+        brain = self
+        class H(BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+            def log_message(self, *a): pass
+            def reply(self, st, obj, raw=None):
+                b = raw if raw is not None else json.dumps(obj).encode()
+                self.send_response(st)
+                self.send_header("content-type", "application/json")
+                self.send_header("x-ygg-peer", f"from-{brain.name}")
+                self.send_header("x-leak", "must-not-cross")
+                self.send_header("content-length", str(len(b)))
+                self.end_headers()
+                self.wfile.write(b)
+            def any(self):
+                n = int(self.headers.get("content-length") or 0)
+                body = self.rfile.read(n) if n else b""
+                p = self.path.split("?")[0].rstrip("/") or "/"
+                parts = p.strip("/").split("/")
+                with brain.lock:
+                    if p.startswith("/echo"):
+                        return self.reply(200, {"brain": brain.name, "method": self.command, "path": self.path,
+                                                "headers": {k.lower(): v for k, v in self.headers.items()},
+                                                "body": body.decode(errors="replace")})
+                    if self.command == "GET" and p == "/root":
+                        brain.root_hits += 1
+                        return self.reply(200, {"name": brain.name})
+                    if p == "/session" and self.command == "GET":
+                        return self.reply(200, [{"id": k, "title": v["title"]} for k, v in brain.sessions.items()])
+                    if p == "/session" and self.command == "POST":
+                        sid = f"{brain.name}-s{len(brain.sessions) + 1}"
+                        brain.sessions[sid] = {"title": json.loads(body or b"{}").get("title"), "messages": []}
+                        return self.reply(200, {"id": sid, "title": brain.sessions[sid]["title"]})
+                    if len(parts) == 3 and parts[0] == "session" and parts[2] == "message" and parts[1] in brain.sessions:
+                        s = brain.sessions[parts[1]]
+                        if self.command == "GET":
+                            return self.reply(200, s["messages"])
+                        text = "".join(x.get("text", "") for x in json.loads(body).get("parts", []))
+                        s["messages"].append(text)
+                        return self.reply(200, {"info": {"role": "assistant"},
+                                                "parts": [{"type": "text", "text": f"{brain.name} heard: {text}"}]})
+                    if p == "/tree/report" and self.command == "POST":
+                        brain.reports.append((self.headers.get("x-ygg-peer"), json.loads(body or b"null")))
+                        return self.reply(200, True)
+                return self.reply(404, {"error": f"no route {self.command} {p}"})
+            do_GET = do_POST = do_PUT = do_PATCH = do_DELETE = any
+        class Srv(ThreadingHTTPServer):
+            daemon_threads = True
+        self.srv = Srv(("127.0.0.1", 0), H)
+        self.url = f"http://127.0.0.1:{self.srv.server_address[1]}"
+        threading.Thread(target=self.srv.serve_forever, daemon=True).start()
+
+class Dial:
+    """root-dial.py with any flags; `linked:` lines are collected."""
+    def __init__(self, args):
+        self.proc = subprocess.Popen([sys.executable, REAL_DIAL] + args, stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE, text=True, bufsize=1)
+        self.links, self.out = [], []
+        threading.Thread(target=self._pump, daemon=True).start()
+
+    def _pump(self):
+        for line in self.proc.stdout:
+            self.out.append(line.strip())
+            if line.startswith("linked:"):
+                self.links.append(line.strip())
+
+    def wait_link(self, timeout=15):
+        end = time.time() + timeout
+        while time.time() < end:
+            if self.links:
+                return self.links[0]
+            if self.proc.poll() is not None:
+                raise RuntimeError(f"dial died before linking: rc={self.proc.returncode} {self.proc.stderr.read()[-300:]}")
+            time.sleep(0.05)
+        raise RuntimeError(f"dial never linked: {self.out[-5:]}")
+
+    def close(self):
+        try: self.proc.kill()
+        except Exception: pass
+
+def http_call(port, method, path, body=b"", headers=None, timeout=30):
+    """(status, response headers lowercased, body bytes)"""
+    c = http.client.HTTPConnection("127.0.0.1", port, timeout=timeout)
+    c.request(method, path, body=body or None, headers=headers or {})
+    r = c.getresponse()
+    out = r.status, {k.lower(): v for k, v in r.getheaders()}, r.read()
+    c.close()
+    return out
+
 def branch(body, token=None):
     c = http.client.HTTPConnection("127.0.0.1", HTTP_PORT, timeout=RESULT_WAIT + 10)
     hdrs = {"Content-Type": "application/json"}
@@ -310,6 +427,21 @@ def main():
     secret = b"rootlink-sim-secret"
     key = subprocess.run([BIN, "keygen"], capture_output=True, text=True).stdout
     priv = [l.split('"')[1] for l in key.splitlines() if "private_key" in l][0]
+    # T11-T14 fixtures: the hub's own brain (`local`) + the access point the
+    # box dials out to (self-signed test cert — the VPS uses its real one)
+    hub = FakeBrain("H")
+    ap_port = free_port()
+    certout = subprocess.run([BIN, "ap-cert", os.path.join(dir_, "tls"), "localhost", "127.0.0.1"],
+                             capture_output=True, text=True).stdout
+    pin = [l.split('"')[1] for l in certout.splitlines() if l.startswith("pin =")][0]
+    tokout = subprocess.run([BIN, "ap-token"], capture_output=True, text=True).stdout
+    ap_tok = [l.split('"')[1] for l in tokout.splitlines() if l.startswith("token =")][0]
+    ap_hash = [l.split('"')[1] for l in tokout.splitlines() if l.startswith("bridge_token_sha256 =")][0]
+    with open(os.path.join(dir_, "ap.toml"), "w") as f:
+        f.write(f'[ap]\nlisten = "127.0.0.1:{ap_port}"\ncert_path = "{dir_}/tls/cert.pem"\n'
+                f'key_path = "{dir_}/tls/key.pem"\nbridge_token_sha256 = "{ap_hash}"\n')
+    ap_log = open(os.path.join(dir_, "ap.log"), "w")
+    ap_proc = subprocess.Popen([BIN, "ap", "-c", os.path.join(dir_, "ap.toml")], stdout=ap_log, stderr=subprocess.STDOUT)
     cfg = f'''
 [node]
 name = "sim-trunk"
@@ -320,16 +452,24 @@ http = "127.0.0.1:{HTTP_PORT}"
 media = "127.0.0.1:{HTTP_PORT + 100}"
 tokens_file = "{dir_}/devices.json"
 root_link_secret = "{secret.decode()}"
+opencode_url = "{hub.url}"
 
 [bridge.root-link]
 enabled = true
 ping_secs = 3
 max_inflight = 1
+
+[ap]
+url = "wss://127.0.0.1:{ap_port}/ap"
+pin = "{pin}"
+token = "{ap_tok}"
+upstream = "127.0.0.1:{hub.srv.server_address[1]}"
 '''
     with open(os.path.join(dir_, "sim.toml"), "w") as f: f.write(cfg)
     log = open(os.path.join(dir_, "bridge.log"), "w")
     proc = subprocess.Popen([BIN, "bridge", "-c", os.path.join(dir_, "sim.toml")],
                             stdout=log, stderr=subprocess.STDOUT)
+    dials = []
 
     tok_a = mint_link_token(secret, "mac-a", "dev_a")
     tok_b = mint_link_token(secret, "mac-b", "dev_b")
@@ -565,13 +705,127 @@ max_inflight = 1
                    and "connect failed" in guard_ok.stderr,
                    f"{flag} passes the guard, fails at the connect: rc={guard_ok.returncode} {guard_ok.stderr.strip()[-60:]}")
 
-        print("ROOTLINK-SIM: ALL 10 GREEN (routing, single-use, takeover, anonymous-refused, close-reap, "
-              "wedged-unlink, in-flight-cap, mint-cli, dial-exec, public-guard)")
+        # ---- T11: turns on the root's OWN brain — one session per device ----
+        raw_e1, raw_e2, raw_g = ("bfnd-" + b64url(os.urandom(18)) for _ in range(3))
+        for did, raw, roots in (("dev_e1", raw_e1, ["mac-e", "mac-f"]), ("dev_e2", raw_e2, ["mac-e"]),
+                                ("dev_g", raw_g, ["mac-g"])):
+            devices.append({"id": did, "name": did, "tokenHash": hashlib.sha256(raw.encode()).hexdigest(),
+                            "created": "now", "revoked": False, "roots": roots})
+        with open(os.path.join(dir_, "devices.json"), "w") as f:
+            json.dump({"devices": devices}, f)
+        brain_e, brain_f = FakeBrain("E"), FakeBrain("F")
+        pe, pf = free_port(), free_port()
+        tf_e, tf_f = os.path.join(dir_, "tok-e.txt"), os.path.join(dir_, "tok-f.txt")
+        with open(tf_e, "w") as f:   # mac-e may address ANY root (`*`)
+            f.write(mint_link_token(secret, "mac-e", "dev_e1", ["*"]) + "\n")
+        with open(tf_f, "w") as f:   # mac-f may address only itself (+ local)
+            f.write(mint_link_token(secret, "mac-f", "dev_e2") + "\n")
+        de = Dial(["--host", "127.0.0.1", "--port", str(WS_PORT), "--token-file", tf_e,
+                   "--brain", brain_e.url, "--peer-port", str(pe)])
+        df = Dial(["--host", "127.0.0.1", "--port", str(WS_PORT), "--token-file", tf_f,
+                   "--brain", brain_f.url, "--peer-port", str(pf)])
+        dials += [de, df]
+        expect("linked: mac-e" in de.wait_link() and "linked: mac-f" in df.wait_link(),
+               "two --brain dialers linked (mac-e, mac-f)")
+        st, o1 = branch({"op": "prompt", "id": "phone", "text": "e1-first", "root": "mac-e"}, raw_e1)
+        expect(st == 200 and o1.get("text") == "E heard: e1-first" and o1.get("root") == "mac-e",
+               f"turn ran on mac-e's brain, reply rode back: {st} {o1}")
+        st, o2 = branch({"op": "prompt", "id": "phone", "text": "e1-second", "root": "mac-e"}, raw_e1)
+        st3, o3 = branch({"op": "prompt", "id": "phone", "text": "e2-first", "root": "mac-e"}, raw_e2)
+        titles = sorted(v["title"] for v in brain_e.sessions.values())
+        expect(st == 200 and st3 == 200 and o2.get("session") == o1.get("session") != o3.get("session")
+               and titles == ["trunk · dev_e1", "trunk · dev_e2"]
+               and brain_e.sessions[o1["session"]]["messages"] == ["e1-first", "e1-second"]
+               and brain_e.sessions[o3["session"]]["messages"] == ["e2-first"],
+               f"one session per device, created on first use and reused: {titles}")
+        st, o = branch({"op": "transcript", "id": "phone", "root": "mac-e"}, raw_e1)
+        expect(st == 200 and o.get("messages") == ["e1-first", "e1-second"], f"transcript reads the device's session: {st}")
+        time.sleep(4)   # ≥1 trunk probe (ping_secs 3)
+        expect(brain_e.root_hits >= 1, f"health pongs earned by GET <brain>/root ({brain_e.root_hits} probe(s))")
+
+        # ---- T12: the switchboard — hub→root, root→hub, root→root ----
+        st, h, b = http_call(HTTP_PORT, "GET", "/_root/mac-e/root")
+        expect(st == 200 and json.loads(b) == {"name": "E"}, f"hub→root: /_root/mac-e/root answered by E's brain: {st} {b[:80]}")
+        st, h, b = http_call(HTTP_PORT, "POST", "/_root/mac-e/echo/x?q=1", b'{"k":1}',
+                             {"content-type": "application/json", "x-ygg-peer": "peer-tok",
+                              "authorization": "Bearer nope", "x-evil": "1", "cookie": "a=b"})
+        e = json.loads(b)
+        expect(st == 200 and e["method"] == "POST" and e["path"] == "/echo/x?q=1" and e["body"] == '{"k":1}'
+               and e["headers"].get("x-ygg-peer") == "peer-tok" and e["headers"].get("content-type") == "application/json"
+               and not {"authorization", "x-evil", "cookie"} & set(e["headers"]),
+               "hub→root: method, path+query, body exact; only content-type + x-ygg-peer reached the brain")
+        expect(h.get("x-ygg-peer") == "from-E" and "x-leak" not in h and h.get("content-type") == "application/json",
+               f"…and only content-type + x-ygg-peer came back: {sorted(h)}")
+        st, h, b = http_call(HTTP_PORT, "GET", "/_root/mac-e/nope")
+        expect(st == 404 and b"no route" in b, f"the brain's own status passes through: {st}")
+        st, h, b = http_call(HTTP_PORT, "GET", "/_root/mac-ghost/root")
+        expect(st == 502 and b"not linked" in b, f"unlinked root = clean 502: {st} {b[:80]}")
+        st, h, b = http_call(HTTP_PORT, "GET", "/_root/mac-e/root", headers={"origin": "https://evil.example"})
+        expect(st == 403, f"/_root refuses browser requests (Origin): {st}")
+        st, h, b = http_call(pe, "GET", "/local/root")
+        expect(st == 200 and json.loads(b) == {"name": "H"}, f"root→hub: mac-e's peer port reached the hub brain (local): {st} {b[:60]}")
+        st, h, b = http_call(pe, "POST", "/local/tree/report", b'{"proxy":"p1","event":{"x":1}}',
+                             {"content-type": "application/json", "x-ygg-peer": "peer-tok"})
+        expect(st == 200 and hub.reports == [("peer-tok", {"proxy": "p1", "event": {"x": 1}})],
+               f"root→hub: POST /tree/report arrived with its x-ygg-peer: {hub.reports}")
+        big = ("0123456789abcdef" * 20000).encode()          # 320 KB, many TCP segments
+        st, h, b = http_call(pe, "POST", "/mac-f/echo", big, {"content-type": "text/plain"})
+        expect(st == 200 and json.loads(b)["brain"] == "F" and json.loads(b)["body"].encode() == big,
+               "root→root: mac-e → mac-f, a 320 KB body crossed both links byte-exact")
+        res = []
+        ths = [threading.Thread(target=lambda i=i: res.append(http_call(HTTP_PORT, "GET", f"/_root/mac-{'ef'[i % 2]}/echo/{i}")))
+               for i in range(8)]
+        [t.start() for t in ths]; [t.join(30) for t in ths]
+        expect(len(res) == 8 and all(r[0] == 200 and json.loads(r[2])["path"].startswith("/echo/") for r in res),
+               "8 concurrent hub→root calls each got their own answer")
+
+        # ---- T13: the link-token claim gates who may address whom ----
+        st, h, b = http_call(pf, "GET", "/mac-e/root")
+        expect(st == 403 and b"may not address root 'mac-e'" in b,
+               f"mac-f (claim [mac-f]) → mac-e refused: {st} {b[:120]}")
+        st, h, b = http_call(pf, "GET", "/local/root")
+        expect(st == 200 and json.loads(b) == {"name": "H"}, "mac-f → local still allowed (the trunk's own brain)")
+        st, h, b = http_call(pf, "GET", "/mac-f/root")
+        expect(st == 400, f"a root cannot address itself through the trunk: {st}")
+
+        # ---- T14: the root-link THROUGH the access point ----
+        brain_g = FakeBrain("G")
+        tf_g = os.path.join(dir_, "tok-g.txt")
+        with open(tf_g, "w") as f:
+            f.write(mint_link_token(secret, "mac-g", "dev_g") + "\n")
+        bad = subprocess.run([sys.executable, REAL_DIAL, "--host", "localhost", "--port", str(ap_port), "--tls",
+                              "--path", "/rootlink", "--token-file", tf_g, "--brain", brain_g.url],
+                             capture_output=True, text=True, timeout=20)
+        expect(bad.returncode != 0 and "connect failed" in bad.stderr and "CERTIFICATE_VERIFY_FAILED" in bad.stderr,
+               f"without the test CA the TLS dial is refused: {bad.stderr.strip()[-90:]}")
+        with open(tf_g, "w") as f:
+            f.write(mint_link_token(secret, "mac-g", "dev_g") + "\n")
+        dg = Dial(["--host", "localhost", "--port", str(ap_port), "--tls", "--cafile", f"{dir_}/tls/cert.pem",
+                   "--path", "/rootlink", "--token-file", tf_g, "--brain", brain_g.url])
+        dials.append(dg)
+        expect("linked: mac-g" in dg.wait_link(20) and any(l.startswith("tls ok") for l in dg.out),
+               f"root-dial linked THROUGH the ap edge (wss://localhost:{ap_port}/rootlink, verified TLS)")
+        st, o = branch({"op": "prompt", "id": "phone", "text": "via-ap", "root": "mac-g"}, raw_g)
+        expect(st == 200 and o.get("text") == "G heard: via-ap", f"a turn crossed the edge to mac-g's brain and back: {st} {o}")
+        st, h, b = http_call(HTTP_PORT, "GET", "/_root/mac-g/root")
+        expect(st == 200 and json.loads(b) == {"name": "G"}, "a switchboard call crossed the edge too")
+        lg, la = open(os.path.join(dir_, "bridge.log")).read(), open(os.path.join(dir_, "ap.log")).read()
+        expect("bridge registered from" in la and f"/rootlink → root-link 127.0.0.1:{WS_PORT}" in lg,
+               "the box dialed OUT to the ap; the ap's /rootlink stream went to the box's loopback root-link listener")
+
+        print("ROOTLINK-SIM: ALL 14 GREEN (routing, single-use, takeover, anonymous-refused, close-reap, "
+              "wedged-unlink, in-flight-cap, mint-cli, dial-exec, public-guard, brain-sessions, switchboard, "
+              "claim-refusal, ap-edge)")
+        shutil.rmtree(dir_, ignore_errors=True)   # green: no test keys/tokens left behind
         return 0
     finally:
+        for d in dials:
+            d.close()
         proc.terminate()
-        try: proc.wait(timeout=5)
-        except Exception: proc.kill()
+        ap_proc.terminate()
+        for pr in (proc, ap_proc):
+            try: pr.wait(timeout=5)
+            except Exception: pr.kill()
 
 if __name__ == "__main__":
     sys.exit(main())

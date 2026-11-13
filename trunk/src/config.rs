@@ -45,6 +45,11 @@ pub struct ApDialSection {
     /// raw TCP forwards the ap may name → local target, e.g. { livekit-ice = "127.0.0.1:7881" }
     #[serde(default)]
     pub tcp: std::collections::HashMap<String, String>,
+    /// where a `/rootlink` stream from the ap goes (a remote root dialing
+    /// wss://<ap>/rootlink): default = this bridge's root-link listener;
+    /// "off" = /rootlink is not routed (it falls through to the app upstream)
+    #[serde(default)]
+    pub rootlink: Option<String>,
 }
 
 fn default_ap_upstream() -> String { "127.0.0.1:8090".into() }
@@ -111,6 +116,14 @@ pub struct RootLinkConfig {
     /// AT its cap gets an immediate 429-style error — never a queued slot.
     #[serde(default = "default_max_inflight")]
     pub max_inflight: u64,
+    /// how long a branch turn waits for the root's `root.result` (secs) —
+    /// a turn on a real brain can take minutes; default 20
+    #[serde(default = "default_result_secs")]
+    pub result_secs: u64,
+}
+
+fn default_result_secs() -> u64 {
+    20
 }
 
 fn default_root_ping_secs() -> u64 {
@@ -413,6 +426,7 @@ public_url = "http://127.0.0.1:7890"
 enabled = true
 ping_secs = 3
 max_inflight = 1
+result_secs = 300
 
 [ap]
 url = "wss://ap.example.org/ap"
@@ -420,9 +434,12 @@ pin = "sha-256 AA:BB"
 token = "00"
 upstream = "127.0.0.1:8090"
 tcp = { livekit-ice = "127.0.0.1:7881" }
+rootlink = "127.0.0.1:7892"
 "#;
         let c: Config = toml::from_str(toml).expect("merged bridge.toml must parse");
         assert!(c.bridge.as_ref().unwrap().root_link.as_ref().unwrap().enabled);
+        assert_eq!(c.bridge.as_ref().unwrap().root_link.as_ref().unwrap().result_secs, 300);
+        assert_eq!(c.ap.as_ref().unwrap().rootlink.as_deref(), Some("127.0.0.1:7892"));
         assert_eq!(c.ap.unwrap().tcp.get("livekit-ice").map(String::as_str), Some("127.0.0.1:7881"));
     }
 

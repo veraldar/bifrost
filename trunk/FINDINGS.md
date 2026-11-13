@@ -244,3 +244,77 @@ registry, rootlink, roots, ws` all present). Shared files were merged 3-way
 **Honest limits:**
 - **v1 tokens never expire and are region-free** (A's contract). The v2 PWA treats v1 entries as revoked and re-pairs them, so the two writers must not share one file expecting different v1 semantics.
 - **Root links already up are not cut on revoke.** Only new dials are refused.
+
+## Roots through the trunk — the switchboard (trunk-switch, 2026-11-13)
+
+Several yggdrasil roots (brains on different machines) now reach each other
+through the trunk with **no tailnet and no inbound port on any root**: every
+root dials out (to the root-link listener, or to the access point), and turns,
+health and brain-to-brain HTTP all ride that one link.
+
+**1. Root-link through the access point.** On the box, an ap stream for path
+`/rootlink` (websocket upgrade) goes to the root-link listener instead of the
+app upstream, without the `/api` device gate (the link token, first ws frame,
+is the auth). A plain GET is 426; `/_root*` never crosses the edge (404).
+`[ap] rootlink = "host:port"` overrides the target (default: the bridge's
+root-link listener, unspecified bind → loopback; `"off"` = not routed).
+The root dials `wss://<ap>/rootlink` (`--tls --path /rootlink`).
+The root-link plane now reassembles frames across read timeouts
+(`ws::FrameReader`, 8 MB max), keeps bytes sent right after the upgrade head,
+caps conns still in the handshake/token phase at 64, and sets a 10 s write timeout.
+
+**2. Turns on the root's own brain.** `root-dial.py --brain URL`: a `root.job`
+runs on that brain, one session per device (the job body now carries `dev`,
+from the grant on `/branch` or the peer on the data channel), titled
+`trunk · <dev>`, found by title or created on first use, reused after; the reply
+text rides `root.result` as `{"text","session","dev"}`. `transcript`,
+`sessions` and `create` jobs are served too. With `--brain` the health pong is
+earned by `GET <brain>/root` = 200. `--exec` (opencode run) remains the fallback.
+`[bridge.root-link] result_secs` (default 20) is how long a turn waits for its root.
+
+**3. The switchboard** (`src/switch.rs`). Two ops on the existing links:
+
+    {op:"http", id, to, method, path, headers:{content-type?, x-ygg-peer?}, body_b64}
+    {op:"http.reply", id, status, headers, body_b64}
+
+| From | Endpoint / op | Goes to |
+|---|---|---|
+| hub brain | `ANY http://127.0.0.1:<bridge http>/_root/<id>/<path?query>` (loopback only; refused with Origin, Sec-Fetch-*, X-Forwarded-For, Forwarded or X-Real-IP) | `http` frame to root `<id>`, `from = local`; the reply's status/body/headers are the response |
+| root X | `http` frame, `to = Y` (linked) | forwarded to Y as `{op:"http", id:<trunk id>, from:X, …}`; Y's `http.reply` goes back to X under X's id |
+| root X | `http` frame, `to = local` | performed by the trunk against the bridge's `opencode_url` (the hub brain) |
+| a joined root's brain | `ANY http://127.0.0.1:<P>/<target>/<path>` (root-dial `--peer-port P`) | `http` frame to `<target>` (`local` = the hub brain) |
+| trunk → root | `http` frame | root-dial performs it against `--brain`, answers `http.reply` |
+
+Laws: X may address Y only if X's link-token `roots` claim (kept in the
+registry per conn) names Y or `*`; `local` is always allowed (as on `/branch`);
+otherwise 403 `root 'X' may not address root 'Y' …`. Unlinked → 502, no answer
+in 120 s → 504, the target's link dropping mid-call → 502 at once. A reply is
+accepted only from the root the request was sent to. Only `content-type` and
+`x-ygg-peer` cross, both ways (CR/LF refused). Methods GET POST PUT PATCH DELETE;
+the path must start with `/`; bodies up to 4 MB. In-flight caps: 32 `/_root`
+calls, 32 `local` performs.
+
+**Wiring.** Hub brain: `YGG_PEERS mac=http://127.0.0.1:<bridge http>/_root/mac`.
+Joined root's brain: `YGG_PEERS home=http://127.0.0.1:<P>/local`. Both use the
+same `YGG_PEER_TOKEN` (sent as `x-ygg-peer`, which the switchboard passes).
+
+**root-dial.py flags (new):** `--brain URL`, `--peer-port P`, `--cafile PEM`
+(trust a test CA or self-signed cert with `--tls`). `--path` already existed.
+
+**Proofs:**
+- `cargo test`: 34/34.
+- `selftest m0 m1 v9 ap`: GREEN. v9 ran against a scratch yggdrasil brain on the mock (`OPENCODE_URL`). `ap` adds: `/rootlink` reaches the root-link listener with no device token, a plain GET is 426, and `/_root` is 404 at the edge.
+- `scripts/rootlink-sim.py`: **14/14**. T1–T10 are unchanged. The new legs:
+  - **T11:** `--brain` keeps one session per device, and pongs are earned by `GET /root`.
+  - **T12:** hub→root, root→hub (`local`) and root→root work. Only the two headers cross. Status passes through, a 320 KB body arrives byte-exact, and 8 concurrent calls work. A browser `Origin` gets 403.
+  - **T13:** a claim that excludes the target gets 403. `local` is allowed, and addressing yourself is 400.
+  - **T14:** the root dials through the ap (self-signed test cert, `--cafile`) and a turn plus a switchboard call cross the edge. Without the CA the dial is refused.
+- `sim/trunk-roots-e2e.py`: GREEN through the ap, and with `--direct`. It runs two real yggdrasil brains on the mock:
+  - MAIN on home runs `session_start … root=mac`. The session runs on the mac brain, and its report comes home: home's `/tree` shows the proxy on root mac as done (MAC-DONE), and MAIN's inbox has it.
+  - A `/branch` turn naming mac is answered by the mac brain, which reuses one session per device.
+
+**Honest limits:**
+- **Link tokens are still single-use with a 6 h TTL from minting.** A joined root that has to reconnect more than 6 h after its tokens were minted needs fresh ones from the hub. The trunk does not renew tokens in-band yet. That is the next gap for a root that stays joined for days. Every reconnect burns a token, and that includes each restart or blip of the bridge↔ap channel, because the root's stream rides it.
+- The conn loop keeps its 2 s read tick. A queued `root.job` can wait up to 2 s; switchboard frames are written directly and do not wait. A 250 ms tick turned rootlink-sim T5's drained-turn answer into a "health probe failed" answer, so the tick stayed.
+- root-dial reads and writes one TLS socket from several threads, as `--tls` already did.
+- The data-channel path carries `dev` the same way, but only `/branch` is exercised here.

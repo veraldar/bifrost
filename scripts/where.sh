@@ -25,7 +25,7 @@ do_version() {
   p="$(echo "$l" | grep '^PREVIOUS')"; echo "rollback target  ${p:-none}"
   local lb sb
   lb="$(served http://127.0.0.1:8080/)"
-  echo "  :8080 serves build ${lb:-?}  (release build $(cat ~/.local/share/bifrost/live/pwa/.next/BUILD_ID 2>/dev/null || echo ?))"
+  echo "  :8080 serves build ${lb:-?}  (release build $(cat ~/.local/share/bifrost/live/branch/.next/BUILD_ID 2>/dev/null || echo ?))"
   if [ -f "$HOME/.config/systemd/user/bifrost-sandbox.service.d/next-slot.conf" ]; then
     # next-slot.sh on: :8090 runs a FROZEN release clone, not the sandbox tree (locations-audit C10)
     local cur; cur="$(readlink "$HOME/.local/share/bifrost/next/current" 2>/dev/null)"
@@ -33,11 +33,11 @@ do_version() {
     echo "  :8090 serves build $(served http://127.0.0.1:8090/ || echo ?) · the sandbox tree is the off-fallback only"
   elif [ -d "$SANDBOX/.git" ] || [ -f "$SANDBOX/.git" ]; then
     sb="$(served http://127.0.0.1:8090/)"
-    echo "sandbox (daily)  $(git -C "$SANDBOX" branch --show-current)@$(git -C "$SANDBOX" rev-parse --short HEAD) · app $(sed -n 's/.*"version": "\(.*\)".*/\1/p' "$SANDBOX/pwa/package.json" | head -1) · $(git -C "$SANDBOX" log -1 --format=%cd --date=format:'%m-%d %H:%M')"
-    local built; built="$(cat "$SANDBOX/pwa/.next/BUILD_ID" 2>/dev/null)"
+    echo "sandbox (daily)  $(git -C "$SANDBOX" branch --show-current)@$(git -C "$SANDBOX" rev-parse --short HEAD) · app $(sed -n 's/.*"version": "\(.*\)".*/\1/p' "$SANDBOX/branch/package.json" | head -1) · $(git -C "$SANDBOX" log -1 --format=%cd --date=format:'%m-%d %H:%M')"
+    local built; built="$(cat "$SANDBOX/branch/.next/BUILD_ID" 2>/dev/null)"
     echo "  :8090 serves build ${sb:-?} · built tree ${built:-none}$([ -n "$sb" ] && [ "$sb" != "$built" ] && echo '  ← MISMATCH: restart bifrost-sandbox (or rebuild)')"
     local dirty; dirty="$(git -C "$SANDBOX" status --porcelain pwa agent 2>/dev/null | wc -l)"
-    [ "$dirty" -gt 0 ] && echo "  sandbox tree has $dirty uncommitted pwa/agent path(s)"
+    [ "$dirty" -gt 0 ] && echo "  sandbox tree has $dirty uncommitted branch/ path(s)"
   fi
   # the TWO-ROOTS LAW (10-28): :443 and :8443 always serve different builds
   [ -x "$(dirname "$0")/two-roots.sh" ] && echo "  $("$(dirname "$0")/two-roots.sh" check 2>&1)"
@@ -82,7 +82,7 @@ do_next() {
   echo "claims in flight (docs/claims.md '- [ ]', $(grep -cE '^- \[ \]' docs/claims.md) total; first 6):"
   grep -E '^- \[ \]' docs/claims.md | sed -E 's/^- \[ \] ([^:]*):.*/  \1/' | head -6
   echo "run it against the sandbox (never plain 'npx playwright test' — that targets live :8080):"
-  echo "  cd $SANDBOX/pwa && PW_BASE_URL=http://127.0.0.1:8090 npx playwright test e2e/<spec>"
+  echo "  cd $SANDBOX/branch && PW_BASE_URL=http://127.0.0.1:8090 npx playwright test e2e/<spec>"
   echo "  jitless session (cat /proc/self/cgroup shows lk-yggdrasil)? see $SANDBOX/AGENTS.md"
 }
 

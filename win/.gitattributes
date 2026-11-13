@@ -1,0 +1,7 @@
+# Windows reads these with CRLF; bash inside WSL needs LF (the installer packs the bytes as checked out)
+*.bat text eol=crlf
+*.vbs text eol=crlf
+*.txt text eol=crlf
+*.nsi text eol=crlf
+*.sh  text eol=lf
+*.exe binary

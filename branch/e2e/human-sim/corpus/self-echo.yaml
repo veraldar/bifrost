@@ -1,0 +1,9 @@
+id: self-echo
+bug: the phone hears its own reply after playback and commits it as a user turn (veto window ends at playback end, TODO-3)
+gold: "echo-shaped user turn (tokens within the spoken reply) answered aloud — the echo answer must stay unspoken"
+mode: hf
+turns: [{ via: text, say: "Reply with exactly: the weather is clear today and the sky is bright" }]
+mock: { delay_ms: 0, reply: echo }
+assert: { kind: self-echo, params: { jaccard: 0.5, window_ms: 12000 } }
+expect_current: GREEN
+seed: null

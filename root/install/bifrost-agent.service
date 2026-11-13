@@ -1,0 +1,18 @@
+# bifrost agent — the LiveKit voice worker: speech in → brain → speech out.
+# install.sh fills in the @…@ paths. Settings come from @CONF@/agent.env.
+[Unit]
+Description=bifrost agent — voice worker (livekit-agents)
+After=network-online.target yggdrasil.service bifrost-livekit.service bifrost-voice.service
+Wants=network-online.target
+
+[Service]
+Type=exec
+WorkingDirectory=@AGENT@
+EnvironmentFile=@CONF@/agent.env
+ExecStart=@AGENTVENV@/bin/python agent.py start
+Restart=on-failure
+RestartSec=5
+UMask=0077
+
+[Install]
+WantedBy=default.target

@@ -14,13 +14,13 @@ probe() { curl -s -m 5 -o /dev/null -w '%{http_code}' "$1" 2>/dev/null; }
 
 # --- guardrails ---------------------------------------------------------------
 [[ "$(git branch --show-current)" == "main" ]] || fail "not on main — experiments belong on a branch"
-[[ -z "$(git status --porcelain pwa/ agent/ | head -1)" ]] || fail "uncommitted pwa/agent changes — commit or stash first (the live instance must serve a known commit)"
+[[ -z "$(git status --porcelain branch/ | head -1)" ]] || fail "uncommitted app/voice (branch/) changes — commit or stash first (the live instance must serve a known commit)"
 LAST_TAG="$(git describe --tags --abbrev=0 2>/dev/null || echo main)"
 # a run in flight would be orphaned by the restart — the watchdog would heal
 # it into an abort, but losing the user's in-flight answer is not "safe"
 LIVE="$(python3 - << 'EOF'
 import json, time, pathlib
-p = pathlib.Path('pwa/.oc-live.json')
+p = pathlib.Path('branch/.oc-live.json')
 try:
     live = json.loads(p.read_text())
     fresh = {k: v for k, v in live.items() if time.time() - v / 1000 < 30 * 60}
@@ -35,7 +35,7 @@ say() { echo "[deploy] $*"; }
 
 # --- build + restart + probes --------------------------------------------------
 build_and_restart() {
-  (cd pwa && npm run build >>/tmp/deploy.log 2>&1) || return 1
+  (cd branch && npm run build >>/tmp/deploy.log 2>&1) || return 1
   # launchd on macOS, systemd elsewhere — the unit holds the live port
   if [[ "$(uname -s)" == "Darwin" ]]; then
     launchctl kickstart -k gui/$(id -u)/com.yggdrasil.bifrost-pwa
@@ -53,8 +53,8 @@ build_and_restart() {
   # completed join. This is the gate that catches that class. Only gated
   # when the voice stack is expected (LiveKit up + agent venv built) —
   # a text-only box without uv must not fail deploys.
-  if [[ "$(probe http://127.0.0.1:7880/)" != 000 && -d agent/.venv ]]; then
-    (cd agent && uv run scripts/join_canary.py "deploy-$(date +%s)" >>/tmp/deploy.log 2>&1) || return 1
+  if [[ "$(probe http://127.0.0.1:7880/)" != 000 && -d branch/voice/.venv ]]; then
+    (cd branch/voice && uv run scripts/join_canary.py "deploy-$(date +%s)" >>/tmp/deploy.log 2>&1) || return 1
   fi
   return 0
 }
@@ -69,10 +69,10 @@ fi
 # --- e2e gate ------------------------------------------------------------------
 if (( ! FAST )); then
   say "e2e gate (29+ specs, ~4 min)…"
-  if ! (cd pwa && npx playwright test >>/tmp/deploy.log 2>&1); then
+  if ! (cd branch && npx playwright test >>/tmp/deploy.log 2>&1); then
     say "e2e gate failed — rolling back to $LAST_TAG"
     git checkout -q "$LAST_TAG" && build_and_restart || fail "rollback ALSO failed — manual attention needed"
-    (cd pwa && npx playwright test e2e/base.spec.ts >>/tmp/deploy.log 2>&1) || fail "rolled back but invariants still red — manual attention needed"
+    (cd branch && npx playwright test e2e/base.spec.ts >>/tmp/deploy.log 2>&1) || fail "rolled back but invariants still red — manual attention needed"
     fail "deploy rolled back to $LAST_TAG (invariants verified there)"
   fi
 fi

@@ -1,83 +1,120 @@
 #!/usr/bin/env bash
-# wsl-bootstrap.sh — the INNER LOGIC of win/launcher.bat, as a plain bash script.
+# wsl-bootstrap.sh — what launcher.bat runs inside WSL2: get the code, then join this PC to the tree.
 #
-# The .bat's contract (see launcher.bat, proven on Linux — win-qr-sim2):
-#   1. --ports BASE   stage the stack on BASE..BASE+4 (app/root/mock/trunk+media)
-#   2. --qr-dir DIR   write the pair-QR png into DIR — on Windows that is the
-#                     user's Desktop, mounted via /mnt/c/Users/<u>/Desktop
-#   3. write join-url.txt next to this script — the exact URL the QR encodes —
-#      so the .bat can `start` it in the default browser after we exit 0.
-#   4. --print-qr-file PATH — the pair-QR png is written at EXACTLY PATH
-#      (passed on from the .bat, which cannot guess pair-qr.png names itself).
-# Everything heavy is delegated to the ONE existing layman bootstrap:
-#   lab/layman-deploy/impl/layman-bootstrap.sh --stage --ports --qr-dir
+#   wsl-bootstrap.sh --hub URL [--branch main] [--repo URL] [--qr-win 'C:\Users\me\Desktop\Veraldar-Join-QR.png']
+#                    [--checkout DIR] [--rejoin] [-- more join.sh options]
+#
+# 1. checks what join.sh needs: git, python3, CA certificates — and, while no brain binary exists yet,
+#    curl + a C toolchain + Rust to build one. Offers to install what is missing (sudo apt-get, rustup),
+#    or prints the exact commands and stops.
+# 2. clones the repo (sparse: root/ + trunk/scripts) into ~/veraldar/yggdrasil, or updates it (fast-forward
+#    to the branch; local changes are left alone).
+# 3. runs root/install/join.sh --hub URL, with the QR picture on the Windows Desktop (wslpath) and opened.
+# Log: ~/.local/state/veraldar/bootstrap.log
 set -euo pipefail
 
-say()  { echo "[veraldar] $*"; }
-fail() { echo "[veraldar] FAIL: $*" >&2; exit 1; }
-
-# locate this script (before cd) — join-url.txt + bootstrap.log land next to it
-SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOG_FILE="$SELF_DIR/bootstrap.log"
-JOIN_FILE="$SELF_DIR/join-url.txt"
-
-# defaults: dev-checkout twin of the installed layout
-QR_DIR="/tmp/win-qr-sim2/desktop"
-QR_FILE=""   # --print-qr-file: exact png path, forwarded to the layman bootstrap
-PORT_BASE="${VERALDAR_PORT_BASE:-8195}"
-
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --qr-dir) QR_DIR="${2:?}"; shift ;;
-    --print-qr-file) QR_FILE="${2:?}"; shift ;;
-    --ports)  PORT_BASE="${2:?}"; shift ;;
-    *) fail "unknown arg: $1" ;;
+HUB='' BRANCH=${VERALDAR_BRANCH:-main} REPO_URL=${VERALDAR_REPO:-https://github.com/veraldar/yggdrasil.git}
+QR_WIN='' CHECKOUT=${VERALDAR_CHECKOUT:-$HOME/veraldar/yggdrasil} REJOIN=''
+while [ $# -gt 0 ]; do
+  case $1 in
+    --hub) HUB=${2:?}; shift ;;
+    --branch) BRANCH=${2:?}; shift ;;
+    --repo) REPO_URL=${2:?}; shift ;;
+    --qr-win) QR_WIN=${2:?}; shift ;;
+    --checkout) CHECKOUT=${2:?}; shift ;;
+    --rejoin) REJOIN=--rejoin ;;
+    --) shift; break ;;
+    *) echo "wsl-bootstrap: unknown option $1" >&2; exit 64 ;;
   esac
   shift
 done
 
-exec > >(tee -a "$LOG_FILE") 2>&1   # every line lands in bootstrap.log — the .bat points the user at it on failure
+LOG_DIR=$HOME/.local/state/veraldar
+mkdir -p "$LOG_DIR"
+exec > >(tee -a "$LOG_DIR/bootstrap.log") 2>&1   # stdin stays the terminal: prompts still work
+TEE=$!
+echo "---- $(date '+%F %T') wsl-bootstrap: hub $HUB, $REPO_URL ($BRANCH)"
+say()  { printf '[veraldar] %s\n' "$*"; }
+die()  { printf '[veraldar] %s\n' "$*" >&2; exit "${2:-1}"; }
+ask()  { [ -t 0 ] || return 1; local a; read -r -p "[veraldar] $1 [Y/n] " a; case $a in n*|N*) return 1 ;; esac; }
+HUB=$(printf '%s' "$HUB" | tr -d '\r\n\t ')        # whatever Windows typed or stored around it
+[ -n "$HUB" ] || die "no hub given (launcher.bat asks for it)" 64
 
-say "ports $PORT_BASE..$((PORT_BASE+4)) · qr-dir $QR_DIR · log $LOG_FILE"
-mkdir -p "$QR_DIR"
-
-# --print-qr-file: the .bat passes a WINDOWS path (C:/Users/u/Desktop/…). WSL
-# only writes through the automount — resolve C:/x -> /mnt/c/x here, so the png
-# lands on the real Desktop and the launcher's grab is deterministic.
-if [[ -n "$QR_FILE" && "$QR_FILE" =~ ^[A-Za-z]:/ ]]; then
-  DRV="$(echo "${QR_FILE:0:1}" | tr 'A-Z' 'a-z')"
-  QR_FILE="/mnt/$DRV/${QR_FILE:2}"
-  say "QR file resolved to WSL path: $QR_FILE"
+# ---- 1. what join.sh needs
+missing=()
+command -v git >/dev/null || missing+=(git)
+command -v python3 >/dev/null || missing+=(python3)
+[ -s /etc/ssl/certs/ca-certificates.crt ] || missing+=(ca-certificates)
+have_brain() {
+  local a
+  for a in "$@"; do [ "$a" = --brain-bin ] && return 0; done
+  [ -n "${YGG_BINARY:-}" ] || [ -x "$HOME/.local/share/yggdrasil-root/bin/yggdrasil" ] \
+    || [ -x "$CHECKOUT/root/target/release/yggdrasil" ] || [ -x "$HOME/.local/bin/yggdrasil" ] || command -v yggdrasil >/dev/null
+}
+# shellcheck disable=SC1091
+[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
+NEED_RUST=0
+if ! have_brain "$@"; then
+  command -v cc >/dev/null || missing+=(build-essential)
+  command -v pkg-config >/dev/null || missing+=(pkg-config)
+  command -v curl >/dev/null || missing+=(curl)
+  command -v cargo >/dev/null || NEED_RUST=1
 fi
-
-# payload source (repo with the prebuilt stack + lab/layman-deploy/impl):
-#   VERALDAR_REPO_ROOT set -> use that tree, STAGE mode (dev twin / this sim: fast)
-#   else (installed .bat)  -> clone the repo shallow into ~/bifrost (WSL home),
-#                             FRESH mode — the real layman first-run path.
-MODE_ARGS=(--stage)
-if [[ -n "${VERALDAR_REPO_ROOT:-}" ]]; then
-  ROOT="$VERALDAR_REPO_ROOT"
-else
-  ROOT="${BIFROST_DIR:-$HOME/bifrost}"
-  if [[ ! -d "$ROOT/.git" ]]; then
-    say "no checkout at $ROOT — cloning (first run: adds ~5-10 min for the build)"
-    git clone --depth 1 https://github.com/veraldar/bifrost.git "$ROOT" \
-      || fail "clone failed (git missing? run: sudo apt install -y git curl)"
+if [ ${#missing[@]} -gt 0 ]; then
+  command -v apt-get >/dev/null || die "missing: ${missing[*]} — install them with your distribution's package manager, then run Veraldar again"
+  cmd="sudo apt-get update && sudo apt-get install -y ${missing[*]}"
+  say "this Linux needs: ${missing[*]}"
+  if ask "Install them now? (sudo asks for your Linux password)"; then
+    sudo apt-get update && sudo apt-get install -y "${missing[@]}"
+  else
+    die "run this in Ubuntu, then double-click Veraldar again:
+      $cmd"
   fi
-  MODE_ARGS=(--fresh-install)
 fi
-cd "$ROOT"
-[[ -f lab/layman-deploy/impl/layman-bootstrap.sh ]] || fail "layman bootstrap missing under $ROOT"
+if [ $NEED_RUST = 1 ]; then
+  rustup_cmd="curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal"
+  say "the brain is built from source once; that needs Rust (user-level, no sudo, ~1 GB)"
+  if ask "Install Rust with rustup now?"; then
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+    # shellcheck disable=SC1091
+    . "$HOME/.cargo/env"
+  else
+    die "run this in Ubuntu, then double-click Veraldar again:
+      $rustup_cmd"
+  fi
+fi
 
-# ---- the ONE delegated call: stage up + pair minted + QR png at QR_FILE ----
+# ---- 2. the code
+if [ ! -d "$CHECKOUT/.git" ]; then
+  say "downloading $REPO_URL ($BRANCH) into $CHECKOUT"
+  mkdir -p "$(dirname "$CHECKOUT")"
+  git clone --quiet --depth 1 --branch "$BRANCH" --filter=blob:none --sparse "$REPO_URL" "$CHECKOUT" \
+    || die "could not download $REPO_URL (branch $BRANCH) — check the internet connection and the BRANCH in launcher.bat"
+  git -C "$CHECKOUT" sparse-checkout set root trunk/scripts
+else
+  say "updating $CHECKOUT ($BRANCH)"
+  if git -C "$CHECKOUT" fetch --quiet --depth 1 origin "$BRANCH"; then
+    if [ -z "$(git -C "$CHECKOUT" status --porcelain --untracked-files=no)" ]; then
+      git -C "$CHECKOUT" checkout --quiet -B "$BRANCH" FETCH_HEAD
+    else
+      say "local changes in $CHECKOUT — not updating it"
+    fi
+  else
+    say "could not reach $REPO_URL — using the copy already here"
+  fi
+fi
+JOIN=$CHECKOUT/root/install/join.sh
+[ -f "$JOIN" ] || die "branch $BRANCH of $REPO_URL has no root/install/join.sh — set BRANCH in launcher.bat to a branch that has it"
+
+# ---- 3. join (the QR picture goes to the Windows Desktop and opens there)
 QR_ARGS=()
-[[ -n "$QR_FILE" ]] && QR_ARGS=(--print-qr-file "$QR_FILE")
-bash lab/layman-deploy/impl/layman-bootstrap.sh "${MODE_ARGS[@]}" --ports "$PORT_BASE" --qr-dir "$QR_DIR" "${QR_ARGS[@]}"
-
-# ---- the contract's deliverable: join-url.txt = the QR payload, byte-exact ----
-QR_TXT="$QR_DIR/pair-qr.txt"
-[[ -f "$QR_TXT" ]] || fail "bootstrap wrote no QR payload at $QR_TXT"
-printf '%s' "$(cat "$QR_TXT")" > "$JOIN_FILE"
-say "join URL -> $JOIN_FILE : $(cat "$JOIN_FILE")"
-say "QR png   -> ${QR_FILE:-$QR_DIR/pair-qr.png}"
-exit 0
+if [ -n "$QR_WIN" ]; then
+  QR_PNG=$(wslpath -u "$QR_WIN") || die "wslpath could not map $QR_WIN"
+  mkdir -p "$(dirname "$QR_PNG")"
+  QR_ARGS=(--qr-png "$QR_PNG" --open-qr)
+fi
+rc=0
+bash "$JOIN" --hub "$HUB" ${QR_ARGS[@]+"${QR_ARGS[@]}"} ${REJOIN:+"$REJOIN"} "$@" || rc=$?
+exec >&- 2>&-               # let tee finish writing before launcher.bat reads the exit code
+wait "$TEE" 2>/dev/null || true
+exit $rc

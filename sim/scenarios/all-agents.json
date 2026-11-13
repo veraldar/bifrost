@@ -1,0 +1,123 @@
+{
+ "id": "all-agents",
+ "title": "A real working session: one door, every kind of agent",
+ "persona": "The owner: a busy developer on a phone. Short messages, typos, no punctuation, never explains more than needed, often sends the next request before the last one is done. Writes like: 'can u check for bugs', 'fix the empty one', 'use agi for the readme'.",
+ "brain_env": {
+  "SIM_HARNESS": "1"
+ },
+ "seed": {
+  "inventory/inventory.py": "\"\"\"inventory \u2014 a tiny stock keeper.\"\"\"\n\n\ndef add_item(stock, name, qty, tags=[]):\n    tags.append(name)\n    stock[name] = stock.get(name, 0) + qty\n    return tags\n\n\ndef average_qty(stock):\n    return sum(stock.values()) / len(stock)\n\n\ndef last_items(items, n):\n    return items[len(items) - n - 1:]\n",
+  "inventory/test_inventory.py": "from inventory import add_item, average_qty\n\n\ndef test_add_item_counts():\n    stock = {}\n    add_item(stock, \"bolt\", 3)\n    add_item(stock, \"bolt\", 2)\n    assert stock[\"bolt\"] == 5\n\n\ndef test_average_qty():\n    assert average_qty({\"a\": 2, \"b\": 4}) == 3\n"
+ },
+ "goals": [
+  "Get the code in your workspace (it is the inventory folder, but do NOT say so at first) checked for bugs, with a written report you can open on your phone.",
+  "Then get two of the bugs it finds fixed: the crash on an empty stock and the off-by-one in last_items, with tests proving it.",
+  "A quick research answer: for this inventory, sqlite or a json file? a short answer with sources.",
+  "A small CLI inv.py in the inventory folder: add, list, export csv, with tests.",
+  "A bigger project in a folder named inventory-web, standard library only, with three independent parts: a JSON API server, a dashboard page that uses it, and a CSV import job \u2014 run the parts in parallel if possible, with tests, iterated until everything passes.",
+  "AGI (Claude Code) writes a short README.md in the inventory folder explaining the CLI \u2014 you ask for AGI by name.",
+  "After all that, you want a review of everything that happened in the past few minutes \u2014 what each session did and whether it worked \u2014 as a report.",
+  "In the end you want to know that everything is done and tested."
+ ],
+ "script": [
+  "First message, exactly: 'Can you check for bugs?'",
+  "When the review comes back, ask in a few words to fix the empty stock crash and the off by one.",
+  "Without waiting for the fix, send the research question in one short message.",
+  "Then, still without waiting, ask for the inv.py cli (add, list, export csv, with tests).",
+  "Then ask for the bigger inventory-web project in one message: three parts (json api server, dashboard page, csv import job), stdlib only, tests, run the parts in parallel, keep going until green.",
+  "Then ask to use agi for a short README for inventory explaining the cli.",
+  "When most results are in, ask exactly: 'review everything happened in past 5m'",
+  "Wait for results to come back. If something is unclear, ask main. At the end ask in a few words whether everything is done and tested, then finish."
+ ],
+ "max_minutes": 70,
+ "max_turns": 24,
+ "settle_seconds": 240,
+ "checks": [
+  {
+   "name": "a review session checked for bugs",
+   "kind": "child_profile",
+   "agent": "review"
+  },
+  {
+   "name": "a second review covered the recent work",
+   "kind": "child_profile",
+   "agent": "review",
+   "value": 2
+  },
+  {
+   "name": "a fix session repaired them",
+   "kind": "child_profile",
+   "agent": "fix"
+  },
+  {
+   "name": "a research session answered",
+   "kind": "child_profile",
+   "agent": "research"
+  },
+  {
+   "name": "a build session made the cli",
+   "kind": "child_profile",
+   "agent": "build"
+  },
+  {
+   "name": "a lead owned the bigger project",
+   "kind": "child_profile",
+   "agent": "lead"
+  },
+  {
+   "name": "AGI (Claude Code) did the readme",
+   "kind": "child_profile",
+   "agent": "AGI"
+  },
+  {
+   "name": "the lead split its project (depth 2)",
+   "kind": "min_depth",
+   "value": 2
+  },
+  {
+   "name": "review report in the artifacts",
+   "cmd": "ls artifacts/*.md >/dev/null && cat artifacts/*.md | grep -ciE 'mutable|default|empty|zero|off.by|slice'",
+   "expect": "[1-9]"
+  },
+  {
+   "name": "main gives the report link",
+   "kind": "main_says",
+   "regex": "/api/artifact/[\\w.-]+\\.md"
+  },
+  {
+   "name": "empty stock no longer crashes, last_items fixed",
+   "cmd": "cd inventory && python3 -c 'from inventory import average_qty, last_items; average_qty({}); print(\"NOCRASH\", last_items([1, 2, 3], 2) == [2, 3])'",
+   "expect": "NOCRASH True"
+  },
+  {
+   "name": "inventory tests pass",
+   "cmd": "cd inventory && python3 -m pytest -q >/tmp/pytest.$$.out 2>&1 && echo PYTEST-OK || tail -5 /tmp/pytest.$$.out",
+   "expect": "PYTEST-OK"
+  },
+  {
+   "name": "the cli exists",
+   "cmd": "ls inventory/inv.py && grep -ciE 'csv' inventory/inv.py",
+   "expect": "[1-9]"
+  },
+  {
+   "name": "inventory-web tests pass",
+   "cmd": "cd inventory-web && python3 -m pytest -q >/tmp/pytest.$$.out 2>&1 && echo PYTEST-OK || tail -5 /tmp/pytest.$$.out",
+   "expect": "PYTEST-OK"
+  },
+  {
+   "name": "README explains the cli",
+   "cmd": "f=$(ls inventory | grep -i '^readme\\.md$' | head -1) && grep -ciE 'inv\\.py|inv ' \"inventory/$f\"",
+   "expect": "[1-9]"
+  },
+  {
+   "name": "main answered the research question",
+   "kind": "main_says",
+   "regex": "sqlite"
+  },
+  {
+   "name": "the activity review names the work",
+   "cmd": "cat artifacts/*.md | grep -ciE 'inventory-web|inv\\.py|readme|research|sqlite'",
+   "expect": "[1-9]"
+  }
+ ]
+}

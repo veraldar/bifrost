@@ -1,0 +1,856 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { LineIcon } from '@/components/line-icon';
+import { BAND_VIEWBOX, YggTree } from '@/components/ygg';
+import { Door } from '@/components/tree-door';
+import { Roots } from '@/components/roots';
+import { Marked } from '@/components/marked';
+import { agentTag } from '@/lib/agents';
+import { askedSessions, clearAsked, notifyReply } from '@/lib/notify';
+import type { ArtifactEntry } from '@/lib/artifacts';
+import { countUnseen, seenInit } from '@/lib/artifact-read';
+import { CARD_ST, type Card } from '@/lib/card';
+import { lastRead, markRead } from '@/lib/read';
+import { slugify } from '@/lib/slug';
+import { DOOR_KEY, MAIN_SLUG, isMainSlug, isOnboardPrompt } from '@/lib/tree-first';
+import { VOICE_TEST_SLUG, voiceTestOn } from '@/lib/voice-test';
+
+// open-question circles go stale after this long
+const OPEN_QUESTION_TTL_MS = 48 * 60 * 60 * 1000;
+
+/** localStorage: which branches the user folded/unfolded, per session id
+ *  (`closed:<id>` = that parent's closed sessions shown) */
+const TREE_OPEN_KEY = 'oz-tree-open';
+
+type Sess = {
+  id: string;
+  title: string;
+  // set on sub-sessions: the session that spawned them (via an agent task).
+  // Children never sort the list themselves — they nest under their parent
+  parentId?: string | null;
+  preview: string;
+  updated: number;
+  lastRole?: string;
+  lastAt?: number;
+  lastHasQ?: boolean;
+  msgs?: number;
+  pending?: boolean;
+  agent?: string | null;
+  card?: Card | null;
+  archived?: boolean; // closed by its parent — hidden behind "N closed"
+};
+
+type GHit = {
+  id: string;
+  title: string;
+  hits: number;
+  lastHit: number;
+  snippets: { role: string; time: number; text: string }[];
+};
+
+/** Mobile-style swipe row: drag left to reveal a red delete zone; release
+ *  past the threshold to delete, else it snaps back. A tap still opens.
+ *  `locked` (THE MAIN session) has no delete zone and never drags — the
+ *  proxy refuses MAIN's delete too (403), this is the UI half. */
+function SwipeRow({
+  onOpen,
+  onDelete,
+  compact,
+  unread,
+  locked,
+  children,
+}: {
+  onOpen: () => void;
+  onDelete: () => void;
+  compact?: boolean;
+  unread?: boolean;
+  locked?: boolean;
+  children: React.ReactNode;
+}) {
+  const [dx, setDx] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const x0 = useRef(0);
+  const moved = useRef(false);
+  const captured = useRef(false);
+
+  if (locked) {
+    return (
+      <div className="oz-sw" data-locked="">
+        <button
+          onClick={onOpen}
+          className={`oz-row ${compact ? 'compact' : ''} ${unread ? 'unread' : ''}`}
+        >
+          {children}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="oz-sw">
+      <div className="oz-zone" aria-hidden="true">
+        delete
+      </div>
+      <button
+        onClick={() => {
+          if (!moved.current) onOpen();
+        }}
+        onPointerDown={(e) => {
+          if (!e.isPrimary) return;
+          x0.current = e.clientX;
+          moved.current = false;
+          captured.current = false;
+          setDragging(true);
+        }}
+        onPointerMove={(e) => {
+          if (!dragging) return;
+          const d = Math.min(0, e.clientX - x0.current);
+          if (d < -6) {
+            // capture only once horizontal drag intent is clear — a capture
+            // on pointerdown would retarget taps to the row and break inner
+            // click targets (the subs pill); once captured, the drag survives
+            // crossing the row/screen edge instead of dying in pointerleave
+            if (!captured.current) {
+              try {
+                e.currentTarget.setPointerCapture(e.pointerId);
+              } catch {
+                /* pointer may be gone — drag continues best-effort */
+              }
+              captured.current = true;
+            }
+            moved.current = true;
+          }
+          setDx(Math.max(-96, d));
+        }}
+        onPointerUp={() => {
+          setDragging(false);
+          captured.current = false;
+          if (dx < -64) onDelete();
+          else setDx(0);
+        }}
+        onPointerCancel={() => {
+          setDragging(false);
+          captured.current = false;
+          setDx(0);
+        }}
+        onPointerLeave={() => {
+          if (dragging && !captured.current) {
+            setDragging(false);
+            setDx(0);
+          }
+        }}
+        style={{
+          transform: `translateX(${dx}px)`,
+          transition: dragging ? 'none' : 'transform 150ms ease-out',
+          touchAction: 'pan-y',
+        }}
+        className={`oz-row ${compact ? 'compact' : ''} ${unread ? 'unread' : ''}`}
+      >
+        {children}
+      </button>
+    </div>
+  );
+}
+
+/** Compact row stamp: clock time for today, short date for older — Discord style. */
+function fmtListTime(t?: number): string {
+  if (!t) return '';
+  const d = new Date(t);
+  return d.toDateString() === new Date().toDateString()
+    ? d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+export default function SessionsPage() {
+  const router = useRouter();
+  // the door, per device (never the server store): not walked yet → the
+  // tree alone. Unknown until the first client render — so the server HTML
+  // IS the door (it paints before any script), and the layout's boot script
+  // hides it before paint on a device that walked it (brand.css § door)
+  const [tf, setTf] = useState<'first' | 'done' | null>(null);
+  // voice tests on (settings): the roots carry the voice-test room instead
+  const [vt, setVt] = useState(false);
+  useEffect(() => {
+    try {
+      setTf(localStorage.getItem(DOOR_KEY) ? 'done' : 'first');
+    } catch {
+      setTf('done'); // private mode can't keep the flag — never trap it on the tree
+    }
+    setVt(voiceTestOn());
+  }, []);
+  // instant paint on back-navigation: the last fetched list is cached in
+  // sessionStorage (per-tab), so the rows are there before the first fetch
+  // answers — the fresh fetch then updates/corrects underneath
+  const [sessions, setSessions] = useState<Sess[]>(() => {
+    try {
+      const raw = sessionStorage.getItem('oz-sessions');
+      return raw ? (JSON.parse(raw) as Sess[]) : [];
+    } catch {
+      return [];
+    }
+  });
+  // artifacts the agents left unseen — drives the header bell badge;
+  // counted on the same load/poll cycle as the session list
+  const [unseenArts, setUnseenArts] = useState(0);
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState('');
+  const [loading, setLoading] = useState(true);
+  const loadInFlightRef = useRef(false);
+  // undo window: row (and its sub-tree) vanishes instantly, but the DELETE
+  // only fires when the toast expires (or on unmount — entering a session
+  // commits it). opencode cascades deletes server-side, so the family is
+  // stashed here to hide + restore atomically. Mercy scales with content:
+  // a session holding ≥10 msgs gets 10s to be saved, not 3
+  const UNDO_MS = 3000;
+  const UNDO_MS_HEAVY = 10_000;
+  const [toast, setToast] = useState<{
+    s: Sess;
+    famCount: number;
+    win: number;
+    key: number;
+  } | null>(null);
+  const pendingRef = useRef<{ s: Sess; fam: Sess[]; timer: ReturnType<typeof setTimeout> } | null>(
+    null
+  );
+
+  // sub-sessions group under their parent at render time, to any depth; the
+  // parent list's sort order is untouched. Children whose parent is gone
+  // (deleted) fall back to the top level — nothing silently disappears
+  const kidsById = useMemo(() => {
+    const m = new Map<string, Sess[]>();
+    for (const s of sessions) {
+      if (!s.parentId) continue;
+      const arr = m.get(s.parentId);
+      if (arr) arr.push(s);
+      else m.set(s.parentId, [s]);
+    }
+    for (const arr of m.values())
+      arr.sort((a, b) => (b.updated || b.lastAt || 0) - (a.updated || a.lastAt || 0));
+    return m;
+  }, [sessions]);
+  const byId = useMemo(() => new Map(sessions.map((s) => [s.id, s])), [sessions]);
+  // every ancestor of something in flight: `work` = a run or a working card
+  // below (the folded pill shows it green), `hot` = that or a blocked card —
+  // a hot branch opens by default, a calm one folds
+  const below = useMemo(() => {
+    const work = new Set<string>();
+    const hot = new Set<string>();
+    for (const s of sessions) {
+      if (s.archived) continue;
+      const st = s.card?.status;
+      const w = !!s.pending || st === 'working';
+      if (!w && st !== 'blocked') continue;
+      const seen = new Set<string>();
+      for (let p = s.parentId; p && !seen.has(p); p = byId.get(p)?.parentId) {
+        seen.add(p);
+        hot.add(p);
+        if (w) work.add(p);
+      }
+    }
+    return { work, hot };
+  }, [sessions, byId]);
+  // MAIN is not a row: it is the roots (MAINFRAME-C) — with voice tests on,
+  // the roots carry voice-test (and MAIN, unreachable then, stays out too).
+  // MAIN's own sub-sessions surface at the top: nothing silently disappears
+  const rootsSlug = vt ? VOICE_TEST_SLUG : MAIN_SLUG;
+  const inRoots = (s: Sess) => {
+    const sl = slugify(s.title || '');
+    return isMainSlug(sl) || sl === rootsSlug;
+  };
+  const mainRow = useMemo(
+    () => sessions.find((s) => slugify(s.title || '') === rootsSlug),
+    [sessions, rootsSlug]
+  );
+  const tops = useMemo(() => {
+    const held = new Set(sessions.filter(inRoots).map((s) => s.id));
+    return sessions.filter(
+      (s) => !held.has(s.id) && (!s.parentId || !byId.has(s.parentId) || held.has(s.parentId))
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions, byId, rootsSlug]);
+  // the roots walk while MAIN works — the band then shares its clock
+  const [rootsWorking, setRootsWorking] = useState(false);
+
+  // which parents have their sub-tree expanded — what the user chose, per
+  // id, kept on the device; unchosen branches follow `below.hot`
+  const [subsOpen, setSubsOpen] = useState<Record<string, boolean>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(TREE_OPEN_KEY) || '{}') as Record<string, boolean>;
+    } catch {
+      return {};
+    }
+  });
+  const isOpen = (id: string) => subsOpen[id] ?? below.hot.has(id);
+  function toggleSubs(id: string, dflt = below.hot.has(id)) {
+    setSubsOpen((o) => {
+      const next = { ...o, [id]: !(o[id] ?? dflt) };
+      try {
+        localStorage.setItem(TREE_OPEN_KEY, JSON.stringify(next));
+      } catch {
+        /* private mode / quota — the choice lasts this visit */
+      }
+      return next;
+    });
+  }
+
+  // global transcript search — lives on home because "where did I talk about
+  // X?" starts from the session list; results replace the list while active
+  const [gOpen, setGOpen] = useState(false);
+  const [gq, setGq] = useState('');
+  const [gHits, setGHits] = useState<GHit[] | null>(null);
+  const [gBusy, setGBusy] = useState(false);
+  // one live search at a time: a newer keystroke ABORTS the in-flight query
+  // instead of being dropped — the old guard swallowed everything typed while
+  // a slow (50-session fan-out) search ran, leaving results for "y" showing
+  // under an input that said "yggdrasil"
+  const gAbort = useRef<AbortController | null>(null);
+  const gqRef = useRef('');
+
+  useEffect(() => {
+    const q = gq.trim();
+    gqRef.current = q;
+    // 1-char queries scan every session for noise — don't fire them
+    if (!gOpen || q.length < 2) {
+      setGHits(null);
+      return;
+    }
+    const t = setTimeout(() => {
+      gAbort.current?.abort();
+      const ctrl = new AbortController();
+      gAbort.current = ctrl;
+      setGBusy(true);
+      fetch(`/api/search?q=${encodeURIComponent(q)}`, { signal: ctrl.signal })
+        .then((r) => r.json())
+        .then((d) => {
+          if (gqRef.current === q) setGHits(d.sessions || []);
+        })
+        .catch(() => {
+          if (!ctrl.signal.aborted && gqRef.current === q) setGHits([]);
+        })
+        .finally(() => {
+          if (gAbort.current === ctrl) setGBusy(false);
+        });
+    }, 350);
+    return () => clearTimeout(t);
+  }, [gq, gOpen]);
+
+  const load = useCallback(async () => {
+    // backgrounded mobile tabs freeze in-flight polls for minutes and then
+    // fail on resume — bound each request, never overlap, never throw
+    if (loadInFlightRef.current) return;
+    loadInFlightRef.current = true;
+    setLoading(true);
+    // artifact count rides along in parallel — its failure never touches
+    // the session list
+    const artsP = fetch('/api/artifact', { cache: 'no-store', signal: AbortSignal.timeout(10_000) })
+      .then((r) => r.json() as Promise<ArtifactEntry[]>)
+      .catch(() => null);
+    try {
+      const r = await fetch('/api/session', {
+        cache: 'no-store',
+        signal: AbortSignal.timeout(10_000),
+      });
+      const list: Sess[] = await r.json();
+      // hide rows sitting in an undo window — the server still has the
+      // whole family until the toast expires
+      const p = pendingRef.current;
+      const hideIds = p ? new Set([p.s.id, ...p.fam.map((x) => x.id)]) : null;
+      const visible = list.filter((x) => !hideIds || !hideIds.has(x.id));
+      setSessions(visible);
+      try {
+        sessionStorage.setItem('oz-sessions', JSON.stringify(visible));
+      } catch {
+        /* quota — skip cache */
+      }
+      // first run after this feature shipped: treat everything currently in
+      // the list as read — a wall of unread dots helps nobody
+      if (!localStorage.getItem('oz-read-init')) {
+        for (const s of list) markRead(slugify(s.title || s.id), s.lastAt || 0);
+        localStorage.setItem('oz-read-init', '1');
+      }
+      // sessions the user asked a question in: when a reply lands, it's
+      // their turn again — notify (even from the background). pending=false
+      // proves the run actually finished (mid-run steps also end in an
+      // assistant message)
+      for (const s of list) {
+        const slug = slugify(s.title || s.id);
+        if (!askedSessions().includes(slug)) continue;
+        if (s.lastRole === 'assistant' && !s.pending) {
+          clearAsked(slug);
+          void notifyReply(slug);
+        }
+      }
+    } catch {
+      /* transient — keep showing the stale list */
+    } finally {
+      loadInFlightRef.current = false;
+      setLoading(false);
+    }
+    // first run after this feature ships: everything already on disk counts
+    // as seen — a bell opening at "167" helps nobody
+    const arts = await artsP;
+    if (arts) {
+      seenInit(arts);
+      setUnseenArts(countUnseen(arts));
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+    // background watcher for "my turn" across sessions
+    const t = setInterval(() => {
+      if (document.hidden) void load();
+    }, 8000);
+    const onVisible = () => {
+      if (!document.hidden) void load();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [load]);
+
+  async function create() {
+    const title = name.trim() || `session ${new Date().toLocaleString()}`;
+    const r = await fetch('/api/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: title }),
+    });
+    const s = await r.json();
+    if (s.id) router.push(`/session/${slugify(s.title)}?id=${s.id}`);
+    setCreating(false);
+    setName('');
+  }
+
+  // the whole family, leaves first: yggdrasil drops one record per DELETE
+  // (no cascade like opencode's) — a kept child would surface at the top.
+  // `fam` lists every child after its parent, so reversed = leaves first
+  function fireDelete(p: { s: Sess; fam: Sess[] }) {
+    const ids = [...p.fam.map((x) => x.id).reverse(), p.s.id];
+    void (async () => {
+      for (const id of ids) {
+        await fetch(`/api/session/${id}`, { method: 'DELETE' }).catch(() => void load());
+      }
+    })();
+  }
+
+  function commitPending() {
+    const p = pendingRef.current;
+    if (!p) return;
+    clearTimeout(p.timer);
+    pendingRef.current = null;
+    setToast(null);
+    fireDelete(p);
+  }
+
+  function remove(s: Sess) {
+    commitPending(); // a new delete supersedes an older undo window
+    // collect the whole sub-tree (closed sessions too): it hides and comes
+    // back as one, and fireDelete removes every member
+    const fam: Sess[] = [];
+    const frontier = [s.id];
+    while (frontier.length) {
+      const id = frontier.pop() as string;
+      for (const k of kidsById.get(id) || []) {
+        fam.push(k);
+        frontier.push(k.id);
+      }
+    }
+    const famIds = new Set(fam.map((x) => x.id));
+    setSessions((list) => list.filter((x) => x.id !== s.id && !famIds.has(x.id))); // optimistic
+    const win = (s.msgs || 0) + fam.reduce((n, x) => n + (x.msgs || 0), 0) >= 10
+      ? UNDO_MS_HEAVY
+      : UNDO_MS;
+    pendingRef.current = { s, fam, timer: setTimeout(commitPending, win) };
+    setToast({ s, famCount: fam.length, win, key: Date.now() });
+  }
+
+  function undo() {
+    const p = pendingRef.current;
+    if (!p) return;
+    clearTimeout(p.timer);
+    pendingRef.current = null;
+    setToast(null);
+    setSessions((list) => [...list, p.s, ...p.fam]); // sort re-places them
+  }
+
+  // navigating away (opening a session) mid-window still counts as deleted
+  useEffect(
+    () => () => {
+      const p = pendingRef.current;
+      if (p) {
+        clearTimeout(p.timer);
+        fireDelete(p);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  const isUnread = (s: Sess) =>
+    s.lastRole === 'assistant' && (s.lastAt || 0) > lastRead(slugify(s.title || s.id));
+
+  // the caption counts every run on the box (MAIN's too); the crown walks
+  // for the branches only — MAIN's run walks the roots
+  const working = sessions.filter((s) => s.pending).length;
+  const branchWorking = sessions.some((s) => s.pending && !inRoots(s));
+
+  // the list's order law: live runs and unread float, each latest-first;
+  // question circles are a hint only — recency decides everything else
+  const sortTop = (list: Sess[]) =>
+    [...list].sort(
+      (a, b) =>
+        Number(!!b.pending) - Number(!!a.pending) ||
+        Number(isUnread(b)) - Number(isUnread(a)) ||
+        (b.updated || b.lastAt || 0) - (a.updated || a.lastAt || 0)
+    );
+
+  /** One level of the tree: its open sessions, then — behind a small
+   *  "N closed" key (`key` remembers it) — the closed ones. Top level rows
+   *  are <li>s; nested ones sit in their parent's .oz-kids */
+  function group(list: Sess[], key: string, depth = 0, showClosed = false) {
+    const open = list.filter((s) => !s.archived);
+    const closed = list.filter((s) => s.archived);
+    const shown = showClosed || !!subsOpen[key];
+    const Item = depth ? 'div' : 'li';
+    return (
+      <>
+        {open.map((s) => (
+          <Item key={s.id}>{branch(s, depth)}</Item>
+        ))}
+        {closed.length > 0 && !showClosed && (
+          <Item>
+            <button
+              aria-expanded={shown}
+              onClick={() => toggleSubs(key, false)}
+              className={`oz-closed ${shown ? 'open' : ''}`}
+            >
+              {closed.length} closed
+            </button>
+          </Item>
+        )}
+        {shown && closed.map((s) => <Item key={s.id}>{branch(s, depth)}</Item>)}
+      </>
+    );
+  }
+
+  /** a session row, then (unfolded) its sub-tree. The card speaks first:
+   *  its status as a dot/word, its question ("asks: …") or headline as the
+   *  subtitle; without a card the row reads as it always did */
+  function branch(s: Sess, depth: number) {
+    const kids = kidsById.get(s.id) || [];
+    const liveKids = kids.filter((k) => !k.archived).length;
+    const open = kids.length > 0 && isOpen(s.id);
+    const kidLive = below.work.has(s.id);
+    const unread = isUnread(s);
+    // last assistant message still asks something and no reply followed →
+    // outlined circle; decays after 48h. lastHasQ is computed server-side on
+    // the FULL message text — the 80-char preview usually ends before it
+    const openQ =
+      s.lastRole === 'assistant' &&
+      !s.pending &&
+      !!s.lastHasQ &&
+      Date.now() - (s.lastAt || 0) < OPEN_QUESTION_TTL_MS;
+    const st = CARD_ST[s.archived ? 'archived' : s.card?.status || ''];
+    const working = !!s.pending || s.card?.status === 'working';
+    const needs = (s.card?.needs || '').trim();
+    const sub = needs ? (
+      <>
+        <span className="oz-asks">asks:</span> {needs}
+      </>
+    ) : (
+      s.card?.headline ||
+      (s.pending
+        ? 'awaiting answer…'
+        : isOnboardPrompt(s.preview || '') // the brain's setup brief, never for eyes
+          ? 'setup'
+          : s.preview)
+    );
+    const dot = depth ? 'text-[10px]' : '';
+    return (
+      <>
+        <SwipeRow
+          compact={depth > 0}
+          unread={unread}
+          locked={isMainSlug(slugify(s.title || ''))}
+          onOpen={() => router.push(`/session/${slugify(s.title || s.id)}?id=${s.id}`)}
+          onDelete={() => remove(s)}
+        >
+          {/* state law: working is green and breathes, unread is weight + a
+              text-colored dot, the open question rings ○; a card that is
+              blocked/failed takes the dot in its own color */}
+          <div className="oz-r1">
+            {working ? (
+              <span className={`oz-breathe ${dot} text-[var(--oz-success)]`} aria-label="working">
+                ●
+              </span>
+            ) : st?.dot ? (
+              <span className={dot} style={{ color: st.c }} aria-hidden="true">
+                ●
+              </span>
+            ) : openQ ? (
+              <span aria-label="open question">○</span>
+            ) : unread ? (
+              <span className={dot} aria-label="unread">
+                ●
+              </span>
+            ) : null}
+            <span className={`t ${depth ? 'opacity-85' : ''}`}>
+              {/* the agent at a glance: [AGI] [BUI] [FIX]… — MAIN's title is its own tag */}
+              {s.agent && !isMainSlug(slugify(s.title || '')) && (
+                <span className="mr-1 opacity-60" aria-hidden="true" title={s.agent}>
+                  [{agentTag(s.agent)}]
+                </span>
+              )}
+              {s.title || s.id}
+            </span>
+            {kids.length > 0 && (
+              // tap target for the sub-tree only — the row itself still
+              // opens the session; work anywhere below shows green while
+              // folded, so activity is visible even then
+              <span
+                role="button"
+                aria-expanded={open}
+                aria-label={
+                  liveKids
+                    ? `${liveKids} sub-session${liveKids === 1 ? '' : 's'}`
+                    : `${kids.length} closed sub-session${kids.length === 1 ? '' : 's'}`
+                }
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleSubs(s.id);
+                }}
+                className={`oz-subs ${open ? 'open' : kidLive ? 'live' : ''}`}
+              >
+                {liveKids ? `${liveKids} sub${liveKids === 1 ? '' : 's'}` : `${kids.length} closed`}
+                {kidLive && !open ? ' ●' : ''}
+              </span>
+            )}
+            {!working && st?.w && (
+              <span className="oz-st" style={{ color: st.c }}>
+                {st.w}
+              </span>
+            )}
+            <time>{fmtListTime(s.updated || s.lastAt)}</time>
+          </div>
+          {(sub || !depth) && <div className="oz-r2">{sub || '\u00a0'}</div>}
+        </SwipeRow>
+        {open && (
+          <div className="oz-kids">{group(kids, `closed:${s.id}`, depth + 1, !liveKids)}</div>
+        )}
+      </>
+    );
+  }
+
+  if (tf !== 'done') return <Door />;
+
+  return (
+    <>
+      {/* the last row scrolls clear of the roots (84 px + the safe area) */}
+      <main
+        className="relative mx-auto flex min-h-dvh max-w-md flex-col px-3"
+        style={{ paddingBottom: 'calc(var(--oz-roots-h) + 16px + env(safe-area-inset-bottom))' }}
+      >
+        {/* the wordmark alone, full caps, no sign before it — it is the way
+            into settings; the artifact runestone counts what you haven't seen */}
+        <header className="oz-head">
+          <Link href="/settings" className="oz-brand" aria-label="BIFROST — settings">
+            <h1 className="oz-brand">BIFROST</h1>
+          </Link>
+          <div className="flex items-center gap-1.5">
+            <Link
+              href="/artifacts"
+              aria-label={`artifacts — ${unseenArts} unseen`}
+              className={`oz-k sm ${unseenArts > 0 ? 'text-[var(--oz-text)]' : ''}`}
+            >
+              <LineIcon name="artifact" size={15} />
+              {unseenArts > 0 && (
+                <span data-testid="artifact-badge" className="oz-badge">
+                  {unseenArts}
+                </span>
+              )}
+            </Link>
+            <button
+              onClick={load}
+              aria-label="refresh sessions"
+              className={`oz-k sm ${loading ? 'ok' : ''}`}
+            >
+              {loading ? '…' : 'refresh'}
+            </button>
+          </div>
+        </header>
+
+        {/* the tree, once, as a quiet band — one thought walks it at a time
+            while something works; it falls still when nothing does */}
+        <figure
+          className={`oz-band oz-ygg -mx-3 mb-2.5 ${working ? 'live' : ''} ${branchWorking ? 'walk' : ''}`}
+          data-shared={branchWorking && rootsWorking ? '' : undefined}
+          aria-label={working ? `your box — ${working} working` : 'your box — nothing working'}
+        >
+          <YggTree viewBox={BAND_VIEWBOX} slice />
+          <figcaption className="oz-cap">
+            <i />
+            {working ? `${working} working` : 'all quiet'}
+          </figcaption>
+        </figure>
+
+        <div className="mb-2 flex items-stretch gap-1.5">
+          <button
+            onClick={() => setCreating(true)}
+            className="oz-k ok h-11 flex-1 justify-start px-3 text-[13px]"
+          >
+            <LineIcon name="plus" size={14} /> new session
+          </button>
+          {!gOpen && (
+            <button
+              aria-label="search all sessions"
+              onClick={() => setGOpen(true)}
+              className="oz-k h-11 w-11"
+            >
+              <LineIcon name="search" size={14} />
+            </button>
+          )}
+        </div>
+
+        {creating && (
+          <div className="oz-box mb-2 p-3">
+            <input
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && create()}
+              placeholder="session name…"
+              className="oz-field mb-2.5"
+            />
+            <div className="flex gap-1.5">
+              <button onClick={create} className="oz-k ok flex-1">
+                create & open
+              </button>
+              <button onClick={() => setCreating(false)} className="oz-k px-4">
+                cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* global search — expands from the search key into the query field */}
+        {gOpen && (
+          <div className="oz-box mb-2 flex items-center gap-2 px-3 py-2">
+            <LineIcon name="search" size={14} className="text-[var(--oz-dim)]" />
+            <input
+              autoFocus
+              value={gq}
+              onChange={(e) => setGq(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setGOpen(false);
+                  setGq('');
+                  e.currentTarget.blur();
+                }
+              }}
+              placeholder="search all sessions…"
+              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--oz-dim)]"
+              style={{ caretColor: 'var(--oz-active)' }}
+            />
+            {gBusy && <span className="text-[10px] text-[var(--oz-dim)]">···</span>}
+            <button
+              aria-label="close global search"
+              onClick={() => {
+                setGOpen(false);
+                setGq('');
+              }}
+              className="text-[var(--oz-dim)] hover:text-[var(--oz-text)]"
+            >
+              <LineIcon name="close" size={12} />
+            </button>
+          </div>
+        )}
+
+        {gOpen && gq.trim() ? (
+          /* results replace the list: grouped per session, newest match first */
+          gHits && gHits.length === 0 ? (
+            <div className="pt-6 text-center text-xs text-[var(--oz-dim)]">no hits</div>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {(gHits || []).map((h) => (
+                <li key={h.id}>
+                  <button
+                    onClick={() =>
+                      router.push(
+                        `/session/${slugify(h.title)}?id=${h.id}&q=${encodeURIComponent(gq.trim())}`
+                      )
+                    }
+                    className="oz-row"
+                  >
+                    <div className="oz-r1">
+                      <span className="t">{h.title}</span>
+                      <time>
+                        {fmtListTime(h.lastHit)} · {h.hits} hit{h.hits === 1 ? '' : 's'}
+                      </time>
+                    </div>
+                    {h.snippets.map((sn, i) => (
+                      <div key={i} className={`oz-r2 ${i === 0 ? '' : 'opacity-70'}`}>
+                        <span className="text-[10px]">({sn.role === 'assistant' ? 'agent' : sn.role}) </span>
+                        <Marked text={sn.text} q={gq} />
+                      </div>
+                    ))}
+                  </button>
+                </li>
+              ))}
+              {gBusy && !gHits && (
+                <li className="pt-6 text-center text-xs text-[var(--oz-dim)]">searching…</li>
+              )}
+            </ul>
+          )
+        ) : (
+          <ul className="flex flex-col gap-1">
+            {/* MAIN's own sub-tree first (MAIN itself is the roots), then
+                the other top-level sessions — each nests to any depth */}
+            {group(
+              sortTop(tops.filter((s) => !!s.parentId && byId.has(s.parentId))),
+              'closed:main'
+            )}
+            {group(sortTop(tops.filter((s) => !s.parentId || !byId.has(s.parentId))), 'closed:top')}
+          </ul>
+        )}
+      </main>
+
+      {/* the tree's roots, the ground of the page: MAIN — tap to open it,
+          hold to talk to it from here */}
+      <Roots
+        main={mainRow}
+        branchWorking={branchWorking}
+        onSettled={load}
+        onWorking={setRootsWorking}
+      />
+
+      {/* undo toast — the bar is the mercy window; tap undo to restore the row */}
+      {toast && (
+        <div
+          key={toast.key}
+          role="status"
+          className="oz-toast fixed inset-x-3 z-50 mx-auto max-w-md"
+          style={{ bottom: 'calc(var(--oz-roots-h) + 8px + env(safe-area-inset-bottom))' }}
+        >
+          {/* what you just removed — msg count makes a heavy delete visible
+              while the (longer) mercy window is still open */}
+          <div className="msg">
+            deleted “{toast.s.title || toast.s.id}”
+            {(toast.s.msgs || 0) > 0 && ` · ${toast.s.msgs} msgs`}
+            {toast.famCount > 0 &&
+              ` + ${toast.famCount} sub${toast.famCount === 1 ? '' : 's'}`}
+          </div>
+          <button onClick={undo} className="oz-k sm ok">
+            undo
+          </button>
+          <span className="oz-toast-bar" style={{ animationDuration: `${toast.win}ms` }} />
+        </div>
+      )}
+    </>
+  );
+}

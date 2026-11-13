@@ -1,0 +1,754 @@
+"""LiveKit voice agent bridging phone audio to a local opencode server."""
+
+import asyncio
+import json
+import os
+import re
+from typing import AsyncIterable
+
+import httpx
+import logging
+from dotenv import load_dotenv
+from livekit import plugins
+from livekit.agents import (
+    Agent,
+    AgentServer,
+    AgentSession,
+    JobContext,
+    cli,
+    llm,
+)
+from livekit.agents.llm import ChatContext, LLMStream
+from livekit.agents.voice.room_io import RoomOptions
+from livekit.plugins import openai, silero
+
+load_dotenv()
+
+logger = logging.getLogger("opencode-bridge")
+
+OPENCODE_URL = os.environ.get("OPENCODE_URL", "http://127.0.0.1:4096")
+VOICE_MODEL = os.environ.get("VOICE_MODEL", "opencode/ling-3.0-flash-fin-free")
+SPEACHES_URL = os.environ.get("SPEACHES_URL", "http://127.0.0.1:8000/v1")
+STT_MODEL = os.environ.get("STT_MODEL", "Systran/faster-whisper-small")
+TTS_MODEL = os.environ.get("TTS_MODEL", "speaches-ai/Kokoro-82M-v1.0-ONNX")
+TTS_VOICE = os.environ.get("TTS_VOICE", "af_heart")
+INSTRUCTIONS = (
+    "You relay the user's spoken words to a coding assistant and speak its answers. "
+    "Answers arrive as text from opencode; speak them verbatim unless asked to summarize. "
+    "Keep spoken replies concise: code is described, not read character by character."
+)
+
+# req 10-02 mode awareness: appended to hands-free commits so opencode's LLM
+# knows the reply will be read aloud. Protocol, not content — the phone
+# strips `[ctx: …]` from every rendered surface (pwa lib/oc-transcript.ts).
+CTX_TAG = (
+    "\n\n[ctx: mode=hands-free; the user is talking, the reply will be read "
+    "aloud — keep it short, conversational, spoken-style]"
+)
+
+def _norm_words(text: str) -> str:
+    # punctuation → space so "over." / "over!" match
+    return re.sub(r"[^a-z0-9\u4e00-\u9fff]+", " ", text.lower()).strip()
+
+
+# ---- voice commands (owner 11-13): while a reply plays, a whole utterance that is only a command
+# drives the phone's deck exactly like its buttons — it is never part of a message.
+VOICE_COMMANDS = {
+    _norm_words(w): cmd
+    for cmd, words in {
+        "stop": ["stop", "stop it", "stop talking", "stop stop", "quiet", "be quiet", "enough", "shut up",
+                 "silence", "arrête", "arrête toi", "tais toi"],
+        "faster": ["faster", "go faster", "speed up", "quicker", "plus vite", "accélère"],
+        "slower": ["slower", "go slower", "slow down", "moins vite", "ralentis"],
+        "pause": ["pause", "hold on", "wait"],
+        "resume": ["continue", "resume", "go on", "play", "reprends", "continue s'il te plaît"],
+    }.items()
+    for w in words
+}
+
+
+# politeness around a command ("okay stop", "faster please") is still just the command
+FILLER = {"please", "now", "ok", "okay", "thanks", "merci", "so", "and", "um", "uh"}
+# words that end too many ordinary sentences to count as a command at the END of longer speech
+AMBIGUOUS = {_norm_words(w) for w in ("quiet", "enough", "silence", "wait", "hold on", "play", "continue", "go on")}
+
+
+def command_of(text: str, speaking: bool = False) -> str | None:
+    """The deck command an utterance gives, or None. The whole utterance (polite words aside) is a
+    command; while a reply plays it may also END with an unambiguous one — on a real phone the mic
+    hears the reply's own echo before the keyword (owner 11-13 r3: "stop" on :8447 did nothing)."""
+    words = _norm_words(text).split()
+    while words and words[-1] in FILLER:
+        words.pop()
+    while words and words[0] in FILLER:
+        words.pop(0)
+    whole = " ".join(words)
+    if whole in VOICE_COMMANDS:
+        return VOICE_COMMANDS[whole]
+    if speaking:
+        for k in (3, 2, 1):
+            tail = " ".join(words[-k:])
+            if len(words) > k and tail in VOICE_COMMANDS and tail not in AMBIGUOUS:
+                return VOICE_COMMANDS[tail]
+    return None
+
+
+def strip_commands(text: str) -> str:
+    """Drops every sentence of a buffered turn that is only a voice command (the STT may have
+    merged an earlier command into the turn buffer)."""
+    parts = re.split(r"(?<=[.!?])\s+", text)
+    return " ".join(p for p in parts if command_of(p) is None).strip()
+
+
+# whisper-small hallucinates on silence/room tone — these strings as an ENTIRE
+# turn are noise, not speech (seen live: "you" and "呃" committed after a
+# quiet stretch). Matched lowercase, punctuation stripped.
+_SILENCE_HALLUCINATIONS = {
+    "you",
+    "bye",
+    "uh",
+    "um",
+    "hmm",
+    "mm",
+    "mhm",
+    "mm-hmm",
+    "uh-huh",
+    "uh huh",
+    "thank you",
+    "thanks for watching",
+    "呃",
+    "嗯",
+    "啊",
+}
+
+
+def _is_noise_turn(text: str) -> bool:
+    # punctuation → space (so "uh-huh" == "uh huh"), keep letters + CJK
+    norm = re.sub(r"[^a-z0-9\u4e00-\u9fff]+", " ", text.lower()).strip()
+    return len(norm) < 2 or norm in _SILENCE_HALLUCINATIONS
+
+
+class OpenCodeLLM(llm.LLM):
+    """Bridges LiveKit chat to opencode's REST server (one session per room).
+
+    Room name = slug of the session name; the opencode session with a matching
+    title is reused, or created on first use.
+    """
+
+    def __init__(self, base_url: str, room_key: str = "voice", mode_state: dict | None = None) -> None:
+        super().__init__()
+        self._base = base_url.rstrip("/")
+        self._room_key = room_key.lower()
+        self._session_id: str | None = None
+        # current interaction mode, published by the phone as participant
+        # metadata ('text' | 'free') — req 10-02 mode awareness: hands-free
+        # commits carry a spoken-style context tag for opencode's LLM
+        self.mode_state = mode_state or {"mode": "text"}
+        # last full (cumulative) voice prompt posted for this room — hands-free
+        # VAD re-commits turns as A, A+B, A+B+C… while the previous reply is
+        # still playing; only the delta may reach opencode (see _run)
+        self.last_prompt = ""
+
+    @staticmethod
+    def _slugify(title: str) -> str:
+        import re
+        return (
+            re.sub(r"[^a-z0-9_-]", "", (title or "").lower().strip().replace(" ", "-"))[:60]
+            or "session"
+        )
+
+    async def _ensure_session(self) -> str:
+        if self._session_id is None:
+            async with httpx.AsyncClient() as c:
+                r = await c.get(f"{self._base}/session")
+                r.raise_for_status()
+                for s in r.json():
+                    if self._slugify(s.get("title") or "") == self._room_key or s.get("id") == self._room_key:
+                        self._session_id = s["id"]
+                        break
+                else:
+                    r = await c.post(
+                        f"{self._base}/session",
+                        json={"title": self._room_key},
+                    )
+                    r.raise_for_status()
+                    self._session_id = r.json()["id"]
+                # seed the session model ONCE (only when unset): ask() no
+                # longer sends a model per turn (that clobbered the session's
+                # model ref, think level included), so the seed makes voice
+                # sessions start on VOICE_MODEL while a settings-page switch
+                # stays authoritative afterwards
+                s = (await c.get(f"{self._base}/session/{self._session_id}")).json()
+                if not s.get("model"):
+                    provider_id, model_id = VOICE_MODEL.split("/", 1)
+                    r = await c.post(
+                        f"{self._base}/api/session/{self._session_id}/model",
+                        json={"model": {"id": model_id, "providerID": provider_id}},
+                    )
+                    r.raise_for_status()
+            logger.info(f"opencode session for room {self._room_key!r}: {self._session_id}")
+        return self._session_id
+
+    async def speaks_modality(self) -> bool:
+        """A root (yggdrasil root-coord: it serves /tree) takes `modality: "voice"` and adds its
+        own hidden voice note to the turn — no `[ctx: …]` text in what the user sees."""
+        if getattr(self, "_modality", None) is None:
+            try:
+                async with httpx.AsyncClient(timeout=5) as c:
+                    self._modality = (await c.get(f"{self._base}/tree")).status_code == 200
+            except Exception:  # noqa: BLE001 — unknown brain: keep the text tag
+                self._modality = False
+        return self._modality
+
+    @staticmethod
+    def _body(text: str, voice: bool) -> dict:
+        body: dict = {"parts": [{"type": "text", "text": text}]}
+        if voice:
+            body["modality"] = "voice"
+        return body
+
+    async def ask(self, text: str, voice: bool = False) -> str:
+        sid = await self._ensure_session()
+        async with httpx.AsyncClient(timeout=300) as c:
+            # no `model` in the body on purpose: sending one would clobber the
+            # session's model every turn (opencode replaces the whole model
+            # ref, think level included). Omitted → the runner uses the
+            # session's current model: VOICE_MODEL seeds it once at session
+            # creation (below), and a settings-page switch replaces it.
+            r = await c.post(
+                f"{self._base}/session/{sid}/message",
+                json=self._body(text, voice),
+            )
+            r.raise_for_status()
+            data = r.json()
+        parts = data.get("parts") or []
+        return "\n".join(
+            p.get("text", "") for p in parts if p.get("type") == "text"
+        ).strip() or "(opencode returned no text)"
+
+    def chat(
+        self,
+        *,
+        chat_ctx: ChatContext,
+        tools=None,
+        conn_options=None,
+        **kwargs,
+    ) -> LLMStream:
+        return OpenCodeStream(
+            llm=self, chat_ctx=chat_ctx, tools=tools, conn_options=conn_options
+        )
+
+    async def ask_stream(self, text: str, voice: bool = False) -> AsyncIterable[str]:
+        """Streaming first-sound (reviewer fix 3): consume yggdrasil's SSE reply
+        and yield each COMPLETED sentence as it arrives, so the TTS speaks the
+        first sentence seconds before the run completes. Raises on upstream
+        failure only if nothing was yielded yet."""
+        sid = await self._ensure_session()
+        buf = ""
+        event = ""
+        async with httpx.AsyncClient(timeout=300) as c:
+            async with c.stream(
+                "POST",
+                f"{self._base}/session/{sid}/message",
+                json=self._body(text, voice),
+                headers={"Accept": "text/event-stream"},
+            ) as r:
+                r.raise_for_status()
+                async for line in r.aiter_lines():
+                    if line.startswith("event:"):
+                        event = line[6:].strip()
+                        continue
+                    if not line.startswith("data:"):
+                        continue
+                    payload = line[5:].strip()
+                    if not payload:
+                        continue
+                    try:
+                        d = json.loads(payload)
+                    except ValueError:
+                        continue
+                    if event == "error":
+                        if not buf:
+                            raise RuntimeError(str(d)[:200])
+                        break
+                    if event == "message.completed":
+                        break
+                    if isinstance(d, dict) and "text" in d and "info" not in d:
+                        buf += d["text"]
+                        while True:
+                            m = re.search(r"^(.*?[.!?])(\s|$)", buf, re.S)
+                            if not m:
+                                break
+                            sent = m.group(1).strip()
+                            buf = buf[m.end():]
+                            if sent:
+                                yield sent
+        if buf.strip():
+            yield buf.strip()
+
+
+class OpenCodeStream(LLMStream):
+    def __init__(
+        self,
+        *,
+        llm: OpenCodeLLM,
+        chat_ctx: ChatContext,
+        tools=None,
+        conn_options=None,
+    ) -> None:
+        super().__init__(llm=llm, chat_ctx=chat_ctx, tools=tools, conn_options=conn_options)
+        self._oc = llm
+
+    async def _run(self) -> None:
+        messages = self._chat_ctx.messages()
+        logger.debug(
+            "opencode chat_ctx: %s",
+            [(m.role, (m.text_content or "")[:60]) for m in messages],
+        )
+        # only act on the newest turn: a PTT push with no recognized speech
+        # must not re-send an earlier message to opencode
+        last = messages[-1] if messages else None
+        prompt = (last.text_content or "").strip() if last is not None and last.role == "user" else ""
+        if not prompt:
+            logger.info("opencode bridge: empty or absent user turn, skipping")
+            return
+        # the session can re-commit the SAME speech as a growing cumulative
+        # turn (seen live 2026-09-25: one hands-free utterance flooded the
+        # transcript with A, A+呃, A+呃+B…) — identical means already sent,
+        # a strict extension means only the new tail is actually new
+        prev = self._oc.last_prompt
+        if prev and prompt == prev:
+            logger.info("opencode bridge: duplicate cumulative turn, skipping")
+            return
+        send = prompt[len(prev) :].strip() if prev and prompt.startswith(prev) else prompt
+        # update even when dropping: a discarded noise prefix must never
+        # resurface later as the "new tail" of a cumulative re-commit
+        self._oc.last_prompt = prompt
+        # VAD fired on room tone and whisper turned the noise into a fill word
+        # ("you", "呃") — a silent send with no real speech must not reach
+        # opencode (defense in depth behind the VAD thresholds)
+        if _is_noise_turn(send):
+            logger.info("opencode bridge: dropping silent/noise turn: %r", send)
+            return
+        # keyword turn-taking: the commit phrase is protocol, not content —
+        # never ship "over"/"over and out" to opencode
+        send = re.sub(r"\s*over(?:\s+and\s+out)?[\s.!?]*$", "", send, flags=re.I).strip()
+        send = strip_commands(send)
+        if not send:
+            logger.info("opencode bridge: turn was only the keyword, skipping")
+            return
+        # mode context rides the payload (req 10-02): appended AFTER the
+        # cumulative-dedup bookkeeping so last_prompt stays the raw speech
+        mode = str(self._oc.mode_state.get("mode") or "text")
+        # hands-free: a root takes the turn as `modality: voice` (its own hidden note — nothing
+        # extra in the user's words); any other brain still gets the text tag
+        voice = mode == "free" and await self._oc.speaks_modality()
+        if mode == "free" and not voice:
+            send = send + CTX_TAG
+        logger.info("turn → opencode (mode=%s)", mode)
+        # Streaming first-sound (AGENT_STREAM_TTS=1 default): speak sentences as
+        # they arrive; AGENT_STREAM_TTS=0 restores wait-for-completion verbatim.
+        if os.environ.get("AGENT_STREAM_TTS", "1") != "0":
+            spoke = False
+            try:
+                async for chunk in self._oc.ask_stream(send, voice):
+                    spoke = True
+                    self._event_ch.send_nowait(
+                        llm.ChatChunk(id="opencode", delta=llm.ChoiceDelta(content=chunk + " "))
+                    )
+                if spoke:
+                    return
+                # stream ended with no text at all → same shape as an empty reply
+                self._event_ch.send_nowait(
+                    llm.ChatChunk(id="opencode", delta=llm.ChoiceDelta(content="(opencode returned no text)"))
+                )
+                return
+            except Exception as e:  # noqa: BLE001
+                if spoke:
+                    self._event_ch.send_nowait(
+                        llm.ChatChunk(id="opencode", delta=llm.ChoiceDelta(content=f"(connection lost: {e})"))
+                    )
+                    return
+                logger.warning("opencode stream failed before first sentence, falling back: %s", e)
+        try:
+            reply = await self._oc.ask(send, voice)
+        except Exception as e:  # noqa: BLE001 - surface errors as speech
+            reply = f"Sorry, talking to opencode failed: {e}"
+        self._event_ch.send_nowait(
+            llm.ChatChunk(id="opencode", delta=llm.ChoiceDelta(content=reply))
+        )
+
+
+server = AgentServer()
+
+
+@server.rtc_session(agent_name=os.environ.get("AGENT_NAME", "bifrost"))
+async def entrypoint(ctx: JobContext) -> None:
+    _api_key = "not-needed"
+    # interaction mode published by the phone as participant metadata
+    # ('text' | 'free') — req 10-02 mode awareness
+    mode_state = {"mode": "text"}
+    session = AgentSession(
+        # turn-taking is keyword-driven in hands-free (see below): turns never
+        # auto-commit on silence — speech buffers until "over"/"over and out".
+        # Manual is (re-)set after every PTT commit/abort too.
+        vad=silero.VAD.load(min_silence_duration=0.9),
+        # batch whisper needs 1-2s per segment: with the 0.5s default the
+        # turn commits BEFORE the STT final lands (livekit logs "transcript
+        # arrives after turn has been committed") and the speech is dropped
+        # manual from the very first frame (root-coord 11-13): the default turn detector ran until
+        # the keyword setup below switched to manual, so speech in the first seconds after the
+        # join was auto-committed AND then committed again by its "over" — a duplicate turn
+        turn_handling={"endpointing": {"min_delay": 1.5}, "turn_detection": "manual"},
+        stt=openai.STT(base_url=SPEACHES_URL, api_key=_api_key, model=STT_MODEL),
+        llm=OpenCodeLLM(OPENCODE_URL, room_key=ctx.room.name, mode_state=mode_state),
+        # AGENT_TTS=off: the phone speaks the replies (audio_enabled=False below), so the agent
+        # synthesizes nothing — a TTS that only 500s made the session close as "unrecoverable"
+        # after three replies and dropped hands-free turns until a re-dispatch (root-coord 11-13)
+        tts=None if os.environ.get("AGENT_TTS", "on") == "off" else openai.TTS(base_url=SPEACHES_URL, api_key=_api_key, model=TTS_MODEL, voice=TTS_VOICE),
+    )
+    await session.start(
+        room=ctx.room,
+        # close_on_disconnect=False: the phone releases the room the moment a
+        # PTT commit resolves (mic contract — capture device must go dark on
+        # release), but the commit's flush → STT final → opencode handoff is
+        # still in flight then. The default close killed the session mid-air
+        # and dropped EVERY text-mode PTT turn (live 2026-09-29 room 'bug':
+        # "closing agent session due to participant disconnect" + "skipping
+        # user input, speech scheduling is paused" on each hold). We end the
+        # job ourselves on human-left with a commit grace window instead.
+        # ONE options object: livekit-agents 1.8 ignores room_input_options whenever room_options
+        # is given — close_on_disconnect=False was silently dropped, every phone disconnect closed
+        # the session, and a job closed while it waited for a sibling stayed in the room deaf;
+        # every later dispatch then yielded to it (owner 11-13: "nothing goes through")
+        # audio_output=False: the agent never speaks over the room — the phone speaks replies
+        # itself through its own TTS and drives the mic on/off cycle (one voice path)
+        room_options=RoomOptions(text_input=True, audio_output=False, close_on_disconnect=False),
+        agent=Agent(instructions=INSTRUCTIONS),
+    )
+
+    # explicit dispatch can double-fire (token minted twice while an old job
+    # is still draining) — two agents would both STT the mic and both reply.
+    # The phone's identity is deterministic (pwa token route: user_<room>);
+    # anything else already in the room is another agent → yield to it.
+    # NOTE: only meaningful after start() — the room connects there, so
+    # remote_participants is empty any earlier (verified live: the check at
+    # entrypoint start never saw the sibling).
+    human_identity = f"user_{ctx.room.name}"
+
+    def _end_job_with_session(_ev) -> None:
+        # start() returns immediately, so the job would otherwise outlive its
+        # session: a zombie agent keeps answering room RPCs with "not-running"
+        # and traps the phone in a reconnect loop. End the job with the
+        # session — the next join dispatches a fresh one. Registered BEFORE the
+        # sibling wait below: a session that closes during that wait ends the job too.
+        ctx.shutdown("session closed")
+
+    session.on("close", _end_job_with_session)
+    commit_in_flight = False
+
+    # A page refresh re-dispatches a job while the previous one is still
+    # draining (its session survives the disconnect through the commit
+    # grace). Yielding instantly strands the room agentless: the phone
+    # already holds its token and never re-mints, so nobody dispatches a
+    # replacement — live 2026-10-02 room 'review': the duplicate kill plus
+    # the old job's exit left ~30s of dead air and every hold/tap failed
+    # with "no voice agent in the room". Wait out the drain; only a
+    # sibling that will not leave is a real duplicate.
+    for i in range(80):  # ~20s at 250ms — drain tail is commit grace + 4s
+        if not any(p.identity != human_identity for p in ctx.room.remote_participants.values()):
+            break
+        if i == 0:
+            logger.info(
+                "previous agent draining in room '%s' — waiting for it to leave", ctx.room.name
+            )
+        await asyncio.sleep(0.25)
+    else:
+        logger.warning("another agent still in room '%s' after 20s — shutting down", ctx.room.name)
+        ctx.shutdown("duplicate agent")
+        return
+
+    # ---- mode awareness (req 10-02) ----
+    # The phone publishes its interaction mode ('text' | 'free') as its
+    # participant metadata on every mode switch and on room join. The mode
+    # decides whether committed turns carry the spoken-style context tag —
+    # it must be readable at commit time, not guessed from the turn path
+    # (PTT holds and tap-to-send commits work in BOTH modes).
+    def _phone_mode() -> str:
+        p = ctx.room.remote_participants.get(human_identity)
+        if p is None:
+            return "text"
+        try:
+            return str((json.loads(p.metadata or "{}") or {}).get("mode") or "text")
+        except Exception:  # noqa: BLE001 — malformed metadata must never kill a turn
+            return "text"
+
+    def _on_metadata_changed(participant) -> None:
+        if participant.identity != human_identity:
+            return
+        prev = mode_state["mode"]
+        mode_state["mode"] = _phone_mode()
+        if mode_state["mode"] != prev:
+            logger.info("mode → %s (participant metadata)", mode_state["mode"])
+
+    ctx.room.on("participant_metadata_changed", _on_metadata_changed)
+    mode_state["mode"] = _phone_mode()
+
+    # Commit grace: a PTT release disconnects the human BEFORE the commit's
+    # opencode handoff is done (flush silence 1.5s + slow STT final + POST).
+    # With close_on_disconnect=False the session survives; this task ends the
+    # job once the last commit has settled — and stays alive through
+    # back-to-back holds that race the tail.
+    async def _human_left_grace() -> None:
+        def _human_present() -> bool:
+            return human_identity in {p.identity for p in ctx.room.remote_participants.values()}
+
+        while True:
+            # a fast re-hold rejoins the same room while this tail is
+            # running — the job stays theirs until they leave for good
+            if _human_present():
+                await asyncio.sleep(0.5)
+                continue
+            waited = 0.0
+            while commit_in_flight and waited < 15.0:  # bounded: never pin the job
+                await asyncio.sleep(0.2)
+                waited += 0.2
+            await asyncio.sleep(4.0)  # tail: let the opencode POST land
+            if _human_present() or commit_in_flight:  # new hold raced in
+                continue
+            break
+        ctx.shutdown("session closed")
+
+    def _on_participant_disconnected(participant) -> None:
+        if participant.identity != human_identity:
+            return
+        asyncio.ensure_future(_human_left_grace())
+
+    ctx.room.on("participant_disconnected", _on_participant_disconnected)
+
+    async def _ptt_begin_rpc(data) -> str:
+        # a PTT hold must be ONE message: VAD endpointing would auto-commit
+        # on every mid-sentence pause, flushing partial transcripts as
+        # separate opencode messages — switch to manual turns for the hold
+        try:
+            session.update_options(turn_detection="manual")
+        except Exception as e:  # noqa: BLE001
+            logger.warning("ptt_begin: %s", e)
+            return "not-running"
+        return "ok"
+
+    # The phone mutes its mic BEFORE asking for the commit (PTT release calls
+    # mic(false) first; hands-free mutes on the free_state RPC) — no frames
+    # flow after that, and the batch STT only ever POSTs on VAD END_OF_SPEECH,
+    # which needs trailing silence that will now never arrive. commit_user_turn
+    # then times out EMPTY and the whole hold is dropped (live 2026-09-29 room
+    # 'bug', repro'd in room 'voicerepro1': transcript only surfaced during
+    # teardown). Detaching the input flips commit_user_turn into its flush
+    # path: it injects stt_flush_duration of silence itself, the VAD closes
+    # the last segment, the batch POST fires, and the final lands within
+    # transcript_timeout. Re-attach immediately — the phone stays muted until
+    # its reply finishes, so no frames are lost in between. (Detach only gates
+    # frame forwarding in room_io/_input.py; the STT stream keeps its buffer.)
+    async def _commit_with_flush() -> None:
+        # commit_in_flight gates the human-left grace task (it must not end
+        # the job while the handoff is still running)
+        nonlocal commit_in_flight
+        commit_in_flight = True
+        session.input.set_audio_enabled(False)
+        try:
+            # transcript_timeout must cover the Mac Studio batch STT POST after
+            # the flush: the final landed ~4-5s after commit start (live
+            # 2026-09-29 room 'bug') — at 3.0 the commit gave up EMPTY, the
+            # late final hit the closed session and was skipped
+            await session.commit_user_turn(transcript_timeout=8.0, stt_flush_duration=1.5)
+        finally:
+            session.input.set_audio_enabled(True)
+            commit_in_flight = False
+
+    async def _commit_turn_rpc(data) -> str:
+        # the phone can call this while the session is already closing (stale
+        # room, participant disconnect race) — raising here surfaces as a raw
+        # RPC error/timeout on the phone; a "not-running" answer lets it
+        # self-heal by reconnecting
+        try:
+            await _commit_with_flush()
+        except Exception as e:  # noqa: BLE001
+            logger.warning("commit_turn on dead session: %s", e)
+            return "not-running"
+        finally:
+            # hold is over: keyword turn-taking resumes (never vad — silence
+            # must not auto-commit in hands-free)
+            try:
+                session.update_options(turn_detection="manual")
+            except Exception:  # noqa: BLE001
+                pass
+        return "ok"
+
+    async def _ptt_abort_rpc(data) -> str:
+        # Discord-style slide-to-cancel: drop the buffered turn, keep keyword
+        # turn-taking, commit nothing
+        try:
+            session.clear_user_turn()
+        except Exception as e:  # noqa: BLE001
+            logger.warning("ptt_abort: %s", e)
+        finally:
+            try:
+                session.update_options(turn_detection="manual")
+            except Exception:  # noqa: BLE001
+                pass
+        return "ok"
+
+    async def _deck_state_rpc(data) -> str:
+        # the phone says when its deck speaks a reply (keywords-only window) and when it stops
+        try:
+            mode_state["speaking"] = bool(json.loads(data.payload).get("speaking"))
+        except Exception:  # noqa: BLE001
+            return "bad-payload"
+        return "ok"
+
+    ctx.room.local_participant.register_rpc_method("deck_state", _deck_state_rpc)
+    ctx.room.local_participant.register_rpc_method("ptt_begin", _ptt_begin_rpc)
+    ctx.room.local_participant.register_rpc_method("ptt_abort", _ptt_abort_rpc)
+    ctx.room.local_participant.register_rpc_method("commit_turn", _commit_turn_rpc)
+
+    # ---- keyword turn-taking (radio protocol) ----
+    # Speech buffers as ONE turn no matter how long the user thinks; "over"
+    # commits it and answers; "over and out" commits and returns the phone to
+    # the keyboard (radio "out": no spoken reply expected — the answer still
+    # lands as text in the session). VAD still segments audio for the STT,
+    # but turn_detection stays manual so silence never commits anything.
+    session.update_options(turn_detection="manual")
+    turn_text = ""  # STT finals accumulated for the turn being buffered
+    keyword_busy = False  # a commit cycle is running — ignore further "over"
+
+    def _notify_free_state(state: str) -> None:
+        async def _send() -> None:
+            try:
+                await ctx.room.local_participant.perform_rpc(
+                    destination_identity=human_identity,
+                    method="free_state",
+                    payload='{"state":"%s"}' % state,
+                    response_timeout=4_000,
+                )
+            except Exception:  # noqa: BLE001 - phone may be gone; cosmetic
+                pass
+
+        asyncio.ensure_future(_send())
+
+    def _norm(text: str) -> str:
+        # punctuation → space so "over." / "over!" match
+        return re.sub(r"[^a-z0-9\u4e00-\u9fff]+", " ", text.lower()).strip()
+
+    def _rpc_phone(method: str, payload: str) -> None:
+        async def _send() -> None:
+            try:
+                await ctx.room.local_participant.perform_rpc(
+                    destination_identity=human_identity, method=method, payload=payload, response_timeout=4_000
+                )
+            except Exception:  # noqa: BLE001 - phone may be gone
+                pass
+
+        asyncio.ensure_future(_send())
+
+    @session.on("user_input_transcribed")
+    def _on_transcript(ev) -> None:
+        nonlocal turn_text, keyword_busy
+        if not ev.is_final:
+            return
+        cmd = command_of(ev.transcript, bool(mode_state.get("speaking")))
+        if cmd and mode_state["mode"] == "free":
+            # the command was the whole utterance: if nothing else is buffered, the session's
+            # user turn holds only it — clear it so the next "over" never carries it
+            if not turn_text.strip():
+                try:
+                    session.clear_user_turn()
+                except Exception as e:  # noqa: BLE001
+                    logger.warning("voice command clear: %s", e)
+            logger.info("voice command (%s) from %r", cmd, ev.transcript[:80])
+            _rpc_phone("voice_command", '{"cmd":"%s"}' % cmd)
+            return
+        # while the phone speaks a reply only keywords count (owner 11-13 r2): speech that is
+        # neither a command nor ends in "over" is room noise or the reply's own echo — dropped
+        if mode_state.get("speaking") and not _norm(ev.transcript).endswith("over"):
+            if not turn_text.strip():
+                try:
+                    session.clear_user_turn()
+                except Exception as e:  # noqa: BLE001
+                    logger.warning("speaking discard: %s", e)
+            logger.info("heard over a playing reply, not a keyword — dropped: %r", ev.transcript[:80])
+            return
+        turn_text = f"{turn_text} {ev.transcript}".strip()
+        if keyword_busy:
+            return
+        norm = _norm(turn_text)
+        out = norm.endswith("over and out")
+        if not out and not norm.endswith("over"):
+            return
+        phrase = "over and out" if out else "over"
+        keyword_busy = True
+        turn_text = ""
+        # keyword turn-taking only exists in hands-free — authoritative mode
+        # even if the metadata update has not landed yet. "over and out" is
+        # the radio exit: its reply lands as text (never spoken) → no tag.
+        if not out:
+            mode_state["mode"] = "free"
+        logger.info("keyword commit (%s)", phrase)
+        if not out:
+            # phone mutes the mic NOW and shows the working animation; the
+            # phone itself unmutes when it has finished SPEAKING the reply
+            # (playback end → mic back — agent audio output is off)
+            _notify_free_state("processing")
+
+        async def _commit() -> None:
+            nonlocal keyword_busy
+            if out:
+                # mic off on the phone FIRST (radio "out": nothing more is
+                # coming) — fire & forget, the reply is not spoken anyway
+                try:
+                    await ctx.room.local_participant.perform_rpc(
+                        destination_identity=human_identity,
+                        method="end_free",
+                        payload="{}",
+                        response_timeout=4_000,
+                    )
+                except Exception as e:  # noqa: BLE001
+                    logger.warning("end_free rpc: %s", e)
+            try:
+                await _commit_with_flush()
+            except Exception as e:  # noqa: BLE001
+                logger.warning("keyword commit: %s", e)
+            finally:
+                keyword_busy = False
+
+        asyncio.ensure_future(_commit())
+
+    # explicit dispatch lands the agent in the room BEFORE the phone connects,
+    # and speech into an unlinked room is lost audio — wait for the human
+    # (capped, so a never-arriving phone can't pin the job) before greeting
+    deadline = asyncio.get_running_loop().time() + 30
+    while human_identity not in {p.identity for p in ctx.room.remote_participants.values()}:
+        if asyncio.get_running_loop().time() > deadline:
+            break
+        await asyncio.sleep(0.2)
+    # the human may have joined after the dup check — their join carries the
+    # current mode metadata; read it once now that they are in the room
+    mode_state["mode"] = _phone_mode()
+
+    # (audio output is disabled — the greeting would synthesize into the
+    # void; the phone's UI is the greeting now)
+    logger.info("room '%s' ready — keyword turn-taking armed", ctx.room.name)
+
+
+if __name__ == "__main__":
+    # AGENT_HTTP_PORT: the worker's health/metrics http server (default 8081) —
+    # a second lab worker on one box needs its own port.
+    port = os.environ.get("AGENT_HTTP_PORT")
+    if port:
+        server._port = int(port)
+    # the cgroup cpu monitor on this box flaps the load metric (impossible
+    # delta warnings) -> brief "unavailable" windows eat dispatches; a lab
+    # pin near 1.0 keeps the worker dispatchable
+    lt = os.environ.get("AGENT_LOAD_THRESHOLD")
+    if lt:
+        server._load_threshold = float(lt)
+    cli.run_app(server)

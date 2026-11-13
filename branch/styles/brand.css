@@ -1,0 +1,622 @@
+/* ============================================
+   bifrost, wearing the brand — cohesive-2 "signal path"
+   square hairlines, line icons, lowercase "## " heads, one signal rail.
+   Palettes stay in tokens.css (generated); this file is the finish.
+   State law: green alive · amber heard · red stop · sky info.
+   ============================================ */
+
+/* world ornament — same topology, different finish per world */
+:root { --oz-rule: solid; --oz-tick: 0; }
+[data-theme='terminus'] { --oz-tick: 1; }
+[data-theme='drift'] { --oz-rule: dotted; }
+[data-theme='divergence'] { --oz-rule: dashed; }
+[data-theme='transcendence'] { --oz-rule: double; }
+[data-theme='control'] { --oz-tick: 1; }
+
+/* chrome scale (UX-SPACING 10-27) — every header and footer is built from one
+   gap, one line, one key (the .oz-k sizes): the header is gap·line·gap = 52 on
+   every page, the session footer rule·gap·key·line = 81 in every voice state.
+   The line never grows — words come and go inside it, nothing under them moves.
+   The safe areas ride on top of the scale (0 until viewport-fit=cover). */
+:root { --oz-gap: 12px; --oz-line: 28px; --oz-key: 40px; --oz-roots-h: 84px; }
+
+@layer components {
+  /* ── motion vocabulary — slowed to breathing ── */
+  @keyframes oz-blink { 50% { opacity: 0; } }
+  @keyframes oz-breathe { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+  @keyframes oz-ring { 0% { transform: scale(.92); opacity: .8; } 100% { transform: scale(1.28); opacity: 0; } }
+  @keyframes oz-glide { 0% { transform: translateX(-100%); } 100% { transform: translateX(260%); } }
+  @keyframes oz-eq { 0%, 100% { transform: scaleY(.4); } 50% { transform: scaleY(1); } }
+  @keyframes oz-shrink { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+  @keyframes oz-fadein { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+  .oz-breathe { animation: oz-breathe 1.6s ease-in-out infinite; }
+  .oz-fade { animation: oz-fadein .32s ease-out both; }
+
+  /* ── type ── */
+  .oz { font-size: 14px; line-height: 1.6; }
+  .oz ::selection { background: var(--oz-active); color: var(--oz-bg); }
+  .oz :focus-visible { outline: 1px solid var(--oz-text); outline-offset: 2px; }
+  .oz-hd { font-size: 11px; font-weight: 400; letter-spacing: .12em; text-transform: lowercase; color: var(--oz-dim); }
+  .oz-hd::before { content: '## '; content: '## ' / ''; opacity: .5; }
+  .oz-ic { display: block; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
+  .oz-sq { display: block; flex: none; background: currentColor; }
+
+  /* ── controls: one square key, many tints ── */
+  .oz-k {
+    position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    height: var(--oz-key); min-width: var(--oz-key); padding: 0 10px;
+    border: 1px solid var(--oz-border); background: var(--oz-surface); color: var(--oz-dim);
+    font-size: 12px; text-decoration: none; -webkit-touch-callout: none;
+    touch-action: manipulation; user-select: none; -webkit-user-select: none;
+    transition: color .24s ease-in-out, border-color .24s ease-in-out, box-shadow .24s ease-in-out;
+  }
+  .oz-k:hover { color: var(--oz-text); }
+  .oz-k:disabled { opacity: .5; }
+  .oz-k.sm { height: var(--oz-line); min-width: var(--oz-line); padding: 0 8px; font-size: 11px; }
+  .oz-k.ok { border-color: color-mix(in srgb, var(--oz-success) 60%, transparent); color: var(--oz-success); }
+  .oz-k.red { border-color: color-mix(in srgb, var(--oz-danger) 60%, transparent); color: var(--oz-danger); }
+  .oz-k.on { border-color: var(--oz-info); color: var(--oz-info); }
+  .oz-k.mic { touch-action: none; }
+  /* amber means you are heard — the held mic glows and rings */
+  .oz-k.heard { color: var(--oz-active); border-color: var(--oz-active); box-shadow: 0 0 18px color-mix(in srgb, var(--oz-active) 35%, transparent); }
+  .oz-k.heard::before { content: ''; position: absolute; inset: -6px; border: 1px solid color-mix(in srgb, var(--oz-active) 45%, transparent); animation: oz-ring 1.6s ease-out infinite; pointer-events: none; }
+  .oz-k.heard.drop { color: var(--oz-danger); border-color: var(--oz-danger); box-shadow: none; }
+  .oz-k.heard.drop::before { display: none; }
+  .oz-badge {
+    position: absolute; top: -7px; right: -7px; min-width: 17px; height: 17px; padding: 0 4px;
+    background: var(--oz-text); color: var(--oz-bg); font-size: 10px; line-height: 17px; text-align: center; font-weight: 700;
+  }
+  .oz-field {
+    width: 100%; height: 38px; padding: 0 12px; border: 1px solid var(--oz-border); background: var(--oz-bg);
+    color: var(--oz-success); outline: none; font-size: 13px; caret-color: var(--oz-active);
+  }
+  .oz-field::placeholder { color: var(--oz-dim); }
+  .oz-box { border: 1px solid var(--oz-border); background: var(--oz-surface); }
+
+  /* terminus ornament: corner ticks on framed things */
+  .oz-tick, .oz-blk { position: relative; }
+  .oz-tick::before, .oz-tick::after, .oz-blk::before, .oz-blk::after {
+    content: ''; position: absolute; width: 7px; height: 7px; opacity: var(--oz-tick); pointer-events: none;
+  }
+  .oz-tick::before, .oz-blk::before { top: -4px; left: -4px; border-top: 1px solid var(--oz-text); border-left: 1px solid var(--oz-text); }
+  .oz-tick::after, .oz-blk::after { bottom: -4px; right: -4px; border-bottom: 1px solid var(--oz-text); border-right: 1px solid var(--oz-text); }
+
+  /* ── headers ── */
+  .oz-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; flex: none;
+    height: calc(var(--oz-gap) * 2 + var(--oz-line) + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top);
+  }
+  .oz-brand { text-decoration: none; font-weight: 700; letter-spacing: .08em; font-size: 14px; }
+
+  /* ── the tree — one drawing, many crops, governed motion ──
+     law: still unless something is true. wake = one pulse up the trunk,
+     live = one thought at a time walks the band, rest = nothing moves. */
+  .oz-ygg svg { display: block; width: 100%; height: auto; }
+  .oz-ygg .base { fill: var(--oz-text); opacity: .88; }
+  .oz-ygg .sig {
+    fill: none; stroke: var(--oz-dim); stroke-width: 3; stroke-linecap: round;
+    stroke-dasharray: .14 2; stroke-dashoffset: .14; opacity: 0;
+  }
+  @keyframes oz-pass {
+    0% { stroke-dashoffset: .14; opacity: 0; animation-timing-function: cubic-bezier(.45, 0, .25, 1); }
+    12% { opacity: 1; } 82% { opacity: 1; }
+    100% { stroke-dashoffset: -1; opacity: 0; }
+  }
+  @keyframes oz-turn {
+    0% { stroke-dashoffset: .14; opacity: 0; animation-timing-function: cubic-bezier(.45, 0, .25, 1); }
+    3% { opacity: .9; } 21% { opacity: .9; }
+    25% { stroke-dashoffset: -1; opacity: 0; }
+    100% { stroke-dashoffset: -1; opacity: 0; }
+  }
+  .oz-ygg.wake .sig.t { stroke: var(--oz-text); opacity: 1; animation: oz-pass 2.4s both; }
+
+  /* list band — the tree, quiet; one thought travels it only while something works */
+  .oz-band { position: relative; border-top: 1px var(--oz-rule) var(--oz-border); border-bottom: 1px var(--oz-rule) var(--oz-border); background: var(--oz-surface); }
+  .oz-band svg { height: 88px; }
+  .oz-band .base { opacity: .2; }
+  .oz-band .sig { stroke: var(--oz-success); stroke-width: 5; }
+  /* the crown walks for the branches; MAIN's run walks the roots (§ roots).
+     Both at once: one 8 s clock — the crown takes 0 s and 4 s, the roots
+     2 s and 6 s, so one thought is on the screen at a time */
+  .oz-band.walk .sig.lo { animation: oz-turn 8s infinite; animation-delay: calc(var(--j) * 2s); }
+  .oz-band.walk[data-shared] .sig.lo:is([data-j='1'], [data-j='3']) { animation: none; }
+  .oz-cap {
+    position: absolute; right: 10px; bottom: 8px; font-size: 11px; line-height: 1.6; padding: 2px 6px;
+    background: var(--oz-surface); border: 1px solid var(--oz-border); color: var(--oz-text);
+  }
+  .oz-cap i { display: inline-block; width: 7px; height: 7px; margin-right: 6px; background: var(--oz-dim); }
+  .oz-band.live .oz-cap i { background: var(--oz-success); }
+
+  /* tree-first — the whole tree, alone, on a device's first open; afterwards
+     the front page carries it as crown (band) and roots (§ roots) */
+  .oz-first { position: fixed; inset: 0; background: var(--oz-bg); }
+  .oz-first > button { display: block; width: 100%; height: 100%; cursor: pointer; }
+  .oz-first svg { width: 100%; height: 100%; }
+  .oz-first .base { opacity: .32; }
+  .oz-first .sig { stroke-width: 5; }
+  .oz-invite {
+    position: absolute; left: 0; right: 0; bottom: calc(28px + env(safe-area-inset-bottom));
+    display: grid; justify-items: center; gap: 2px; padding: 0 16px; pointer-events: none;
+    font-size: 12px; text-align: center; color: var(--oz-text);
+  }
+  .oz-invite span { padding: 1px 6px; background: var(--oz-bg); }
+  .oz-invite .sub { font-size: 10.5px; color: var(--oz-dim); }
+  .oz-invite .err { color: var(--oz-danger); }
+
+  /* § door (v2) — server-rendered, so a first run paints the tree before any
+     script; the layout's boot script marks returning devices before paint.
+     Held: amber, the signals climb (veraldar.org's .tree.heard, same drawing) */
+  html[data-door='done'] .oz-first:not(.open) { display: none; }
+  .oz-first .oz-tree {
+    touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  }
+  .oz-first .oz-tree.heard svg { filter: drop-shadow(0 0 14px color-mix(in srgb, var(--oz-active) 40%, transparent)); }
+  .oz-first .oz-tree.heard .base { fill: var(--oz-active); opacity: .9; }
+  .oz-first .oz-tree.heard .sig {
+    stroke: var(--oz-bg); opacity: 1; animation: oz-pass 2.2s infinite; animation-delay: calc(var(--i) * .28s);
+  }
+  .oz-invite .held { display: none; color: var(--oz-active); }
+  .oz-tree.heard ~ .oz-invite .hold { display: none; }
+  .oz-tree.heard ~ .oz-invite .held { display: inline; }
+  .oz-first.open .oz-tree { height: 44%; }
+  .oz-first.open .base { opacity: .2; }
+  .oz-doorp {
+    position: absolute; left: 0; right: 0; bottom: 0; max-height: 60%; overflow-y: auto;
+    margin: 0 auto; width: min(100%, 520px); padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--oz-border); background: var(--oz-bg); font-size: 13px;
+    animation: oz-rise .22s ease-out both;
+  }
+  @keyframes oz-rise { from { transform: translateY(16px); opacity: 0; } }
+  .oz-doorp .prog { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; min-height: 16px; }
+  .oz-doorp .prog i { width: 14px; height: 3px; background: var(--oz-border); }
+  .oz-doorp .prog i.on { background: var(--oz-active); }
+  .oz-doorp .say { min-height: 3.4em; margin-bottom: 14px; line-height: 1.7; color: var(--oz-text); }
+  .oz-doorp .say::before { content: '▸ '; color: var(--oz-active); }
+  .oz-doorp .opts { display: grid; gap: 8px; }
+  .oz-doorp .opt {
+    border: 1px solid var(--oz-border); background: var(--oz-surface); color: var(--oz-text);
+    padding: 12px 14px; text-align: left; line-height: 1.5; min-height: 44px;
+  }
+  .oz-doorp .opt:active, .oz-doorp .opt[aria-pressed='true'] { border-color: var(--oz-active); color: var(--oz-active); }
+  .oz-doorp .opt small { display: block; font-size: 10.5px; color: var(--oz-dim); }
+  .oz-doorp .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin-bottom: 14px; font-size: 12px; }
+  .oz-doorp .kv dt { color: var(--oz-dim); }
+  .oz-doorp .kv b { font-weight: 400; color: var(--oz-success); }
+  .oz-doorp .next {
+    width: 100%; min-height: 44px; border: 1px solid var(--oz-text); background: var(--oz-text); color: var(--oz-bg);
+    letter-spacing: .14em; font-size: 12px;
+  }
+  .oz-doorp .next[disabled] { opacity: .45; }
+  .oz-doorp .pair { display: grid; justify-items: center; gap: 4px; margin: 0 0 14px; }
+  .oz-doorp .pair img { width: 168px; height: 168px; image-rendering: pixelated; background: #fff; border: 1px solid var(--oz-border); }
+  .oz-doorp .pair figcaption, .oz-doorp .sub { font-size: 10.5px; color: var(--oz-dim); }
+  .oz-doorp .err { color: var(--oz-danger); display: grid; gap: 6px; }
+  /* v3: a name is glossed in one dim line where it first appears; the rest
+     waits behind "why these names?" (the $ tree + its spoken version + film) */
+  .oz-doorp .gloss { margin: -6px 0 14px; font-size: 11px; line-height: 1.6; color: var(--oz-dim); }
+  .oz-doorp .kv dd small { display: block; font-size: 10.5px; color: var(--oz-dim); }
+  .oz-doorp .names { margin-top: 14px; font-size: 11.5px; }
+  .oz-doorp .names .why {
+    min-height: 32px; color: var(--oz-dim); text-decoration: underline; text-underline-offset: 3px;
+  }
+  .oz-doorp .names[data-open] .why { color: var(--oz-text); }
+  /* the $ tree, as rows that wrap on a phone: name | what it does */
+  .oz-doorp .names .tree {
+    display: grid; gap: 3px; margin: 6px 0; padding: 10px 12px; font-size: 11px; line-height: 1.55;
+    color: var(--oz-text); border: 1px solid var(--oz-border); background: var(--oz-surface);
+  }
+  .oz-doorp .names .tree div { display: grid; grid-template-columns: 10ch 1fr; column-gap: 8px; }
+  .oz-doorp .names .tree .cmd { grid-template-columns: 1fr; color: var(--oz-dim); }
+  .oz-doorp .names .tree span { white-space: pre; }
+  .oz-doorp .names .tree i { font-style: normal; color: var(--oz-dim); }
+  .oz-doorp .names .row { display: flex; gap: 8px; margin-top: 8px; }
+  .oz-doorp .names .row button {
+    flex: 1; min-height: 40px; border: 1px solid var(--oz-border); color: var(--oz-text); background: var(--oz-surface);
+  }
+  .oz-doorp .names .row button:active { border-color: var(--oz-active); color: var(--oz-active); }
+  /* no dead air (FILM-V1): the voice says what it is doing. The panel's top
+     edge is the rail — loading = a signal glides it (the app's working) and a
+     pulse climbs the trunk; speaking = it breathes green. Past 0.7 s of
+     loading the words say so; a cached line (~60 ms) never shows any of it:
+     the glide enters from off-rail and the trunk pulse waits 120 ms */
+  .oz-doorp .vrail { position: sticky; top: -18px; z-index: 1; margin: -18px -18px 16px; }
+  .oz-doorp .vrail[data-s='working']::after { animation-duration: 1.5s; }
+  .oz-doorp .vnote { margin-left: auto; font-size: 10.5px; color: var(--oz-dim); opacity: 0; }
+  .oz-doorp .vnote[data-voice='loading'] { animation: oz-fadein .3s ease-out .7s both; }
+  .oz-doorp .vnote[data-voice='quiet'] { opacity: 1; }
+  .oz-first[data-voice='loading'] .oz-tree .sig.t {
+    stroke: var(--oz-success); opacity: 1; animation: oz-pass 1.6s .12s infinite both;
+  }
+  /* the tree film — an artifact page in a sandboxed frame, over the door;
+     until its own first paint, the frame waits under the same rail */
+  .oz-film { position: fixed; inset: 0; z-index: 70; background: var(--oz-bg); }
+  .oz-film iframe { display: block; width: 100%; height: 100%; border: 0; opacity: 0; }
+  .oz-film[data-up] iframe { opacity: 1; }
+  .oz-film .wait {
+    position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 12px;
+    font-size: 11px; color: var(--oz-dim); animation: oz-fadein .3s ease-out .15s both;
+  }
+  .oz-film .wait .oz-rail { width: 140px; }
+  .oz-film[data-up] .wait { display: none; }
+  .oz-film .skip {
+    position: absolute; top: calc(10px + env(safe-area-inset-top)); right: 10px; min-height: 36px; padding: 0 12px;
+    font-size: 11px; letter-spacing: .12em; color: var(--oz-dim); border: 1px solid var(--oz-border); background: var(--oz-bg);
+  }
+  /* first turn — the door's last step, inside MAIN, right above the mic: the
+     walk-through (UX-CALM) — type · hold · hands-free, one way at a time */
+  .oz-ft {
+    position: relative;
+    margin: 0 0 8px; padding: 12px 14px; border: 1px solid var(--oz-border); border-left: 2px solid var(--oz-active);
+    background: var(--oz-surface); font-size: 12.5px; line-height: 1.6; display: grid; gap: 6px;
+  }
+  .oz-ft > .x {
+    position: absolute; top: 2px; right: 2px; width: 36px; height: 36px;
+    display: grid; place-items: center; color: var(--oz-dim); background: transparent;
+  }
+  /* the three ways: done ✓ green, the one on now amber, the rest dim */
+  .oz-ft .ways3 { display: flex; gap: 14px; font-size: 11px; letter-spacing: .08em; padding-right: 30px; }
+  .oz-ft .ways3 li { color: var(--oz-dim); }
+  .oz-ft .ways3 li[data-s='now'] { color: var(--oz-active); }
+  .oz-ft .ways3 li[data-s='done'] { color: var(--oz-success); }
+  .oz-ft .ways3 li[data-s='done']::before { content: '✓ '; }
+  .oz-ft .ways3 li[data-s='skip'] { text-decoration: line-through; }
+  .oz-ft .sk {
+    justify-self: start; min-height: 32px; padding: 0 2px; color: var(--oz-dim); background: transparent;
+    font-size: 11px; letter-spacing: .12em; text-decoration: underline; text-underline-offset: 3px;
+  }
+  .oz-ft .ftv { margin: -12px -14px 0; }
+  .oz-ft .t { color: var(--oz-text); font-size: 13.5px; }
+  .oz-ft[data-state='in'] { border-left-color: var(--oz-success); }
+  .oz-ft[data-state='in'] .t { color: var(--oz-success); }
+  .oz-ft .hint { color: var(--oz-active); }
+  .oz-ft .sub { color: var(--oz-dim); }
+  .oz-ft blockquote { color: var(--oz-active); }
+  .oz-ft .go {
+    justify-self: start; min-height: 40px; padding: 0 16px; border: 1px solid var(--oz-text);
+    background: var(--oz-text); color: var(--oz-bg); letter-spacing: .12em; font-size: 11.5px;
+  }
+  /* the keyboard way: outlined, the height of the voice buttons */
+  .oz-ft .ty {
+    justify-self: start; min-height: 40px; padding: 4px 14px; border: 1px solid var(--oz-text);
+    color: var(--oz-text); background: transparent; letter-spacing: .08em; font-size: 11.5px;
+    display: inline-flex; flex-direction: column; align-items: flex-start; justify-content: center; text-align: left;
+  }
+  .oz-ft .ty small { color: var(--oz-dim); font-size: 10.5px; letter-spacing: .04em; }
+  /* § roots (MAINFRAME-C) — the tree's roots, full width at the bottom of
+     the front page: they are MAIN. The crown (band) is the work, the list
+     the trunk, this the ground. One target, 84 px + the safe area.
+     press = amber this frame (a class flip, the door's law) · hold = talk
+     (level bars) · drop = red · working = one thought walks them · the
+     answer climbs the taproot once · speaking = they breathe green */
+  .oz-roots {
+    position: fixed; z-index: 40; left: 0; right: 0; bottom: 0; margin: 0 auto; max-width: 28rem;
+    height: calc(var(--oz-roots-h) + env(safe-area-inset-bottom));
+    border-top: 1px var(--oz-rule) var(--oz-border); background: var(--oz-surface);
+    transition: border-color .24s ease-in-out;
+  }
+  .oz-roots-hit {
+    position: absolute; inset: 0; display: block; color: inherit; text-decoration: none; cursor: pointer;
+    touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .oz-roots-hit:focus-visible { outline: 1px solid var(--oz-text); outline-offset: -3px; }
+  .oz-roots-hit > svg {
+    position: absolute; left: 0; right: 0; top: 0; width: 100%; height: 84px;
+    -webkit-mask-image: linear-gradient(#000 0, #000 34%, transparent 78%);
+    mask-image: linear-gradient(#000 0, #000 34%, transparent 78%);
+  }
+  .oz-roots .base { opacity: .2; transition: opacity .12s; }
+  .oz-roots .base path { fill: none; stroke: var(--oz-text); stroke-linecap: butt; stroke-linejoin: miter; transition: stroke .12s; }
+  .oz-roots .sig { stroke-width: 6; }
+  .oz-roots .lbl { position: absolute; left: 12px; right: 12px; top: 44px; display: flex; align-items: center; gap: 8px; pointer-events: none; }
+  .oz-roots .nm {
+    flex: none; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px;
+    background: var(--oz-surface); border: 1px solid var(--oz-border); color: var(--oz-text);
+    font-weight: 700; letter-spacing: .08em; font-size: 12.5px; transition: color .12s, border-color .12s;
+  }
+  .oz-roots[data-vt] .nm { color: var(--oz-info); border-color: color-mix(in srgb, var(--oz-info) 50%, transparent); }
+  .oz-roots .ln {
+    min-width: 0; flex: 1 1 auto; max-width: max-content; height: 26px; line-height: 24px; padding: 0 8px;
+    background: var(--oz-surface); font-size: 12px; color: var(--oz-dim);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .oz-roots .ln .held, .oz-roots .ln .opening { display: none; }
+  .oz-roots .end {
+    margin-left: auto; flex: none; display: grid; place-items: center; width: 40px; height: 40px; margin-block: -7px;
+    border: 1px solid var(--oz-border); background: var(--oz-surface); color: var(--oz-dim);
+  }
+  .oz-roots-stop {
+    position: absolute; z-index: 1; right: 12px; top: 37px; width: 40px; height: 40px; display: grid; place-items: center;
+    border: 1px solid color-mix(in srgb, var(--oz-danger) 60%, transparent); background: var(--oz-surface); color: var(--oz-danger);
+  }
+  .oz-roots .bars { display: none; align-items: center; gap: 3px; height: 22px; padding: 0 6px; background: var(--oz-surface); flex: none; }
+  .oz-roots .bars i { display: block; width: 3px; height: 20px; background: var(--oz-active); transform: scaleY(.18); transition: transform .08s linear; }
+  .oz-roots[data-phase='opening'] .bars { display: flex; opacity: .45; }
+  .oz-roots:is([data-phase='talk'], [data-phase='listening']) .bars { display: flex; }
+
+  /* heard — the press (class, this frame), then a hold / hands-free (data-s) */
+  .oz-roots:is(.heard, [data-s='heard']) { border-top-color: var(--oz-active); }
+  .oz-roots:is(.heard, [data-s='heard']) .oz-roots-hit > svg { filter: drop-shadow(0 0 12px color-mix(in srgb, var(--oz-active) 40%, transparent)); }
+  .oz-roots:is(.heard, [data-s='heard']) .base { opacity: .9; }
+  .oz-roots:is(.heard, [data-s='heard']) .base path { stroke: var(--oz-active); }
+  .oz-roots:is(.heard, [data-s='heard']) .sig.h {
+    stroke: var(--oz-surface); opacity: 1; animation: oz-pass 2.2s infinite; animation-delay: calc(var(--i) * .28s);
+  }
+  .oz-roots:is(.heard, [data-s='heard']) .nm {
+    color: var(--oz-active); border-color: var(--oz-active); box-shadow: 0 0 14px color-mix(in srgb, var(--oz-active) 35%, transparent);
+  }
+  .oz-roots:is(.heard, [data-s='heard']) .ln, .oz-roots:is(.heard, [data-s='heard']) .end { color: var(--oz-active); border-color: var(--oz-active); }
+  /* the word at the press is "heard", nothing more — until the hold arms */
+  .oz-roots.heard[data-phase='off']:not([data-armed]) .ln .say { display: none; }
+  .oz-roots.heard[data-phase='off']:not([data-armed]) .ln .held { display: inline; }
+  /* drop — slid off (or Esc) while talking: let go and nothing is sent */
+  .oz-roots:is(.drop, [data-s='drop']) { border-top-color: var(--oz-danger); }
+  .oz-roots:is(.drop, [data-s='drop']) .oz-roots-hit > svg { filter: none; }
+  .oz-roots:is(.drop, [data-s='drop']) .base path { stroke: var(--oz-danger); }
+  .oz-roots:is(.drop, [data-s='drop']) .sig.h { animation: none; opacity: 0; }
+  .oz-roots:is(.drop, [data-s='drop']) :is(.nm, .ln) { color: var(--oz-danger); border-color: var(--oz-danger); box-shadow: none; }
+  .oz-roots:is(.drop, [data-s='drop']) .bars i { background: var(--oz-danger); }
+  /* tapped — MAIN opens (the door's words) */
+  .oz-roots.open .ln .say { display: none; }
+  .oz-roots.open .ln .opening { display: inline; }
+  .oz-roots.open .ln { color: var(--oz-text); }
+  /* working — one thought walks the roots */
+  .oz-roots[data-s='working'] .nm .d { color: var(--oz-success); }
+  .oz-roots[data-s='working'] .sig.w { stroke: var(--oz-success); animation: oz-turn 8s infinite; animation-delay: calc(var(--j) * 2s); }
+  .oz-roots[data-s='working'][data-shared] .sig.w:is([data-j='0'], [data-j='2']) { animation: none; }
+  /* replied (unread) — the answer climbs the taproot once; weight + dot */
+  .oz-roots[data-s='replied'] .sig.t { stroke: var(--oz-text); opacity: 1; animation: oz-pass 2.4s .2s both; }
+  .oz-roots[data-s='replied'] .ln { color: color-mix(in srgb, var(--oz-text) 85%, transparent); }
+  /* speaking — the reply, out loud, here: the roots breathe green */
+  .oz-roots[data-s='speaking'] { border-top-color: color-mix(in srgb, var(--oz-success) 60%, transparent); }
+  .oz-roots[data-s='speaking'] .base { opacity: .45; animation: oz-breathe 2.6s ease-in-out infinite; }
+  .oz-roots[data-s='speaking'] .base path { stroke: var(--oz-success); }
+  .oz-roots[data-s='speaking'] :is(.ln, .nm .d) { color: var(--oz-success); }
+  /* the first time, after the door: the roots grow up from the bottom edge */
+  @keyframes oz-roots-grow { from { transform: translateY(100%); } }
+  @keyframes oz-roots-base { from { opacity: 0; } }
+  .oz-roots.grow { animation: oz-roots-grow 1.1s cubic-bezier(.6, 0, .2, 1) both; }
+  .oz-roots.grow .base { animation: oz-roots-base 1.1s cubic-bezier(.6, 0, .2, 1) both; }
+
+  /* ── session rows ── */
+  .oz-sw { position: relative; overflow: hidden; }
+  .oz-zone {
+    position: absolute; inset: 0 0 0 auto; width: 96px; display: grid; place-items: center;
+    background: color-mix(in srgb, var(--oz-danger) 85%, transparent); color: var(--oz-bg);
+    font-size: 11px; letter-spacing: .08em;
+  }
+  .oz-row {
+    position: relative; display: block; width: 100%; text-align: left; padding: 8px 12px;
+    border: 1px solid var(--oz-border); background: var(--oz-surface);
+    transition: background .16s ease-in-out;
+  }
+  .oz-row:hover { background: var(--oz-surface-hover); }
+  .oz-row.compact { padding: 5px 10px; }
+  .oz-r1 { display: flex; align-items: center; gap: 7px; font-size: 13px; min-width: 0; }
+  .oz-r1 .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .oz-r1 time { margin-left: auto; flex: none; font-size: 10px; color: var(--oz-dim); }
+  .oz-r2 { font-size: 12px; color: var(--oz-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .oz-row.unread .t { font-weight: 700; }
+  .oz-row.unread .oz-r2 { color: color-mix(in srgb, var(--oz-text) 80%, transparent); }
+  .oz-row.compact .oz-r1 { font-size: 12px; }
+  .oz-row.compact .oz-r2 { font-size: 10px; }
+  .oz-subs { flex: none; font-size: 10px; line-height: 16px; padding: 0 7px; border: 1px solid var(--oz-border); color: var(--oz-dim); }
+  .oz-subs.live { color: var(--oz-success); border-color: color-mix(in srgb, var(--oz-success) 50%, transparent); }
+  .oz-subs.open { color: var(--oz-text); border-color: color-mix(in srgb, var(--oz-text) 30%, transparent); }
+  .oz-kids { margin: 4px 0 0 14px; padding-left: 10px; border-left: 1px var(--oz-rule) var(--oz-border); display: flex; flex-direction: column; gap: 4px; }
+  /* root-coord cards: the status word sits before the time, the question leads the subtitle */
+  .oz-r1 .oz-st { flex: none; margin-left: auto; font-size: 10px; letter-spacing: .02em; }
+  .oz-r1 .oz-st + time { margin-left: 0; }
+  .oz-asks { color: var(--oz-active); }
+  .oz-closed { font-size: 10px; line-height: 16px; padding: 0 7px; border: 1px dashed var(--oz-border); color: var(--oz-dim); }
+  .oz-closed.open { color: var(--oz-text); }
+  /* a managed session's card, under the session header: one line each, tap opens the whole */
+  .oz-card { display: block; width: 100%; min-width: 0; text-align: left; padding: 6px 0 2px; font-size: 11px; line-height: 1.5; color: var(--oz-dim); }
+  .oz-card > span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .oz-card b { font-weight: 400; }
+  .oz-card i { font-style: normal; }
+  .oz-card[aria-expanded='true'] > span { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .oz-card[aria-expanded='true'] .s { max-height: 30vh; overflow-y: auto; color: var(--oz-text); }
+
+  /* undo toast — timed escape, the bar is the mercy window */
+  .oz-toast {
+    position: relative; display: flex; align-items: center; gap: 12px; padding: 10px 12px; overflow: hidden;
+    border: 1px solid var(--oz-border); background: var(--oz-surface); font-size: 12px;
+  }
+  .oz-toast .msg { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--oz-dim); }
+  .oz-toast-bar {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 2px; transform-origin: left;
+    background: color-mix(in srgb, var(--oz-success) 70%, transparent); animation: oz-shrink 3s linear forwards;
+  }
+
+  /* ── chat ── */
+  .oz-who { display: flex; gap: 8px; align-items: baseline; margin-bottom: 2px; font-size: 13px; }
+  .oz-who time { font-size: 10px; color: var(--oz-dim); }
+  .oz-hit { margin: 0 -8px; padding: 4px 8px; border: 1px solid var(--oz-info); background: color-mix(in srgb, var(--oz-info) 10%, transparent); }
+  .oz-mark { background: color-mix(in srgb, var(--oz-info) 22%, transparent); color: var(--oz-info); padding: 0 2px; }
+  /* the full log: internal turns and tool calls read muted, beside the conversation */
+  .oz-internal { opacity: .6; font-size: 12px; }
+  .oz-log { margin-top: 2px; font-size: 11px; line-height: 1.5; color: var(--oz-dim); overflow-wrap: anywhere; }
+  /* a route tag (→ <session>) the coordinator named: the way into that session */
+  .oz-route { color: var(--oz-info); text-decoration: underline; text-underline-offset: 2px; text-decoration-thickness: 1px; }
+  .oz-chip {
+    display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 12px; width: fit-content;
+    border: 1px solid var(--oz-border); color: var(--oz-dim); font-size: 12px;
+  }
+  .oz-chip:hover { color: var(--oz-text); }
+  .oz-work { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--oz-success); }
+  .oz [data-streamdown='inline-code'] {
+    font-size: 12.5px; padding: 0 4px; border: 1px solid var(--oz-border); background: var(--oz-surface) !important;
+    color: var(--oz-text) !important; border-radius: 0;
+  }
+
+  /* ── rail — the tree's signal, flattened to one trace; carries every voice state ── */
+  .oz-rail {
+    position: relative; height: 2px; overflow: hidden; flex: none;
+    background: linear-gradient(var(--oz-border), var(--oz-border)) center / 100% 1px no-repeat;
+    transition: background .3s ease-in-out, box-shadow .3s ease-in-out;
+  }
+  .oz-rail::after {
+    content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 38%;
+    background: linear-gradient(90deg, transparent, var(--oz-success), transparent);
+    opacity: 0; transition: opacity .3s ease-in-out;
+  }
+  .oz-rail[data-s='heard'] {
+    background: color-mix(in srgb, var(--oz-active) 70%, transparent);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--oz-active) 50%, transparent);
+    animation: oz-breathe 1.8s ease-in-out infinite;
+  }
+  .oz-rail[data-s='working']::after { opacity: 1; animation: oz-glide 2.4s ease-in-out infinite; }
+  .oz-rail[data-s='speaking'] {
+    background: color-mix(in srgb, var(--oz-success) 65%, transparent);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--oz-success) 30%, transparent);
+    animation: oz-breathe 2.6s ease-in-out infinite;
+  }
+  .oz-rail[data-s='drop'] { background: color-mix(in srgb, var(--oz-danger) 70%, transparent); }
+
+  /* the exact-words line: glyph + sentence, never color alone. The footer's
+     line — one fixed row under the dock, empty or not; 10.5 px so the longest
+     words (hands-free, 47 chars) fit 336 px, the S22's column */
+  .oz-phase {
+    display: flex; gap: 6px; align-items: center; flex: none; white-space: nowrap;
+    height: calc(var(--oz-line) + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom);
+    font-size: 10.5px; color: var(--oz-dim); transition: color .28s ease-in-out;
+  }
+  .oz-phase > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .oz-phase[data-s='heard'] { color: var(--oz-active); }
+  .oz-phase[data-s='working'], .oz-phase[data-s='speaking'] { color: var(--oz-success); }
+  .oz-phase[data-s='drop'] { color: var(--oz-danger); }
+  .oz-phase .g { flex: none; width: 1.1em; text-align: center; }
+
+  /* ── dock ── */
+  .oz-dock { display: flex; align-items: flex-end; gap: 8px; padding: var(--oz-gap) 0 0; border-top: 1px var(--oz-rule) var(--oz-border); }
+  .oz-ta {
+    flex: 1; min-width: 0; min-height: var(--oz-key); resize: none; padding: 9px 12px;
+    border: 1px solid var(--oz-border); background: var(--oz-surface); outline: none;
+    font-size: 14px; line-height: 1.4; caret-color: var(--oz-active);
+  }
+  .oz-ta::placeholder { color: var(--oz-dim); }
+  .oz-pill {
+    flex: 1; min-width: 0; height: var(--oz-key); display: flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 0 12px; border: 1px solid color-mix(in srgb, var(--oz-active) 60%, transparent);
+    background: var(--oz-surface); color: var(--oz-active); font-size: 11px;
+  }
+  .oz-pill.wait { border-color: var(--oz-border); color: var(--oz-dim); }
+  .oz-pill.drop { border-color: var(--oz-danger); color: var(--oz-danger); }
+  .oz-pill.strip { cursor: pointer; }
+  .oz-pill.strip.wait { cursor: default; }
+  .oz-bars { display: flex; align-items: center; gap: 3px; height: 24px; }
+  .oz-bars i { width: 4px; background: currentColor; transition: height .14s ease-out; }
+  .oz-htime { align-self: center; font-size: 11px; color: var(--oz-dim); font-variant-numeric: tabular-nums; }
+
+  /* ── tts deck ── */
+  .oz-deck { position: relative; margin-bottom: 10px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--oz-success) 50%, transparent); background: var(--oz-surface); }
+  .oz-deck .x { position: absolute; right: 8px; top: 8px; }
+  .oz-dk1 { display: flex; align-items: center; gap: 10px; padding-right: 40px; }
+  .oz-dk1 .l1 { font-size: 11px; color: var(--oz-success); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .oz-dk1 .l2 { font-size: 10px; color: var(--oz-dim); }
+  .oz-deck.paused .l1 { color: var(--oz-dim); }
+  .oz-eq { display: flex; align-items: flex-end; gap: 2px; height: 14px; flex: none; }
+  .oz-eq i { width: 3px; background: var(--oz-success); animation: oz-eq .9s ease-in-out infinite; transform-origin: bottom; }
+  .oz-eq i:nth-child(1) { height: 6px; }
+  .oz-eq i:nth-child(2) { height: 12px; animation-delay: .15s; }
+  .oz-eq i:nth-child(3) { height: 8px; animation-delay: .3s; }
+  .oz-eq i:nth-child(4) { height: 13px; animation-delay: .45s; }
+  .oz-eq-paused i { animation-play-state: paused; opacity: .4; }
+  .oz-seek { position: relative; height: 18px; display: flex; align-items: center; margin-top: 8px; touch-action: none; }
+  .oz-seek-track { position: relative; flex: 1; height: 2px; background: color-mix(in srgb, var(--oz-success) 20%, transparent); }
+  .oz-seek-fill { position: absolute; inset: 0 auto 0 0; background: var(--oz-success); }
+  .oz-seek-stripes {
+    position: absolute; top: -1px; bottom: -1px; right: 0;
+    background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--oz-success) 30%, transparent) 0 3px, transparent 3px 7px);
+  }
+  .oz-seek-thumb {
+    position: absolute; top: 50%; width: 2px; height: 14px; background: var(--oz-success); pointer-events: none;
+    transform: translate(-50%, -50%); box-shadow: 0 0 0 3px color-mix(in srgb, var(--oz-success) 18%, transparent);
+  }
+  .oz-dk3 { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .oz-rate { display: flex; border: 1px solid color-mix(in srgb, var(--oz-success) 50%, transparent); }
+  .oz-rate button { padding: 5px 10px; font-size: 11px; color: var(--oz-dim); }
+  .oz-rate button[aria-pressed='true'] { color: var(--oz-success); background: color-mix(in srgb, var(--oz-success) 14%, transparent); }
+  .oz-synth { display: grid; justify-items: center; gap: 10px; padding: 22px 0 14px; }
+  .oz-tdots { display: flex; gap: 10px; }
+  .oz-tdots i { width: 9px; height: 9px; background: var(--oz-success); animation: oz-breathe 1.2s ease-in-out infinite; }
+  .oz-tdots i:nth-child(2) { animation-delay: .2s; }
+  .oz-tdots i:nth-child(3) { animation-delay: .4s; }
+
+  /* ── settings blocks ── */
+  .oz-blk { border: 1px solid var(--oz-border); background: var(--oz-surface); margin-bottom: 10px; }
+  .oz-blk > * { padding: 12px 14px; }
+  .oz-blk > h2, .oz-blk > h3 {
+    font-size: 11px; font-weight: 400; letter-spacing: .12em; text-transform: lowercase; color: var(--oz-dim);
+    border-bottom: 1px var(--oz-rule) var(--oz-border);
+  }
+  /* decorative "## " — alt text '' keeps it out of the heading's accessible name */
+  .oz-blk > h2::before, .oz-blk > h3::before { content: '## '; content: '## ' / ''; opacity: .5; }
+  .oz-blk .note { font-size: 10.5px; line-height: 1.6; color: var(--oz-dim); padding-top: 0; }
+  .oz-blk.danger { border-color: color-mix(in srgb, var(--oz-danger) 40%, transparent); }
+  .oz-kv { display: grid; gap: 6px; font-size: 12px; }
+  .oz-kv li { display: grid; grid-template-columns: 6.5em 1fr auto; gap: 8px; align-items: baseline; }
+  .oz-kv li > span:first-child { color: var(--oz-dim); }
+  .oz-worlds { display: grid; gap: 8px; }
+  .oz-world {
+    display: grid; grid-template-columns: 96px 1fr; gap: 12px; align-items: center; width: 100%; padding: 8px;
+    text-align: left; border: 1px solid var(--oz-border); background: var(--oz-bg); color: var(--oz-text);
+  }
+  .oz-world[aria-pressed='true'] { border-color: var(--oz-info); }
+  .oz-world .oz-ygg { border: 1px solid var(--oz-border); background: var(--oz-surface); }
+  .oz-world .oz-ygg .base { opacity: .8; }
+  .oz-world .oz-ygg .sig { stroke-width: 9; }
+  .oz-world .oz-ygg.wake .sig.t { stroke: var(--oz-info); }
+  .oz-world b { display: block; font-weight: 400; font-size: 13px; }
+  .oz-world small { display: block; font-size: 10px; line-height: 1.5; color: var(--oz-dim); }
+  .oz-world .sw6 { display: flex; gap: 3px; margin-top: 6px; }
+  .oz-world .sw6 i { width: 12px; height: 8px; border: 1px solid var(--oz-border); }
+  .oz-world .cur { font-size: 10px; color: var(--oz-info); }
+  .oz-world[aria-pressed='false'] .cur { visibility: hidden; }
+  .oz-pick { display: flex; justify-content: space-between; gap: 8px; width: 100%; text-align: left; color: var(--oz-success); font-size: 13px; }
+  .oz-pick > span:last-child { color: var(--oz-dim); }
+  .oz-mlist button {
+    display: flex; gap: 8px; width: 100%; padding: 8px 2px; text-align: left; font-size: 12px; color: var(--oz-dim);
+    border-bottom: 1px var(--oz-rule) var(--oz-border);
+  }
+  .oz-mlist li:last-child button { border-bottom: 0; }
+  .oz-mlist button[aria-pressed='true'] { color: var(--oz-success); }
+  .oz-mlist button[aria-pressed='true']::after { content: '●'; margin-left: auto; color: var(--oz-success); }
+  .oz-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .oz-chips span { display: inline-flex; align-items: center; height: 30px; padding: 0 10px; border: 1px solid var(--oz-border); color: var(--oz-dim); font-size: 11px; letter-spacing: .04em; }
+  .oz-chips button { height: 30px; padding: 0 10px; border: 1px solid var(--oz-border); color: var(--oz-dim); font-size: 11px; letter-spacing: .04em; }
+  .oz-chips button[aria-pressed='true'] {
+    color: var(--oz-success); border-color: color-mix(in srgb, var(--oz-success) 45%, transparent);
+    background: color-mix(in srgb, var(--oz-success) 12%, var(--oz-surface));
+  }
+  .oz-chips button:disabled, .oz-field:disabled { opacity: .55; }
+  /* agents list: name · where it runs · model, then what it is for */
+  .oz-alist a { display: block; padding: 8px 2px; border-bottom: 1px var(--oz-rule) var(--oz-border); font-size: 12px; }
+  .oz-alist li:last-child a { border-bottom: 0; }
+  .oz-alist .r1 { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .oz-alist .tag { flex: none; padding: 0 6px; font-size: 10px; line-height: 16px; border: 1px solid var(--oz-border); color: var(--oz-dim); }
+  .oz-alist .m { flex: none; margin-left: auto; font-size: 11px; color: var(--oz-dim); }
+  .oz-alist .r2 { display: block; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; color: var(--oz-dim); }
+  /* what changes when a session takes another agent */
+  .oz-diff li { grid-template-columns: 7em 1fr; }
+  .oz-del { width: 100%; height: 38px; border: 1px solid var(--oz-border); color: var(--oz-dim); font-size: 13px; }
+  .oz-del.armed { border-color: var(--oz-danger); color: var(--oz-danger); background: color-mix(in srgb, var(--oz-danger) 14%, transparent); }
+  .oz-del:disabled { opacity: .5; }
+
+  /* filter tabs (artifacts) — selection is sky (info), unseen counts are text */
+  .oz-tabs { display: flex; border: 1px solid var(--oz-border); width: fit-content; }
+  .oz-tabs button { padding: 4px 10px; font-size: 11px; color: var(--oz-dim); }
+  .oz-tabs button[aria-pressed='true'] { background: var(--oz-surface-hover); color: var(--oz-text); }
+}
+
+/* under reduced motion everything holds still — the words still differ,
+   and the tree draws its live traces whole instead of walking them */
+@media (prefers-reduced-motion: reduce) {
+  .oz *, .oz *::before, .oz *::after { animation: none !important; transition: none !important; }
+  .oz-ygg .sig { stroke-dasharray: none; opacity: 0 !important; }
+  .oz-band.walk .sig.lo, .oz-roots[data-s='working'] .sig.w { opacity: .7 !important; }
+  .oz-rail[data-s='working']::after { left: 31%; opacity: 1; }
+  .oz-doorp .vnote[data-voice='loading'] { opacity: 1; }
+  .oz-first[data-voice='loading'] .oz-tree .sig.t { opacity: .7 !important; }
+}

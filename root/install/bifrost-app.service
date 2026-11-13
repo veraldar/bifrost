@@ -1,0 +1,19 @@
+# bifrost app — the phone UI and the /api seam (systemd user unit).
+# install.sh fills in the @…@ paths and installs this to ~/.config/systemd/user/.
+# Settings come from @CONF@/app.env, generated from bifrost.env on every install run.
+[Unit]
+Description=bifrost app — phone UI + /api seam (node server.mjs)
+After=network-online.target yggdrasil.service bifrost-bridge.service
+Wants=network-online.target
+
+[Service]
+Type=exec
+WorkingDirectory=@PWA@
+EnvironmentFile=@CONF@/app.env
+ExecStart=@NODE@ server.mjs
+Restart=on-failure
+RestartSec=5
+UMask=0077
+
+[Install]
+WantedBy=default.target

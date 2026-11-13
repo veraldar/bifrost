@@ -1,0 +1,83 @@
+{
+ "id": "memory",
+ "title": "A new day: MAIN remembers last week through the librarian extension",
+ "persona": "The owner, back after a week away. Short messages, typos, no punctuation. Does not repeat what was decided before \u2014 expects the system to remember.",
+ "extensions": {
+  "librarian": {
+   "seed": {
+    "facts": [
+     {
+      "topic": "inventory",
+      "fact": "storage: SQLite (one inventory.db file), not a JSON file \u2014 chosen for transactions and safe concurrent reads; table items(name TEXT PRIMARY KEY, qty INTEGER)",
+      "days_ago": 6
+     },
+     {
+      "topic": "owner",
+      "fact": "wants tests with every change, pytest",
+      "days_ago": 9
+     }
+    ],
+    "docs": [
+     {
+      "title": "Inventory storage research",
+      "kind": "assistant",
+      "days_ago": 6,
+      "body": "Recommendation: SQLite over a JSON file for the inventory. A JSON file is rewritten whole on every change and two writers can corrupt it; SQLite gives ACID transactions and concurrent readers in one file. Sources: sqlite.org/whentouse.html, docs.python.org/3/library/sqlite3.html"
+     },
+     {
+      "title": "Garden planner",
+      "kind": "assistant",
+      "days_ago": 9,
+      "body": "Tomatoes go in the south bed, basil next to them."
+     }
+    ]
+   }
+  }
+ },
+ "goals": [
+  "Find out what was decided last week for the inventory storage, and why \u2014 WITHOUT telling the AI the answer (you don't remember it yourself).",
+  "Get the inventory storage layer built in a folder named inventory using exactly that decision, with pytest tests.",
+  "Have the AI remember for later that backups of the inventory go to ~/backups every night."
+ ],
+ "script": [
+  "First message, in your style: 'what did we decide last week for the inventory storage and why'",
+  "Then ask to build the storage layer for inventory with that decision, in folder inventory, with tests.",
+  "Then: 'also remember backups go to ~/backups every night'",
+  "Wait for the build to come back, then finish."
+ ],
+ "max_minutes": 30,
+ "max_turns": 10,
+ "checks": [
+  {
+   "name": "MAIN looked it up in the librarian, unprompted (first answer)",
+   "kind": "main_tool",
+   "regex": "^librarian_(search|recall|recent)$",
+   "first_turn": true
+  },
+  {
+   "name": "MAIN says what was decided and why",
+   "kind": "main_says",
+   "regex": "sqlite[\\s\\S]{0,400}(transaction|concurren|corrupt|acid|rewrit|increment|safe|atomic)|(transaction|concurren|corrupt|acid|rewrit|increment|atomic)[\\s\\S]{0,400}sqlite"
+  },
+  {
+   "name": "the storage layer uses SQLite",
+   "cmd": "grep -rlE 'sqlite3' inventory --include=*.py | head -3",
+   "expect": "\\.py"
+  },
+  {
+   "name": "the inventory tests pass (inside inventory/, or a tests/ beside it)",
+   "cmd": "o=/tmp/pytest.$$.out; (cd inventory && python3 -m pytest -q -p no:cacheprovider >$o 2>&1); r=$?; if [ $r -eq 5 ]; then python3 -m pytest -q -p no:cacheprovider >$o 2>&1; r=$?; fi; [ $r -eq 0 ] && echo PYTEST-OK || tail -5 $o",
+   "expect": "PYTEST-OK"
+  },
+  {
+   "name": "MAIN kept the backup fact",
+   "kind": "main_tool",
+   "regex": "^librarian_remember$"
+  },
+  {
+   "name": "the fact is in the librarian",
+   "cmd": "python3 -c \"import sqlite3; print(sqlite3.connect('../librarian.db').execute(\\\"select fact from facts where fact like '%backups%'\\\").fetchall())\"",
+   "expect": "backups"
+  }
+ ]
+}

@@ -15,7 +15,7 @@
 #   scripts/promote.sh <ref> [--label L]     release a commit (the normal path)
 #   scripts/promote.sh --env-only [--label L] new release = live's build + the current
 #                                            draft env (seconds, no rebuild)
-#   scripts/promote.sh --snapshot [--label L] release HEAD + the pwa/agent WIP as it is
+#   scripts/promote.sh --snapshot [--label L] release HEAD + the branch/ WIP (app + voice) as it is
 #                                            now (overlay recorded; bootstrap/emergency)
 #   scripts/promote.sh --list                every built release (live / previous marked)
 #   scripts/promote.sh --switch <id|label>   live <- any built release, gated, no rebuild
@@ -63,18 +63,18 @@ done
 seed_env() {
   mkdir -p "$ENV_DIR"
   # one env per live service, outside every worktree (a session editing
-  # pwa/.env.local can no longer move the live stack). Seeded once from the
+  # branch/.env.local can no longer move the live stack). Seeded once from the
   # files the stack ran with; process env beats any dotenv file.
   if [[ ! -f "$ENV_DIR/live-pwa.env" ]]; then
-    { echo "# lk-pwa (live :8080) — the only env of the live PWA. Seeded $(date +%F) from pwa/.env.local."
-      grep -v -E '^\s*(#|$)|^(OPENCODE_URL|ARTIFACTS_DIR)=' "$REPO/pwa/.env.local"
+    { echo "# lk-pwa (live :8080) — the only env of the live PWA. Seeded $(date +%F) from branch/.env.local."
+      grep -v -E '^\s*(#|$)|^(OPENCODE_URL|ARTIFACTS_DIR)=' "$REPO/branch/.env.local"
       echo "OPENCODE_URL=http://127.0.0.1:4096"
       echo "ARTIFACTS_DIR=$REPO/artifacts"
     } > "$ENV_DIR/live-pwa.env"
   fi
   if [[ ! -f "$ENV_DIR/live-agent.env" ]]; then
-    { echo "# lk-agent (live voice worker) — the only env of the live agent. Seeded $(date +%F) from agent/.env."
-      grep -v -E '^\s*(#|$)' "$REPO/agent/.env"
+    { echo "# lk-agent (live voice worker) — the only env of the live agent. Seeded $(date +%F) from branch/voice/.env."
+      grep -v -E '^\s*(#|$)' "$REPO/branch/voice/.env"
     } > "$ENV_DIR/live-agent.env"
   fi
   chmod 600 "$ENV_DIR"/live-*.env
@@ -95,7 +95,7 @@ install_units() {
   cat > "$UNITS/lk-pwa.service.d/live.conf" <<'EOF'
 # Served from the frozen live release, never a worktree (scripts/promote.sh, docs/STABLE.md).
 [Service]
-WorkingDirectory=%h/.local/share/bifrost/live/pwa
+WorkingDirectory=%h/.local/share/bifrost/live/branch
 EnvironmentFile=%h/.local/share/bifrost/live/env/live-pwa.env
 # open SSE streams kept every restart hanging 90s until SIGKILL — clients reconnect anyway
 TimeoutStopSec=15
@@ -103,7 +103,7 @@ EOF
   cat > "$UNITS/lk-agent.service.d/live.conf" <<'EOF'
 # Served from the frozen live release, never a worktree (scripts/promote.sh, docs/STABLE.md).
 [Service]
-WorkingDirectory=%h/.local/share/bifrost/live/agent
+WorkingDirectory=%h/.local/share/bifrost/live/branch/voice
 EnvironmentFile=%h/.local/share/bifrost/live/env/live-agent.env
 Environment=UV_FROZEN=1
 EOF
@@ -127,11 +127,11 @@ backfill_env() {
   done
 }
 # <release>/artifacts -> the served ARTIFACTS_DIR: the release's own e2e suite
-# (gate.py --full) writes fixtures to ../artifacts relative to pwa/
-# and pwa/.env.local -> ../env/live-pwa.env: specs read LiveKit creds from it
+# (gate.py --full) writes fixtures to ../artifacts relative to branch/
+# and branch/.env.local -> ../env/live-pwa.env: specs read LiveKit creds from it
 # (same values the unit gets via EnvironmentFile, which wins in Next anyway)
 link_artifacts() {
-  [[ -e "$1/pwa/.env.local" || -L "$1/pwa/.env.local" ]] || ln -s ../env/live-pwa.env "$1/pwa/.env.local"
+  [[ -e "$1/branch/.env.local" || -L "$1/branch/.env.local" ]] || ln -s ../env/live-pwa.env "$1/branch/.env.local"
   [[ -L "$1/artifacts" ]] && return 0
   [[ -d "$1/artifacts" ]] && find "$1/artifacts" -maxdepth 1 -type f -name 'e2e-*' -delete && rmdir "$1/artifacts" 2>/dev/null
   [[ -e "$1/artifacts" ]] || ln -s "$REPO/artifacts" "$1/artifacts"
@@ -361,29 +361,29 @@ if ((SNAP)); then
 else
   git archive --format=tar "$BASE" pwa agent scripts | tar -x -C "$REL" || die "archive failed"
 fi
-for f in "${STATE_LINKS[@]}"; do ln -sfn "$REPO/pwa/$f" "$REL/pwa/$f"; done
-# env/ before the build: pwa/.env.local -> ../env/live-pwa.env must resolve (next build stats it)
+for f in "${STATE_LINKS[@]}"; do ln -sfn "$REPO/branch/$f" "$REL/branch/$f"; done
+# env/ before the build: branch/.env.local -> ../env/live-pwa.env must resolve (next build stats it)
 freeze_env "$REL" || die "env copy failed"
 link_artifacts "$REL"
 
 LOG="$REL/build.log"
 (
   set -e
-  cd "$REL/pwa"
-  if ((SNAP)); then cp -a --reflink=auto "$REPO/pwa/node_modules" .; else "$NODE_BIN/npm" ci --prefer-offline --no-audit --no-fund; fi
+  cd "$REL/branch"
+  if ((SNAP)); then cp -a --reflink=auto "$REPO/branch/node_modules" .; else "$NODE_BIN/npm" ci --prefer-offline --no-audit --no-fund; fi
   "$NODE_BIN/npm" version --no-git-tag-version --allow-same-version "$VERSION${OVERLAY:++wip.$OVERLAY}" >/dev/null
   set -a; . "$ENV_DIR/live-pwa.env"; set +a
   GIT_CEILING_DIRECTORIES="$BIF" PATH="$NODE_BIN:$PATH" "$NODE_BIN/npm" run build
-  cd "$REL/agent"
+  cd "$REL/branch/voice"
   "$UV" sync --frozen
 ) > "$LOG" 2>&1
 # (never `( set -e … ) || die`: bash ignores set -e inside an || list — a failed next build was staged as built)
 (($? == 0)) || die "build failed — see $LOG (live untouched)"
-[[ -s "$REL/pwa/.next/BUILD_ID" ]] || die "no .next/BUILD_ID — see $LOG (live untouched)"
+[[ -s "$REL/branch/.next/BUILD_ID" ]] || die "no .next/BUILD_ID — see $LOG (live untouched)"
 
-BUILD_ID="$(cat "$REL/pwa/.next/BUILD_ID")"
+BUILD_ID="$(cat "$REL/branch/.next/BUILD_ID")"
 # freeze the source (manifest catches any later edit; read-only says "don't")
-find "$REL/pwa" "$REL/agent" "$REL/scripts" \( -name node_modules -o -name .next -o -name .venv -o -name __pycache__ \) -prune \
+find "$REL/branch" "$REL/branch/voice" "$REL/scripts" \( -name node_modules -o -name .next -o -name .venv -o -name __pycache__ \) -prune \
   -o -type f -exec chmod a-w {} +
 MANIFEST="$(python3 "$REPO/scripts/gate.py" --manifest "$REL")"
 python3 - "$REL/RELEASE.json" <<EOF

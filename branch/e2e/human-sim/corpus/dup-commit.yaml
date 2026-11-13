@@ -1,0 +1,11 @@
+id: dup-commit
+bug: one utterance committed twice (two user turns)
+gold: "user messages for one said utterance != 1 (brain count / DOM count / commit lines)"
+mode: hf
+turns: [{ via: wav, say: "dup commit check one two three over", hold_ms: 6000 }]
+mock: { delay_ms: 0, reply: pong }
+assert: { kind: dup-commit, params: { expect: 1 } }
+expect_current: GREEN
+seed:
+  env: "HSIM_SEED=dup-commit"
+  rig: "spec posts the committed turn a second time (detector sensitivity); product flag not built"

@@ -13,15 +13,15 @@ LP=4151; NP=4152
 for p in $LP $NP; do ss -ltn "sport = :$p" | grep -q LISTEN && { echo "FAIL: port $p held"; exit 1; }; done
 T=$(mktemp -d); PIDS=()
 trap 'kill ${PIDS[@]} 2>/dev/null; rm -rf $T' EXIT
-export BIFROST_HOME=$T/bif BIFROST_UNITS=$T/units BIFROST_SANDBOX_PWA=$T/sandbox/pwa
+export BIFROST_HOME=$T/bif BIFROST_UNITS=$T/units BIFROST_SANDBOX_PWA=$T/sandbox/branch
 export TWO_ROOTS_LIVE_URL=http://127.0.0.1:$LP TWO_ROOTS_NEXT_URL=http://127.0.0.1:$NP
-mkdir -p $T/bif/releases $T/units/lk-pwa.service.d $T/units/lk-agent.service.d $T/sandbox/pwa/.next
+mkdir -p $T/bif/releases $T/units/lk-pwa.service.d $T/units/lk-agent.service.d $T/sandbox/branch/.next
 echo 'EnvironmentFile=%h/.local/share/bifrost/live/env/live-pwa.env' >$T/units/lk-pwa.service.d/live.conf
 echo 'EnvironmentFile=%h/.local/share/bifrost/live/env/live-agent.env' >$T/units/lk-agent.service.d/live.conf
 rel() { # id label source build
-  mkdir -p $T/bif/releases/$1/env $T/bif/releases/$1/pwa/.next
+  mkdir -p $T/bif/releases/$1/env $T/bif/releases/$1/branch/.next
   printf '{"id":"%s","label":"%s","source":"%s","build_id":"%s"}\n' "$1" "$2" "$3" "$4" >$T/bif/releases/$1/RELEASE.json
-  echo "$4" >$T/bif/releases/$1/pwa/.next/BUILD_ID
+  echo "$4" >$T/bif/releases/$1/branch/.next/BUILD_ID
   : >$T/bif/releases/$1/env/live-pwa.env; : >$T/bif/releases/$1/env/live-agent.env
 }
 rel R1-live vL aaa1111 B-LIVE
@@ -77,9 +77,9 @@ expect 1 "promote.sh --switch vN while :8443 serves it, no --next → REFUSED be
 echo "$LAST" | grep -q -- "--next" || bad "the refusal does not name --next"
 [ "$(readlink $T/bif/live)" = releases/R1-live ] && ok "live untouched by the refusal" || bad "live moved"
 expect 1 "promote.sh --switch vN --next vN (same release) → REFUSED" scripts/promote.sh --switch vN --next vN
-echo B-NEXT >$T/sandbox/pwa/.next/BUILD_ID
+echo B-NEXT >$T/sandbox/branch/.next/BUILD_ID
 expect 1 "promote.sh --switch vN --next off while the sandbox tree is built at B-NEXT → REFUSED" scripts/promote.sh --switch vN --next off
-echo B-SANDBOX >$T/sandbox/pwa/.next/BUILD_ID
+echo B-SANDBOX >$T/sandbox/branch/.next/BUILD_ID
 expect 0 "promote.sh --switch vN --next off (sandbox tree at B-SANDBOX) → the law passes" env PROMOTE_PRECHECK_ONLY=1 scripts/promote.sh --switch vN --next off
 expect 0 "promote.sh --switch vN --next vR → the law passes (vR ≠ vN)" env PROMOTE_PRECHECK_ONLY=1 scripts/promote.sh --switch vN --next vR
 echo B-OTHER >$T/next.id

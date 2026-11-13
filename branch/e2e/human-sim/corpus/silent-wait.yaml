@@ -1,0 +1,9 @@
+id: silent-wait
+bug: committed turn, slow reply — 20s+ of dead air, no phase change, no sound, no wait cue
+gold: "from commit, >20s with no data-phase/cycle change and no audio/tts mark"
+mode: hf
+turns: [{ via: text, say: "sleep 60 Reply with exactly: pong" }]
+mock: { delay_ms: 60000, reply: pong }
+assert: { kind: silent-wait, params: { span_ms: 20000 } }
+expect_current: RED
+seed: null

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Latency + quality report from the PWA request diag log.
-# Usage: scripts/diag-report.sh [pwa/.diag/diag-YYYY-MM-DD.log]   (default: today)
+# Usage: scripts/diag-report.sh [branch/.diag/diag-YYYY-MM-DD.log]   (default: today)
 set -euo pipefail
 LOG="${1:-pwa/.diag/diag-$(date +%F).log}"
 [ -f "$LOG" ] || { echo "no diag log: $LOG" >&2; exit 1; }

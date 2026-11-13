@@ -1,0 +1,51 @@
+{
+ "id": "parallel-two",
+ "title": "Two projects in parallel, then iterate on both",
+ "persona": "A busy developer on their phone between meetings. Types short lowercase messages, sometimes with typos, never names sessions, refers to things loosely ('the habits thing', 'the site').",
+ "goals": [
+  "Get a python command-line habit tracker built: add a habit, mark it done for today, list habits with their current streak; data kept in a JSON file; with pytest tests. Folder name: habits.",
+  "At the same time get a small static recipe website built: an index page linking to 3 recipe pages, one shared stylesheet, and a client-side search box on the index that filters recipes by name. Folder name: recipes-site.",
+  "Once the habit tracker exists, ask for one more feature: export all habits to CSV (an 'export' command).",
+  "Once the site exists, ask for the site's accent color to become green."
+ ],
+ "script": [
+  "Ask for both projects in two separate quick messages.",
+  "Wait for main to come back; don't chase it every minute.",
+  "Ask for the CSV export and the green color as follow-ups, in your own vague words.",
+  "Before finishing, ask main whether the habit tests pass."
+ ],
+ "max_minutes": 45,
+ "max_turns": 14,
+ "checks": [
+  {
+   "name": "habits tests pass",
+   "cmd": "cd habits && python3 -m pytest -q >/tmp/pytest.$$.out 2>&1 && echo PYTEST-OK || tail -5 /tmp/pytest.$$.out",
+   "expect": "PYTEST-OK"
+  },
+  {
+   "name": "habits has csv export",
+   "cmd": "grep -rniE 'csv' habits --include=*.py | head -3",
+   "expect": "csv"
+  },
+  {
+   "name": "site has index + 3 recipes + css",
+   "cmd": "cd recipes-site && test -f index.html && echo html=$(find . -name '*.html' | wc -l) css=$(find . -name '*.css' | wc -l)",
+   "expect": "html=([4-9]|[1-9][0-9]) css=[1-9]"
+  },
+  {
+   "name": "site search box",
+   "cmd": "grep -liE '<input|search' recipes-site/index.html",
+   "expect": "index"
+  },
+  {
+   "name": "site is green",
+   "cmd": "python3 -c \"import re,glob; t=' '.join(open(f).read() for f in glob.glob('recipes-site/**/*.css',recursive=True)+glob.glob('recipes-site/**/*.html',recursive=True)); hs=[h for h in re.findall(r'#([0-9a-fA-F]{6})', t) if (lambda r,g,b: g>r+24 and g>b+16)(*(int(h[i:i+2],16) for i in (0,2,4)))]; print(('GREEN' if hs or re.search(r'\\bgreen\\b',t,re.I) else 'NOT-GREEN'), hs[:3])\"",
+   "expect": "^GREEN"
+  },
+  {
+   "name": "follow-ups reused sessions (<=3 under main)",
+   "kind": "max_children_of_main",
+   "value": 3
+  }
+ ]
+}

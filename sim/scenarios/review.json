@@ -1,0 +1,40 @@
+{
+ "id": "review",
+ "title": "A read-only review that leaves a report and changes nothing",
+ "persona": "A careful developer who wants an outside opinion before touching their code. Short messages.",
+ "seed": {
+  "inventory/inventory.py": "\"\"\"inventory \u2014 a tiny stock keeper.\"\"\"\n\n\ndef add_item(stock, name, qty, tags=[]):\n    tags.append(name)\n    stock[name] = stock.get(name, 0) + qty\n    return tags\n\n\ndef average_qty(stock):\n    return sum(stock.values()) / len(stock)\n\n\ndef last_items(items, n):\n    return items[len(items) - n - 1:]\n"
+ },
+ "goals": [
+  "Get the inventory project (folder inventory) reviewed for bugs, with a written report you can open on your phone.",
+  "Nothing in the code may be changed \u2014 you only want the review and the report."
+ ],
+ "script": [
+  "Ask main to review the inventory code for bugs and write you a report, and say clearly not to change any code.",
+  "Wait for main to come back; ask for the link to the report if it doesn't give one; finish."
+ ],
+ "max_minutes": 25,
+ "max_turns": 8,
+ "checks": [
+  {
+   "name": "report written to the artifacts",
+   "cmd": "ls artifacts/*.md && cat artifacts/*.md | grep -ciE 'mutable|default|zero|empty|off.by|slice|index'",
+   "expect": "[1-9]"
+  },
+  {
+   "name": "the code is untouched",
+   "cmd": "echo '29945c4be3f8d1763e5bd0b24d117e41fe94d82d342f431b72d224a5f94e312d  inventory/inventory.py' | sha256sum -c - && test $(ls inventory | wc -l) -eq 1 && echo UNTOUCHED",
+   "expect": "UNTOUCHED"
+  },
+  {
+   "name": "a review session did it",
+   "kind": "child_profile",
+   "agent": "review"
+  },
+  {
+   "name": "main gives the report link",
+   "kind": "main_says",
+   "regex": "/api/artifact/[\\w.-]+\\.md"
+  }
+ ]
+}

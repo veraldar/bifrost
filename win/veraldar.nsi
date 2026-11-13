@@ -1,52 +1,41 @@
-; veraldar.nsi — the bifrost branch: Windows installer (NSIS 3.x)
-; .......................................................................
-; Installs a per-user (no-admin) Windows app that brings up the Veraldar
-; stack (root brain + trunk bridge + branch PWA, all inside WSL2) and
-; hands the user a QR to scan with their phone. The .bat does the work;
-; this file only lays down files + shortcuts + the uninstaller.
+; veraldar.nsi - Windows installer: "join this PC to my tree" (NSIS 3.x, per-user, no admin prompt)
+; .................................................................................................
+; Lays down the launcher + its WSL script + the keepalive, and the shortcuts. The work happens when
+; the user double-clicks "Veraldar": launcher.bat -> WSL2 -> wsl-bootstrap.sh -> root/install/join.sh
+; (the code is cloned inside WSL from github.com/veraldar/yggdrasil, branch set in launcher.bat).
 ;
-; Build — either of:
-;   makensis win/veraldar.nsi         -> win/Veraldar-Setup.exe
+; Build (from the repo root; no local NSIS needed):
 ;   docker run --rm -v "$PWD/win":/src -w /src debian:stable-slim bash -c \
-;     "apt-get update -qq && apt-get install -y --no-install-recommends nsis \
-;      && makensis veraldar.nsi"        (no sudo, no local NSIS — proven win-compile)
-;
-; Payload expected next to this script at build time:
-;   launcher.bat   (win/launcher.bat — bundled verbatim)
-;   wsl-bootstrap.sh (bash twin logic the .bat drives inside WSL2)
-;
-; Compression: keep the installer small — payload is two text files;
-; Node/WSL are bootstrapped by the script itself (not bundled).
-; .......................................................................
+;     "apt-get update -qq && apt-get install -y -qq nsis >/dev/null && makensis -V2 veraldar.nsi"
+; or: makensis win/veraldar.nsi            -> win/Veraldar-Setup.exe
+; .................................................................................................
 
 Unicode true
-!define APPNAME      "Veraldar"
-!define COMPANY      "veraldar"
-!define APPVERSION   "0.1.0"
-!define INSTDIR_DEF  "$LOCALAPPDATA\Veraldar"
-!define UNINST_KEY   "Software\Microsoft\Windows\CurrentVersion\Uninstall\Veraldar"
+!define APPNAME    "Veraldar"
+!define COMPANY    "veraldar"
+!define APPVERSION "0.2.0"
+!define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\Veraldar"
 
-Name "${APPNAME} (${APPVERSION})"
+Name "${APPNAME} ${APPVERSION}"
 OutFile "Veraldar-Setup.exe"
-InstallDir "${INSTDIR_DEF}"
+InstallDir "$LOCALAPPDATA\Veraldar"
 InstallDirRegKey HKCU "Software\${COMPANY}\Veraldar" "InstallDir"
-RequestExecutionLevel user        ; per-user install: no UAC prompt
+RequestExecutionLevel user
 SetCompressor /SOLID lzma
 CRCCheck on
 
-; ---- pages: minimal, layman-grade --------------------------------------
 Page directory
 Page instfiles
+UninstPage uninstConfirm
+UninstPage instfiles
 
-; ---- section: files -----------------------------------------------------
 Section "Install"
   SetOutPath "$INSTDIR"
-
-  ; the payload: launcher + the bash script it drives inside WSL2
   File "launcher.bat"
   File "wsl-bootstrap.sh"
+  File "keepalive.vbs"
+  File "README.txt"
 
-  ; uninstaller + registry keys (per-user hive only)
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   WriteRegStr HKCU "Software\${COMPANY}\Veraldar" "InstallDir" "$INSTDIR"
   WriteRegStr HKCU "${UNINST_KEY}" "DisplayName"     "${APPNAME}"
@@ -57,23 +46,32 @@ Section "Install"
   WriteRegDWORD HKCU "${UNINST_KEY}" "NoModify" 1
   WriteRegDWORD HKCU "${UNINST_KEY}" "NoRepair" 1
 
-  ; Start Menu shortcut (AppData\Roaming — per-user, no admin)
+  ; double-click entry points
   CreateDirectory "$SMPROGRAMS\${APPNAME}"
   CreateShortcut "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk" "$INSTDIR\launcher.bat"
-
-  ; Desktop shortcut
+  CreateShortcut "$SMPROGRAMS\${APPNAME}\${APPNAME} - join another hub.lnk" "$INSTDIR\launcher.bat" "--change-hub"
+  CreateShortcut "$SMPROGRAMS\${APPNAME}\${APPNAME} README.lnk" "$INSTDIR\README.txt"
   CreateShortcut "$DESKTOP\${APPNAME}.lnk" "$INSTDIR\launcher.bat"
+  ; at every logon: start the root inside WSL and keep WSL awake (no window; a no-op until joined)
+  CreateShortcut "$SMSTARTUP\${APPNAME} root.lnk" "$SYSDIR\wscript.exe" '//B //Nologo "$INSTDIR\keepalive.vbs"'
 SectionEnd
 
-; ---- section: uninstall --------------------------------------------------
 Section "Uninstall"
+  ; stop the root inside WSL; its files stay there (~/.local/share/yggdrasil-root, ~/veraldar/yggdrasil)
+  nsExec::Exec 'wsl.exe -e sh -c "s=$$HOME/.local/share/yggdrasil-root/bin/stop; [ -x $$s ] && $$s"'
   Delete "$INSTDIR\launcher.bat"
   Delete "$INSTDIR\wsl-bootstrap.sh"
+  Delete "$INSTDIR\keepalive.vbs"
+  Delete "$INSTDIR\README.txt"
+  Delete "$INSTDIR\hub.txt"
   Delete "$INSTDIR\Uninstall.exe"
   RMDir  "$INSTDIR"
   Delete "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk"
+  Delete "$SMPROGRAMS\${APPNAME}\${APPNAME} - join another hub.lnk"
+  Delete "$SMPROGRAMS\${APPNAME}\${APPNAME} README.lnk"
   RMDir  "$SMPROGRAMS\${APPNAME}"
   Delete "$DESKTOP\${APPNAME}.lnk"
+  Delete "$SMSTARTUP\${APPNAME} root.lnk"
   DeleteRegKey HKCU "${UNINST_KEY}"
   DeleteRegKey HKCU "Software\${COMPANY}\Veraldar"
 SectionEnd

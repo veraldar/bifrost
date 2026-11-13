@@ -8,7 +8,7 @@ set -uo pipefail
 DRY=0; [[ "${1:-}" == "--dry-run" ]] && DRY=1
 
 # ---- -1. self-bootstrap: clone the repo if we are not inside it --------------
-if [[ ! -d deploy || ! -f pwa/package.json ]]; then
+if [[ ! -d trunk/deploy || ! -f branch/package.json ]]; then
   DEST="${BIFROST_DIR:-$PWD/bifrost}"
   echo "[bootstrap] not inside the repo — cloning into $DEST"
   git clone --depth 1 --branch v0.6.0 https://github.com/veraldar/bifrost.git "$DEST"  # pinned release tag (S2) || exit 1
@@ -49,24 +49,24 @@ say "reachable IP for ICE: $IP"
 
 # ---- 2. mint secrets + write configs (never overwrite) ----------------------
 mint() { openssl rand -hex 24; }
-if [[ -f deploy/.env ]]; then
-  SKIP+=("deploy/.env (exists)")
+if [[ -f trunk/deploy/.env ]]; then
+  SKIP+=("trunk/deploy/.env (exists)")
 else
   SECRET="$(mint)"
-  cat > deploy/.env <<EOF
+  cat > trunk/deploy/.env <<EOF
 LIVEKIT_URL=ws://127.0.0.1:7880
 LIVEKIT_API_KEY=devkey
 LIVEKIT_API_SECRET=$SECRET
 OPENCODE_URL=http://127.0.0.1:4096
 EOF
-  OK+=("deploy/.env (minted)")
+  OK+=("trunk/deploy/.env (minted)")
 fi
-SECRET="$(grep LIVEKIT_API_SECRET deploy/.env | cut -d= -f2)"
+SECRET="$(grep LIVEKIT_API_SECRET trunk/deploy/.env | cut -d= -f2)"
 
-if [[ -f deploy/livekit.yaml ]]; then
-  SKIP+=("deploy/livekit.yaml (exists)")
+if [[ -f trunk/deploy/livekit.yaml ]]; then
+  SKIP+=("trunk/deploy/livekit.yaml (exists)")
 else
-  cat > deploy/livekit.yaml <<EOF
+  cat > trunk/deploy/livekit.yaml <<EOF
 port: 7880
 bind_addresses:
   - 0.0.0.0
@@ -81,25 +81,25 @@ rtc:
 logging:
   level: info
 EOF
-  OK+=("deploy/livekit.yaml (ICE pinned to $IP)")
+  OK+=("trunk/deploy/livekit.yaml (ICE pinned to $IP)")
 fi
 
-if [[ -f agent/.env ]]; then
-  SKIP+=("agent/.env (exists)")
+if [[ -f branch/voice/.env ]]; then
+  SKIP+=("branch/voice/.env (exists)")
 else
-  sed "s/LIVEKIT_API_SECRET=.*/LIVEKIT_API_SECRET=$SECRET/" agent/.env.example > agent/.env
-  OK+=("agent/.env (from example, secret injected)")
+  sed "s/LIVEKIT_API_SECRET=.*/LIVEKIT_API_SECRET=$SECRET/" branch/voice/.env.example > branch/voice/.env
+  OK+=("branch/voice/.env (from example, secret injected)")
 fi
 
-if [[ -f pwa/.env.local ]]; then
-  SKIP+=("pwa/.env.local (exists)")
+if [[ -f branch/.env.local ]]; then
+  SKIP+=("branch/.env.local (exists)")
   # security S3: the token route refuses without a declared auth layer in
   # production — an install minted before S3 would silently 500 on voice.
   # Heal the live env instead of failing (the declared tailnet boundary
-  # is this box's actual model; see pwa/.env.example + SECURITY.md).
-  if ! grep -q '^BIFROST_AUTH=' pwa/.env.local; then
-    echo "BIFROST_AUTH=tailnet" >> pwa/.env.local
-    OK+=("pwa/.env.local (BIFROST_AUTH=tailnet healed in)")
+  # is this box's actual model; see branch/.env.example + SECURITY.md).
+  if ! grep -q '^BIFROST_AUTH=' branch/.env.local; then
+    echo "BIFROST_AUTH=tailnet" >> branch/.env.local
+    OK+=("branch/.env.local (BIFROST_AUTH=tailnet healed in)")
   fi
 else
   VAPID_PUB=""; VAPID_PRIV=""
@@ -116,9 +116,9 @@ else
     echo "BIFROST_AUTH=tailnet"
     echo "VAPID_PUBLIC_KEY=$VAPID_PUB"
     echo "VAPID_PRIVATE_KEY=$VAPID_PRIV"
-  } > pwa/.env.local
-  if [[ -n "$VAPID_PUB" ]]; then OK+=("pwa/.env.local (VAPID minted)");
-  else OK+=("pwa/.env.local (VAPID skipped — no npx)"); fi
+  } > branch/.env.local
+  if [[ -n "$VAPID_PUB" ]]; then OK+=("branch/.env.local (VAPID minted)");
+  else OK+=("branch/.env.local (VAPID skipped — no npx)"); fi
 fi
 
 # ---- 2b. bundled skills → every opencode session on this box -----------------
@@ -167,7 +167,7 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
   # a dockerized livekit squatting :7880 (a pre-fix install or a stray compose
   # override) must be removed even when compose no longer defines it
   if have docker; then
-    run "stop dockerized livekit (macOS: native only)" bash -c "cd deploy && docker compose rm -sf livekit 2>/dev/null || true"
+    run "stop dockerized livekit (macOS: native only)" bash -c "cd trunk/deploy && docker compose rm -sf livekit 2>/dev/null || true"
   fi
   if [[ -x /opt/homebrew/bin/livekit-server ]] || command -v livekit-server >/dev/null 2>&1; then
     LK_BIN="$(command -v livekit-server || echo /opt/homebrew/bin/livekit-server)"
@@ -182,13 +182,13 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
     SKIP+=("livekit (no native binary — install: brew install livekit, then SKILL.md §1a)")
   fi
   if have docker && docker compose version >/dev/null 2>&1; then
-    run "docker compose up -d (speaches only)" bash -c "cd deploy && docker compose up -d speaches"
+    run "docker compose up -d (speaches only)" bash -c "cd trunk/deploy && docker compose up -d speaches"
     sleep 2
   else
     SKIP+=("speaches (docker missing)")
   fi
 elif have docker && docker compose version >/dev/null 2>&1; then
-  run "docker compose up -d (LiveKit + speaches)" bash -c "cd deploy && docker compose up -d"
+  run "docker compose up -d (LiveKit + speaches)" bash -c "cd trunk/deploy && docker compose up -d"
   sleep 4
 else
   SKIP+=("LiveKit/speaches (docker missing)")
@@ -198,25 +198,25 @@ fi
 # idempotent: a second bootstrap must not stack duplicate workers (the 10-01
 # update run left two agents live — split dispatch between old/new code)
 if have uv && curl -sf -m 3 http://127.0.0.1:7880/ >/dev/null 2>&1; then
-  (cd agent && uv sync >>"$LOG" 2>&1) && OK+=("agent deps (uv sync)") || FAIL+=("agent deps")
+  (cd branch/voice && uv sync >>"$LOG" 2>&1) && OK+=("agent deps (uv sync)") || FAIL+=("agent deps")
   if pgrep -f "agent[.]py dev" >/dev/null 2>&1; then
     SKIP+=("voice agent (already running)")
   else
-    run "voice agent (worker mode)" bash -c "cd agent && nohup uv run agent.py dev >/dev/null 2>&1 & sleep 5"
+    run "voice agent (worker mode)" bash -c "cd branch/voice && nohup uv run agent.py dev >/dev/null 2>&1 & sleep 5"
   fi
 else
   SKIP+=("voice agent (needs uv + LiveKit up)")
 fi
 
 # ---- 6. PWA ------------------------------------------------------------------
-if [[ ! -d pwa/node_modules ]]; then run "pwa deps (npm ci)" bash -c "cd pwa && npm ci --no-audit --no-fund"; fi
-run "pwa build (next build)" bash -c "cd pwa && npm run build"
+if [[ ! -d branch/node_modules ]]; then run "pwa deps (npm ci)" bash -c "cd branch && npm ci --no-audit --no-fund"; fi
+run "pwa build (next build)" bash -c "cd branch && npm run build"
 # idempotent: never stack a second next-server on :8080 (launchd unit or a
 # previous bootstrap's nohup may already hold it)
 if curl -sf -m 3 http://127.0.0.1:8080/ >/dev/null 2>&1; then
   SKIP+=("pwa serve :8080 (already answering)")
 else
-  run "pwa serve :8080" bash -c "cd pwa && nohup npx next start -p 8080 >/dev/null 2>&1 & sleep 5"
+  run "pwa serve :8080" bash -c "cd branch && nohup npx next start -p 8080 >/dev/null 2>&1 & sleep 5"
 fi
 
 # ---- 7. HTTPS (tailscale, best effort) ---------------------------------------
@@ -237,8 +237,8 @@ PWA="$(probe http://127.0.0.1:8080/)"; OC="$(probe http://127.0.0.1:4096/)"; LK=
 # dockerized LiveKit in the colima VM (UDP media dead, joins timed out).
 # The canary does the phone's join and fails exactly there.
 CANARY=skipped
-if [[ "$LK" != 000 && "$PWA" == 200 ]] && have uv && [[ -d agent/.venv ]]; then
-  if (cd agent && uv run scripts/join_canary.py "canary-$(date +%s)" >>"$LOG" 2>&1); then
+if [[ "$LK" != 000 && "$PWA" == 200 ]] && have uv && [[ -d branch/voice/.venv ]]; then
+  if (cd branch/voice && uv run scripts/join_canary.py "canary-$(date +%s)" >>"$LOG" 2>&1); then
     CANARY=ok; OK+=("voice join canary (phone path: mint → wss join → agent in room)")
   else
     CANARY=FAILED; FAIL+=("voice join canary (see bootstrap.log — signal ok but media dead is the macOS dockerized-livekit trap)")

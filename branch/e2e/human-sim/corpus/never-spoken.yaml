@@ -1,0 +1,9 @@
+id: never-spoken
+bug: reply bubble final but never spoken (no tts fetch / play / speaking)
+gold: "assistant final, no tts.fetch + audio.play resolved + deck playing within 8s"
+mode: hf
+turns: [{ via: text, say: "Reply with exactly: pong" }]
+mock: { delay_ms: 0, reply: pong }
+assert: { kind: never-spoken, params: { within_ms: 8000 } }
+expect_current: GREEN
+seed: null

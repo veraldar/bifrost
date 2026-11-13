@@ -126,6 +126,8 @@ pub enum WsErr {
     Protocol(&'static str),
 }
 
+/// Unbuffered single-frame read (the codec tests; live conns use FrameReader).
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn read_frame(stream: &mut dyn Read) -> Result<Frame, WsErr> {
     let mut hdr = [0u8; 2];
     read_exact_or_closed(stream, &mut hdr)?;
@@ -182,6 +184,99 @@ pub fn read_frame(stream: &mut dyn Read) -> Result<Frame, WsErr> {
     })
 }
 
+/// Buffered client-frame reader for a socket with a read timeout: a timeout
+/// that lands MID-frame keeps the partial bytes (a plain `read_frame` would
+/// drop them and desync the stream — a large switchboard body crossing the
+/// access point arrives in many segments). Client frames must be masked.
+pub struct FrameReader {
+    buf: Vec<u8>,
+    max: usize,
+}
+
+impl FrameReader {
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub fn new(max: usize) -> FrameReader {
+        FrameReader { buf: Vec::new(), max }
+    }
+
+    /// Seed with bytes read past the HTTP head (a client may speak at once).
+    pub fn with_leftover(max: usize, leftover: Vec<u8>) -> FrameReader {
+        FrameReader { buf: leftover, max }
+    }
+
+    /// The next complete frame; `Timeout` = no complete frame yet (partial
+    /// bytes kept), `Closed` = EOF / socket error.
+    pub fn next(&mut self, stream: &mut dyn Read) -> Result<Frame, WsErr> {
+        loop {
+            if let Some((frame, used)) = parse_client_frame(&self.buf, self.max)? {
+                self.buf.drain(..used);
+                return Ok(frame);
+            }
+            let mut chunk = [0u8; 16384];
+            match stream.read(&mut chunk) {
+                Ok(0) => return Err(WsErr::Closed),
+                Ok(n) => self.buf.extend_from_slice(&chunk[..n]),
+                Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(e)
+                    if e.kind() == std::io::ErrorKind::WouldBlock
+                        || e.kind() == std::io::ErrorKind::TimedOut =>
+                {
+                    return Err(WsErr::Timeout)
+                }
+                Err(_) => return Err(WsErr::Closed),
+            }
+        }
+    }
+}
+
+/// One masked client frame from the front of `b`, with the bytes it used.
+fn parse_client_frame(b: &[u8], max: usize) -> Result<Option<(Frame, usize)>, WsErr> {
+    if b.len() < 2 {
+        return Ok(None);
+    }
+    let fin = b[0] & 0x80 != 0;
+    let opcode = b[0] & 0x0F;
+    let masked = b[1] & 0x80 != 0;
+    let (len, mut at) = match b[1] & 0x7F {
+        126 => {
+            if b.len() < 4 {
+                return Ok(None);
+            }
+            (u16::from_be_bytes([b[2], b[3]]) as usize, 4)
+        }
+        127 => {
+            if b.len() < 10 {
+                return Ok(None);
+            }
+            let n = u64::from_be_bytes(b[2..10].try_into().unwrap());
+            (usize::try_from(n).unwrap_or(usize::MAX), 10)
+        }
+        n => (n as usize, 2),
+    };
+    if len > max {
+        return Err(WsErr::Protocol("frame too large"));
+    }
+    if !masked && len > 0 {
+        return Err(WsErr::Protocol("client frame not masked"));
+    }
+    let mask = if masked {
+        if b.len() < at + 4 {
+            return Ok(None);
+        }
+        let m = [b[at], b[at + 1], b[at + 2], b[at + 3]];
+        at += 4;
+        m
+    } else {
+        [0; 4]
+    };
+    if b.len() < at + len {
+        return Ok(None);
+    }
+    let payload: Vec<u8> = b[at..at + len].iter().enumerate().map(|(i, x)| x ^ mask[i % 4]).collect();
+    Ok(Some((Frame { fin, opcode, payload }, at + len)))
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
 fn read_exact_or_closed(stream: &mut dyn Read, buf: &mut [u8]) -> Result<(), WsErr> {
     match stream.read_exact(buf) {
         Ok(()) => Ok(()),
@@ -257,6 +352,61 @@ mod tests {
         // nonzero length must fail (that is the RFC law); so craft a masked
         // echo instead to prove the codec itself round-trips:
         assert!(f2.is_none() || f2.is_some());
+    }
+
+    /// A frame split across reads with timeouts in between is reassembled,
+    /// never lost: the reader returns Timeout and keeps the partial bytes.
+    #[test]
+    fn frame_reader_survives_mid_frame_timeouts() {
+        struct Drip {
+            chunks: Vec<Vec<u8>>,
+        }
+        impl Read for Drip {
+            fn read(&mut self, out: &mut [u8]) -> std::io::Result<usize> {
+                if self.chunks.is_empty() {
+                    return Err(std::io::Error::new(std::io::ErrorKind::UnexpectedEof, "eof"));
+                }
+                let c = self.chunks.remove(0);
+                if c.is_empty() {
+                    return Err(std::io::Error::new(std::io::ErrorKind::WouldBlock, "tick"));
+                }
+                out[..c.len()].copy_from_slice(&c);
+                Ok(c.len())
+            }
+        }
+        let body: Vec<u8> = (0..70_000u32).map(|i| (i % 251) as u8).collect();
+        let mask = [9u8, 8, 7, 6];
+        let mut f = vec![0x81u8, 0x80 | 127];
+        f.extend_from_slice(&(body.len() as u64).to_be_bytes());
+        f.extend_from_slice(&mask);
+        f.extend(body.iter().enumerate().map(|(i, b)| b ^ mask[i % 4]));
+        let mut chunks = vec![];
+        for (i, c) in f.chunks(7000).enumerate() {
+            chunks.push(c.to_vec());
+            if i % 2 == 0 {
+                chunks.push(vec![]); // a read timeout mid-frame
+            }
+        }
+        let mut src = Drip { chunks };
+        let mut rd = FrameReader::new(1 << 20);
+        let mut timeouts = 0;
+        let frame = loop {
+            match rd.next(&mut src) {
+                Ok(fr) => break fr,
+                Err(WsErr::Timeout) => timeouts += 1,
+                Err(e) => panic!("reader failed: {e:?}"),
+            }
+        };
+        assert!(timeouts > 3, "test never timed out mid-frame");
+        assert_eq!(frame.opcode, OP_TEXT);
+        assert_eq!(frame.payload, body);
+        let end = loop {
+            match rd.next(&mut src) {
+                Err(WsErr::Timeout) => continue,
+                other => break other,
+            }
+        };
+        assert!(matches!(end, Err(WsErr::Closed)), "EOF after the frame must read as Closed");
     }
 
     #[test]

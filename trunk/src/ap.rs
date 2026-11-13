@@ -125,6 +125,9 @@ pub struct DialConfig {
     pub livekit: Option<String>,
     /// raw forward name → local target (anything else the ap names is refused)
     pub tcp: HashMap<String, String>,
+    /// `/rootlink` streams (a remote root dialing in through the edge) go
+    /// here — the root-link listener; None = not routed
+    pub rootlink: Option<String>,
     pub tokens: Arc<TokenStore>,
 }
 
@@ -999,9 +1002,24 @@ async fn serve_stream(
         Ok(r) => r,
         Err(e) => return reply(http_response(400, "Bad Request", "text/plain", &format!("{e}\n"))),
     };
-    if let Err(d) = gate(&cfg.tokens, &req, ip) {
-        let body = serde_json::json!({ "error": "device token required", "why": d.why(), "reauth": d.reauth() }).to_string();
-        return reply(http_response(401, "Unauthorized", "application/json", &body));
+    let p = req.path.split('?').next().unwrap_or("");
+    // a remote root dialing in: its stream goes to the root-link listener,
+    // which authenticates by link token (first ws frame) — the /api device
+    // gate is for browsers and does not apply
+    let rootlink = cfg.rootlink.as_ref().filter(|_| p == "/rootlink");
+    if rootlink.is_some() && req.header("upgrade").is_none_or(|u| !u.eq_ignore_ascii_case("websocket")) {
+        return reply(http_response(426, "Upgrade Required", "text/plain", "/rootlink is a websocket\n"));
+    }
+    // the switchboard's hub end is the box's own business: never from the edge
+    let np = normalize_path(&req.path);
+    if np == "/_root" || np.starts_with("/_root/") {
+        return reply(http_response(404, "Not Found", "text/plain", "not here\n"));
+    }
+    if rootlink.is_none() {
+        if let Err(d) = gate(&cfg.tokens, &req, ip) {
+            let body = serde_json::json!({ "error": "device token required", "why": d.why(), "reauth": d.reauth() }).to_string();
+            return reply(http_response(401, "Unauthorized", "application/json", &body));
+        }
     }
     // one request per connection: only the declared body passes (no pipelined
     // request can ride past the gate); chunked request bodies are refused
@@ -1016,9 +1034,9 @@ async fn serve_stream(
         return reply(http_response(400, "Bad Request", "text/plain", "bad content-length\n"));
     };
     let upgrade = req.header("upgrade").is_some();
-    let p = req.path.split('?').next().unwrap_or("");
-    let target = match &cfg.livekit {
-        Some(lk) if p == "/rtc" || p.starts_with("/rtc/") => lk.clone(),
+    let target = match (rootlink, &cfg.livekit) {
+        (Some(rl), _) => rl.clone(),
+        (None, Some(lk)) if p == "/rtc" || p.starts_with("/rtc/") => lk.clone(),
         _ => cfg.upstream.clone(),
     };
     let up = match TcpStream::connect(&target).await {
@@ -1142,6 +1160,14 @@ pub fn selftest() -> Result<String, String> {
             std::thread::spawn(move || stub_upstream(s));
         }
     });
+    // the root-link listener stand-in: a marked 101, then a raw echo
+    let rl = std::net::TcpListener::bind("127.0.0.1:0").map_err(|e| e.to_string())?;
+    let rl_addr = rl.local_addr().map_err(|e| e.to_string())?;
+    std::thread::spawn(move || {
+        for s in rl.incoming().flatten() {
+            std::thread::spawn(move || stub_rootlink(s));
+        }
+    });
 
     // device registry: one loopback-region token (the region curl on this box has)
     let dev_tok = "dev-token-0123456789abcdef";
@@ -1162,6 +1188,7 @@ pub fn selftest() -> Result<String, String> {
             upstream: up_addr.to_string(),
             livekit: None,
             tcp: HashMap::new(),
+            rootlink: Some(rl_addr.to_string()),
             tokens: Arc::new(TokenStore::open(&reg_path)),
         })
     };
@@ -1285,13 +1312,55 @@ pub fn selftest() -> Result<String, String> {
     if !r.starts_with(b"HTTP/1.1 101") || !r.ends_with(&probe) {
         return Err(format!("websocket passthrough failed: {}", text(&r[..r.len().min(200)])));
     }
+    // 6. /rootlink: a remote root's websocket reaches the root-link listener
+    // (no device token — the link token authenticates there), never the app
+    let r = client(
+        b"GET /rootlink HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n".to_vec(),
+        Some(probe.clone()),
+    )?;
+    if !r.starts_with(b"HTTP/1.1 101") || !text(&r).contains("X-Stub: rootlink") || !r.ends_with(&probe) {
+        return Err(format!("/rootlink did not reach the root-link listener: {}", text(&r[..r.len().min(200)])));
+    }
+    let r = text(&client(b"GET /rootlink HTTP/1.1\r\nHost: localhost\r\n\r\n".to_vec(), None)?);
+    if !r.starts_with("HTTP/1.1 426") {
+        return Err(format!("plain GET /rootlink not refused: {}", r.lines().next().unwrap_or("")));
+    }
+    for p in ["/_root/mac/root", "/%5froot/mac/root", "/x/../_root/mac"] {
+        let r = text(&client(format!("GET {p} HTTP/1.1\r\nHost: localhost\r\n\r\n").into_bytes(), None)?);
+        if !r.starts_with("HTTP/1.1 404") {
+            return Err(format!("{p} reached past the edge: {}", r.lines().next().unwrap_or("")));
+        }
+    }
     let _ = std::fs::remove_dir_all(&dir);
     Ok(format!(
         "pin {}…; wrong pairing token 401 + wrong pin refused; GET / 200 + HSTS + XFF=real peer (spoofed dropped); \
          /api 401 missing/invalid + 9 path-normalization bypasses 401, Bearer+cookie pass, /api/pair open; 5000-byte POST exact + smuggled request dropped; \
-         websocket 101 + 3000 bytes echoed byte-exact",
+         websocket 101 + 3000 bytes echoed byte-exact; /rootlink → root-link listener (no device gate), plain GET 426, /_root 404 at the edge",
         &pin[..20]
     ))
+}
+
+/// Root-link listener stand-in: a marked 101, then echo.
+fn stub_rootlink(mut s: std::net::TcpStream) {
+    use std::io::{Read, Write};
+    let mut buf = vec![];
+    let mut chunk = [0u8; 8192];
+    let head_end = loop {
+        if let Some(p) = buf.windows(4).position(|w: &[u8]| w == b"\r\n\r\n") {
+            break p + 4;
+        }
+        match s.read(&mut chunk) {
+            Ok(0) | Err(_) => return,
+            Ok(n) => buf.extend_from_slice(&chunk[..n]),
+        }
+    };
+    let _ = s.write_all(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nX-Stub: rootlink\r\n\r\n");
+    let _ = s.write_all(&buf[head_end..]);
+    while let Ok(n) = s.read(&mut chunk) {
+        if n == 0 || s.write_all(&chunk[..n]).is_err() {
+            break;
+        }
+    }
 }
 
 /// Upstream stand-in: one request per connection (as the bridge sends them).

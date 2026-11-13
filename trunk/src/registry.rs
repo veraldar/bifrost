@@ -82,12 +82,18 @@ pub fn new_pending() -> (SyncSender<serde_json::Value>, Pending) {
 pub struct RootHandle {
     pub root: RootId,
     pub dev: String,
+    /// the link-token's `roots` claim: which roots THIS root may address
+    /// through the switchboard (`*` = any; `local` is always allowed)
+    pub roots: Vec<String>,
     pub gen_no: u64,
     pub tx: SyncSender<ConnMsg>,
     /// set true ⇒ conn thread should exit asap
     pub kill: Arc<AtomicBool>,
     /// a dup of the conn's socket — shutdown(Both) kills the conn instantly
     pub kick: TcpStream,
+    /// the conn's ONE writer (every frame locks it — frames never interleave);
+    /// the switchboard writes `http` / `http.reply` frames through it directly
+    pub writer: Arc<Mutex<TcpStream>>,
     pub since: Instant,
 }
 
@@ -99,6 +105,9 @@ pub struct Registry {
     inflight: Arc<Mutex<HashMap<String, RootId>>>,
     /// config [root-link].max_inflight; default 1 (0 = cap OFF, unlimited)
     pub max_inflight: Arc<AtomicU64>,
+    /// config [root-link].result_secs; how long a branch turn waits for its
+    /// root's `root.result` (default RESULT_WAIT = 20 s)
+    pub result_secs: Arc<AtomicU64>,
 }
 
 impl Registry {
@@ -108,7 +117,41 @@ impl Registry {
             gen_no: Arc::new(AtomicU64::new(1)),
             inflight: Arc::new(Mutex::new(HashMap::new())),
             max_inflight: Arc::new(AtomicU64::new(1)),
+            result_secs: Arc::new(AtomicU64::new(RESULT_WAIT.as_secs())),
         }
+    }
+
+    /// How long a branch turn waits for a root's result (config result_secs).
+    pub fn result_wait(&self) -> Duration {
+        Duration::from_secs(self.result_secs.load(Ordering::SeqCst).max(1))
+    }
+
+    /// The link-token `roots` claim of the conn registered for `root`.
+    pub fn roots_of(&self, root: &str) -> Option<Vec<String>> {
+        self.inner.lock().unwrap().get(root).map(|c| c.roots.clone())
+    }
+
+    /// Write one TEXT frame straight onto a root's conn (switchboard path —
+    /// no 2 s reader tick). Returns the generation it was written to. The
+    /// writer is cloned out under the registry lock and written OUTSIDE it, so
+    /// a slow root never stalls the registry; a failed write kicks that conn.
+    pub fn send_text(&self, root: &str, text: &str) -> Result<u64, String> {
+        let (writer, kick, gen_no) = {
+            let map = self.inner.lock().unwrap();
+            match map.get(root) {
+                Some(c) if !c.kill.load(Ordering::SeqCst) => {
+                    let kick = c.kick.try_clone().map_err(|e| e.to_string())?;
+                    (c.writer.clone(), kick, c.gen_no)
+                }
+                _ => return Err("root not linked".to_string()),
+            }
+        };
+        let res = crate::ws::write_frame(&mut *writer.lock().unwrap(), crate::ws::OP_TEXT, text.as_bytes());
+        if let Err(e) = res {
+            let _ = kick.shutdown(std::net::Shutdown::Both);
+            return Err(format!("root '{root}' write failed: {e}"));
+        }
+        Ok(gen_no)
     }
 
     /// Register a live conn. If a conn for the same root id is already up,
@@ -244,13 +287,16 @@ impl Registry {
         let a = std::net::TcpListener::bind("127.0.0.1:0").expect("loopback bind");
         let c = TcpStream::connect(a.local_addr().unwrap()).expect("loopback connect");
         let _ = a.accept();
+        let writer = Arc::new(Mutex::new(c.try_clone().expect("dup loopback socket")));
         self.insert(RootHandle {
             root: conn.root,
             dev: conn.dev,
+            roots: vec![],
             gen_no: 0,
             tx: conn.tx,
             kill: Arc::new(AtomicBool::new(false)),
             kick: c,
+            writer,
             since: conn.since,
         })
     }
@@ -302,13 +348,17 @@ mod tests {
     }
 
     fn handle(root: &str, kill: Arc<AtomicBool>, tx: SyncSender<ConnMsg>) -> RootHandle {
+        let kick = dummy_kick();
+        let writer = Arc::new(Mutex::new(kick.try_clone().unwrap()));
         RootHandle {
             root: root.into(),
             dev: "d1".into(),
+            roots: vec![],
             gen_no: 0,
             tx,
             kill,
-            kick: dummy_kick(),
+            kick,
+            writer,
             since: Instant::now(),
         }
     }

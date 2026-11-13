@@ -29,26 +29,46 @@ use sha2::{Digest, Sha256};
 
 use crate::registry::{ConnMsg, Registry, RootHandle};
 use crate::roots;
+use crate::switch::Switchboard;
 use crate::tokens::TokenStore;
-use crate::ws::{self, WsErr, OP_CLOSE, OP_PING, OP_PONG, OP_TEXT};
+use crate::ws::{self, FrameReader, WsErr, OP_CLOSE, OP_PING, OP_PONG, OP_TEXT};
+
+/// Largest frame a root may send (switchboard bodies ride base64 in one frame).
+const MAX_ROOT_FRAME: usize = 8 << 20;
+/// Conns not yet past the link-token check, at once. Behind an access point
+/// the listener is reachable from the internet (`/rootlink`): an unauthenticated
+/// flood is turned away at accept instead of each holding a thread for 10 s.
+const MAX_PREAUTH: usize = 64;
 
 pub struct RootLinkPlane {
     pub secret: Vec<u8>,
     pub ping_secs: u64,
     pub registry: Registry,
     pub tokens: Arc<TokenStore>,
+    /// brain-to-brain `http` / `http.reply` ops (switch.rs)
+    pub switch: Arc<Switchboard>,
     /// sha256(link-token) of every CONSUMED token — single-use law
     used: Mutex<HashSet<String>>,
+    /// conns still in the handshake / link-token phase
+    preauth: std::sync::atomic::AtomicUsize,
 }
 
 impl RootLinkPlane {
-    pub fn new(secret: Vec<u8>, registry: Registry, tokens: Arc<TokenStore>, ping_secs: u64) -> Arc<RootLinkPlane> {
+    pub fn new(
+        secret: Vec<u8>,
+        registry: Registry,
+        tokens: Arc<TokenStore>,
+        ping_secs: u64,
+        switch: Arc<Switchboard>,
+    ) -> Arc<RootLinkPlane> {
         Arc::new(RootLinkPlane {
             secret,
             ping_secs: ping_secs.max(3),
             registry,
             tokens,
+            switch,
             used: Mutex::new(HashSet::new()),
+            preauth: std::sync::atomic::AtomicUsize::new(0),
         })
     }
 
@@ -58,8 +78,19 @@ impl RootLinkPlane {
         std::thread::spawn(move || {
             for stream in listener.incoming() {
                 let Ok(sock) = stream else { break };
+                if me.preauth.fetch_add(1, Ordering::SeqCst) >= MAX_PREAUTH {
+                    me.preauth.fetch_sub(1, Ordering::SeqCst);
+                    eprintln!("root-link: {MAX_PREAUTH} dials already in the handshake — refused one");
+                    let _ = sock.shutdown(Shutdown::Both);
+                    continue;
+                }
                 let me = me.clone();
-                std::thread::spawn(move || me.serve_conn(sock));
+                std::thread::spawn(move || {
+                    // the pre-auth slot is freed when the token check is over
+                    // (serve_conn) or, at the latest, when the conn ends
+                    let slot = PreAuth(Some(&me.preauth));
+                    me.serve_conn(sock, slot);
+                });
             }
         });
     }
@@ -70,7 +101,7 @@ impl RootLinkPlane {
         let _ = ws::write_frame(writer, OP_CLOSE, &[]);
     }
 
-    fn serve_conn(&self, sock: TcpStream) {
+    fn serve_conn(&self, sock: TcpStream, mut slot: PreAuth<'_>) {
         let peer: Option<SocketAddr> = sock.peer_addr().ok();
         let _ = sock.set_nodelay(true);
         let _ = sock.set_read_timeout(Some(Duration::from_secs(10)));
@@ -88,9 +119,14 @@ impl RootLinkPlane {
         };
 
         // ---- 1. ws upgrade handshake (RFC 6455, blocking, 10s budget) ----
-        let Some(key) = read_handshake(&mut reader) else {
+        let Some((key, leftover)) = read_handshake(&mut reader) else {
             return;
         };
+        // frames are reassembled across read timeouts (a body crossing the
+        // access point arrives in many segments) — never dropped mid-frame
+        let mut frames = FrameReader::with_leftover(MAX_ROOT_FRAME, leftover);
+        // a root that stops reading must not wedge whoever writes to it
+        let _ = sock.set_write_timeout(Some(Duration::from_secs(10)));
         let resp = format!(
             "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {}\r\n\r\n",
             ws::accept_key(&key)
@@ -100,6 +136,11 @@ impl RootLinkPlane {
             return;
         }
         // loop tick: the reader must wake often enough to honor kill + pings
+        // (partial frames survive the tick — FrameReader). Switchboard frames
+        // do not wait for it: they are written straight onto the conn. The
+        // 2 s tick is part of the health law's observed timing (rootlink-sim
+        // T5: a 250 ms tick surfaces the transient probe miss of a closing
+        // root as 'health probe failed' instead of the drained turn).
         let _ = sock.set_read_timeout(Some(Duration::from_secs(2)));
 
         // ONE writer, two users (heartbeat pings + job/result frames):
@@ -112,7 +153,7 @@ impl RootLinkPlane {
         }
 
         // ---- 2. first TEXT frame = the root-link op ----
-        let token = match first_frame_token(&mut reader) {
+        let token = match first_frame_token(&mut frames, &mut reader) {
             Ok(t) => t,
             Err(e) => {
                 Self::refuse(&mut *writer.lock().unwrap(), &e);
@@ -151,16 +192,20 @@ impl RootLinkPlane {
             used.insert(th);
         }
 
+        slot.release(); // past the token law: no longer a pre-auth conn
+
         // ---- 6. register (takeover kills the old conn) + ack ----
         let (tx, rx) = sync_channel::<ConnMsg>(16);
         let kill = Arc::new(AtomicBool::new(false));
         let gen_no = self.registry.insert(RootHandle {
             root: lt.root.clone(),
             dev: lt.dev.clone(),
+            roots: lt.roots.clone(),
             gen_no: 0,
             tx,
             kill: kill.clone(),
             kick,
+            writer: writer.clone(),
             since: Instant::now(),
         });
         eprintln!(
@@ -264,7 +309,7 @@ impl RootLinkPlane {
                     }
                 }
             }
-            match ws::read_frame(&mut reader) {
+            match frames.next(&mut reader) {
                 Ok(f) => match f.opcode {
                     OP_PONG | OP_PING => {
                         *last_pong.lock().unwrap() = Instant::now();
@@ -293,6 +338,9 @@ impl RootLinkPlane {
                                     let _ = reply.send(v);
                                 }
                             }
+                            // switchboard: brain-to-brain HTTP (switch.rs)
+                            Some("http") => self.switch.on_http(&lt.root, v),
+                            Some("http.reply") => self.switch.on_reply(&lt.root, v),
                             _ => {}
                         }
                     }
@@ -314,7 +362,26 @@ impl RootLinkPlane {
             }));
         }
         self.registry.drop_if_current(&lt.root, gen_no);
+        // switchboard calls waiting on THIS conn fail now, not after 120 s
+        self.switch.link_down(&lt.root, gen_no);
         eprintln!("root-link: root '{}' unlinked (gen_no {gen_no})", lt.root);
+    }
+}
+
+/// One pre-auth slot; released once (explicitly after the token check, or on drop).
+struct PreAuth<'a>(Option<&'a std::sync::atomic::AtomicUsize>);
+
+impl PreAuth<'_> {
+    fn release(&mut self) {
+        if let Some(c) = self.0.take() {
+            c.fetch_sub(1, Ordering::SeqCst);
+        }
+    }
+}
+
+impl Drop for PreAuth<'_> {
+    fn drop(&mut self) {
+        self.release();
     }
 }
 
@@ -324,12 +391,17 @@ fn token_hash(token: &str) -> String {
     d.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-/// Read the client HTTP upgrade request, return Sec-WebSocket-Key.
-fn read_handshake(stream: &mut dyn Read) -> Option<String> {
+/// Read the client HTTP upgrade request; return Sec-WebSocket-Key and any
+/// bytes that arrived past the head (a client may send its first frame in
+/// the same segment — they seed the frame reader instead of being lost).
+fn read_handshake(stream: &mut dyn Read) -> Option<(String, Vec<u8>)> {
     let mut buf = Vec::new();
     let mut chunk = [0u8; 512];
     let deadline = Instant::now() + Duration::from_secs(10);
-    while !buf.ends_with(b"\r\n\r\n") {
+    let end = loop {
+        if let Some(p) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
+            break p + 4;
+        }
         if Instant::now() > deadline || buf.len() > 16 * 1024 {
             return None;
         }
@@ -338,12 +410,13 @@ fn read_handshake(stream: &mut dyn Read) -> Option<String> {
             return None;
         }
         buf.extend_from_slice(&chunk[..n]);
-    }
+    };
+    let leftover = buf.split_off(end);
     let text = String::from_utf8_lossy(&buf);
     for line in text.lines() {
         if let Some((k, v)) = line.split_once(':') {
             if k.trim().eq_ignore_ascii_case("sec-websocket-key") {
-                return Some(v.trim().to_string());
+                return Some((v.trim().to_string(), leftover));
             }
         }
     }
@@ -352,13 +425,13 @@ fn read_handshake(stream: &mut dyn Read) -> Option<String> {
 
 /// Wait (bounded) for the first TEXT frame and pull the link-token out of
 /// `{"op":"root-link","token":"..."}`.
-fn first_frame_token(stream: &mut dyn Read) -> Result<String, String> {
+fn first_frame_token(frames: &mut FrameReader, stream: &mut dyn Read) -> Result<String, String> {
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
         if Instant::now() > deadline {
             return Err("timed out waiting for the root-link op".into());
         }
-        match ws::read_frame(stream) {
+        match frames.next(stream) {
             Ok(f) if f.opcode == OP_TEXT => {
                 let v: serde_json::Value = serde_json::from_slice(&f.payload)
                     .map_err(|_| "first frame is not JSON".to_string())?;

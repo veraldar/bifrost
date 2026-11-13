@@ -47,6 +47,7 @@ pub fn run(path: &str) -> Result<(), String> {
         root_link_listen: cfg.root_link.as_ref().and_then(|rl| rl.listen.clone()),
         root_link_ping_secs: cfg.root_link.as_ref().map(|rl| rl.ping_secs).unwrap_or(15),
         root_link_max_inflight: cfg.root_link.as_ref().map(|rl| rl.max_inflight).unwrap_or(1),
+        root_link_result_secs: cfg.root_link.as_ref().map(|rl| rl.result_secs).unwrap_or(20),
         // v0.9 pairing identity: /identity publishes the persisted DTLS fingerprint
         name: loaded.config.node.name.clone(),
         dtls_cert_file: cfg.dtls_cert_file.clone().map(Into::into),
@@ -66,8 +67,30 @@ pub fn run(path: &str) -> Result<(), String> {
         Some(p) => println!("  bridge: root-link dial-in ws on port {p} (link-token first frame)"),
         None => println!("  bridge: root-link dial-in off"),
     }
+    println!(
+        "  bridge: switchboard — http://{}/_root/<root>/<path> (loopback) reaches a linked root's brain; `local` = {}",
+        handle.http, cfg.opencode_url
+    );
     if let Some(apc) = loaded.config.ap.as_ref() {
         println!("  bridge: access point {} → browsers served from {} (dial-out, pinned)", apc.url, apc.upstream);
+        // a remote root dials wss://<ap>/rootlink: that stream goes to the
+        // root-link listener (an unspecified bind is reached on loopback)
+        let rootlink = match apc.rootlink.as_deref() {
+            Some("off") => None,
+            Some(t) => Some(t.to_string()),
+            None => handle.root_link_addr.map(|a| {
+                let ip = if a.ip().is_unspecified() {
+                    if a.is_ipv4() { std::net::IpAddr::from([127, 0, 0, 1]) } else { std::net::Ipv6Addr::LOCALHOST.into() }
+                } else {
+                    a.ip()
+                };
+                std::net::SocketAddr::new(ip, a.port()).to_string()
+            }),
+        };
+        match &rootlink {
+            Some(t) => println!("  bridge: access point /rootlink → root-link {t} (link-token auth, no device gate)"),
+            None => println!("  bridge: access point /rootlink not routed (root-link off)"),
+        }
         crate::ap::spawn_dialer(crate::ap::DialConfig {
             url: apc.url.clone(),
             pin: apc.pin.clone(),
@@ -75,6 +98,7 @@ pub fn run(path: &str) -> Result<(), String> {
             upstream: apc.upstream.clone(),
             livekit: apc.livekit.clone(),
             tcp: apc.tcp.clone(),
+            rootlink,
             tokens: std::sync::Arc::new(crate::tokens::TokenStore::open(cfg.tokens_file.clone())),
         });
     }

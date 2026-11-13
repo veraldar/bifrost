@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# lane-watcher — MAIN's initiator timer (LABS.md "MAIN initiator duty", binding 10-30).
+# lane-watcher — MAIN's initiator timer (lab-registry.md "MAIN initiator duty", binding 10-30).
 # Polls /tmp/sub-status.tsv (mission runners append one line per lane landing); when the
 # tail changes, POSTs the new line into MAIN's live session so MAIN wakes and reviews it.
 # Promoted 10-30 from the hand-run transient `systemd-run /tmp/watch-landings.sh`

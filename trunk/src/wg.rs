@@ -31,6 +31,16 @@
 //! the device or removing the root cuts its tunnel at once. A datagram is accepted only from
 //! the relay address, only for a known key, and only when the relay's source matches the
 //! link that key is pinned to; inner packets only from the peer's own tunnel address.
+//!
+//! Joined root ↔ joined root: the hub's node publishes the tree's DIRECTORY (every pinned root:
+//! id, public key, tunnel address) at `GET /_wg/directory` on its in-tunnel door — only inside
+//! the tunnel, so only to roots it pinned, and the answer is authenticated by the hub's key. A
+//! joined node fetches it every 5 s from `local` and takes its roots as peers; a copy older
+//! than 20 s is dropped (a revoked root, or a root cut off from the hub, loses them — root ↔ root
+//! frames ride the hub's relay anyway, so a root cut off from the hub has nothing to lose). The relay
+//! carries root → root frames between any two linked roots: who may talk to whom is decided by
+//! the keys each node holds, not by the relay. A joined root's brain learns them like the hub's
+//! does: `YGG_PEERS_FROM=…/_wg/_roots` (every peer but `local`), `YGG_PEERS_VIA=…/_wg/{id}`.
 
 use std::collections::{HashMap, VecDeque};
 use std::io::{Read, Write};
@@ -76,6 +86,9 @@ const LISTENERS: usize = 16;
 const MAX_STREAMS: usize = 96;
 const TCP_BUF: usize = 256 * 1024;
 const PERSISTENT_KEEPALIVE: u16 = 25;
+/// A joined node asks the hub for the directory this often; a copy older than DIR_TTL is dropped.
+const DIR_EVERY: Duration = Duration::from_secs(5);
+const DIR_TTL: Duration = Duration::from_secs(20);
 const B64: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
 /* ------------------------------------------------------------------ relay frames */
@@ -257,9 +270,9 @@ impl Relay {
         if to == src {
             return self.drop_one("addressed to itself", src);
         }
-        if !switch::link_may_address(claim, to) {
-            return self.drop_one(&format!("claim does not name '{to}'"), src);
-        }
+        // the link-token claim gates the plaintext switchboard; WireGuard needs no gate here:
+        // the far node accepts only keys it holds (the hub's pins, or the hub's directory)
+        let _ = claim;
         let out = frame(src, dgram);
         if to == "local" {
             match (&self.udp, self.local) {
@@ -374,6 +387,9 @@ struct Source {
     roots_file: Option<PathBuf>,
     devices: Option<crate::tokens::TokenStore>,
     warned: std::collections::HashSet<String>,
+    me: [u8; 32],
+    /// a joined node: the hub's last directory (when it came, the roots in it)
+    directory: Arc<std::sync::Mutex<Option<(Instant, Vec<PeerSpec>)>>>,
 }
 
 impl Source {
@@ -387,7 +403,22 @@ impl Source {
     fn read(&mut self) -> (Option<(Ipv4Addr, u8)>, Vec<PeerSpec>) {
         let mut peers = self.statics.clone();
         let mut addr = self.address;
-        let Some(path) = self.roots_file.clone() else { return (addr, peers) };
+        let Some(path) = self.roots_file.clone() else {
+            // a joined node: the hub's directory, while it is fresh
+            let fresh = self.directory.lock().unwrap().clone().filter(|(at, _)| at.elapsed() < DIR_TTL);
+            if let (Some((_, roots)), Some(me)) = (fresh, addr) {
+                for r in roots {
+                    if r.public == self.me || r.ip == me.0 || !in_net(r.ip, me) {
+                        continue;
+                    }
+                    if peers.iter().any(|p| p.public == r.public || p.ip == r.ip || p.id == r.id) {
+                        continue;
+                    }
+                    peers.push(r);
+                }
+            }
+            return (addr, peers);
+        };
         let Ok(text) = std::fs::read_to_string(&path) else { return (addr, peers) };
         let Ok(v) = serde_json::from_str::<Value>(&text) else {
             self.warn(format!("{}: not JSON — keeping no roots", path.display()));
@@ -452,6 +483,8 @@ enum Cmd {
     /// the thread is done with the stream
     Release { id: u64 },
     Stats { reply: mpsc::Sender<(Value, Value)> },
+    /// the hub's node: the tree's directory (None on a joined node)
+    Directory { reply: mpsc::Sender<Option<Value>> },
 }
 
 /// What the engine tells a stream's thread.
@@ -880,7 +913,25 @@ impl Engine {
             Cmd::Stats { reply } => {
                 let _ = reply.send(self.stats());
             }
+            Cmd::Directory { reply } => {
+                let _ = reply.send(self.directory());
+            }
         }
+    }
+
+    /// Every root this hub pinned (and still allows): what joined nodes learn each other from.
+    fn directory(&self) -> Option<Value> {
+        self.source.roots_file.as_ref()?;
+        let (ip, len) = self.addr?;
+        let net = Ipv4Addr::from(u32::from(ip) & (u32::MAX << (32 - len)));
+        let mut roots: Vec<Value> = self
+            .peers
+            .values()
+            .filter(|p| !p.spec.proactive)
+            .map(|p| json!({ "id": p.spec.id, "public_key": B64.encode(p.spec.public), "ip": p.spec.ip.to_string() }))
+            .collect();
+        roots.sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
+        Some(json!({ "net": format!("{net}/{len}"), "roots": roots }))
     }
 
     fn stats(&self) -> (Value, Value) {
@@ -1082,6 +1133,12 @@ impl Ctl {
         self.send(Cmd::Stats { reply: tx });
         rx.recv_timeout(Duration::from_secs(5)).ok()
     }
+
+    fn directory(&self) -> Option<Value> {
+        let (tx, rx) = mpsc::channel();
+        self.send(Cmd::Directory { reply: tx });
+        rx.recv_timeout(Duration::from_secs(5)).ok().flatten()
+    }
 }
 
 /* ------------------------------------------------------------------ HTTP on the doors */
@@ -1227,6 +1284,16 @@ fn serve_inbound(id: u64, rx: mpsc::Receiver<Ev>, ctl: Ctl, brain: Option<String
     });
     let reply = match got {
         Err((st, msg)) => HttpReply::error(st, &msg),
+        // the node's own path (never a brain route): the hub's directory, inside the tunnel only
+        Ok(r) if r.target.split('?').next() == Some("/_wg/directory") => match (r.method.as_str(), ctl.directory()) {
+            ("GET", Some(d)) => {
+                let mut h = Map::new();
+                h.insert("content-type".into(), json!("application/json"));
+                HttpReply { status: 200, headers: h, body: d.to_string().into_bytes() }
+            }
+            ("GET", None) => HttpReply::error(404, "this node publishes no directory (only the hub does)"),
+            _ => HttpReply::error(405, "GET only"),
+        },
         Ok(r) => match (HttpReq::new(&r.method, &r.target, r.headers, r.body), &brain) {
             (Err(e), _) => HttpReply::error(400, &e),
             (Ok(_), None) => HttpReply::error(501, "this root runs no brain behind its tunnel"),
@@ -1365,12 +1432,17 @@ fn serve_front(mut s: TcpStream, ctl: Ctl) {
         HttpReply { status: 200, headers: h, body: v.to_string().into_bytes() }
     };
     let bare = path.split('?').next().unwrap_or_default();
-    if bare == "/_wg" || bare == "/_wg/_node" {
+    if bare == "/_wg" || bare == "/_wg/_node" || bare == "/_wg/_roots" {
         if r.method != "GET" {
             return write_reply(&mut s, &HttpReply::error(405, "GET only"));
         }
         let reply = match ctl.stats() {
-            Some((peers, node)) => json_reply(if bare == "/_wg" { &peers } else { &node }),
+            Some((peers, node)) => json_reply(&match bare {
+                "/_wg" => peers,
+                "/_wg/_node" => node,
+                // what a brain learns its peers from (YGG_PEERS_FROM): the roots, not `local`
+                _ => Value::Array(peers.as_array().into_iter().flatten().filter(|p| p["id"] != "local").cloned().collect()),
+            }),
             None => HttpReply::error(503, "the tunnel engine did not answer"),
         };
         return write_reply(&mut s, &reply);
@@ -1389,6 +1461,40 @@ fn serve_front(mut s: TcpStream, ctl: Ctl) {
         Ok(req) => tunnel_call(&ctl, peer, &req),
     };
     write_reply(&mut s, &reply);
+}
+
+/// A joined node: fetch the hub's directory every DIR_EVERY, inside the tunnel to `local`.
+fn follow_directory(ctl: Ctl, me: [u8; 32], dir: Arc<std::sync::Mutex<Option<(Instant, Vec<PeerSpec>)>>>) {
+    let mut last: Vec<String> = vec![];
+    loop {
+        let reply = match HttpReq::new("GET", "/_wg/directory", Map::new(), vec![]) {
+            Ok(req) => tunnel_call(&ctl, "local", &req),
+            Err(_) => return,
+        };
+        if reply.status == 200 {
+            let v: Value = serde_json::from_slice(&reply.body).unwrap_or(Value::Null);
+            let mut roots = vec![];
+            for r in v["roots"].as_array().into_iter().flatten() {
+                let id = r["id"].as_str().unwrap_or_default();
+                let (Ok(public), Ok(ip)) = (
+                    decode_key(r["public_key"].as_str().unwrap_or_default()),
+                    r["ip"].as_str().unwrap_or_default().parse::<Ipv4Addr>(),
+                ) else {
+                    continue;
+                };
+                if valid_addr(id) && id != "local" && public != me {
+                    roots.push(PeerSpec { id: id.to_string(), public, ip, proactive: false });
+                }
+            }
+            let ids: Vec<String> = roots.iter().map(|r| r.id.clone()).collect();
+            if ids != last {
+                eprintln!("wg: the hub's directory: {} other root(s) [{}]", ids.len(), ids.join(", "));
+                last = ids;
+            }
+            *dir.lock().unwrap() = Some((Instant::now(), roots));
+        }
+        std::thread::sleep(DIR_EVERY);
+    }
 }
 
 /* ------------------------------------------------------------------ the node */
@@ -1433,12 +1539,16 @@ pub fn start(cfg: NodeConfig) -> Result<NodeHandle, String> {
         to: udp_bound,
     });
     let (cmd_tx, cmd_rx) = tokio::sync::mpsc::unbounded_channel::<Cmd>();
+    let directory = Arc::new(std::sync::Mutex::new(None));
+    let follows_hub = cfg.roots_file.is_none() && statics.iter().any(|p| p.id == "local");
     let source = Source {
         statics,
         address,
         roots_file: cfg.roots_file.clone().map(PathBuf::from),
         devices: cfg.devices_file.clone().map(crate::tokens::TokenStore::open),
         warned: Default::default(),
+        me: *public.as_bytes(),
+        directory: directory.clone(),
     };
     let brain = cfg.brain.clone().map(|b| b.trim_end_matches('/').to_string());
     let public_bytes = *public.as_bytes();
@@ -1547,6 +1657,13 @@ pub fn start(cfg: NodeConfig) -> Result<NodeHandle, String> {
         })
         .map_err(|e| e.to_string())?;
     ready_rx.recv_timeout(Duration::from_secs(5)).map_err(|_| "wg engine did not start".to_string())??;
+    if follows_hub {
+        let (ctl, me) = (ctl.clone(), public_bytes);
+        std::thread::Builder::new()
+            .name("wg-directory".into())
+            .spawn(move || follow_directory(ctl, me, directory))
+            .map_err(|e| e.to_string())?;
+    }
     let busy = Arc::new(AtomicUsize::new(0));
     std::thread::Builder::new()
         .name("wg-front".into())
@@ -1686,18 +1803,22 @@ mod tests {
                 }
             });
         }
-        // from a joined node on its link: [local][dgram] -> the hub node as [link id][dgram]
+        // from a joined node on its link: [local][dgram] -> the hub node as [link id][dgram];
+        // [other link][dgram] -> that link's node as [link id][dgram] (root -> root)
         for (id, s, _) in table.iter() {
-            let (id, s, a_side, seen, mode) = (*id, s.clone(), a_side.clone(), seen.clone(), mode.clone());
+            let (id, s, a_side, seen, mode, table) = (*id, s.clone(), a_side.clone(), seen.clone(), mode.clone(), table.clone());
             std::thread::spawn(move || {
                 let mut buf = vec![0u8; 65536];
                 loop {
                     let Ok((n, _)) = s.recv_from(&mut buf) else { continue };
                     let Some((to, d)) = unframe(&buf[..n]) else { continue };
+                    seen.lock().unwrap().push(d.to_vec());
                     if to != "local" {
+                        if let Some((_, s2, node)) = table.iter().find(|(i, _, _)| *i == to && *i != id) {
+                            let _ = s2.send_to(&frame(id, d), node);
+                        }
                         continue;
                     }
-                    seen.lock().unwrap().push(d.to_vec());
                     let mut d = d.to_vec();
                     let m = mode.load(Ordering::SeqCst);
                     if m != 0 && wg_kind(&d) == Some(WgKind::Data) && d.len() > 64 {
@@ -1742,15 +1863,18 @@ mod tests {
         let (_, a_pub) = load_or_create_key(&p("a.key")).unwrap();
         let (_, b_pub) = load_or_create_key(&p("b.key")).unwrap();
         let (_, _c_pub) = load_or_create_key(&p("c.key")).unwrap();
+        let (_, d_pub) = load_or_create_key(&p("d.key")).unwrap();
         let b64 = |k: &PublicKey| B64.encode(k.as_bytes());
-        let roots = json!({ "version": 1, "wg": { "net": "10.77.3.0/24" },
-            "roots": [{ "id": "b", "dev": "dev_ok", "wg_pub": b64(&b_pub), "wg_ip": "10.77.3.2" }] });
-        std::fs::write(p("roots.json"), roots.to_string()).unwrap();
+        let roots = |d_revoked: bool| json!({ "version": 1, "wg": { "net": "10.77.3.0/24" },
+            "roots": [{ "id": "b", "dev": "dev_ok", "wg_pub": b64(&b_pub), "wg_ip": "10.77.3.2" },
+                      { "id": "d", "dev": "dev_ok", "wg_pub": b64(&d_pub), "wg_ip": "10.77.3.3", "revoked": d_revoked }] });
+        std::fs::write(p("roots.json"), roots(false).to_string()).unwrap();
         let devs = |revoked: bool| json!({ "devices": [{ "id": "dev_ok", "tokenHash": "00", "revoked": revoked, "roots": ["b"] }] });
         std::fs::write(p("devices.json"), devs(false).to_string()).unwrap();
         // sockets: the relay's side of each leg
-        let (ra, rb, rc) = (free_udp(), free_udp(), free_udp());
-        let (ra_addr, rb_addr, rc_addr) = (ra.local_addr().unwrap(), rb.local_addr().unwrap(), rc.local_addr().unwrap());
+        let (ra, rb, rc, rd) = (free_udp(), free_udp(), free_udp(), free_udp());
+        let (ra_addr, rb_addr, rc_addr, rd_addr) =
+            (ra.local_addr().unwrap(), rb.local_addr().unwrap(), rc.local_addr().unwrap(), rd.local_addr().unwrap());
         let node = |key: &str, relay: SocketAddr, brain: Option<String>, address: Option<&str>, roots: bool, peer: Option<&PublicKey>| {
             start(NodeConfig {
                 key_file: p(key),
@@ -1768,7 +1892,8 @@ mod tests {
         let a = node("a.key", ra_addr, Some(fake_brain("A")), None, true, None);
         let b = node("b.key", rb_addr, Some(fake_brain("B")), Some("10.77.3.2/24"), false, Some(&a_pub));
         let c = node("c.key", rc_addr, Some(fake_brain("C")), Some("10.77.3.9/24"), false, Some(&a_pub));
-        let relay = fake_relay(a.udp, vec![("b", rb, b.udp), ("c", rc, c.udp)], ra);
+        let d = node("d.key", rd_addr, Some(fake_brain("D")), Some("10.77.3.3/24"), false, Some(&a_pub));
+        let relay = fake_relay(a.udp, vec![("b", rb, b.udp), ("c", rc, c.udp), ("d", rd, d.udp)], ra);
 
         // B -> the hub's brain, and the hub -> B's brain, inside the tunnel
         let (st, body) = http(b.http, "GET", "/_wg/local/root", b"", "x-ygg-peer: tok\r\nauthorization: Bearer no\r\nx-evil: 1\r\n");
@@ -1807,6 +1932,25 @@ mod tests {
         let (st, _) = http(a.http, "GET", "/_wg/b/root", b"", "origin: https://evil.example\r\n");
         assert_eq!(st, 403, "browsers are refused at the front door");
 
+        // joined root <-> joined root: B and D learn each other from the hub's directory (inside
+        // their tunnels to the hub) and talk through the relay; the unpinned C is in no directory
+        let roots_of = |n: SocketAddr| -> Vec<String> {
+            let v: Value = serde_json::from_slice(&http(n, "GET", "/_wg/_roots", b"", "").1).unwrap_or(Value::Null);
+            v.as_array().into_iter().flatten().filter_map(|p| p["id"].as_str().map(String::from)).collect()
+        };
+        let t = Instant::now();
+        while (roots_of(b.http) != ["d"] || roots_of(d.http) != ["b"]) && t.elapsed() < Duration::from_secs(20) {
+            std::thread::sleep(Duration::from_millis(200));
+        }
+        assert_eq!((roots_of(b.http), roots_of(d.http)), (vec!["d".to_string()], vec!["b".to_string()]), "directory not learned");
+        let (st, body) = http(b.http, "GET", "/_wg/d/root", b"", "");
+        assert_eq!((st, serde_json::from_slice::<Value>(&body).unwrap()["name"].as_str()), (200, Some("D")), "B -> D");
+        let (st, body) = http(d.http, "POST", "/_wg/b/echo", &big, "");
+        assert!(st == 200 && body == big, "D -> B 300 KB: {st}");
+        assert_eq!(http(b.http, "GET", "/_wg/c/root", b"", "").0, 502, "the unpinned C is in no directory");
+        let (st, _) = http(a.http, "GET", "/_wg/_roots", b"", "");
+        assert_eq!(st, 200);
+
         // the relay only ever carried WireGuard: no HTTP, no body bytes
         {
             let seen = relay.seen.lock().unwrap();
@@ -1834,6 +1978,15 @@ mod tests {
         assert_eq!(st, 504, "an unapproved key reached the hub");
         assert!(t.elapsed() < Duration::from_secs(15));
         assert!(stats(a.http)["dropped"]["unknown_key"].as_u64() >= Some(1));
+
+        // revoking D (roots.json) takes it out of the directory: B drops it within a refresh
+        std::fs::write(p("roots.json"), roots(true).to_string()).unwrap();
+        let t = Instant::now();
+        while roots_of(b.http) == ["d"] && t.elapsed() < Duration::from_secs(15) {
+            std::thread::sleep(Duration::from_millis(200));
+        }
+        assert!(roots_of(b.http).is_empty(), "B still holds the revoked D");
+        assert_eq!(http(b.http, "GET", "/_wg/d/root", b"", "").0, 502, "B still reaches the revoked D");
 
         // revoking the approving device cuts B's tunnel within a reload
         std::fs::write(p("devices.json"), devs(true).to_string()).unwrap();

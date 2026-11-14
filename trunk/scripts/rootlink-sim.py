@@ -52,7 +52,9 @@ asserts the whole law:
   T15 wg-relay the root <-> root leg's relay (trunk/src/wg.rs): binary root-link
                frames are WireGuard relay frames [n][addr][datagram]; root→root
                is forwarded with the source REWRITTEN to the sending link's id
-               (a root cannot pose as another), under the link-token claim law;
+               (a root cannot pose as another) between ANY two linked roots —
+               the link-token claim gates only the plaintext switchboard; the
+               far node's keys (the hub's directory) decide who talks;
                `local` ↔ the hub's node over loopback UDP (wg_relay/wg_local),
                only from the configured node; anything that is not a
                WireGuard-shaped message is dropped, never relayed
@@ -871,7 +873,10 @@ upstream = "127.0.0.1:{hub.srv.server_address[1]}"
         rx_.ws.send_binary(fr("mac-y", data))
         expect(ry.got() == ("mac-x", data), "root→root: mac-x's datagram reached mac-y byte-exact, source = the sending LINK's id")
         ry.ws.send_binary(fr("mac-x", data))
-        expect(rx_.got(1.5) is None, "mac-y (claim [mac-y]) → mac-x: dropped (link-token claim law)")
+        expect(rx_.got() == ("mac-y", data), "mac-y (claim [mac-y]) → mac-x relayed too: WireGuard needs no claim, the keys decide")
+        ry.ws.send_binary(fr("mac-y", data))
+        rx_.ws.send_binary(fr("mac-ghost", data))
+        expect(ry.got(1.5) is None, "to itself, or to a root that is not linked: dropped")
         rx_.ws.send_binary(fr("mac-y", b"GET /root HTTP/1.1\r\nhost: x\r\n\r\n"))
         rx_.ws.send_binary(fr("mac-y", b'{"op":"http","path":"/root"}'))
         rx_.ws.send_binary(b"\x07mac-y")                   # a frame with no datagram
@@ -891,8 +896,8 @@ upstream = "127.0.0.1:{hub.srv.server_address[1]}"
         expect(ry.got(1.5) is None, "UDP into the relay socket from anyone but the hub's node is dropped")
         rx_.close(); ry.close()
         lg = open(os.path.join(dir_, "bridge.log")).read()
-        expect("wg-relay: dropped a frame from 'mac-y': claim does not name 'mac-x'" in lg
-               and "not a WireGuard message" in lg, "the bridge logs what it refused to relay")
+        expect("wg-relay: dropped a frame from 'mac-y': addressed to itself" in lg
+               and "not a WireGuard message" in lg and "'mac-ghost': root not linked" in lg, "the bridge logs what it refused to relay")
 
         print("ROOTLINK-SIM: ALL 15 GREEN (routing, single-use, takeover, anonymous-refused, close-reap, "
               "wedged-unlink, in-flight-cap, mint-cli, dial-exec, public-guard, brain-sessions, switchboard, "

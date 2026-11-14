@@ -1758,6 +1758,14 @@ mod tests {
         let big: Vec<u8> = (0..300_000u32).map(|i| b"0123456789abcdef"[(i % 16) as usize]).collect();
         let (st, body) = http(a.http, "POST", "/_wg/b/echo", &big, "");
         assert!(st == 200 && body == big, "300 KB echo through the tunnel: {st} {}", body.len());
+        let mut lat = vec![];
+        for _ in 0..20 {
+            let t = Instant::now();
+            assert_eq!(http(a.http, "GET", "/_wg/b/root", b"", "").0, 200);
+            lat.push(t.elapsed().as_secs_f64() * 1000.0);
+        }
+        lat.sort_by(|x, y| x.partial_cmp(y).unwrap());
+        eprintln!("LATENCY in-process relay: median {:.2} ms, max {:.2} ms", lat[10], lat[19]);
         let (st, _) = http(a.http, "GET", "/_wg/b/nope", b"", "");
         assert_eq!(st, 404, "the brain's own status crosses");
         let (st, _) = http(a.http, "GET", "/_wg/ghost/root", b"", "");

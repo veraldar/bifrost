@@ -14,13 +14,18 @@
 #          (join env: BIFROST_NET_BIN, BRIDGE_CONFIG,         polls → 20 link tokens → its brain
 #           ROOTLINK_URL=wss://ap…/rootlink, PEER token)      (yggdrasil on the mock) + root-dial.py
 #     brain "home" (yggdrasil on root/mock/mock_upstream.py)    --tls --cafile --path /rootlink
-#       YGG_PEERS_FROM=bridge /_roots: learns joined roots      --brain --peer-port
+#       YGG_PEERS_FROM=its node's /_wg: learns joined roots      --brain --wg-udp/--wg-node
+#     the hub's WireGuard node (bifrost-net wg): pins the       + its own WireGuard node (key made
+#       keys in roots.json; brain calls between roots ride        before the join, sent with it,
+#       it — the bridge and the ap relay ciphertext only           pinned by the phone's approval)
 # Steps (branch/e2e/trunk-full.spec.ts): 1 pair by QR through the ap → home (the list) · 1d a fresh
 # phone pairs → the door → a typed first turn → "you are in" · 1v voice over the trunk is one calm
 # line, never an error box or a retry storm · 2 MAIN answers the phone ·
-# 3 join by QR, approved on the phone, the root links through the ap · 4 MAIN delegates to the
-# joined root over the trunk, the report comes home, the phone sees it · 5 the phone talks to the
-# joined root directly (/branch through the ap) · 6 revoke from the box console → refused.
+# 3 join by QR, approved on the phone (it shows the machine's tunnel-key fingerprint: approving
+# pins it), the root links through the ap and the hub reaches its brain inside WireGuard · 4 MAIN
+# delegates to the joined root over the tunnel, the report comes home, the phone sees it · 5 the
+# phone talks to the joined root directly (/branch through the ap) · 6 revoke from the box console
+# → refused, and the root it approved loses its tunnel.
 #
 #   sim/trunk-full-e2e.sh            exit 0 = every step PASS; prints the PASS/FAIL table
 #
@@ -58,6 +63,8 @@ rm -f "$STATE"/devices.json* "$STATE"/roots.json* "$STATE"/steps.tsv
 mount --bind "$STATE/hosts" /etc/hosts
 
 APP=18395 HOMEP=18396 MOCK=18397 BR=18398 MEDIA=18399 RL=18400 MACP=18401 PEERP=18402
+# the root <-> root leg: the hub's node (front door, its udp, the bridge's relay socket) and mac's
+HUBWG=18403 HUBUDP=18404 RELAYUDP=18405 MACWG=18406 MACUDP=18407 MACPIPE=18408
 RLSECRET=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
 PEER="peer-$(head -c 12 /dev/urandom | od -An -tx1 | tr -d ' \n')"
 
@@ -73,16 +80,17 @@ trap cleanup EXIT
 python3 "$ROOT/root/mock/mock_upstream.py" "$MOCK" >"$STATE/mock.log" 2>&1 &
 pids+=($!)
 
-# the hub brain "home": no static YGG_PEERS — it learns every root that links to the trunk from
-# the bridge's loopback list (YGG_PEERS_FROM → GET /_roots; reached through /_root/<id>). Started
-# once: the spec checks that a join reaches it without a restart (home.pid stays the same).
+# the hub brain "home": no static YGG_PEERS — it learns every root whose key the phone pinned from
+# the hub's WireGuard node (YGG_PEERS_FROM → GET /_wg; reached through /_wg/<id>, inside the
+# tunnel). Started once: the spec checks that a join reaches it without a restart (home.pid).
 env -i PATH="$PATH" HOME="$STATE/home" YGG_UPSTREAM_BASE_URL="http://127.0.0.1:$MOCK" \
   YGG_UPSTREAM_STYLE=anthropic YGG_UPSTREAM_API_KEY=mock YGG_UPSTREAM_MODEL=mock \
   YGG_WAKE_DEBOUNCE_MS=400 YGG_PROVIDERS="$STATE/home/none.json" \
   YGG_ARTIFACTS_DIR="$STATE/home/artifacts" YGG_DATA_DIR="$STATE/home/data" \
   YGG_PROFILES="$STATE/home/agents.json" YGG_PROJECT_DIR="$STATE/home/work" \
   YGG_LISTEN="127.0.0.1:$HOMEP" YGG_ROOT_NAME=home YGG_PEER_TOKEN="$PEER" \
-  YGG_PEERS_FROM="http://127.0.0.1:$BR/_roots" "$YGG_BIN" >>"$STATE/home.log" 2>&1 &
+  YGG_PEERS_FROM="http://127.0.0.1:$HUBWG/_wg" YGG_PEERS_VIA="http://127.0.0.1:$HUBWG/_wg/{id}" \
+  "$YGG_BIN" >>"$STATE/home.log" 2>&1 &
 pids+=($!)
 echo $! >"$STATE/home.pid"
 
@@ -124,6 +132,8 @@ enabled = true
 listen = "127.0.0.1:$RL"
 ping_secs = 5
 result_secs = 120
+wg_relay = "127.0.0.1:$RELAYUDP"
+wg_local = "127.0.0.1:$HUBUDP"
 
 [ap]
 url = "wss://$AP_HOST/ap"
@@ -133,6 +143,21 @@ upstream = "127.0.0.1:$APP"
 TOML
 chmod 600 "$STATE/bridge.toml"
 "$BIN" bridge -c "$STATE/bridge.toml" >"$STATE/bridge.log" 2>&1 &
+pids+=($!)
+
+# ---- the hub's WireGuard node: its key never leaves it; its peers are the keys the phone pinned ----
+"$BIN" wg-key "$STATE/hub-wg.key" >"$STATE/hub-wg.txt"
+cat >"$STATE/wg-hub.toml" <<TOML
+[wg]
+key_file = "$STATE/hub-wg.key"
+udp = "127.0.0.1:$HUBUDP"
+relay = "127.0.0.1:$RELAYUDP"
+http = "127.0.0.1:$HUBWG"
+brain = "http://127.0.0.1:$HOMEP"
+roots_file = "$STATE/roots.json"
+devices_file = "$STATE/devices.json"
+TOML
+"$BIN" wg -c "$STATE/wg-hub.toml" >"$STATE/wg-hub.log" 2>&1 &
 pids+=($!)
 
 # ---- the app: devices mode behind the ap (loopback only, X-Forwarded-For from the bridge) ----
@@ -145,6 +170,7 @@ pids+=($!)
     OPENCODE_URL="http://127.0.0.1:$HOMEP" ARTIFACTS_DIR="$STATE/artifacts-app" ARTIFACTS_MAIN_DIR= \
     BIFROST_NET_BIN="$BIN" BIFROST_BRIDGE_CONFIG="$STATE/bridge.toml" \
     BIFROST_ROOTLINK_URL="wss://$AP_HOST/rootlink" YGG_PEER_TOKEN="$PEER" \
+    BIFROST_WG_PUB_FILE="$STATE/hub-wg.key.pub" \
     node server.mjs
 ) >"$STATE/app.log" 2>&1 &
 pids+=($!)
@@ -154,6 +180,7 @@ for _ in $(seq 90); do
   if curl -sf -o /dev/null "http://127.0.0.1:$BR/identity" &&
     curl -sf -o /dev/null "http://127.0.0.1:$APP/pair" &&
     curl -sf -o /dev/null "http://127.0.0.1:$HOMEP/session" &&
+    curl -sf -o /dev/null "http://127.0.0.1:$HUBWG/_wg" &&
     grep -q "channel up" "$STATE/bridge.log" &&
     curl -sf -o /dev/null --cacert "$STATE/tls/cert.pem" "$AP_URL/pair"; then
     up=1
@@ -163,10 +190,10 @@ for _ in $(seq 90); do
 done
 if [ "$up" != 1 ]; then
   echo "the box did not come up — logs in $STATE"
-  tail -n 20 "$STATE"/{bridge,ap,app,home}.log
+  tail -n 20 "$STATE"/{bridge,ap,app,home,wg-hub}.log
   exit 1
 fi
-echo "box up: phone → $AP_URL (ap $AP_IP:443) → bridge (dial-out) → app :$APP · brain home :$HOMEP"
+echo "box up: phone → $AP_URL (ap $AP_IP:443) → bridge (dial-out) → app :$APP · brain home :$HOMEP · wg node :$HUBWG"
 
 cd "$B"
 set +e
@@ -174,6 +201,8 @@ PW_AP_URL="$AP_URL" PW_AP_IP="$AP_IP" PW_BASE_URL="http://127.0.0.1:$APP" PW_STA
   PW_BRIDGE="http://127.0.0.1:$BR" PW_HOME="http://127.0.0.1:$HOMEP" PW_MAC_PORT="$MACP" \
   PW_PEER_PORT="$PEERP" PW_MOCK="http://127.0.0.1:$MOCK" PW_FAR="$FAR" PW_YGG_BIN="$YGG_BIN" \
   PW_CAFILE="$STATE/tls/cert.pem" PW_PEER_TOKEN="$PEER" \
+  PW_HUBWG="http://127.0.0.1:$HUBWG" PW_NET_BIN="$BIN" PW_MAC_WG="$MACWG" PW_MAC_WG_UDP="$MACUDP" \
+  PW_MAC_PIPE="$MACPIPE" \
   npx playwright test e2e/trunk-full.spec.ts --reporter=list 2>&1 | tee "$STATE/e2e.log"
 rc=${PIPESTATUS[0]}
 set -e

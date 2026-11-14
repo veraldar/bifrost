@@ -14,6 +14,8 @@ type View = {
   os: string;
   host: string;
   code: string;
+  /** the fingerprint of the WireGuard key approving pins (null: an older machine) */
+  wg_fp: string | null;
   status: 'pending' | 'approved' | 'refused' | 'expired' | 'delivered';
   expires_at: string;
   root_id: string | null;
@@ -124,10 +126,21 @@ export default function JoinPage() {
           >
             {view.code}
           </p>
+          {view.wg_fp && (
+            <p className="note text-center">
+              tunnel key{' '}
+              <span data-testid="join-wg-fp" className="font-mono">
+                {view.wg_fp}
+              </span>
+            </p>
+          )}
           {pending && (
             <>
               <p className="note">
                 the machine shows a code too. add it only if both codes match — otherwise refuse.
+                {view.wg_fp
+                  ? ' adding it trusts its tunnel key: the machine prints the same key line.'
+                  : ''}{' '}
                 expires {new Date(view.expires_at).toLocaleTimeString()}.
               </p>
               <div className="mt-3 flex gap-2">

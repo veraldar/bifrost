@@ -47,6 +47,15 @@ asserts the whole law:
                cert) ◀ box bridge dials out; root-dial --tls --cafile
                --path /rootlink links, serves a turn and a switchboard call;
                without the test CA the TLS dial is refused
+  (T12–T14 run the OLD plaintext switchboard: this bridge opts in with
+   [bridge.root-link] plaintext_http = true, as a hub with old roots would)
+  T15 wg-relay the root <-> root leg's relay (trunk/src/wg.rs): binary root-link
+               frames are WireGuard relay frames [n][addr][datagram]; root→root
+               is forwarded with the source REWRITTEN to the sending link's id
+               (a root cannot pose as another), under the link-token claim law;
+               `local` ↔ the hub's node over loopback UDP (wg_relay/wg_local),
+               only from the configured node; anything that is not a
+               WireGuard-shaped message is dropped, never relayed
 
 LAW: the health probe is AGENT-level — root-dial must EXEC the agent
 to earn each root.pong; a dial script that pongs without exec is a
@@ -104,6 +113,13 @@ class Ws:
         else:         hdr += bytes([0x80 | 127]) + struct.pack(">Q", n)
         self.s.sendall(hdr + mask + masked)
 
+    def send_binary(self, payload):
+        mask = os.urandom(4)
+        masked = bytes(b ^ mask[i % 4] for i, b in enumerate(payload))
+        n = len(payload)
+        hdr = bytes([0x82]) + (bytes([0x80 | n]) if n < 126 else bytes([0x80 | 126]) + struct.pack(">H", n))
+        self.s.sendall(hdr + mask + masked)
+
     def send_pong(self, payload=b""):
         mask = os.urandom(4)
         masked = bytes(b ^ mask[i % 4] for i, b in enumerate(payload))
@@ -126,6 +142,9 @@ class Ws:
             if got is None: return None
             opcode, payload = got
             if opcode == 0x1: return payload.decode()
+            if opcode == 0x2:                            # a WireGuard relay frame
+                getattr(self, "binq", queue.Queue()).put(payload)
+                continue
             if opcode == 0x8: return None
             if opcode == 0x9: self.send_pong(payload)   # trunk ping → pong
 
@@ -431,6 +450,11 @@ def main():
     # T11-T14 fixtures: the hub's own brain (`local`) + the access point the
     # box dials out to (self-signed test cert — the VPS uses its real one)
     hub = FakeBrain("H")
+    # T15 fixture: the hub's own WireGuard node, played by a bare UDP socket
+    hub_node = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    hub_node.bind(("127.0.0.1", 0))
+    hub_node.settimeout(3)
+    wg_relay_port = free_port()
     ap_port = free_port()
     certout = subprocess.run([BIN, "ap-cert", os.path.join(dir_, "tls"), "localhost", "127.0.0.1"],
                              capture_output=True, text=True).stdout
@@ -459,6 +483,9 @@ opencode_url = "{hub.url}"
 enabled = true
 ping_secs = 3
 max_inflight = 1
+plaintext_http = true
+wg_relay = "127.0.0.1:{wg_relay_port}"
+wg_local = "127.0.0.1:{hub_node.getsockname()[1]}"
 
 [ap]
 url = "wss://127.0.0.1:{ap_port}/ap"
@@ -825,9 +852,51 @@ upstream = "127.0.0.1:{hub.srv.server_address[1]}"
         expect("bridge registered from" in la and f"/rootlink → root-link 127.0.0.1:{WS_PORT}" in lg,
                "the box dialed OUT to the ap; the ap's /rootlink stream went to the box's loopback root-link listener")
 
-        print("ROOTLINK-SIM: ALL 14 GREEN (routing, single-use, takeover, anonymous-refused, close-reap, "
+        # ---- T15: the WireGuard relay — ciphertext by address, never read ----
+        def fr(addr, d): return bytes([len(addr)]) + addr.encode() + d
+        def unfr(b): n = b[0]; return b[1:1 + n].decode(), b[1 + n:]
+        init = bytes([1, 0, 0, 0]) + os.urandom(144)        # handshake-init shaped
+        data = bytes([4, 0, 0, 0]) + os.urandom(96)         # transport-data shaped
+        class WgRoot(FakeRoot):
+            def __init__(self, token):
+                self.binq = queue.Queue()
+                super().__init__(token)
+                self.ws.binq = self.binq
+            def got(self, timeout=3):
+                try: return unfr(self.binq.get(timeout=timeout))
+                except queue.Empty: return None
+        rx_ = WgRoot(mint_link_token(secret, "mac-x", "dev_a", ["*"]))
+        ry = WgRoot(mint_link_token(secret, "mac-y", "dev_a"))
+        expect(rx_.ack.get("op") == "root-link.ok" and ry.ack.get("op") == "root-link.ok", "two roots linked for the relay (mac-x claim *, mac-y claim [mac-y])")
+        rx_.ws.send_binary(fr("mac-y", data))
+        expect(ry.got() == ("mac-x", data), "root→root: mac-x's datagram reached mac-y byte-exact, source = the sending LINK's id")
+        ry.ws.send_binary(fr("mac-x", data))
+        expect(rx_.got(1.5) is None, "mac-y (claim [mac-y]) → mac-x: dropped (link-token claim law)")
+        rx_.ws.send_binary(fr("mac-y", b"GET /root HTTP/1.1\r\nhost: x\r\n\r\n"))
+        rx_.ws.send_binary(fr("mac-y", b'{"op":"http","path":"/root"}'))
+        rx_.ws.send_binary(b"\x07mac-y")                   # a frame with no datagram
+        expect(ry.got(1.5) is None, "plaintext (HTTP, a JSON op, an empty frame) is never relayed — WireGuard-shaped only")
+        ry.ws.send_binary(fr("local", init))
+        try:
+            got, frm = hub_node.recvfrom(65536)
+        except socket.timeout:
+            got, frm = b"", None
+        expect(frm is not None and frm[1] == wg_relay_port and unfr(got) == ("mac-y", init),
+               f"root→local: the hub's node got mac-y's handshake on loopback UDP from the bridge's relay socket {frm}")
+        hub_node.sendto(fr("mac-y", data), ("127.0.0.1", wg_relay_port))
+        expect(ry.got() == ("local", data), "local→root: the hub's node reached mac-y, source 'local'")
+        stranger = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        stranger.sendto(fr("mac-y", data), ("127.0.0.1", wg_relay_port))
+        stranger.close()
+        expect(ry.got(1.5) is None, "UDP into the relay socket from anyone but the hub's node is dropped")
+        rx_.close(); ry.close()
+        lg = open(os.path.join(dir_, "bridge.log")).read()
+        expect("wg-relay: dropped a frame from 'mac-y': claim does not name 'mac-x'" in lg
+               and "not a WireGuard message" in lg, "the bridge logs what it refused to relay")
+
+        print("ROOTLINK-SIM: ALL 15 GREEN (routing, single-use, takeover, anonymous-refused, close-reap, "
               "wedged-unlink, in-flight-cap, mint-cli, dial-exec, public-guard, brain-sessions, switchboard, "
-              "claim-refusal, ap-edge)")
+              "claim-refusal, ap-edge, wg-relay)")
         shutil.rmtree(dir_, ignore_errors=True)   # green: no test keys/tokens left behind
         return 0
     finally:

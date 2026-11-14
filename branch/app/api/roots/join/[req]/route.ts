@@ -2,7 +2,9 @@
  * GET (header x-join-secret) → the joining machine's poll (contract v1):
  *   202 { status: "pending" }
  *   200 { status: "approved", root_id, root_secret, link_tokens, rootlink_url,
- *         peer_token, hub: "local" }   — delivered ONCE, then 410
+ *         peer_token, hub, wg? }   — delivered ONCE, then 410
+ *   (wg = { public_key, hub_ip, ip, net } when the machine sent a key and the
+ *    hub runs a WireGuard node)
  *   410 { status: "refused" | "expired" }
  * No device auth: the join secret is the credential (only its hash is kept).
  */

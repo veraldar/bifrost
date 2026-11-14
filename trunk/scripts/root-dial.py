@@ -37,6 +37,17 @@ rides that one link. It proves the AGENT loop, not just a socket:
   against --brain and answered with `http.reply`. Only `content-type` and
   `x-ygg-peer` cross, either way; browser/proxied requests are refused.
 
+  WIREGUARD LAW (the root <-> root leg — trunk/src/wg.rs): brain calls between roots ride a
+  WireGuard tunnel end to end; this dialer only carries its datagrams, opaque:
+    --wg-udp ADDR   this dialer's loopback UDP socket (the node's `relay`)
+    --wg-node ADDR  this root's node (`bifrost-net wg`, its `udp`)
+  A datagram from the node is one relay frame ([n][to][WireGuard datagram]) and goes to the
+  trunk as one BINARY ws frame; a binary frame from the trunk ([n][from][…]) goes to the node.
+  Nothing is parsed here, nothing can be read: the node holds the key. While the link is down
+  the datagrams are dropped (WireGuard and TCP inside it retransmit). The brain then peers
+  through the node (YGG_PEERS <hub>=http://127.0.0.1:<node http>/_wg/local), not --peer-port,
+  which is the OLD plaintext path (refused unless the trunk opted in for old roots).
+
   RECONNECT LAW: on ws close it reconnects with a FRESH token from
   --token-file (burn-as-read; single-use tokens never block a
   reconnect; takeover law makes the newest conn win).
@@ -70,6 +81,7 @@ _OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 USAGE = f"""usage: {os.path.basename(sys.argv[0])} --host HOST --port PORT --token-file FILE
        [--brain URL] [--peer-port P] [--exec "opencode run"] [--probe-exec CMD]
        [--tls] [--cafile PEM] [--insecure-skip] [--allow-plaintext] [--path /rootlink]
+       [--wg-udp 127.0.0.1:A --wg-node 127.0.0.1:B]
 
   --host/--port     trunk [bridge.root-link] listen address (default 127.0.0.1:8473),
                     or an access point (with --tls --path /rootlink)
@@ -91,6 +103,8 @@ USAGE = f"""usage: {os.path.basename(sys.argv[0])} --host HOST --port PORT --tok
                     of the system store (tests and private CAs)
   --insecure-skip   with --tls: skip cert verification (self-signed lab certs
                     ONLY — never on the open internet)
+  --wg-udp/--wg-node carry this root's WireGuard node's datagrams over the link (binary
+                    frames, opaque): the root <-> root leg (bifrost-net wg)
   --allow-plaintext REQUIRED escape hatch to dial over PLAINTEXT ws (link
                     tokens + turn text ride the wire unencrypted). Private
                     ranges are always allowed without it: RFC1918, CGNAT
@@ -282,6 +296,55 @@ def peer_server(port, link):
     print(f"peer port 127.0.0.1:{port} — /<root>/<path> rides the trunk (local = the hub brain)", flush=True)
     return srv
 
+# ---- the WireGuard pipe: this root's node <-> binary frames on the link ---------
+
+def _addr(v):
+    host, _, port = v.rpartition(":")
+    return host.strip("[]") or "127.0.0.1", int(port)
+
+class WgPipe:
+    """Relay frames between this root's WireGuard node (loopback UDP) and the trunk link."""
+    def __init__(self, bind, node):
+        self.node = _addr(node)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.bind(_addr(bind))
+        for opt in (socket.SO_RCVBUF, socket.SO_SNDBUF):
+            try:
+                self.sock.setsockopt(socket.SOL_SOCKET, opt, 4 << 20)
+            except OSError:
+                pass
+        self.send = None
+        self.lock = threading.Lock()
+        threading.Thread(target=self._up, daemon=True).start()
+        print(f"wg pipe: udp {bind} <-> node {node} (binary frames on the link)", flush=True)
+
+    def attach(self, send_binary):
+        with self.lock:
+            self.send = send_binary
+
+    def detach(self):
+        with self.lock:
+            self.send = None
+
+    def _up(self):                             # node → trunk
+        while True:
+            data, frm = self.sock.recvfrom(65536)
+            if frm[1] != self.node[1] or not frm[0].startswith("127.") or not data:
+                continue                       # only this root's own node
+            with self.lock:
+                send = self.send
+            if send is not None:
+                try:
+                    send(data)
+                except OSError:
+                    pass
+
+    def down(self, payload):                   # trunk → node
+        try:
+            self.sock.sendto(payload, self.node)
+        except OSError:
+            pass
+
 # ---- the dial loop ------------------------------------------------------------
 
 def main():
@@ -331,10 +394,15 @@ def main():
     link = Link()
     if arg("--peer-port"):
         peer_server(int(arg("--peer-port")), link)
+    if bool(arg("--wg-udp")) != bool(arg("--wg-node")):
+        raise SystemExit("--wg-udp and --wg-node go together")
+    wg = WgPipe(arg("--wg-udp"), arg("--wg-node")) if arg("--wg-udp") else None
     while True:                               # reconnect-on-close loop
         token, left = fresh_token()
         try:
             s = socket.create_connection((host, port), timeout=10)
+            # small frames (WireGuard datagrams, probes) must not wait on Nagle + delayed ACK
+            s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             s.settimeout(None)          # READ LAW: block forever — the trunk's
                                         # heartbeat (ping_secs) keeps the path
                                         # alive; a fixed timeout kills the conn
@@ -360,38 +428,48 @@ def main():
         if b"101" not in buf.split(b"\r\n", 1)[0]:
             raise SystemExit(f"ws refused: {buf[:120]!r}")
         print(f"dial ok ({left} token(s) left in file)", flush=True)
-        try: run_ws(s, token, exec_cmd, probe_cmd, brain, link, buf.split(b"\r\n\r\n", 1)[1])
+        try: run_ws(s, token, exec_cmd, probe_cmd, brain, link, buf.split(b"\r\n\r\n", 1)[1], wg)
         except (SystemExit, KeyboardInterrupt): raise
         except Exception as e:
             print(f"conn lost ({e!r}) — reconnecting with a fresh token", flush=True)
         finally:
             link.detach()
+            if wg is not None:
+                wg.detach()
             s.close()
         time.sleep(1)
 
-def run_ws(s, token, exec_cmd, probe_cmd, brain, link, leftover=b""):
+def run_ws(s, token, exec_cmd, probe_cmd, brain, link, leftover=b"", wg=None):
     lock = threading.Lock()                   # one writer at a time on the wire
-    def send_text(t):
-        p = t.encode(); m = os.urandom(4)
+    def send_frame(op, p):
+        m = os.urandom(4)
         mk = _mask(p, m)
         n = len(p)
-        h = bytes([0x81]) + (bytes([0x80 | n]) if n < 126 else
-                             bytes([0x80 | 126]) + struct.pack(">H", n) if n < 65536 else
-                             bytes([0x80 | 127]) + struct.pack(">Q", n))
+        h = bytes([0x80 | op]) + (bytes([0x80 | n]) if n < 126 else
+                                  bytes([0x80 | 126]) + struct.pack(">H", n) if n < 65536 else
+                                  bytes([0x80 | 127]) + struct.pack(">Q", n))
         with lock:
             s.sendall(h + m + mk)
+    def send_text(t):
+        send_frame(0x1, t.encode())
+    def send_binary(b):                        # one WireGuard relay frame
+        send_frame(0x2, b)
     def send_op(op, payload=b""):
         m = os.urandom(4)
         with lock:
             s.sendall(bytes([0x80 | op, 0x80 | len(payload)]) + m + _mask(payload, m))
-    buf = leftover                             # leftover bytes across frames
+    buf, pos = bytearray(leftover), 0          # leftover bytes across frames
     def raw(n):
-        nonlocal buf
-        while len(buf) < n:
+        nonlocal buf, pos
+        while len(buf) - pos < n:
             c = s.recv(65536)
             if not c: raise ConnectionError("EOF mid-frame")
+            if pos:                            # compact once per read, not per frame
+                del buf[:pos]
+                pos = 0
             buf += c
-        out, buf = buf[:n], buf[n:]
+        out = bytes(buf[pos:pos + n])
+        pos += n
         return out
     def frame():
         h = raw(2)
@@ -411,6 +489,8 @@ def run_ws(s, token, exec_cmd, probe_cmd, brain, link, leftover=b""):
         raise SystemExit(f"link refused: {p[:160]!r}")
     print(f"linked: {ack.get('root')} gen_no={ack.get('gen_no')}", flush=True)
     link.attach(send_text)
+    if wg is not None:
+        wg.attach(send_binary)
 
     jobs, probes = queue.Queue(), queue.Queue()
 
@@ -485,6 +565,9 @@ def run_ws(s, token, exec_cmd, probe_cmd, brain, link, leftover=b""):
         if op == 0x9: send_op(0xA, p[:125])                     # ws ping → ws pong
         elif op == 0x8: raise ConnectionError("trunk sent CLOSE")
         elif op == 0xA: pass                                    # unsolicited pong
+        elif op == 0x2:                                         # WireGuard, opaque
+            if wg is not None:
+                wg.down(p)
         elif op == 0x1:
             v = json.loads(p)
             o = v.get("op")

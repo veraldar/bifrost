@@ -2,58 +2,73 @@
 """trunk-roots-e2e.py — two REAL brains (yggdrasil) peering THROUGH the trunk, no tailnet,
 no inbound port on the joined root. Deterministic on root/mock/mock_upstream.py.
 
-    hub box ─────────────────────────────────────────────┐        joined root ("mac")
-    home brain  YGG_PEERS mac=http://127.0.0.1:<bridge>/_root/mac   mac brain  YGG_PEERS home=http://127.0.0.1:<P>/local
-      ▲  (`local`)                                       │          ▲
-    bifrost-net bridge (root-link + switchboard) ──dial OUT──▶ ap (TLS edge) ◀──wss /rootlink── root-dial.py --brain --peer-port P
+Default: the root <-> root leg rides WireGuard end to end (trunk/src/wg.rs). Each root runs a
+`bifrost-net wg` node; the brains only get URLs into it:
+
+    hub box ──────────────────────────────────────────────────────┐        joined root ("mac")
+    home brain  YGG_PEERS mac=http://127.0.0.1:<hub node>/_wg/mac   │        mac brain  YGG_PEERS home=http://127.0.0.1:<mac node>/_wg/local
+      ▲ in-tunnel :80        hub node (key, roots.json pins mac)   │          ▲ in-tunnel :80   mac node (key; peer local = the hub's key)
+      └── udp wg_local ⇄ wg_relay ── bifrost-net bridge ──dial OUT──▶ ap ◀──wss /rootlink── root-dial.py --wg-udp/--wg-node (binary frames)
+                                         ▲ TAP: every byte of mac's link as the VPS hands it to the bridge ([ap] rootlink = the tap)
 
 Walks the paths a deployment needs:
   * the joined root dials the ACCESS POINT (wss, test CA) at /rootlink — the box only dials out
-  * the switchboard: home → mac (/_root/mac/…) and mac → home (peer port /local/…), x-ygg-peer kept
   * MAIN on home runs `session_start … root=mac` → the session runs on the mac brain → its report
     comes home → home's GET /tree shows the proxy on root mac, status done; MAIN's inbox has it
+  * the TAP: what the hub's bridge relays for root <-> root is WireGuard only — binary relay
+    frames whose datagrams are WireGuard-shaped, no `http` op, no HTTP or brief/report text
+  * the plaintext switchboard is refused (/_root/ on the bridge, a root's `local` peer port)
+  * a root with a valid link but an UNAPPROVED key gets nothing; a stolen key on another link
+    neither; a replayed and a tampered datagram are dropped while the calls go on
   * a phone-style turn (POST /branch, device token whose roots include mac) answered by the mac
     brain — one session per device, reused; a device without mac in its roots is refused
+  * revoking the approving device cuts the tunnel (both ways); restoring it brings it back;
+    revoking the root (roots.json) cuts it again
+  * --rekey: calls every 10 s for 200 s keep working across WireGuard's 120 s rekey timer
+  * a bench: latency of GET /root and 1 MB each way, hub → mac
 
-    trunk-roots-e2e.py [--bin-root PATH] [--bin-trunk PATH] [--direct]   exit 0 = all green
-    --direct: the root dials the root-link listener itself (no access point leg)
+    trunk-roots-e2e.py [--bin-root PATH] [--bin-trunk PATH] [--direct] [--rekey] [--plaintext]
+    --direct:    the root dials the root-link listener itself (no access point leg; the tap stays)
+    --plaintext: the OLD path (switchboard http ops, bridge plaintext_http = true) — old roots,
+                 and the bench's baseline
 """
-import argparse, hashlib, json, os, shutil, socket, subprocess, sys, tempfile, time, urllib.error, urllib.request
+import argparse, base64, hashlib, json, os, shutil, socket, statistics, struct, subprocess, sys, tempfile, threading, time
+import urllib.error, urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.realpath(os.path.join(HERE, ".."))
 YGG = os.path.join(REPO, "root")
 TRUNK = os.path.join(REPO, "trunk")
 DIAL = os.path.join(TRUNK, "scripts", "root-dial.py")
-NEVER = {4100, 4101, 4191, 8080, 8090, 8101, 8191, 4310, 4096} | set(range(7880, 7892))
+NEVER = {4100, 4101, 4191, 8080, 8090, 8101, 8191, 4310, 4096, 8447} | set(range(7880, 7892))
 FAILS = []
 OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+NET = "10.66.7"
 
 
-def free_port():
+def free_port(udp=False):
     while True:
-        with socket.socket() as s:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM if udp else socket.SOCK_STREAM) as s:
             s.bind(("127.0.0.1", 0))
             p = s.getsockname()[1]
         if p not in NEVER and p + 1 not in NEVER:
             return p
 
 
-def call(port, method, path, body=None, headers=None, timeout=30):
+def call(port, method, path, body=None, headers=None, timeout=30, raw=None):
     """(status, parsed json or raw text)"""
-    data = json.dumps(body).encode() if body is not None else None
+    data = raw if raw is not None else (json.dumps(body).encode() if body is not None else None)
     h = {"content-type": "application/json", **(headers or {})}
     r = urllib.request.Request(f"http://127.0.0.1:{port}{path}", data=data, method=method, headers=h)
     try:
         with OPENER.open(r, timeout=timeout) as resp:
-            raw = resp.read()
-            st = resp.status
+            raw_, st = resp.read(), resp.status
     except urllib.error.HTTPError as e:
-        raw, st = e.read(), e.code
+        raw_, st = e.read(), e.code
     try:
-        return st, json.loads(raw) if raw else None
+        return st, json.loads(raw_) if raw_ else None
     except ValueError:
-        return st, raw.decode(errors="replace")
+        return st, raw_.decode(errors="replace")
 
 
 def req(port, method, path, body=None, timeout=30):
@@ -88,13 +103,152 @@ def tool(calls):
     return "tool:" + json.dumps([calls])
 
 
+def wg_kind(d):
+    if len(d) < 4 or d[1:4] != b"\0\0\0":
+        return None
+    return {1: "init" if len(d) == 148 else None, 2: "response" if len(d) == 92 else None,
+            3: "cookie" if len(d) == 64 else None, 4: "data" if len(d) >= 32 else None}.get(d[0])
+
+
+class Tap:
+    """A TCP tap in mac's root link, right where the hub's bridge takes the stream in: what the
+    access point (the VPS) hands over after TLS, byte for byte. Every ws frame is recorded both
+    ways (unmasked); `inject` = "replay" | "tamper" acts on the next mac → hub WireGuard data
+    frame, as an attacker on the relay path would."""
+
+    def __init__(self, upstream):
+        self.up = upstream
+        self.frames = []          # (direction, opcode, payload)
+        self.lock = threading.Lock()
+        self.inject = None
+        self.injected = []
+        self.srv = socket.socket()
+        self.srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.srv.bind(("127.0.0.1", 0))
+        self.srv.listen(16)
+        self.port = self.srv.getsockname()[1]
+        threading.Thread(target=self._accept, daemon=True).start()
+
+    def _accept(self):
+        while True:
+            try:
+                c, _ = self.srv.accept()
+            except OSError:
+                return
+            try:
+                u = socket.create_connection(("127.0.0.1", self.up))
+            except OSError:
+                c.close()
+                continue
+            for x in (c, u):
+                x.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            threading.Thread(target=self._pump, args=(c, u, "up"), daemon=True).start()
+            threading.Thread(target=self._pump, args=(u, c, "down"), daemon=True).start()
+
+    @staticmethod
+    def _frame(b):
+        if len(b) < 2:
+            return None
+        op, masked, ln, at = b[0] & 0x0F, b[1] & 0x80, b[1] & 0x7F, 2
+        if ln == 126:
+            if len(b) < 4:
+                return None
+            ln, at = struct.unpack(">H", bytes(b[2:4]))[0], 4
+        elif ln == 127:
+            if len(b) < 10:
+                return None
+            ln, at = struct.unpack(">Q", bytes(b[2:10]))[0], 10
+        mask = bytes(b[at:at + 4]) if masked else b"\0\0\0\0"
+        at += 4 if masked else 0
+        if len(b) < at + ln:
+            return None
+        p = bytes(b[at:at + ln])
+        if masked:
+            n = len(p)
+            p = (int.from_bytes(p, "big") ^ int.from_bytes((mask * (n // 4 + 1))[:n], "big")).to_bytes(n, "big") if n else b""
+        return op, p, at + ln
+
+    def _pump(self, src, dst, d):
+        buf, head = bytearray(), False
+        try:
+            while True:
+                chunk = src.recv(65536)
+                if not chunk:
+                    break
+                buf += chunk
+                if not head:
+                    i = buf.find(b"\r\n\r\n")
+                    if i < 0:
+                        continue
+                    dst.sendall(bytes(buf[:i + 4]))
+                    del buf[:i + 4]
+                    head = True
+                out = bytearray()
+                while True:
+                    f = self._frame(buf)
+                    if not f:
+                        break
+                    op, p, n = f
+                    raw = bytes(buf[:n])
+                    del buf[:n]
+                    with self.lock:
+                        self.frames.append((d, op, p))
+                        mode = self.inject
+                    if d == "up" and op == 2 and mode and p[0] < len(p) and wg_kind(p[1 + p[0]:]) == "data" and len(p) > 120:
+                        with self.lock:
+                            self.inject = None
+                            self.injected.append(mode)
+                        if mode == "replay":
+                            out += raw + raw
+                        else:
+                            r = bytearray(raw)
+                            r[-5] ^= 0x5A          # inside the AEAD tag (masking is a XOR: it flips the same bit)
+                            out += r
+                        continue
+                    out += raw
+                if out:
+                    dst.sendall(bytes(out))
+        except OSError:
+            pass
+        finally:
+            for s in (src, dst):
+                try:
+                    s.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+
+
+def bench(port, prefix, n=30):
+    """(median ms, p90 ms) of GET <prefix>/root, then MB/s for 1 MB up (PUT) and down (GET)."""
+    lat = []
+    for _ in range(n):
+        t = time.perf_counter()
+        st, v = call(port, "GET", f"{prefix}/root")
+        lat.append((time.perf_counter() - t) * 1000)
+        if st != 200:
+            return None
+    lat.sort()
+    blob = "x" * (1 << 20)
+    t = time.perf_counter()
+    st, v = call(port, "PUT", f"{prefix}/shared-prompt", {"prompt": blob}, timeout=120)
+    up = (1 / (time.perf_counter() - t)) if st == 200 else 0
+    t = time.perf_counter()
+    st2, v2 = call(port, "GET", f"{prefix}/shared-prompt", timeout=120)
+    down = (1 / (time.perf_counter() - t)) if st2 == 200 and isinstance(v2, dict) and len(v2.get("prompt", "")) == len(blob) else 0
+    call(port, "PUT", f"{prefix}/shared-prompt", {"prompt": ""})
+    return statistics.median(lat), lat[int(len(lat) * 0.9) - 1], up, down
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--bin-root", default=os.path.join(YGG, "target", "release", "yggdrasil"))
     ap.add_argument("--bin-trunk", default=os.path.join(TRUNK, "target", "release", "bifrost-net"))
     ap.add_argument("--direct", action="store_true", help="dial the root-link listener directly (no access point)")
+    ap.add_argument("--rekey", action="store_true", help="also hold the tunnel across WireGuard's 120 s rekey (≈200 s)")
+    ap.add_argument("--plaintext", action="store_true", help="the OLD path: switchboard http ops (plaintext_http = true)")
     ap.add_argument("--keep", action="store_true", help="keep the scratch dir")
     a = ap.parse_args()
+    wg = not a.plaintext
     for b, d in ((a.bin_root, YGG), (a.bin_trunk, TRUNK)):
         if not os.path.exists(b):
             print(f"building {d} …", flush=True)
@@ -107,9 +261,51 @@ def main():
         procs[name] = subprocess.Popen(cmd, stdout=open(logs[name], "w"), stderr=subprocess.STDOUT,
                                        env={**os.environ, **(env or {})}, cwd=tmp)
 
+    def log(name):
+        return open(logs[name]).read() if name in logs and os.path.exists(logs[name]) else ""
+
+    def keygen(name):
+        out = subprocess.run([a.bin_trunk, "wg-key", os.path.join(tmp, f"{name}.key")], capture_output=True, text=True, check=True).stdout
+        return {l.split(" = ")[0]: l.split('"')[1] for l in out.splitlines() if " = " in l}
+
+    def node(name, udp, relay, http, brain, address=None, hub_pub=None, roots=False, key=None):
+        cfg = (f'[wg]\nkey_file = "{os.path.join(tmp, (key or name) + ".key")}"\nudp = "127.0.0.1:{udp}"\n'
+               f'relay = "127.0.0.1:{relay}"\nhttp = "127.0.0.1:{http}"\n')
+        if brain:
+            cfg += f'brain = "http://127.0.0.1:{brain}"\n'
+        if roots:
+            cfg += f'roots_file = "{tmp}/roots.json"\ndevices_file = "{tmp}/devices.json"\n'
+        if address:
+            cfg += f'address = "{address}/24"\n\n[[wg.peer]]\nid = "local"\npublic_key = "{hub_pub}"\nip = "{NET}.1"\n'
+        with open(os.path.join(tmp, f"wg-{name}.toml"), "w") as f:
+            f.write(cfg)
+        spawn(f"wg-{name}", [a.bin_trunk, "wg", "-c", os.path.join(tmp, f"wg-{name}.toml")])
+
     mock_p, home_p, mac_p, br_p, rl_p, peer_p, ap_p = (free_port() for _ in range(7))
+    hub_wg, mac_wg, rogue_wg, thief_wg = (free_port() for _ in range(4))
+    hub_udp, relay_udp, mac_udp, mac_pipe, rogue_udp, rogue_pipe, thief_udp, thief_pipe = (free_port(True) for _ in range(8))
     secret, peer_tok = os.urandom(16).hex(), "e2e-peer-" + os.urandom(6).hex()
     raw_phone, raw_other = "bfnd-" + os.urandom(18).hex(), "bfnd-" + os.urandom(18).hex()
+    sha = lambda s: hashlib.sha256(s.encode()).hexdigest()
+
+    def write_devices(phone_revoked=False):
+        with open(os.path.join(tmp, "devices.json.tmp"), "w") as f:
+            json.dump({"devices": [
+                {"id": "dev_phone", "name": "phone", "tokenHash": sha(raw_phone), "created": "now", "revoked": phone_revoked, "roots": ["mac"]},
+                {"id": "dev_other", "name": "other", "tokenHash": sha(raw_other), "created": "now", "revoked": False, "roots": []},
+            ]}, f)
+        os.replace(os.path.join(tmp, "devices.json.tmp"), os.path.join(tmp, "devices.json"))
+
+    def write_roots(mac_pub, mac_revoked=False):
+        rec = {"id": "mac", "name": "mac", "os": "macos", "host": "mac-studio.local", "joined_at": "now", "dev": "dev_phone",
+               "secretHash": "0" * 64, "delivered_at": "now", "wg_pub": mac_pub, "wg_ip": f"{NET}.2"}
+        if mac_revoked:
+            rec["revoked"] = True
+        with open(os.path.join(tmp, "roots.json.tmp"), "w") as f:
+            json.dump({"version": 1, "wg": {"net": f"{NET}.0/24"}, "roots": [rec]}, f)
+        os.chmod(os.path.join(tmp, "roots.json.tmp"), 0o600)
+        os.replace(os.path.join(tmp, "roots.json.tmp"), os.path.join(tmp, "roots.json"))
+
     try:
         # ---- the fake model, the access point, the device registry ----
         spawn("mock", [sys.executable, os.path.join(YGG, "mock", "mock_upstream.py"), str(mock_p)])
@@ -124,19 +320,26 @@ def main():
                     f'key_path = "{tmp}/tls/key.pem"\nbridge_token_sha256 = "{ap_hash}"\n')
         if not a.direct:
             spawn("ap", [a.bin_trunk, "ap", "-c", os.path.join(tmp, "ap.toml")])
-        sha = lambda s: hashlib.sha256(s.encode()).hexdigest()
-        with open(os.path.join(tmp, "devices.json"), "w") as f:
-            json.dump({"devices": [
-                {"id": "dev_phone", "name": "phone", "tokenHash": sha(raw_phone), "created": "now", "revoked": False, "roots": ["mac"]},
-                {"id": "dev_other", "name": "other", "tokenHash": sha(raw_other), "created": "now", "revoked": False, "roots": []},
-            ]}, f)
+        write_devices()
+
+        # ---- WireGuard keys: each root makes its own; the hub pins mac's (as an approval does) ----
+        if wg:
+            hub_k, mac_k, rogue_k = keygen("hub"), keygen("mac"), keygen("rogue")
+            shutil.copy(os.path.join(tmp, "mac.key"), os.path.join(tmp, "thief.key"))  # a stolen key
+            check("keys are mode 600, the public half beside them",
+                  all(os.stat(os.path.join(tmp, f"{n}.key")).st_mode & 0o777 == 0o600 and os.path.exists(os.path.join(tmp, f"{n}.key.pub"))
+                      for n in ("hub", "mac", "rogue")), [oct(os.stat(os.path.join(tmp, f"{n}.key")).st_mode) for n in ("hub", "mac")])
+            write_roots(mac_k["public_key"])
 
         # ---- two brains: home (the hub's) and mac (the joined root's) ----
         base = {"YGG_UPSTREAM_BASE_URL": f"http://127.0.0.1:{mock_p}", "YGG_UPSTREAM_STYLE": "anthropic",
                 "YGG_UPSTREAM_API_KEY": "mock", "YGG_UPSTREAM_MODEL": "mock", "YGG_WAKE_DEBOUNCE_MS": "400",
                 "YGG_PEER_TOKEN": peer_tok, "YGG_PROVIDERS": os.path.join(tmp, "no-providers.json"),
                 "YGG_ARTIFACTS_DIR": os.path.join(tmp, "artifacts")}
-        peers = {"home": f"mac=http://127.0.0.1:{br_p}/_root/mac", "mac": f"home=http://127.0.0.1:{peer_p}/local"}
+        if wg:
+            peers = {"home": f"mac=http://127.0.0.1:{hub_wg}/_wg/mac", "mac": f"home=http://127.0.0.1:{mac_wg}/_wg/local"}
+        else:
+            peers = {"home": f"mac=http://127.0.0.1:{br_p}/_root/mac", "mac": f"home=http://127.0.0.1:{peer_p}/local"}
         for name, port in (("home", home_p), ("mac", mac_p)):
             d = os.path.join(tmp, name)
             os.makedirs(os.path.join(d, "work"))
@@ -145,7 +348,8 @@ def main():
                                            YGG_ROOT_NAME=name, YGG_PEERS=peers[name]))
         check("brains up", wait(lambda: req(home_p, "GET", "/root") and req(mac_p, "GET", "/root"), 15))
 
-        # ---- the hub box: bridge (root-link + switchboard, local = home brain) dialing OUT to the ap ----
+        # ---- the hub box: bridge (root-link + relay) dialing OUT to the ap; the hub's own node ----
+        tap = Tap(rl_p)
         priv = [l.split('"')[1] for l in subprocess.run([a.bin_trunk, "keygen"], capture_output=True, text=True).stdout.splitlines()
                 if "private_key" in l][0]
         cfg = f'''[node]
@@ -165,6 +369,7 @@ listen = "127.0.0.1:{rl_p}"
 ping_secs = 5
 result_secs = 120
 '''
+        cfg += f'wg_relay = "127.0.0.1:{relay_udp}"\nwg_local = "127.0.0.1:{hub_udp}"\n' if wg else "plaintext_http = true\n"
         if not a.direct:
             cfg += f'''
 [ap]
@@ -172,40 +377,64 @@ url = "wss://127.0.0.1:{ap_p}/ap"
 pin = "{pin}"
 token = "{ap_tok}"
 upstream = "127.0.0.1:{home_p}"
+rootlink = "127.0.0.1:{tap.port}"
 '''
         with open(os.path.join(tmp, "bridge.toml"), "w") as f:
             f.write(cfg)
         spawn("bridge", [a.bin_trunk, "bridge", "-c", os.path.join(tmp, "bridge.toml")])
         check("bridge up", wait(lambda: call(br_p, "GET", "/identity")[0] == 200, 10))
         if not a.direct:
-            check("the box dialed OUT to the access point", wait(lambda: "channel up" in open(logs["bridge"]).read(), 15),
-                  open(logs["bridge"]).read()[-400:])
+            check("the box dialed OUT to the access point", wait(lambda: "channel up" in log("bridge"), 15), log("bridge")[-400:])
+        if wg:
+            node("hub", hub_udp, relay_udp, hub_wg, home_p, roots=True)
+            node("mac", mac_udp, mac_pipe, mac_wg, mac_p, address=f"{NET}.2", hub_pub=hub_k["public_key"])
+            check("both WireGuard nodes up; the hub pinned mac's key from roots.json",
+                  wait(lambda: [p["id"] for p in req(hub_wg, "GET", "/_wg")] == ["mac"] and req(mac_wg, "GET", "/_wg")[0]["id"] == "local", 10)
+                  and req(hub_wg, "GET", "/_wg")[0]["fingerprint"] == mac_k["fingerprint"], log("wg-hub")[-300:])
 
         # ---- the joined root: a link token (minted on the hub) + root-dial with its brain ----
-        tf = os.path.join(tmp, "mac.tokens")
-        m = subprocess.run([a.bin_trunk, "rootlink", "mint", "--root", "mac", "--dev", "dev_phone", "--ttl", "3600",
-                            "--secret", secret, "--out", tf], capture_output=True, text=True)
+        def dialer(name, root, dev, extra):
+            tf = os.path.join(tmp, f"{name}.tokens")
+            m = subprocess.run([a.bin_trunk, "rootlink", "mint", "--root", root, "--dev", dev, "--ttl", "3600",
+                                "--secret", secret, "--out", tf], capture_output=True, text=True)
+            d = ["--token-file", tf] + extra
+            if a.direct:
+                d = ["--host", "127.0.0.1", "--port", str(tap.port)] + d
+            else:
+                d = ["--host", "localhost", "--port", str(ap_p), "--tls", "--cafile", f"{tmp}/tls/cert.pem", "--path", "/rootlink"] + d
+            spawn(name, [sys.executable, DIAL] + d)
+            return m
+        extra = ["--brain", f"http://127.0.0.1:{mac_p}", "--peer-port", str(peer_p)]
+        if wg:
+            extra += ["--wg-udp", f"127.0.0.1:{mac_pipe}", "--wg-node", f"127.0.0.1:{mac_udp}"]
+        m = dialer("dial", "mac", "dev_phone", extra)
         check("link token minted for root mac", m.returncode == 0, m.stderr)
-        dial = ["--token-file", tf, "--brain", f"http://127.0.0.1:{mac_p}", "--peer-port", str(peer_p)]
-        if a.direct:
-            dial = ["--host", "127.0.0.1", "--port", str(rl_p)] + dial
-        else:
-            dial = ["--host", "localhost", "--port", str(ap_p), "--tls", "--cafile", f"{tmp}/tls/cert.pem",
-                    "--path", "/rootlink"] + dial
-        spawn("dial", [sys.executable, DIAL] + dial)
-        linked = wait(lambda: "linked: mac" in open(logs["dial"]).read(), 20)
+        linked = wait(lambda: "linked: mac" in log("dial"), 20)
         check(f"root mac linked {'directly' if a.direct else 'through the access point (wss /rootlink, verified TLS)'}",
-              linked, open(logs["dial"]).read()[-400:])
+              linked, log("dial")[-400:])
+        if wg:
+            up = wait(lambda: [p for p in req(hub_wg, "GET", "/_wg") if p["id"] == "mac" and p["up"]], 15)
+            check("the WireGuard handshake completed through the relay (hub ⇄ mac)", up, log("wg-mac")[-300:])
 
-        # ---- the switchboard both ways ----
-        st, v = call(br_p, "GET", "/_root/mac/root")
-        check("home → mac: /_root/mac/root answered by the mac brain", st == 200 and isinstance(v, dict) and v.get("name") == "mac", (st, v))
-        st, v = call(peer_p, "GET", "/local/root")
-        check("mac → home: peer port /local/root answered by the home brain", st == 200 and isinstance(v, dict) and v.get("name") == "home", (st, v))
-        st, v = call(peer_p, "POST", "/local/tree/report", {"proxy": "nope", "event": {}})
-        check("a report without x-ygg-peer is refused by home (the header is not invented)", st == 401, (st, v))
-        st, v = call(peer_p, "POST", "/local/tree/report", {"proxy": "nope", "event": {}}, {"x-ygg-peer": peer_tok})
-        check("…and with it, it passes the token check (unknown proxy → 404)", st == 404, (st, v))
+        # ---- brain calls both ways ----
+        if wg:
+            st, v = call(hub_wg, "GET", "/_wg/mac/root")
+            check("home → mac: /_wg/mac/root answered by the mac brain (inside WireGuard)", st == 200 and isinstance(v, dict) and v.get("name") == "mac", (st, v))
+            st, v = call(mac_wg, "GET", "/_wg/local/root")
+            check("mac → home: /_wg/local/root answered by the home brain (inside WireGuard)", st == 200 and isinstance(v, dict) and v.get("name") == "home", (st, v))
+            st, v = call(mac_wg, "POST", "/_wg/local/tree/report", {"proxy": "nope", "event": {}})
+            check("a report without x-ygg-peer is refused by home (the header is not invented)", st == 401, (st, v))
+            st, v = call(mac_wg, "POST", "/_wg/local/tree/report", {"proxy": "nope", "event": {}}, {"x-ygg-peer": peer_tok})
+            check("…and with it, it passes the token check (unknown proxy → 404)", st == 404, (st, v))
+        else:
+            st, v = call(br_p, "GET", "/_root/mac/root")
+            check("home → mac: /_root/mac/root answered by the mac brain", st == 200 and isinstance(v, dict) and v.get("name") == "mac", (st, v))
+            st, v = call(peer_p, "GET", "/local/root")
+            check("mac → home: peer port /local/root answered by the home brain", st == 200 and isinstance(v, dict) and v.get("name") == "home", (st, v))
+            st, v = call(peer_p, "POST", "/local/tree/report", {"proxy": "nope", "event": {}})
+            check("a report without x-ygg-peer is refused by home (the header is not invented)", st == 401, (st, v))
+            st, v = call(peer_p, "POST", "/local/tree/report", {"proxy": "nope", "event": {}}, {"x-ygg-peer": peer_tok})
+            check("…and with it, it passes the token check (unknown proxy → 404)", st == 404, (st, v))
 
         # ---- MAIN on home starts a session on root mac ----
         main_id = req(home_p, "POST", "/session", {"title": "[MAIN]"})["id"]
@@ -225,8 +454,82 @@ upstream = "127.0.0.1:{home_p}"
         inbox = wait(lambda: [e for e in req(home_p, "GET", f"/session/{main_id}/inbox") if e.get("from") == proxy], 20)
         check("MAIN's inbox has the report from root mac", bool(inbox), req(home_p, "GET", f"/session/{main_id}/inbox"))
         msgs = req(home_p, "GET", f"/session/{proxy}/message")
-        check("reading the proxy reads the mac brain (through the switchboard)", any("MAC-DONE" in json.dumps(x.get("parts")) for x in msgs or []),
-              (msgs or [])[-1:])
+        check(f"reading the proxy reads the mac brain (through the {'tunnel' if wg else 'switchboard'})",
+              any("MAC-DONE" in json.dumps(x.get("parts")) for x in msgs or []), (msgs or [])[-1:])
+
+        # ---- the tap: what the hub's bridge relayed for root <-> root ----
+        with tap.lock:
+            frames = list(tap.frames)
+        texts = [json.loads(p) for d, op, p in frames if op == 1]
+        bins = [p for d, op, p in frames if op == 2]
+        ops = sorted({v.get("op", "?") for v in texts})
+        # what the relay can read: every frame, plus the bodies the old ops carry as base64
+        payload = b"".join(p for _, _, p in frames) + b"".join(
+            base64.b64decode(v.get("body_b64") or "") for v in texts if v.get("op") in ("http", "http.reply"))
+        needles = [b"Reply with exactly: MAC-DONE", b"MAC-DONE", b"/tree/report", b"POST /session", b"GET /root",
+                   b"x-ygg-peer", peer_tok.encode(), b"on mac"]
+        leaked = [n.decode() for n in needles if n in payload]
+        if wg:
+            kinds = {}
+            for p in bins:
+                k = wg_kind(p[1 + p[0]:]) if p and p[0] < len(p) else None
+                kinds[k] = kinds.get(k, 0) + 1
+            check(f"the tap: mac's link carried {len(bins)} binary frames, all WireGuard ({kinds})",
+                  len(bins) > 20 and None not in kinds and kinds.get("data", 0) > 10 and kinds.get("init", 0) >= 1, kinds)
+            check(f"the tap: no plaintext brain call crossed the relay (text ops seen: {ops})",
+                  not ({"http", "http.reply"} & set(ops)) and not leaked, (ops, leaked))
+        else:
+            check(f"the tap (old path): brain calls cross the relay in PLAINTEXT ({len(leaked)} of {len(needles)} markers readable)",
+                  "http" in ops and len(leaked) >= 4, (ops, leaked))
+
+        # ---- the old plaintext path is refused (after the tap check: these probes are text ops) ----
+        if wg:
+            st, v = call(br_p, "GET", "/_root/mac/root")
+            check("the plaintext switchboard is refused at the bridge (/_root/ → 403)", st == 403 and "WireGuard" in str(v), (st, v))
+            st, v = call(peer_p, "GET", "/local/root")
+            check("…and a root's plaintext `http` op too (peer port /local → 403)", st == 403 and "WireGuard" in str(v), (st, v))
+
+        # ---- keys nobody approved, and a stolen key on another link ----
+        if wg:
+            node("rogue", rogue_udp, rogue_pipe, rogue_wg, None, address=f"{NET}.9", hub_pub=hub_k["public_key"])
+            node("thief", thief_udp, thief_pipe, thief_wg, None, address=f"{NET}.2", hub_pub=hub_k["public_key"], key="thief")
+            dialer("dial-rogue", "rogue", "dev_other", ["--brain", f"http://127.0.0.1:{mac_p}", "--wg-udp", f"127.0.0.1:{rogue_pipe}",
+                                                        "--wg-node", f"127.0.0.1:{rogue_udp}"])
+            dialer("dial-thief", "thief", "dev_other", ["--brain", f"http://127.0.0.1:{mac_p}", "--wg-udp", f"127.0.0.1:{thief_pipe}",
+                                                        "--wg-node", f"127.0.0.1:{thief_udp}"])
+            check("rogue + thief linked (valid link tokens — the link is not the key)",
+                  wait(lambda: "linked: rogue" in log("dial-rogue") and "linked: thief" in log("dial-thief"), 20))
+            before = req(hub_wg, "GET", "/_wg/_node")["dropped"]
+            st, v = call(rogue_wg, "GET", "/_wg/local/root", timeout=30)
+            check("a root whose key was never approved gets nothing (504, its handshake dropped)", st == 504, (st, v))
+            st, v = call(thief_wg, "GET", "/_wg/local/root", timeout=30)
+            check("mac's key copied onto another link gets nothing either (504)", st == 504, (st, v))
+            after = req(hub_wg, "GET", "/_wg/_node")["dropped"]
+            check("the hub's node counted them: unknown_key and wrong_link",
+                  after["unknown_key"] > before["unknown_key"] and after["wrong_link"] > before["wrong_link"], (before, after))
+            st, v = call(hub_wg, "GET", "/_wg/mac/root")
+            check("…and mac's own tunnel is untouched", st == 200 and v.get("name") == "mac", (st, v))
+            for n in ("dial-rogue", "dial-thief", "wg-rogue", "wg-thief"):
+                procs[n].terminate()
+
+            # ---- a replayed and a tampered datagram, injected on the relay path ----
+            before = req(hub_wg, "GET", "/_wg/_node")["dropped"]
+            ok = True
+            for mode in ("replay", "tamper"):
+                tap.inject = mode
+                st, v = call(mac_wg, "PUT", "/_wg/local/shared-prompt", {"prompt": "y" * 200_000}, timeout=60)
+                ok = ok and st == 200
+            after = req(hub_wg, "GET", "/_wg/_node")["dropped"]
+            check(f"replayed + tampered datagrams dropped by the hub's node ({tap.injected}), the calls still answered",
+                  ok and tap.injected == ["replay", "tamper"] and after["replay"] > before["replay"] and after["auth_fail"] > before["auth_fail"],
+                  (tap.injected, before, after))
+            call(mac_wg, "PUT", "/_wg/local/shared-prompt", {"prompt": ""})
+
+        # ---- the bench: hub → mac ----
+        b = bench(hub_wg, "/_wg/mac") if wg else bench(br_p, "/_root/mac")
+        if check("bench ran", b is not None):
+            print(f"BENCH {'tunnel' if wg else 'plaintext switchboard'}{' (direct)' if a.direct else ' (through the ap)'}: "
+                  f"GET /root median {b[0]:.1f} ms p90 {b[1]:.1f} ms · 1 MB up {b[2]:.1f} MB/s · 1 MB down {b[3]:.1f} MB/s", flush=True)
 
         # ---- a phone-style turn naming root mac ----
         bh = lambda raw: {"authorization": f"Bearer {raw}"}
@@ -241,6 +544,37 @@ upstream = "127.0.0.1:{home_p}"
               and v.get("session") == v2.get("session") == sessions[0]["id"], (st2, v2, sessions))
         st, v = call(br_p, "POST", "/branch", {"op": "prompt", "id": "phone", "text": "x", "root": "mac"}, bh(raw_other))
         check("a device whose roots do not include mac is refused", st == 403, (st, v))
+
+        if wg and a.rekey:
+            hs0 = req(hub_wg, "GET", "/_wg")[0]["handshakes"] + req(mac_wg, "GET", "/_wg")[0]["handshakes"]
+            t0, bad, n = time.time(), [], 0
+            while time.time() - t0 < 200:
+                for port, path in ((hub_wg, "/_wg/mac/root"), (mac_wg, "/_wg/local/root")):
+                    st, v = call(port, "GET", path)
+                    n += 1
+                    if st != 200:
+                        bad.append((round(time.time() - t0), st))
+                time.sleep(10)
+            hs1 = req(hub_wg, "GET", "/_wg")[0]["handshakes"] + req(mac_wg, "GET", "/_wg")[0]["handshakes"]
+            check(f"rekey: {n} calls over 200 s all answered across the 120 s rekey timer (handshakes {hs0} → {hs1})",
+                  not bad and hs1 > hs0, bad)
+
+        # ---- revocation cuts the tunnel ----
+        if wg:
+            write_devices(phone_revoked=True)
+            cut = wait(lambda: req(hub_wg, "GET", "/_wg") == [], 5)
+            st, v = call(hub_wg, "GET", "/_wg/mac/root")
+            st2, v2 = call(mac_wg, "GET", "/_wg/local/root", timeout=30)
+            check("revoking the approving device cuts the tunnel: the hub drops mac, both directions fail",
+                  cut is not None and st == 502 and st2 == 504, (st, v, st2, v2))
+            check("…and the hub's log says so", "peer 'mac' REMOVED" in log("wg-hub"), log("wg-hub")[-300:])
+            write_devices(phone_revoked=False)
+            back = wait(lambda: call(hub_wg, "GET", "/_wg/mac/root")[0] == 200, 20, 1)
+            check("restoring the device brings the tunnel back", back, call(hub_wg, "GET", "/_wg/mac/root"))
+            write_roots(mac_k["public_key"], mac_revoked=True)
+            cut = wait(lambda: req(hub_wg, "GET", "/_wg") == [], 5)
+            st2, v2 = call(mac_wg, "GET", "/_wg/local/root", timeout=30)
+            check("revoking the root (roots.json) cuts it again", cut is not None and st2 == 504, (st2, v2))
     finally:
         for name, p in reversed(list(procs.items())):
             p.terminate()
@@ -250,7 +584,7 @@ upstream = "127.0.0.1:{home_p}"
             except subprocess.TimeoutExpired:
                 p.kill()
         if FAILS:
-            for name in ("bridge", "dial", "home", "mac", "ap"):
+            for name in ("bridge", "dial", "wg-hub", "wg-mac", "home", "mac", "ap"):
                 if name in logs and os.path.exists(logs[name]):
                     print(f"--- {name}.log (tail)\n" + open(logs[name]).read()[-1500:])
         if a.keep:

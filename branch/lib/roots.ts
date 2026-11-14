@@ -15,6 +15,14 @@
  *   - holds the raw result in this process's memory until the joiner collects
  *     it ONCE with its join secret. The result names the hub brain (`hub`: its
  *     root name, asked of the brain), so the joined root's reports find home.
+ *   - PINS the machine's WireGuard public key (`wg_pub`, sent with the join;
+ *     the approve page shows its fingerprint next to the code, so approving the
+ *     code pins the key): roots.json gets `wg_pub` + a tunnel address `wg_ip`
+ *     from this tree's own small range (`wg.net`, a random 10.x.y.0/24 chosen at
+ *     the first such approval), and the result hands back the hub's public key
+ *     (BIFROST_WG_PUB_FILE) and the addresses. The hub's WireGuard node
+ *     (bifrost-net wg, trunk/src/wg.rs) reads roots.json: brain calls between
+ *     roots ride that tunnel; the bridge and the access point see ciphertext.
  *
  * At rest: hashes only (join secret, root secret). Raw link tokens and the
  * raw root secret exist only in memory between approval and the one
@@ -25,7 +33,7 @@
  * BIFROST_NET_BIN (default `bifrost-net` on PATH), BIFROST_ROOTLINK_SECRET_FILE
  * or BIFROST_BRIDGE_CONFIG (its `root_link_secret`), BIFROST_ROOTLINK_URL,
  * YGG_PEER_TOKEN, BIFROST_PUBLIC_URL, OPENCODE_URL (the hub brain: its GET /root
- * names it) or YGG_ROOT_NAME; tuning BIFROST_JOIN_TTL_S (600),
+ * names it) or YGG_ROOT_NAME, BIFROST_WG_PUB_FILE (the hub node's public key); tuning BIFROST_JOIN_TTL_S (600),
  * BIFROST_JOIN_LIMIT / BIFROST_JOIN_WINDOW_S (5 per 600 s per client address),
  * BIFROST_ROOT_REFILL_LIMIT / BIFROST_ROOT_REFILL_WINDOW_S (6 per 3600 s per root).
  */
@@ -68,6 +76,16 @@ function sameHash(a: string, b: string): boolean {
 
 export type JoinStatus = 'pending' | 'approved' | 'refused' | 'expired' | 'delivered';
 
+/** what a joined root needs for its WireGuard node (absent: the hub runs none) */
+export type WgGrant = {
+  /** the hub node's public key — the joined root's one static peer, `local` */
+  public_key: string;
+  hub_ip: string;
+  /** this root's tunnel address and the tree's range */
+  ip: string;
+  net: string;
+};
+
 export type Approved = {
   root_id: string;
   root_secret: string;
@@ -76,6 +94,7 @@ export type Approved = {
   peer_token: string;
   /** the hub brain's root name: the joined root's peer for it (YGG_PEERS <hub>=…/local) */
   hub: string;
+  wg?: WgGrant;
 };
 
 type JoinReq = {
@@ -86,6 +105,8 @@ type JoinReq = {
   os: string;
   host: string;
   peer: string;
+  /** the machine's WireGuard public key (base64), pinned by the approval */
+  wgPub?: string;
   created: number;
   exp: number;
   status: 'pending' | 'approved' | 'refused' | 'delivered';
@@ -167,17 +188,68 @@ export type RootRecord = {
   secretHash: string;
   /** when the machine collected its credentials (null: never collected) */
   delivered_at: string | null;
+  /** its pinned WireGuard public key and tunnel address (roots that joined with one) */
+  wg_pub?: string;
+  wg_ip?: string;
 };
 
-type RootsFile = { version: 1; roots: RootRecord[] };
+/** `wg.net`: this tree's tunnel range, chosen once (the hub's node takes .1) */
+type RootsFile = { version: 1; wg?: { net: string }; roots: RootRecord[] };
 
 async function readRoots(): Promise<RootsFile> {
   try {
     const parsed = JSON.parse(await readFile(ROOTS_FILE, 'utf8'));
-    return { version: 1, roots: Array.isArray(parsed.roots) ? parsed.roots : [] };
+    const net = typeof parsed?.wg?.net === 'string' ? parsed.wg.net : '';
+    return {
+      version: 1,
+      ...(net ? { wg: { net } } : {}),
+      roots: Array.isArray(parsed.roots) ? parsed.roots : [],
+    };
   } catch {
     return { version: 1, roots: [] };
   }
+}
+
+/* ---------------- WireGuard: the joiner's key, pinned on approval ---------------- */
+
+/** a canonical base64 WireGuard public key (32 bytes), or '' */
+export function wgKey(v: unknown): string {
+  if (typeof v !== 'string' || !/^[A-Za-z0-9+/]{43}=$/.test(v.trim())) return '';
+  const b = Buffer.from(v.trim(), 'base64');
+  return b.length === 32 && b.toString('base64') === v.trim() ? v.trim() : '';
+}
+
+/** The short fingerprint both screens show: sha256(raw key)[0..6], hex, `xxxx-xxxx-xxxx`
+ *  (the same as `bifrost-net wg-key` and the joiner print). */
+export function wgFingerprint(key: string): string {
+  const h = createHash('sha256').update(Buffer.from(key, 'base64')).digest('hex').slice(0, 12);
+  return `${h.slice(0, 4)}-${h.slice(4, 8)}-${h.slice(8, 12)}`;
+}
+
+/** the hub node's public key (BIFROST_WG_PUB_FILE, written by `bifrost-net wg-key`), or '' */
+async function hubWgKey(): Promise<string> {
+  const file = process.env.BIFROST_WG_PUB_FILE;
+  if (!file) return '';
+  try {
+    return wgKey((await readFile(file, 'utf8')).trim());
+  } catch (e) {
+    console.warn(`join: BIFROST_WG_PUB_FILE unreadable: ${(e as Error).message}`);
+    return '';
+  }
+}
+
+/** The tree's range (made once: a random 10.x.y.0/24) and the next free address in it. */
+function wgAddress(f: RootsFile): { net: string; base: string; ip: string } | null {
+  if (!f.wg?.net) {
+    f.wg = { net: `10.${randomInt(16, 250)}.${randomInt(1, 255)}.0/24` };
+  }
+  const base = f.wg.net.split('/')[0].split('.').slice(0, 3).join('.');
+  const used = new Set(f.roots.map((r) => r.wg_ip).filter(Boolean));
+  for (let h = 2; h < 255; h++) {
+    const ip = `${base}.${h}`;
+    if (!used.has(ip)) return { net: f.wg.net, base, ip };
+  }
+  return null;
 }
 
 async function writeRoots(f: RootsFile): Promise<void> {
@@ -189,13 +261,14 @@ async function writeRoots(f: RootsFile): Promise<void> {
 
 export async function listRoots() {
   const f = await readRoots();
-  return f.roots.map(({ id, name, os, host, joined_at, delivered_at }) => ({
+  return f.roots.map(({ id, name, os, host, joined_at, delivered_at, wg_pub }) => ({
     id,
     name,
     os,
     host,
     joined_at,
     delivered_at: delivered_at ?? null,
+    wg_fp: wg_pub ? wgFingerprint(wg_pub) : null,
   }));
 }
 
@@ -320,7 +393,10 @@ export function clean(v: unknown, max: number): string {
     .slice(0, max);
 }
 
-export function createJoin(input: { name: string; os: string; host: string }, peer: string) {
+export function createJoin(
+  input: { name: string; os: string; host: string; wgPub?: string },
+  peer: string
+) {
   prune();
   const now0 = Date.now();
   let pending = 0;
@@ -337,6 +413,7 @@ export function createJoin(input: { name: string; os: string; host: string }, pe
     os: input.os,
     host: input.host,
     peer,
+    ...(input.wgPub ? { wgPub: input.wgPub } : {}),
     created: now,
     exp: now + JOIN_TTL_S * 1000,
     status: 'pending',
@@ -362,6 +439,8 @@ export function viewJoin(req: string) {
     os: j.os,
     host: j.host,
     code: j.code,
+    /** the fingerprint of the WireGuard key this approval pins (null: an older joiner) */
+    wg_fp: j.wgPub ? wgFingerprint(j.wgPub) : null,
     status: statusOf(j),
     expires_at: new Date(j.exp).toISOString(),
     root_id: j.root_id ?? null,
@@ -424,6 +503,7 @@ export function refuseJoin(req: string, device: string): Promise<Decision> {
 export async function approveJoin(req: string, device: string): Promise<Decision> {
   // asked before the serialized section: a slow brain never holds up registry writes
   const hub = await hubBrainName();
+  const hubKey = await hubWgKey();
   return serialize(async () => {
     prune();
     const j = S.joins.get(req);
@@ -441,6 +521,18 @@ export async function approveJoin(req: string, device: string): Promise<Decision
       hub.toLowerCase(),
     ]);
     const root_id = rootIdFor(j.name || j.host, taken);
+    // a key pins ONE root: the hub's node could not tell two roots with it apart
+    const twin = j.wgPub ? f.roots.find((r) => r.wg_pub === j.wgPub) : undefined;
+    if (twin) {
+      return {
+        http: 409,
+        body: { error: `this machine's WireGuard key is already pinned to root ${twin.id}` },
+      };
+    }
+    const addr = j.wgPub ? wgAddress(f) : null;
+    if (j.wgPub && !addr) {
+      return { http: 503, body: { error: "the tree's tunnel range is full" } };
+    }
 
     // mint first: it has no side effects, so a misconfigured hub leaves the
     // request pending and the owner can approve again once it is fixed
@@ -464,6 +556,7 @@ export async function approveJoin(req: string, device: string): Promise<Decision
       dev: device,
       secretHash: sha256(root_secret),
       delivered_at: null,
+      ...(j.wgPub && addr ? { wg_pub: j.wgPub, wg_ip: addr.ip } : {}),
     });
     await writeRoots(f);
     if (!(await addDeviceRoot(device, root_id))) {
@@ -484,6 +577,9 @@ export async function approveJoin(req: string, device: string): Promise<Decision
       rootlink_url: process.env.BIFROST_ROOTLINK_URL || '',
       peer_token: process.env.YGG_PEER_TOKEN || '',
       hub,
+      ...(addr && hubKey
+        ? { wg: { public_key: hubKey, hub_ip: `${addr.base}.1`, ip: addr.ip, net: addr.net } }
+        : {}),
     };
     return {
       http: 200,

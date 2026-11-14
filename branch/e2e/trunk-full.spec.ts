@@ -30,20 +30,23 @@ import {
  *     mic → one calm line, no error box, no "fix this", one /api/token call per page load (503
  *     voice-unavailable, JSON)
  *   2 the phone talks to MAIN: "Reply with exactly: HELLO-PHONE" → the reply on its screen
- *   3 join: the new machine (sim/trunk-full-joiner.py, its own address) POSTs /api/roots/join
- *     through the ap and shows the approve QR (qrencode) → the phone scans it (zbarimg), sees
- *     the same code, taps "Add to my tree" → the machine's poll gets 20 link tokens, its root
- *     id and the hub brain's name ("home") → its brain (peer "home") + root-dial.py dial
- *     wss://ap.tree.test/rootlink → the hub's bridge shows the root LINKED and reaches its brain
- *     over the switchboard
- *   4 the hub brain learns the joined root by itself (YGG_PEERS_FROM → the bridge's /_roots; no
- *     restart, nothing written by hand) → MAIN delegates over the trunk: the phone's message
+ *   3 join: the new machine (sim/trunk-full-joiner.py, its own address) makes its WireGuard
+ *     key, POSTs /api/roots/join {…, wg_pub} through the ap and shows the approve QR (qrencode)
+ *     → the phone scans it (zbarimg), sees the same code AND the same tunnel-key fingerprint,
+ *     taps "Add to my tree" (that pins the key in roots.json) → the machine's poll gets 20 link
+ *     tokens, its root id, the hub brain's name ("home") and the hub's key + tunnel addresses →
+ *     its WireGuard node, its brain (peer "home" inside the tunnel) + root-dial.py dial
+ *     wss://ap.tree.test/rootlink → the hub's bridge shows the root LINKED; the hub reaches its
+ *     brain INSIDE WireGuard; the plaintext switchboard is refused
+ *   4 the hub brain learns the joined root by itself (YGG_PEERS_FROM → its node's /_wg; no
+ *     restart, nothing written by hand) → MAIN delegates over the tunnel: the phone's message
  *     makes MAIN run session_start with
  *     root = the joined root → the session runs on that root's brain → its report comes home
  *     → the phone sees MAIN come back and the tree row on that root done with MAC-DONE
  *   5 the phone names the joined root itself: POST /branch {root} through the ap (its own
  *     device token, its own region) → answered by the joined root's brain
- *   6 the box console revokes the phone → its next calls through the ap are refused
+ *   6 the box console revokes the phone → its next calls through the ap are refused, and the
+ *     root it approved loses its tunnel (both ways)
  *
  * Every step lands in $PW_STATE/steps.tsv (the PASS/FAIL table the script prints).
  */
@@ -61,6 +64,11 @@ const YGG_BIN = process.env.PW_YGG_BIN || '';
 const MAC_PORT = process.env.PW_MAC_PORT || '';
 const PEER_PORT = process.env.PW_PEER_PORT || '';
 const MAC = `http://127.0.0.1:${MAC_PORT}`;
+/** the hub's WireGuard node (front door), the joiner's node and its ports, the trunk binary */
+const HUBWG = process.env.PW_HUBWG || '';
+const NET_BIN = process.env.PW_NET_BIN || '';
+const MAC_WG = process.env.PW_MAC_WG || '';
+const MACWG = `http://127.0.0.1:${MAC_WG}`;
 const MACST = join(STATE, 'mac');
 const JOINER = resolve(__dirname, '../../sim/trunk-full-joiner.py');
 
@@ -522,6 +530,14 @@ test('trunk full: phone ↔ ap ↔ hub ↔ joined root — pair, talk, join, del
             MAC_PORT,
             '--peer-port',
             PEER_PORT,
+            '--net-bin',
+            NET_BIN,
+            '--wg-port',
+            MAC_WG,
+            '--wg-udp',
+            process.env.PW_MAC_WG_UDP || '',
+            '--wg-pipe',
+            process.env.PW_MAC_PIPE || '',
           ],
           { stdio: ['ignore', out, out] }
         );
@@ -536,16 +552,23 @@ test('trunk full: phone ↔ ap ↔ hub ↔ joined root — pair, talk, join, del
       }
     );
 
-    await step('3b', 'phone scans it, sees the same code, taps "Add to my tree"', async () => {
-      expect(J1.approve_url, 'needs 3a').toBeTruthy();
-      await phone.goto(String(J1.approve_url));
-      await expect(phone.getByTestId('join-code')).toHaveText(String(J1.code));
-      await expect(phone.getByTestId('join-name')).toHaveText('mac');
-      const add = phone.getByTestId('join-approve');
-      await expect(add).toHaveText(/Add to my tree/);
-      await add.tap();
-      await expect(phone.getByTestId('join-status')).toContainText('mac', { timeout: 20_000 });
-    });
+    await step(
+      '3b',
+      'phone scans it, sees the same code and tunnel key, taps "Add to my tree"',
+      async () => {
+        expect(J1.approve_url, 'needs 3a').toBeTruthy();
+        await phone.goto(String(J1.approve_url));
+        await expect(phone.getByTestId('join-code')).toHaveText(String(J1.code));
+        // the fingerprint of the key the machine sent — what approving pins
+        expect(String(J1.wg_fp)).toMatch(/^[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}$/);
+        await expect(phone.getByTestId('join-wg-fp')).toHaveText(String(J1.wg_fp));
+        await expect(phone.getByTestId('join-name')).toHaveText('mac');
+        const add = phone.getByTestId('join-approve');
+        await expect(add).toHaveText(/Add to my tree/);
+        await add.tap();
+        await expect(phone.getByTestId('join-status')).toContainText('mac', { timeout: 20_000 });
+      }
+    );
 
     await step(
       '3c',
@@ -561,6 +584,17 @@ test('trunk full: phone ↔ ap ↔ hub ↔ joined root — pair, talk, join, del
         expect(root.peer_token).toBe(process.env.PW_PEER_TOKEN);
         // the hub brain's own root name (asked of the brain by the app): its way home
         expect(root.hub).toBe('home');
+        // the tunnel: the hub's public key (never its private half) and this root's address
+        const hubPub = readFileSync(join(STATE, 'hub-wg.key.pub'), 'utf8').trim();
+        expect(root.wg?.public_key).toBe(hubPub);
+        expect(root.wg?.ip).toMatch(/^10\.\d+\.\d+\.\d+$/);
+        expect(root.wg?.hub_ip).toBe(root.wg.ip.replace(/\.\d+$/, '.1'));
+        // the hub pinned the key the phone saw: roots.json (mode 600, no private key in it)
+        const reg0 = JSON.parse(readFileSync(join(STATE, 'roots.json'), 'utf8'));
+        const rec = reg0.roots.find((r: J) => r.id === rootId);
+        expect(rec?.wg_pub).toBe(J1.wg_pub);
+        expect(rec?.wg_ip).toBe(root.wg.ip);
+        expect(reg0.wg?.net).toBe(root.wg.net);
         await expect(phone.getByTestId('join-status')).toContainText(rootId);
         const reg = JSON.parse(readFileSync(join(STATE, 'devices.json'), 'utf8'));
         expect(reg.devices.find((d: J) => d.id === deviceId)?.roots).toEqual([rootId]);
@@ -572,26 +606,39 @@ test('trunk full: phone ↔ ap ↔ hub ↔ joined root — pair, talk, join, del
 
     await step(
       '3d',
-      'its root-dial links through wss://ap/rootlink; the hub bridge shows it LINKED',
+      'its root-dial links through wss://ap/rootlink; the hub reaches its brain inside WireGuard',
       async () => {
         expect(rootId, 'needs 3c').toBeTruthy();
         await waitFile(join(MACST, 'linked'), 30_000);
         expect(joinerError()).toBe('');
         const blog = readFileSync(join(STATE, 'bridge.log'), 'utf8');
         expect(blog).toContain(`root-link: root '${rootId}' LINKED`);
-        // the hub reaches the joined root's brain over the switchboard
-        const r = await brain(BRIDGE, `/_root/${rootId}/root`);
+        // the hub's node pinned exactly the key the phone saw
+        await expect
+          .poll(async () =>
+            ((await brain(HUBWG, '/_wg')).body as unknown as J[]).map((p) => p.fingerprint)
+          )
+          .toEqual([J1.wg_fp]);
+        // the hub reaches the joined root's brain through the tunnel
+        const r = await brain(HUBWG, `/_wg/${rootId}/root`);
         expect(r.status).toBe(200);
         expect(r.body.name).toBe(rootId);
         // …whose one peer is the hub brain, by the name the join answered
         expect(r.body.peers).toEqual(['home']);
+        // …and the joined root reaches the hub brain the same way
+        const back = await brain(MACWG, '/_wg/local/root');
+        expect(back.status).toBe(200);
+        expect(back.body.name).toBe('home');
+        // the old plaintext switchboard is refused at the bridge
+        const plain = await brain(BRIDGE, `/_root/${rootId}/root`);
+        expect(plain.status).toBe(403);
       }
     );
 
     // ---------------------------------------------------------------- 4 MAIN delegates
     await step(
       '4a',
-      'the hub brain learns the joined root by itself (YGG_PEERS_FROM → /_roots; no restart)',
+      'the hub brain learns the joined root by itself (YGG_PEERS_FROM → its node; no restart)',
       async () => {
         expect(rootId, 'needs 3c').toBeTruthy();
         const pid = readFileSync(join(STATE, 'home.pid'), 'utf8').trim();
@@ -606,7 +653,7 @@ test('trunk full: phone ↔ ap ↔ hub ↔ joined root — pair, talk, join, del
           })
           .toEqual([rootId]);
         expect(readFileSync(join(STATE, 'home.log'), 'utf8')).toContain(
-          `peers: learned root ${rootId} = ${BRIDGE}/_root/${rootId}`
+          `peers: learned root ${rootId} = ${HUBWG}/_wg/${rootId}`
         );
         // the same brain process all along: nothing restarted it
         expect(readFileSync(join(STATE, 'home.pid'), 'utf8').trim()).toBe(pid);
@@ -673,6 +720,26 @@ test('trunk full: phone ↔ ap ↔ hub ↔ joined root — pair, talk, join, del
       }
     );
 
+    await step(
+      '4d',
+      "the hub's bridge relayed WireGuard only: the tunnel is up, no plaintext brain call crossed",
+      async () => {
+        const peers = (await brain(HUBWG, '/_wg')).body as unknown as J[];
+        expect(peers[0]).toMatchObject({ id: rootId, up: true });
+        expect(Number(peers[0].handshakes)).toBeGreaterThanOrEqual(1);
+        const node = (await brain(HUBWG, '/_wg/_node')).body;
+        expect(Number((node.frames as J).rx)).toBeGreaterThan(10);
+        expect(node.dropped).toMatchObject({
+          unknown_key: 0,
+          wrong_link: 0,
+          replay: 0,
+          auth_fail: 0,
+        });
+        // the bridge never performed a switchboard call (it logs every one it relays or refuses)
+        expect(readFileSync(join(STATE, 'bridge.log'), 'utf8')).not.toMatch(/switch: root/);
+      }
+    );
+
     // ---------------------------------------------------------------- 5 phone names the root
     await step(
       '5',
@@ -719,7 +786,7 @@ test('trunk full: phone ↔ ap ↔ hub ↔ joined root — pair, talk, join, del
     // ---------------------------------------------------------------- 6 revoke
     await step(
       '6',
-      'box console revokes the phone → its next calls through the ap are refused',
+      'box console revokes the phone → its calls are refused; the root it approved loses its tunnel',
       async () => {
         expect(deviceId, 'needs step 1').toBeTruthy();
         await box.goto(`${BASE}/devices`);
@@ -749,6 +816,15 @@ test('trunk full: phone ↔ ap ↔ hub ↔ joined root — pair, talk, join, del
         expect(r.status).toBe(401);
         const again = await phoneFetch(phone, '/api/pair/refresh', { method: 'POST' });
         expect(again.status).toBe(401);
+        // the hub's node drops the root whose approver is gone: the tunnel is cut both ways
+        await expect
+          .poll(async () => (await brain(HUBWG, '/_wg')).body, { timeout: 10_000 })
+          .toEqual([]);
+        expect((await brain(HUBWG, `/_wg/${rootId}/root`)).status).toBe(502);
+        expect((await brain(MACWG, '/_wg/local/root')).status).toBe(504);
+        expect(readFileSync(join(STATE, 'wg-hub.log'), 'utf8')).toContain(
+          `peer '${rootId}' REMOVED`
+        );
       }
     );
   } finally {

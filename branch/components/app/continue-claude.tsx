@@ -12,9 +12,10 @@ type CcSession = { id: string; cwd: string; modified: number; title: string };
 
 const when = (t: number) => {
   const d = new Date(t);
+  const time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
   return d.toDateString() === new Date().toDateString()
-    ? d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
-    : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    ? time
+    : `${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}, ${time}`;
 };
 
 export function ContinueClaude({ onClose }: { onClose: () => void }) {

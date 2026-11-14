@@ -173,21 +173,11 @@ pub mod antigravity {
     /// A model this sign-in does not serve (agy refused it): Gemini 4 comes with a key.
     pub const NEEDS_KEY: &str = "needs GEMINI_API_KEY";
 
-    /// `agy-model-high` → (`agy-model`, effort rank): the base slug sorts first, then max → low.
-    fn family(slug: &str) -> (&str, usize) {
-        for (i, e) in ["-max", "-xhigh", "-high", "-medium", "-low"].iter().enumerate() {
-            if let Some(f) = slug.strip_suffix(e) {
-                return (f, i + 1);
-            }
-        }
-        (slug, 0)
-    }
-
-    /// The picker's list: "default" (agy's own pick) first, then Google's models strongest →
-    /// fastest — the floor merged with what `agy models` printed (`slug<TAB>label` lines) — then
-    /// the other models agy offers on this sign-in (Claude, GPT-OSS…) in its order. With agy's list
-    /// read, a floor model it does not offer is labelled as needing a key (agy refuses it on a Google
-    /// sign-in); on the API key, `agy models` does not describe what runs, so the floor is the list.
+    /// The picker's list: "default" (agy's own pick) first, then exactly what `agy models` printed
+    /// (`slug<TAB>label` lines, agy's order and labels) — it is what this sign-in serves today, and
+    /// it changes as Google ships models. The floor (Google's models strongest → fastest) is the
+    /// list only when agy can't say: signed out, unreadable, or on the API key (where `agy models`
+    /// does not describe what runs).
     pub fn models(agy: Option<&str>, api_key: bool) -> (Vec<String>, HashMap<String, String>) {
         let listed: Vec<(String, String)> = if api_key {
             Vec::new()
@@ -201,21 +191,13 @@ pub mod antigravity {
                 })
                 .collect()
         };
-        let read = !listed.is_empty();
-        let rank = |slug: &str| {
-            let (f, e) = family(slug);
-            FLOOR.iter().position(|(id, _)| *id == f).map_or((FLOOR.len(), 0), |i| (i, e))
-        };
-        let mut all: Vec<(String, String)> = FLOOR
-            .iter()
-            .map(|(id, label)| {
-                let offered = !read || listed.iter().any(|(s, _)| family(s).0 == *id);
-                (id.to_string(), if offered { label.to_string() } else { format!("{label} · {NEEDS_KEY}") })
-            })
-            .collect();
-        all.extend(listed.into_iter().filter(|(s, _)| !FLOOR.iter().any(|(id, _)| id == s)));
-        // stable: agy's own order is kept inside a rank (and among the models the floor does not know)
-        all.sort_by_key(|(s, _)| rank(s));
+        if !listed.is_empty() {
+            let mut labels: HashMap<String, String> = listed.iter().cloned().collect();
+            labels.insert("default".into(), "Antigravity's own pick (its /model setting)".into());
+            let list = std::iter::once("default".to_string()).chain(listed.into_iter().map(|(s, _)| s)).collect();
+            return (list, labels);
+        }
+        let all: Vec<(String, String)> = FLOOR.iter().map(|(id, label)| (id.to_string(), label.to_string())).collect();
         let mut labels: HashMap<String, String> = all.iter().cloned().collect();
         labels.insert("default".into(), "Antigravity's own pick (its /model setting)".into());
         let list = std::iter::once("default".to_string()).chain(all.into_iter().map(|(s, _)| s)).collect();
@@ -843,18 +825,18 @@ mod tests {
     /// The picker's list from REAL `agy models` output (Google sign-in, 11-14).
     #[test]
     fn antigravity_models() {
-        let (list, labels) = antigravity::models(Some(include_str!("../fixtures/antigravity/models.signed-in.txt")), false);
-        assert_eq!(
-            list,
-            [
-                "default", "gemini-4-carbon", "gemini-4-argon", "gemini-4-hydrogen", "gemini-3.8-flash", "gemini-3.8-flash-high",
-                "gemini-3.8-flash-medium", "gemini-3.8-flash-low", "gemini-3.6-flash", "claude-sonnet-4-6", "claude-opus-4-6-thinking", "gpt-oss-120b-medium",
-            ]
-        );
-        assert_eq!(labels["gemini-3.8-flash-low"], "Gemini 3.8 Flash (Low)");
-        assert_eq!(labels["gemini-3.8-flash"], "Gemini 3.8 Flash — software engineering, autonomous agents");
-        assert!(labels["gemini-4-carbon"].starts_with("Gemini 4 Carbon — strongest") && labels["gemini-4-carbon"].ends_with(antigravity::NEEDS_KEY));
-        assert!(labels["gemini-3.6-flash"].ends_with(antigravity::NEEDS_KEY) && !labels["gemini-3.8-flash"].contains(antigravity::NEEDS_KEY));
+        // signed in: exactly what agy lists today (agy 1.5.9, 11-14), its order and labels
+        let fixture = include_str!("../fixtures/antigravity/models.signed-in.txt");
+        let (list, labels) = antigravity::models(Some(fixture), false);
+        let agy: Vec<&str> = fixture.lines().filter_map(|l| l.split('\t').next()).collect();
+        assert_eq!(list[0], "default");
+        assert_eq!(&list[1..], &agy[..]);
+        assert_eq!(list[1], "gemini-4-argon-medium");
+        assert!(list.contains(&"claude-opus-5-5-high".to_string()) && list.contains(&"gemini-pro-orchestrator-g1-pro".to_string()));
+        assert!(!list.contains(&"gemini-4-carbon".to_string()), "no floor entries when agy answers");
+        assert_eq!(labels["gemini-4-hydrogen-xhigh"], "Gemini 4 Hydrogen (XHigh)");
+        assert_eq!(labels["gemini-pro-orchestrator-g1-pro"], "Orchestrator (Argon)");
+        assert!(!labels.values().any(|l| l.contains(antigravity::NEEDS_KEY)));
         assert!(labels["default"].starts_with("Antigravity's own pick"));
         // signed out / not installed: the floor, plain
         let (floor, labels) = antigravity::models(None, false);

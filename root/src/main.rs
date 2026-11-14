@@ -1331,19 +1331,30 @@ fn spawn_harness_models(app: &AppState) {
         }
     });
     // `agy models` (`slug<TAB>label` lines; exit 1 when signed out), on its own (it needs no wait
-    // for the others), merged with Google's current models — the floor stays when agy says nothing
+    // for the others), every 10 minutes: Google ships models and a sign-in's plan changes, so a
+    // list read once at startup goes stale. A run that says nothing keeps the last list agy gave.
     let st = app.clone();
     tokio::spawn(async move {
-        let out = tokio::time::timeout(Duration::from_secs(60), tokio::process::Command::new("agy").arg("models").kill_on_drop(true).output())
-            .await
-            .ok()
-            .and_then(Result::ok)
-            .filter(|o| o.status.success())
-            .map(|o| String::from_utf8_lossy(&o.stdout).to_string());
-        let (list, labels) = harness::antigravity::models(out.as_deref(), harness::antigravity::api_key());
-        eprintln!("harness models: antigravity offers {}{}", list.len(), if out.is_some() { "" } else { " (agy did not list: Google's current models)" });
-        st.harness_models.lock().unwrap().insert("antigravity".into(), list);
-        st.harness_labels.lock().unwrap().insert("antigravity".into(), labels);
+        let mut had_list = false;
+        loop {
+            let out = tokio::time::timeout(Duration::from_secs(60), tokio::process::Command::new("agy").arg("models").kill_on_drop(true).output())
+                .await
+                .ok()
+                .and_then(Result::ok)
+                .filter(|o| o.status.success())
+                .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+                .filter(|s| s.lines().any(|l| l.contains('\t')));
+            if out.is_some() || !had_list {
+                let (list, labels) = harness::antigravity::models(out.as_deref(), harness::antigravity::api_key());
+                if out.is_some() && !had_list {
+                    eprintln!("harness models: antigravity offers {}", list.len());
+                }
+                had_list |= out.is_some();
+                st.harness_models.lock().unwrap().insert("antigravity".into(), list);
+                st.harness_labels.lock().unwrap().insert("antigravity".into(), labels);
+            }
+            tokio::time::sleep(Duration::from_secs(600)).await;
+        }
     });
 }
 

@@ -45,6 +45,9 @@ missing=()
 command -v git >/dev/null || missing+=(git)
 command -v python3 >/dev/null || missing+=(python3)
 [ -s /etc/ssl/certs/ca-certificates.crt ] || missing+=(ca-certificates)
+# the root's WireGuard node (bifrost-net, the release binary) links libopus
+# (no `| grep -q` under pipefail: grep quits at the first match and ldconfig dies of SIGPIPE)
+case "$(ldconfig -p 2>/dev/null || /sbin/ldconfig -p 2>/dev/null || true)" in *libopus.so.0*) ;; *) missing+=(libopus0) ;; esac
 have_brain() {
   local a
   for a in "$@"; do [ "$a" = --brain-bin ] && return 0; done

@@ -25,9 +25,9 @@ for f in "$HERE/join.sh" "$HERE/join-test.sh" "$REPO/win/wsl-bootstrap.sh"; do b
 if [ -z "$IMAGE" ]; then
   exec python3 "$HERE/join-test.py" --brain-bin "$BRAIN"
 fi
-# RUNTIME = what join.sh needs on a minimal Ubuntu, WSL = + what win/wsl-bootstrap.sh needs (WSL's Ubuntu already
+# RUNTIME = what join.sh needs on a minimal Ubuntu (libopus0: the bifrost-net node binary links it), WSL = + what win/wsl-bootstrap.sh needs (WSL's Ubuntu already
 # has all of these); TEST = the referee's own tools
-RUNTIME="python3 ca-certificates" WSL="git" TEST="openssl zbar-tools"
+RUNTIME="python3 ca-certificates libopus0" WSL="git" TEST="openssl zbar-tools"
 exec docker run --rm -v "$REPO:/repo:ro" -v "$BRAIN:/opt/brain/yggdrasil:ro" "$IMAGE" bash -c "
   set -e
   export DEBIAN_FRONTEND=noninteractive

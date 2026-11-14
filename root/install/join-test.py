@@ -3,6 +3,9 @@
 
 The fake hub speaks the join contract over HTTPS with its own test CA (join.sh --cacert):
   POST /api/roots/join · GET <poll_url> (x-join-secret) · POST /api/roots/<id>/tokens (x-root-secret)
+It learns the machine's WireGuard key (wg_pub) and grants the tunnel (`wg`: its key + addresses), so
+join.sh writes and runs this root's `bifrost-net wg` node; and it serves a fake GitHub release
+(/releases/latest/download/SHA256SUMS + bifrost-net-<ver>-linux-x86_64) for the download path.
 and serves the trunk's root link on wss://localhost:<port>/rootlink: it checks the single-use link
 token, answers root-link.ok, sends root.ping and waits for root.pong — which the REAL root-dial.py only
 sends after its probe exec reached this root's brain. So a recorded pong = brain up + dialer linked.
@@ -67,6 +70,10 @@ class Hub:
         self.refill_tokens = 8
         self.refill_status = 200
         self.hub_name = "home-box"                # the hub brain's root name, sent as `hub` (None = not sent)
+        self.wg = True                            # grant the WireGuard tunnel to a join that sent a key
+        self.wg_pub = base64.b64encode(os.urandom(32)).decode()   # the hub node's public key
+        self.wg_ips = 1
+        self.release = {}                         # the fake GitHub release: asset name -> bytes
         self.base = ""
         self.stopping = False
 
@@ -85,6 +92,10 @@ class Hub:
             self.roots[root_id] = {"secret": secrets.token_hex(16), "issued": set(toks), "used": set()}
             j.update(status="approved", root_id=root_id, tokens=toks, peer_token=secrets.token_hex(12),
                      hub=self.hub_name if hub_name is ... else hub_name)
+            if j.get("wg_pub") and self.wg:
+                self.wg_ips += 1
+                j["wg"] = {"public_key": self.wg_pub, "hub_ip": "10.99.5.1", "ip": "10.99.5.%d" % self.wg_ips,
+                           "net": "10.99.5.0/24"}
             return root_id
 
     def refuse(self, req):
@@ -119,12 +130,16 @@ def make_handler(hub):
                 b = self.body()
                 if not isinstance(b, dict) or not all(isinstance(b.get(k), str) and b.get(k) for k in ("name", "os", "host")):
                     return self.reply(400, {"error": "name, os, host required"})
+                wg_pub = b.get("wg_pub")
+                if wg_pub is not None and not (isinstance(wg_pub, str) and re.match(r"^[A-Za-z0-9+/]{43}=$", wg_pub)
+                                               and len(base64.b64decode(wg_pub)) == 32):
+                    return self.reply(400, {"error": "wg_pub must be a base64 WireGuard public key"})
                 with hub.lock:
                     hub.counts["join"] += 1
                     req = "jr%d" % (len(hub.joins) + 1)
                     j = {"secret": secrets.token_hex(16), "code": "%06d" % random.randrange(10 ** 6), "status": "pending",
                          "name": b["name"], "os": b["os"], "host": b["host"], "deadline": time.time() + hub.ttl,
-                         "delivered": False}
+                         "delivered": False, "wg_pub": wg_pub}
                     hub.joins[req] = j
                 if hub.auto == "approve":
                     hub.approve(req)
@@ -152,6 +167,17 @@ def make_handler(hub):
         def do_GET(self):
             if self.path.startswith("/rootlink"):
                 return self.rootlink()
+            if self.path.startswith("/releases/latest/download/"):
+                name = self.path.rsplit("/", 1)[1]
+                with hub.lock:
+                    hub.counts["release"] += 1
+                    data = hub.release.get(name)
+                if data is None:
+                    return self.reply(404, {"error": "no asset"})
+                self.send_response(200)
+                self.send_header("content-length", str(len(data)))
+                self.end_headers()
+                return self.wfile.write(data)
             m = re.match(r"^/api/roots/join/([^/?]+)$", self.path)
             if not m:
                 return self.reply(404, {"error": "no route"})
@@ -172,6 +198,8 @@ def make_handler(hub):
                            "rootlink_url": hub.base.replace("https://", "wss://") + "/rootlink"}
                     if j["hub"] is not None:
                         ans["hub"] = j["hub"]
+                    if j.get("wg"):
+                        ans["wg"] = j["wg"]
                     return self.reply(200, ans)
                 if time.time() > j["deadline"] or j["delivered"]:
                     return self.reply(410, {"status": "expired"})
@@ -378,6 +406,14 @@ def brain_root(port):
         return None
 
 
+def http_json(port, path):
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:%d%s" % (port, path), timeout=5) as r:
+            return json.load(r)
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def procs_with(text):
     out = []
     for pid in os.listdir("/proc"):
@@ -468,11 +504,18 @@ def run_tests(hub, new_env, tmp):
     j = hub.joins[req]
     check("join: one POST /api/roots/join with name/os/host", hub.counts["join"] == 1 and j["name"] == "alpha"
           and j["os"] in ("linux", "wsl", "macos") and j["host"], str(j))
+    keyf = os.path.join(a.dir, "wg.key")
+    check("join: the request carries this machine's WireGuard public key; the private half stays in DIR/wg.key (mode 600)",
+          j.get("wg_pub") and os.path.exists(keyf) and mode(keyf) == 0o600
+          and open(keyf + ".pub").read().strip() == j["wg_pub"] and open(keyf).read().strip() != j["wg_pub"], str(j.get("wg_pub")))
     approve_url = "%s/join/%s" % (hub.base, req)
     check("join: QR PNG decodes (zbarimg) to approve_url", decode_png(png) == approve_url, decode_png(png))
     out = a.out()
     check("join: terminal shows the QR, the code and the approve URL",
           j["code"] in out and approve_url in out and ("▀" in out or "▄" in out or "█" in out))
+    fp = rootjoin.wg_fingerprint(j["wg_pub"])
+    check("join: next to the code, the tunnel key's fingerprint the phone shows (%s)" % fp,
+          "Tunnel key (the phone shows it too): %s" % fp in out, out[-600:])
     time.sleep(1.0)
     check("join: still pending (polling) before approval", p.poll() is None and hub.counts["poll"] >= 2)
     root_id = hub.approve(req)
@@ -482,25 +525,35 @@ def run_tests(hub, new_env, tmp):
     check("state: root.json has root_id, root_secret, rootlink_url, peer_token",
           r["root_id"] == root_id and r["root_secret"] == hub.roots[root_id]["secret"]
           and r["rootlink_url"] == hub.base.replace("https", "wss") + "/rootlink" and r["peer_token"] == j["peer_token"])
-    modes = {n: oct(mode(os.path.join(a.dir, n))) for n in ("root.json", "link-tokens", "brain.env", "root.conf")}
-    check("state: root.json, link-tokens, brain.env, root.conf are mode 600; the dir 700",
+    check("state: root.json keeps the key it sent and the hub's tunnel grant (the hub's key, the addresses)",
+          r.get("wg_pub") == j["wg_pub"] and r.get("wg") == j["wg"], str(r.get("wg")))
+    modes = {n: oct(mode(os.path.join(a.dir, n))) for n in ("root.json", "link-tokens", "brain.env", "root.conf", "wg.key", "wg.toml")}
+    check("state: root.json, link-tokens, brain.env, root.conf, wg.key, wg.toml are mode 600; the dir 700",
           set(modes.values()) == {"0o600"} and mode(a.dir) == 0o700, "%s dir=%s" % (modes, oct(mode(a.dir))))
     check("state: no pending.json left", not os.path.exists(os.path.join(a.dir, "pending.json")))
     env_lines = [l for l in open(os.path.join(a.dir, "brain.env")).read().splitlines() if l and not l.startswith("#")]
     want = ["YGG_UPSTREAM_BASE_URL=http://127.0.0.1:9/v1", "YGG_UPSTREAM_API_KEY=" + KEY, "YGG_UPSTREAM_MODEL=test-model",
             "YGG_LISTEN=127.0.0.1:%d" % a.brain_port, "YGG_DATA_DIR=%s/data" % a.dir, "YGG_PROJECT_DIR=%s" % a.home,
-            "YGG_ROOT_NAME=%s" % root_id, "YGG_PEERS=home-box=http://127.0.0.1:%d/local" % a.peer_port,
+            "YGG_ROOT_NAME=%s" % root_id, "YGG_PEERS=home-box=http://127.0.0.1:%d/_wg/local" % a.peer_port,
+            "YGG_PEERS_FROM=http://127.0.0.1:%d/_wg/_roots" % a.peer_port, "YGG_PEERS_VIA=http://127.0.0.1:%d/_wg/{id}" % a.peer_port,
             "YGG_PEER_TOKEN=%s" % j["peer_token"]]
-    check("brain.env: exactly upstream + listen/data/project/root name/peers (the hub brain by its name)/peer token",
-          env_lines == want, "\n".join(env_lines))
+    check("brain.env: exactly upstream + listen/data/project/root name/peers (the hub brain by its name, inside the "
+          "tunnel; the other roots from the node's list)/peer token", env_lines == want, "\n".join(env_lines))
+    g = j["wg"]
+    want_wg = ('[wg]\nkey_file = "{d}/wg.key"\nudp = "127.0.0.1:{pp}"\nrelay = "127.0.0.1:{bp}"\nhttp = "127.0.0.1:{pp}"\n'
+               'brain = "http://127.0.0.1:{bp}"\naddress = "{ip}/24"\n\n[[wg.peer]]\nid = "local"\npublic_key = "{k}"\n'
+               'ip = "10.99.5.1"\n').format(d=a.dir, pp=a.peer_port, bp=a.brain_port, ip=g["ip"], k=hub.wg_pub)
+    wgt = open(os.path.join(a.dir, "wg.toml")).read()
+    check("wg.toml: the node's key, loopback ports (door + udp = peer port, relay = the dialer's udp on the brain "
+          "port), this root's address, one peer: local = the hub's key", wgt.split("\n", 1)[1] == want_wg, wgt)
     check("state: root.json keeps the hub brain's name", r.get("hub_name") == "home-box", str(r.get("hub_name")))
     py = shutil.which("python3")
     dial = [l for l in open(os.path.join(a.dir, "bin", "run-dialer")).read().splitlines() if l.startswith("exec ")]
     want_dial = ("exec '{py}' '{d}/bin/root-dial.py' --tls --host 'localhost' --port {hp} --path '/rootlink' "
-                 "--token-file '{d}/link-tokens' --brain 'http://127.0.0.1:{bp}' --peer-port {pp} "
+                 "--token-file '{d}/link-tokens' --brain 'http://127.0.0.1:{bp}' --wg-udp 127.0.0.1:{bp} --wg-node 127.0.0.1:{pp} "
                  "--probe-exec '{py} {d}/bin/rootjoin.py probe http://127.0.0.1:{bp}/root'").format(
         py=py, d=a.dir, hp=hub.base.rsplit(":", 1)[1], bp=a.brain_port, pp=a.peer_port)
-    check("dialer: exact command line (--tls --host --port --path --token-file --brain --peer-port)",
+    check("dialer: exact command line (--tls --host --port --path --token-file --brain --wg-udp --wg-node)",
           dial == [want_dial], "%s\n!=\n%s" % (dial, want_dial))
     link = wait_for(lambda: next((l for l in hub.links if l["root"] == root_id and l["pong"]), None), 40)
     check("live: the dialer linked to the trunk on /rootlink with a valid token and EARNED a pong (brain probe)",
@@ -508,6 +561,10 @@ def run_tests(hub, new_env, tmp):
     br = brain_root(a.brain_port)
     check("live: the brain answers GET /root as this root, peer 'home-box' (the hub brain) configured",
           br and br.get("name") == root_id and br.get("peers") == ["home-box"], str(br))
+    node = wait_for(lambda: http_json(a.peer_port, "/_wg"), 20)
+    check("live: this root's WireGuard node runs (supervised): its one peer is `local`, the hub's key; no other root yet",
+          node and [p["id"] for p in node] == ["local"] and node[0]["fingerprint"] == rootjoin.wg_fingerprint(hub.wg_pub)
+          and http_json(a.peer_port, "/_wg/_roots") == [], str(node))
     toks = a.tokens()
     check("refill: before the first dial 4 < 5 tokens -> one refill (+8), the dial burned 1 -> 11 left",
           hub.counts["refill"] == 1 and len(toks) == 11 and link["token"] not in toks and len(set(toks)) == 11,
@@ -569,13 +626,39 @@ def run_tests(hub, new_env, tmp):
     check("resume: re-run without --hub resumes the same request (same name, CA), no new POST",
           hub.counts["join"] == joins0 and "resuming the join request" in b.out()
           and b.out().count("asking %s" % hub.base) == 1)
-    hub.approve(breq, hub_name=None)   # an older hub: no `hub` in its answer
+    hub.wg = False                     # an older hub: no `hub` in its answer, no tunnel
+    hub.approve(breq, hub_name=None)
+    hub.wg = True
     rc = p.wait(60)
     check("resume: approved -> exit 0 as 'bravo'; --no-start started nothing", rc == 0 and b.sup_pid() is None
           and b.root()["name"] == "bravo" and hub.joins[breq]["root_id"] == b.root()["root_id"]
           and not os.path.exists(os.path.join(b.dir, "run", "supervise.pid")), "rc=%s" % rc)
     check("older hub (no name in the answer): the hub brain's peer is called 'hub', as before",
           "YGG_PEERS=hub=http://127.0.0.1:%d/local\n" % b.peer_port in open(os.path.join(b.dir, "brain.env")).read())
+    check("older hub (no tunnel granted): the old plaintext peer port, no node, said so",
+          "--peer-port %d " % b.peer_port in open(os.path.join(b.dir, "bin", "run-dialer")).read()
+          and not os.path.exists(os.path.join(b.dir, "wg.toml")) and not os.path.exists(os.path.join(b.dir, "bin", "run-wg"))
+          and "granted no WireGuard tunnel" in b.out())
+
+    # --- a root that joined before the tunnel (no key in root.json): a re-run joins again, with a key
+    print("\n[tunnel] a root joined before the tunnel joins again with a key", flush=True)
+    r0 = b.root()
+    r0.pop("wg_pub", None)
+    r0.pop("wg", None)
+    with open(os.path.join(b.dir, "root.json"), "w") as fh:
+        json.dump(r0, fh)
+    joins0 = hub.counts["join"]
+    p = b.popen(["--dir", b.dir, "--no-start"])
+    wait_for(lambda: hub.counts["join"] > joins0, 30)
+    nreq = hub.last_req()
+    hub.approve(nreq)
+    rc = p.wait(60)
+    nj = hub.joins[nreq]
+    check("keyless root: re-run -> a new join request WITH a key (said so), approved -> root.json has the tunnel",
+          rc == 0 and hub.counts["join"] == joins0 + 1 and nj.get("wg_pub") and "joined before the tunnel" in b.out()
+          and b.root().get("wg") == nj["wg"] and b.root()["root_id"] == nj["root_id"]
+          and open(os.path.join(b.dir, "wg.key.pub")).read().strip() == nj["wg_pub"]
+          and os.path.exists(os.path.join(b.dir, "bin", "run-wg")), "rc=%s\n%s" % (rc, b.out()[-800:]))
 
     # --- T4 refused / expired / unreachable exit cleanly
     print("\n[refused / expired / unreachable]", flush=True)
@@ -624,16 +707,20 @@ def run_tests(hub, new_env, tmp):
     units = sorted(os.listdir(ud)) if os.path.isdir(ud) else []
     check("systemd: exit 0; brain + dial services, refill service + timer written",
           rc == 0 and units == ["yggdrasil-root-brain.service", "yggdrasil-root-dial.service",
-                                "yggdrasil-root-refill.service", "yggdrasil-root-refill.timer"], "rc=%s %s" % (rc, units))
+                                "yggdrasil-root-refill.service", "yggdrasil-root-refill.timer",
+                                "yggdrasil-root-wg.service"], "rc=%s %s" % (rc, units))
     u = {n: open(os.path.join(ud, n)).read() for n in units}
     check("systemd: ExecStart lines", "ExecStart=%s/bin/run-brain\n" % s.dir in u.get(units[0], "")
           and "ExecStart=%s/bin/run-dialer\n" % s.dir in u.get(units[1], "") and "Restart=always" in u.get(units[1], "")
           and "ExecStart=%s %s/bin/rootjoin.py refill --state %s\n" % (shutil.which("python3"), s.dir, s.dir) in u.get(units[2], "")
-          and "OnUnitActiveSec=5min" in u.get(units[3], ""))
+          and "OnUnitActiveSec=5min" in u.get(units[3], "")
+          and "ExecStart=%s/bin/run-wg\n" % s.dir in u.get("yggdrasil-root-wg.service", "")
+          and "Restart=always" in u.get("yggdrasil-root-wg.service", ""))
     calls = open(rec).read().splitlines()
     want = ["systemctl --user daemon-reload",
-            "systemctl --user enable yggdrasil-root-brain.service yggdrasil-root-dial.service yggdrasil-root-refill.timer",
-            "systemctl --user restart yggdrasil-root-brain.service yggdrasil-root-dial.service",
+            "systemctl --user enable yggdrasil-root-brain.service yggdrasil-root-dial.service yggdrasil-root-wg.service "
+            "yggdrasil-root-refill.timer",
+            "systemctl --user restart yggdrasil-root-brain.service yggdrasil-root-dial.service yggdrasil-root-wg.service",
             "systemctl --user start yggdrasil-root-refill.timer"]
     check("systemd: daemon-reload, enable, restart, timer start, linger", all(w in calls for w in want)
           and any(c.startswith("loginctl enable-linger") for c in calls), "\n".join(calls))
@@ -644,11 +731,12 @@ def run_tests(hub, new_env, tmp):
     rc = s.run(["--dir", s.dir, "--supervisor", "systemd"], JOIN_BRAIN_WAIT="1")
     calls = open(rec).read().splitlines()
     check("systemd: re-run -> start (not restart), no new join",
-          rc == 0 and "systemctl --user start yggdrasil-root-brain.service yggdrasil-root-dial.service" in calls
+          rc == 0 and "systemctl --user start yggdrasil-root-brain.service yggdrasil-root-dial.service yggdrasil-root-wg.service" in calls
           and not any("restart" in c for c in calls), "\n".join(calls))
     rc = s.run(["--stop", "--dir", s.dir])
-    check("systemd: --stop disables + stops the units", rc == 0 and any(
-        c.startswith("systemctl --user disable --now yggdrasil-root-brain.service") for c in open(rec).read().splitlines()))
+    check("systemd: --stop disables + stops the units (the node's too)", rc == 0 and any(
+        c.startswith("systemctl --user disable --now yggdrasil-root-brain.service yggdrasil-root-dial.service "
+                     "yggdrasil-root-wg.service") for c in open(rec).read().splitlines()))
 
     # --- T6 launchd agents (shim): what macOS gets
     print("\n[launchd] LaunchAgents plists + launchctl calls (shim)", flush=True)
@@ -663,24 +751,31 @@ def run_tests(hub, new_env, tmp):
         with open(os.path.join(ad, n), "rb") as fh:
             pl[n] = plistlib.load(fh)
     lb = "org.veraldar.yggdrasil-root."
-    check("launchd: exit 0; brain, dial, refill plists parse", rc == 0 and names == [lb + "brain.plist", lb + "dial.plist", lb + "refill.plist"],
+    check("launchd: exit 0; brain, dial, refill, wg plists parse", rc == 0 and names == [lb + "brain.plist", lb + "dial.plist", lb + "refill.plist", lb + "wg.plist"],
           "rc=%s %s" % (rc, names))
     check("launchd: ProgramArguments / KeepAlive / StartInterval",
           pl.get(lb + "brain.plist", {}).get("ProgramArguments") == [m.dir + "/bin/run-brain"]
           and pl[lb + "dial.plist"]["ProgramArguments"] == [m.dir + "/bin/run-dialer"] and pl[lb + "dial.plist"]["KeepAlive"] is True
           and pl[lb + "refill.plist"]["ProgramArguments"] == [shutil.which("python3"), m.dir + "/bin/rootjoin.py", "refill", "--state", m.dir]
-          and pl[lb + "refill.plist"]["StartInterval"] == 300, str(pl)[:600])
+          and pl[lb + "refill.plist"]["StartInterval"] == 300
+          and pl[lb + "wg.plist"]["ProgramArguments"] == [m.dir + "/bin/run-wg"] and pl[lb + "wg.plist"]["KeepAlive"] is True, str(pl)[:600])
     calls = open(rec).read().splitlines()
     check("launchd: bootstrap gui/<uid> for each agent",
-          sum(1 for c in calls if c.startswith("launchctl bootstrap gui/%d " % os.getuid())) == 3, "\n".join(calls))
+          sum(1 for c in calls if c.startswith("launchctl bootstrap gui/%d " % os.getuid())) == 4, "\n".join(calls))
 
     # --- T7 --rejoin on the live root
     print("\n[rejoin] --rejoin replaces the join and restarts the services", flush=True)
-    sup0, joins0 = a.sup_pid(), hub.counts["join"]
+    sup0, joins0, key0 = a.sup_pid(), hub.counts["join"], open(os.path.join(a.dir, "wg.key.pub")).read().strip()
     p = a.popen(["--dir", a.dir, "--rejoin"])
     wait_for(lambda: hub.counts["join"] > joins0, 30)
-    rid2 = hub.approve(hub.last_req())
+    rreq = hub.last_req()
+    pending_key = open(os.path.join(a.dir, "wg.key.pub")).read().strip()
+    rid2 = hub.approve(rreq)
     rc = p.wait(90)
+    check("rejoin: a fresh WireGuard key for the new join; the old one kept until the approval, then replaced",
+          hub.joins[rreq]["wg_pub"] not in (None, key0) and pending_key == key0
+          and open(os.path.join(a.dir, "wg.key.pub")).read().strip() == hub.joins[rreq]["wg_pub"]
+          and not os.path.exists(os.path.join(a.dir, "wg-next.key")) and mode(os.path.join(a.dir, "wg.key")) == 0o600)
     check("rejoin: exit 0, one new request, new root id in root.json and brain.env",
           rc == 0 and hub.counts["join"] == joins0 + 1 and a.root()["root_id"] == rid2
           and "YGG_ROOT_NAME=%s\n" % rid2 in open(os.path.join(a.dir, "brain.env")).read(), "rc=%s" % rc)
@@ -689,6 +784,35 @@ def run_tests(hub, new_env, tmp):
     br = wait_for(lambda: (brain_root(a.brain_port) or {}).get("name") == rid2, 20)
     check("rejoin: the brain now answers as the new root", br)
 
+    # --- the release download (Linux/WSL x86_64): bifrost-net-<ver>-linux-x86_64 checked against SHA256SUMS
+    print("\n[release] bifrost-net from the (fake) GitHub release, checked against SHA256SUMS", flush=True)
+    net = os.path.join(os.path.dirname(os.path.dirname(HERE)), "trunk", "target", "release", "bifrost-net")
+    asset = "bifrost-net-0.9.9-test-linux-x86_64"
+    data = open(net, "rb").read()
+    hub.release = {asset: data, "SHA256SUMS": ("%s  %s\n" % (hashlib.sha256(data).hexdigest(), asset)).encode()}
+    out = os.path.join(tmp, "fetched")
+    fr = subprocess.run([sys.executable, HELPER, "fetch-net", "--base", hub.base + "/releases/latest/download",
+                         "--arch", "x86_64", "--out", out, "--cacert", hub_ca(tmp)], capture_output=True, text=True)
+    check("release: fetch-net takes the asset SHA256SUMS names, checks it, installs it mode 755",
+          fr.returncode == 0 and fr.stdout.strip() == asset and open(out, "rb").read() == data and mode(out) == 0o755,
+          fr.stdout + fr.stderr)
+    hub.release[asset] = data[:-1] + bytes([data[-1] ^ 1])
+    fr = subprocess.run([sys.executable, HELPER, "fetch-net", "--base", hub.base + "/releases/latest/download",
+                         "--arch", "x86_64", "--out", out + "2", "--cacert", hub_ca(tmp)], capture_output=True, text=True)
+    check("release: a tampered asset is refused (does not match SHA256SUMS), nothing installed",
+          fr.returncode == 1 and "does not match SHA256SUMS" in fr.stderr and not os.path.exists(out + "2"), fr.stderr)
+    hub.release[asset] = data
+    z = new_env("zulu")
+    fake = os.path.join(tmp, "zulu", "bifrost-net")
+    with open(fake, "w") as fh:
+        fh.write("#!/bin/sh\necho '%s: error while loading shared libraries: libopus.so.0: cannot open shared object "
+                 "file: No such file or directory' >&2\nexit 127\n" % fake)
+    os.chmod(fake, 0o755)
+    joins0 = hub.counts["join"]
+    rc = z.run(z.first_args() + ["--net-bin", fake])
+    check("a bifrost-net that cannot load (no libopus): exit 1, the package named, no join request",
+          rc == 1 and "cannot start" in z.out() and "libopus0" in z.out() and hub.counts["join"] == joins0, "rc=%s" % rc)
+
     bootstrap_test(hub, new_env, tmp)
 
     # --- T8 --stop
@@ -696,6 +820,10 @@ def run_tests(hub, new_env, tmp):
     rc = a.run(["--stop", "--dir", a.dir])
     gone = wait_for(lambda: brain_root(a.brain_port) is None and a.sup_pid() is None and not procs_with(a.dir), 15)
     check("stop: exit 0, supervisor, brain and dialer gone", rc == 0 and gone, str(procs_with(a.dir)))
+
+
+def hub_ca(tmp):
+    return os.path.join(tmp, "ca.pem")
 
 
 def bootstrap_test(hub, new_env, tmp):
@@ -741,7 +869,8 @@ def bootstrap_test(hub, new_env, tmp):
             "--no-start", "--brain-port", str(w.brain_port), "--peer-port", str(w.peer_port)]
 
     def boot_run(args, home=None):
-        e = w.env(WSL_DISTRO_NAME="Ubuntu")
+        # the sparse clone has no trunk/target: join.sh downloads bifrost-net from the (fake) release
+        e = w.env(WSL_DISTRO_NAME="Ubuntu", JOIN_RELEASES=hub.base + "/releases")
         if home:
             e["HOME"] = home
         with open(w.log, "a") as f:
@@ -759,6 +888,11 @@ def bootstrap_test(hub, new_env, tmp):
     j = list(hub.joins.values())[-1]
     check("bootstrap: exit 0; one join request, sent as os=wsl", rc == 0 and hub.counts["join"] == joins0 + 1
           and j["os"] == "wsl", "rc=%s os=%s\n%s" % (rc, j.get("os"), w.out()[-1500:]))
+    wbin = os.path.join(w.dir, "bin", "bifrost-net")
+    check("bootstrap: bifrost-net downloaded from the release (SHA256SUMS checked), the key made, the tunnel granted",
+          "downloading bifrost-net" in w.out() and os.path.exists(wbin) and mode(wbin) == 0o755
+          and hashlib.sha256(open(wbin, "rb").read()).hexdigest() == hashlib.sha256(hub.release[next(iter(hub.release))]).hexdigest()
+          and j.get("wg_pub") and w.root().get("wg") == j.get("wg"), w.out()[-800:])
     check("bootstrap: sparse clone into ~/veraldar/yggdrasil (root/ + trunk/scripts, not branch/)",
           os.path.isfile(os.path.join(co, "root", "install", "join.sh")) and os.path.isfile(os.path.join(co, "trunk", "scripts", "root-dial.py"))
           and not os.path.exists(os.path.join(co, "branch")))

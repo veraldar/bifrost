@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """rootjoin.py — the stdlib half of join.sh: the hub's join API, the QR, link-token refill.
 
-  rootjoin.py join  --state DIR --hub URL --name N --os OS --host H [--qr-png P] [--open-qr] [--new]
+  rootjoin.py join  --state DIR --hub URL --name N --os OS --host H [--wg-pub KEY] [--qr-png P] [--open-qr] [--new]
   rootjoin.py refill --state DIR [--min 5] [--every SECS]
   rootjoin.py brain-env --state DIR --out FILE --listen ADDR --data DIR --project DIR --peer-port P [--upstream FILE]
+  rootjoin.py wg-config --state DIR --out FILE --brain-port B --peer-port P   this root's WireGuard node config
+                                           (prints changed|unchanged; exit 5 = the approval had no tunnel)
+  rootjoin.py fetch-net --base URL --arch A --out FILE   the bifrost-net release asset, checked against SHA256SUMS
   rootjoin.py dial  --state DIR            KEY=value lines for the dialer: TLS HOST PORT PATH
   rootjoin.py get   --state DIR KEY        one non-secret field of root.json (root_id hub name rootlink_url hub_name)
   rootjoin.py qr    TEXT [--png P]         the QR in the terminal (and as a PNG)
@@ -13,9 +16,13 @@ Every command that talks to the hub takes --cacert FILE (tests with a self-signe
 also read from DIR/root.conf). Python >= 3.8, stdlib only (macOS's own python3 works).
 
 The hub's join contract (client side):
-  POST <hub>/api/roots/join {name, os, host}  -> 201 {req, secret, code, approve_url, poll_url, expires_in}
+  POST <hub>/api/roots/join {name, os, host, wg_pub}  -> 201 {req, secret, code, approve_url, poll_url, expires_in}
   GET  <poll_url>  x-join-secret: <secret>    -> 202 pending | 200 approved {root_id, root_secret,
-       link_tokens, rootlink_url, peer_token, hub} (once) | 410 {status: refused|expired}
+       link_tokens, rootlink_url, peer_token, hub, wg?} (once) | 410 {status: refused|expired}
+       `wg_pub` is this machine's WireGuard public key (bifrost-net wg-key; the private half never
+       leaves DIR). The phone shows its fingerprint next to the code; approving pins it, and `wg`
+       = {public_key, hub_ip, ip, net} (the hub's key + the tunnel addresses) comes back. Brain calls
+       between roots then ride this root's own `bifrost-net wg` node (docs/spec-join.md).
        `hub` is the hub brain's root NAME: this root's brain peers with it as
        YGG_PEERS <hub>=http://127.0.0.1:<peer port>/local, so reports addressed to that name go home.
   POST <hub>/api/roots/<root_id>/tokens  x-root-secret  -> 200 {link_tokens}
@@ -28,7 +35,31 @@ import json, os, re, shutil, ssl, struct, subprocess, sys, time, urllib.error, u
 EXIT_REFUSED, EXIT_EXPIRED = 3, 4
 SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 SAFE_TOKEN = re.compile(r"^[!-~]{8,4096}$")          # printable, no whitespace: one token per line
-MANAGED = ("YGG_LISTEN", "YGG_DATA_DIR", "YGG_PROJECT_DIR", "YGG_ROOT_NAME", "YGG_PEERS", "YGG_PEER_TOKEN")
+MANAGED = ("YGG_LISTEN", "YGG_DATA_DIR", "YGG_PROJECT_DIR", "YGG_ROOT_NAME", "YGG_PEERS", "YGG_PEER_TOKEN",
+           "YGG_PEERS_FROM", "YGG_PEERS_VIA")
+WG_KEY = re.compile(r"^[A-Za-z0-9+/]{43}=$")
+
+
+def wg_fingerprint(pub):
+    """The fingerprint the phone shows: sha256(raw 32-byte key)[0..6], hex, xxxx-xxxx-xxxx."""
+    import base64, hashlib
+    h = hashlib.sha256(base64.b64decode(pub)).hexdigest()[:12]
+    return "%s-%s-%s" % (h[0:4], h[4:8], h[8:12])
+
+
+def good_wg(g):
+    """The approval's `wg` grant, checked: {public_key, hub_ip, ip, net} or None."""
+    import ipaddress
+    if not isinstance(g, dict) or not isinstance(g.get("public_key"), str) or not WG_KEY.match(g["public_key"]):
+        return None
+    try:
+        net = ipaddress.ip_network(str(g.get("net")), strict=True)
+        ip, hub_ip = ipaddress.ip_address(str(g.get("ip"))), ipaddress.ip_address(str(g.get("hub_ip")))
+    except ValueError:
+        return None
+    if net.version != 4 or not 8 <= net.prefixlen <= 30 or ip not in net or hub_ip not in net or ip == hub_ip:
+        return None
+    return {"public_key": g["public_key"], "hub_ip": str(hub_ip), "ip": str(ip), "net": str(net)}
 
 
 def say(msg):
@@ -145,14 +176,18 @@ def cmd_join(o):
     pend_path, root_path = os.path.join(state, "pending.json"), os.path.join(state, "root.json")
     if os.path.exists(root_path) and not o.new:
         fail("already joined (%s) — join.sh --rejoin to join again" % root_path)
+    if o.wg_pub and not WG_KEY.match(o.wg_pub):
+        fail("--wg-pub is not a WireGuard public key")
     pend = load_json(pend_path)
-    if pend and pend.get("hub") == hub and pend.get("deadline", 0) > time.time() + 5:
+    if pend and pend.get("hub") == hub and pend.get("deadline", 0) > time.time() + 5 and pend.get("wg_pub") == o.wg_pub:
         say("==> resuming the join request sent earlier (no new request)")
     else:
         say('==> asking %s to let "%s" join as a root (%s, host %s)' % (hub, o.name, o.os, o.host))
+        body = {"name": o.name, "os": o.os, "host": o.host}
+        if o.wg_pub:
+            body["wg_pub"] = o.wg_pub
         try:
-            st, ans = http("POST", hub_join(hub, "/api/roots/join"), o.cacert,
-                           body={"name": o.name, "os": o.os, "host": o.host})
+            st, ans = http("POST", hub_join(hub, "/api/roots/join"), o.cacert, body=body)
         except NetError as e:
             fail("cannot reach the hub: %s" % e)
         if st != 201:
@@ -166,7 +201,7 @@ def cmd_join(o):
             fail("the hub's expires_in is not a number")
         pend = {"hub": hub, "req": str(ans["req"]), "secret": str(ans["secret"]), "code": str(ans["code"]),
                 "approve_url": hub_join(hub, str(ans["approve_url"])), "poll_url": hub_join(hub, str(ans["poll_url"])),
-                "deadline": time.time() + ttl, "name": o.name}
+                "deadline": time.time() + ttl, "name": o.name, "wg_pub": o.wg_pub or None}
         write_private(pend_path, json.dumps(pend, indent=1) + "\n")
 
     url = pend["approve_url"]
@@ -175,6 +210,8 @@ def cmd_join(o):
     say("")
     say("    Scan this QR with the phone that is already paired with your tree, and approve.")
     say("    Code (check it matches the phone):  %s" % pend["code"])
+    if pend.get("wg_pub"):
+        say("    Tunnel key (the phone shows it too): %s" % wg_fingerprint(pend["wg_pub"]))
     say("    Or open on that phone:              %s" % url)
     if o.qr_png:
         say("    QR picture:                         %s" % o.qr_png)
@@ -255,9 +292,16 @@ def save_approval(o, pend, ans, pend_path, root_path):
     if not re.match(r"^wss?://", link):
         fail("the hub's rootlink_url %r is not a ws:// or wss:// URL" % link)
     peer_token = ans.get("peer_token") or ""
+    wg = good_wg(ans.get("wg")) if pend.get("wg_pub") else None
+    if pend.get("wg_pub") and ans.get("wg") is not None and wg is None:
+        fail("the hub's tunnel grant (wg) is malformed")
     root = {"hub": pend["hub"], "name": pend.get("name") or o.name, "root_id": root_id, "root_secret": secret,
             "rootlink_url": link, "peer_token": str(peer_token), "hub_name": hub_name,
             "joined_at": time.strftime("%Y-%m-%dT%H:%M:%S%z")}
+    if pend.get("wg_pub"):
+        root["wg_pub"] = pend["wg_pub"]           # the key this join sent (pinned on the phone)
+    if wg:
+        root["wg"] = wg
     write_tokens(os.path.join(o.state, "link-tokens"), toks)
     write_private(root_path, json.dumps(root, indent=1) + "\n")
     try:
@@ -265,6 +309,8 @@ def save_approval(o, pend, ans, pend_path, root_path):
     except OSError:
         pass
     say("==> approved: this machine is root %r of the tree at %s (%d link token(s) saved)" % (root_id, pend["hub"], len(toks)))
+    if pend.get("wg_pub") and not wg:
+        say("!!  the hub runs no WireGuard node: brain calls with other roots use the old path for now")
     return 0
 
 
@@ -361,9 +407,16 @@ def cmd_brain_env(o):
         hub_name = root.get("hub_name") or "hub"
         if not SAFE_ID.match(hub_name) or hub_name == root["root_id"]:
             fail("root.json: the hub's name %r is not a plain name other than this root's" % (hub_name,))
-        peers = "%s=http://127.0.0.1:%d/local" % (hub_name, o.peer_port)
         lines += ["", "YGG_LISTEN=%s" % o.listen, "YGG_DATA_DIR=%s" % o.data, "YGG_PROJECT_DIR=%s" % o.project,
-                  "YGG_ROOT_NAME=%s" % root["root_id"], "YGG_PEERS=%s" % peers]
+                  "YGG_ROOT_NAME=%s" % root["root_id"]]
+        if root.get("wg"):
+            # the tunnel: the peer port is this root's WireGuard node; the hub brain inside it
+            # (`local`), every other root of the tree learned from the node's list
+            node = "http://127.0.0.1:%d/_wg" % o.peer_port
+            lines += ["YGG_PEERS=%s=%s/local" % (hub_name, node), "YGG_PEERS_FROM=%s/_roots" % node,
+                      "YGG_PEERS_VIA=%s/{id}" % node]
+        else:
+            lines += ["YGG_PEERS=%s=http://127.0.0.1:%d/local" % (hub_name, o.peer_port)]
         if root.get("peer_token"):
             lines.append("YGG_PEER_TOKEN=%s" % root["peer_token"])
     text = "\n".join(lines) + "\n"
@@ -400,10 +453,71 @@ def cmd_get(o):
     if o.key == "pending_hub":                       # the hub of a join still waiting for approval, if any
         say((load_json(os.path.join(o.state, "pending.json")) or {}).get("hub", ""))
         return 0
-    if o.key not in ("root_id", "hub", "name", "rootlink_url", "hub_name", "joined_at"):
+    if o.key not in ("root_id", "hub", "name", "rootlink_url", "hub_name", "joined_at", "wg_pub", "tunnel"):
         fail("get: %s is not a readable field" % o.key)
     root = load_json(os.path.join(o.state, "root.json")) or fail("not joined: no root.json in %s" % o.state)
-    say(str(root.get(o.key, "")))
+    if o.key == "tunnel":                            # 1 = the approval granted a WireGuard tunnel
+        say("1" if root.get("wg") else "")
+        return 0
+    say(str(root.get(o.key) or ""))
+    return 0
+
+
+# ------------------------------------------------------------------------------ the tunnel
+def cmd_wg_config(o):
+    """This root's `bifrost-net wg` node: its key (DIR/wg.key), loopback ports, its one static peer
+    (`local`, the hub's key from the approval). The hub's directory brings the other roots."""
+    root = load_json(os.path.join(o.state, "root.json")) or fail("not joined: no root.json in %s" % o.state)
+    g = good_wg(root.get("wg"))
+    if not g:
+        return 5
+    prefix = g["net"].split("/")[1]
+    text = ("# yggdrasil-root: this root's WireGuard node (bifrost-net wg) — written by join.sh on every run\n"
+            "[wg]\nkey_file = \"%s\"\nudp = \"127.0.0.1:%d\"\nrelay = \"127.0.0.1:%d\"\nhttp = \"127.0.0.1:%d\"\n"
+            "brain = \"http://127.0.0.1:%d\"\naddress = \"%s/%s\"\n\n[[wg.peer]]\nid = \"local\"\n"
+            "public_key = \"%s\"\nip = \"%s\"\n") % (os.path.join(o.state, "wg.key"), o.peer_port, o.brain_port,
+                                                       o.peer_port, o.brain_port, g["ip"], prefix, g["public_key"], g["hub_ip"])
+    try:
+        with open(o.out) as f:
+            old = f.read()
+    except OSError:
+        old = None
+    if old == text:
+        say("unchanged")
+    else:
+        write_private(o.out, text)
+        say("changed")
+    return 0
+
+
+def cmd_fetch_net(o):
+    """bifrost-net-<ver>-linux-<arch> from a release (BASE/SHA256SUMS names it), checked, mode 755."""
+    import hashlib
+    base = o.base.rstrip("/")
+
+    def get(url):
+        req = urllib.request.Request(url, headers={"user-agent": "yggdrasil-root-join/1"})
+        ctx = ssl_ctx(o.cacert) if url.startswith("https:") else None
+        try:
+            with urllib.request.urlopen(req, timeout=120, context=ctx) as r:
+                return r.read()
+        except (urllib.error.URLError, OSError) as e:
+            fail("cannot download %s: %s" % (url, getattr(e, "reason", e)))
+    sums = get(base + "/SHA256SUMS").decode(errors="replace")
+    pat = re.compile(r"^([0-9a-f]{64})  (bifrost-net-[0-9][0-9A-Za-z.+-]*-linux-%s)$" % re.escape(o.arch))
+    hit = next((m for m in map(pat.match, sums.splitlines()) if m), None)
+    if not hit:
+        fail("the release has no bifrost-net for linux-%s" % o.arch)
+    want, asset = hit.groups()
+    data = get("%s/%s" % (base, asset))
+    if hashlib.sha256(data).hexdigest() != want:
+        fail("%s does not match SHA256SUMS — refusing to install it" % asset)
+    tmp = "%s.%d.tmp" % (o.out, os.getpid())
+    with open(tmp, "wb") as f:
+        f.write(data)
+    os.chmod(tmp, 0o755)
+    os.replace(tmp, o.out)
+    say(asset)
     return 0
 
 
@@ -721,6 +835,7 @@ def main(argv):
     j.add_argument("--qr-png")
     j.add_argument("--open-qr", action="store_true")
     j.add_argument("--new", action="store_true", help="join again even if root.json exists")
+    j.add_argument("--wg-pub", help="this machine's WireGuard public key (the approval pins it)")
     r = with_state(sub.add_parser("refill"))
     r.add_argument("--min", type=int, default=5)
     r.add_argument("--every", type=float, default=0, help="loop: refill, sleep SECS, forever")
@@ -729,6 +844,14 @@ def main(argv):
         b.add_argument(a, required=True)
     b.add_argument("--peer-port", type=int, required=True)
     b.add_argument("--upstream")
+    w = with_state(sub.add_parser("wg-config"))
+    w.add_argument("--out", required=True)
+    w.add_argument("--brain-port", type=int, required=True)
+    w.add_argument("--peer-port", type=int, required=True)
+    fn = sub.add_parser("fetch-net")
+    for a in ("--base", "--arch", "--out"):
+        fn.add_argument(a, required=True)
+    fn.add_argument("--cacert")
     with_state(sub.add_parser("dial"))
     g = with_state(sub.add_parser("get"))
     g.add_argument("key")
@@ -741,7 +864,8 @@ def main(argv):
     if getattr(o, "state", None) and not o.cacert:
         o.cacert = read_conf(o.state).get("CACERT") or None
     return {"join": cmd_join, "refill": cmd_refill, "brain-env": cmd_brain_env, "dial": cmd_dial,
-            "get": cmd_get, "qr": cmd_qr, "probe": cmd_probe}[o.cmd](o)
+            "get": cmd_get, "qr": cmd_qr, "probe": cmd_probe, "wg-config": cmd_wg_config,
+            "fetch-net": cmd_fetch_net}[o.cmd](o)
 
 
 if __name__ == "__main__":

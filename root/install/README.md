@@ -182,37 +182,49 @@ What happens:
    `root/target/release/yggdrasil`, then `~/.local/bin` or `PATH`. If none is there, it runs
    `cargo build --release`. With no Rust either, it prints exactly what to install
    (`build-essential pkg-config` + rustup, or `xcode-select --install` on macOS) and stops.
-2. **Join request.** `POST <hub>/api/roots/join {name, os, host}`. A **QR of the approve URL**
+   **The tunnel's node** (`bifrost-net`): `--net-bin`, then `bin/bifrost-net`, the repo's
+   `trunk/target/release/bifrost-net`, `~/.local/bin` or `PATH`; else the release on Linux/WSL
+   x86_64 (`bifrost-net-<ver>-linux-x86_64`, checked against the release's `SHA256SUMS`; it needs
+   `libopus0`); else `cargo build --release` in `trunk/` (macOS: about 3 to 5 minutes, with cmake
+   or `brew install opus pkg-config`). It makes the WireGuard key `wg.key` (mode 600).
+2. **Join request.** `POST <hub>/api/roots/join {name, os, host, wg_pub}`. A **QR of the approve URL**
    appears in the terminal (`qrencode -t ANSIUTF8` if it's installed, otherwise a built-in
-   encoder). It's also saved as a PNG (`--qr-png`, opened with `--open-qr`). The code and the URL
-   are printed below it.
-3. **Approve.** Scan the QR with the paired phone, check that the code on the phone matches, and
-   approve. `join.sh` polls until the request is approved, refused or expired. Ctrl-C keeps the
+   encoder). It's also saved as a PNG (`--qr-png`, opened with `--open-qr`). The code, the tunnel
+   key's fingerprint and the URL are printed below it.
+3. **Approve.** Scan the QR with the paired phone, check that the code (and the tunnel key) on the
+   phone matches, and approve: that pins this machine's key on the hub. `join.sh` polls until the request is approved, refused or expired. Ctrl-C keeps the
    request, and re-running resumes it with the same QR.
 4. **Save.** It stores `root_secret`, the single-use **link tokens** (mode 600) and `rootlink_url`.
    Then it writes `brain.env`: loopback `YGG_LISTEN`, `YGG_DATA_DIR`,
-   `YGG_ROOT_NAME=<root_id>`, `YGG_PEERS=<hub>=http://127.0.0.1:<peer port>/local` and
-   `YGG_PEER_TOKEN`. `<hub>` is the hub brain's root name, from the approval's `hub` (`hub`
-   when an older hub sends none). The joined root's reports go home to that name.
-5. **Start.** It runs the brain plus
-   `root-dial.py --tls --host --port --path --token-file --brain --peer-port`. Before every dial,
+   `YGG_ROOT_NAME=<root_id>`, `YGG_PEERS=<hub>=http://127.0.0.1:<peer port>/_wg/local`,
+   `YGG_PEERS_FROM=…/_wg/_roots`, `YGG_PEERS_VIA=…/_wg/{id}` and `YGG_PEER_TOKEN`. `<hub>` is
+   the hub brain's root name, from the approval's `hub` (`hub` when an older hub sends none). The
+   joined root's reports go home to that name, inside WireGuard; the other roots of the tree come
+   from the hub's directory. And `wg.toml`: this root's node, with the hub's key from the approval.
+   (An older hub that grants no tunnel: `YGG_PEERS=<hub>=http://127.0.0.1:<peer port>/local`, the
+   old plaintext path, and no node.)
+5. **Start.** It runs the brain, `bifrost-net wg -c wg.toml`, and
+   `root-dial.py --tls --host --port --path --token-file --brain --wg-udp --wg-node`. Before every dial,
    and every 5 minutes, it tops up the link tokens through
    `POST <hub>/api/roots/<root_id>/tokens` when fewer than 5 are left.
 
 | supervisor (`--supervisor auto` picks) | units |
 |---|---|
-| **systemd --user** (Linux, or WSL with systemd) | `yggdrasil-root-brain.service`, `yggdrasil-root-dial.service`, `yggdrasil-root-refill.timer` (+ linger, best effort) |
-| **launchd** (macOS) | `~/Library/LaunchAgents/org.veraldar.yggdrasil-root.{brain,dial,refill}.plist` |
-| **nohup** (no user manager: containers, WSL without systemd) | `bin/supervise` restarts all three. Logs are in `log/`. After a reboot, run `join.sh` again or `bin/start` |
+| **systemd --user** (Linux, or WSL with systemd) | `yggdrasil-root-brain.service`, `yggdrasil-root-dial.service`, `yggdrasil-root-wg.service`, `yggdrasil-root-refill.timer` (+ linger, best effort) |
+| **launchd** (macOS) | `~/Library/LaunchAgents/org.veraldar.yggdrasil-root.{brain,dial,wg,refill}.plist` |
+| **nohup** (no user manager: containers, WSL without systemd) | `bin/supervise` restarts all of them. Logs are in `log/`. After a reboot, run `join.sh` again or `bin/start` |
 
 Everything lives in `~/.local/share/yggdrasil-root` (`--dir`, mode 700): `root.json` (root id, root
 secret, hub, the hub brain's name, rootlink URL), `link-tokens`, `brain.env`, `root.conf` (ports, name; no secrets),
-`bin/` (`yggdrasil`, `root-dial.py`, `rootjoin.py`, `run-brain`, `run-dialer`, `start`, `stop`),
+`wg.key` (+ `.pub`) and `wg.toml` (the node), `bin/` (`yggdrasil`, `bifrost-net`, `root-dial.py`,
+`rootjoin.py`, `run-brain`, `run-wg`, `run-dialer`, `start`, `stop`),
 `data/`, `log/`.
 
 **Re-running is safe.** With an existing join, `join.sh` (no options needed) sends no new request.
 It refreshes the files and restarts only if something changed. `--rejoin` asks the hub again; the
-old join stays until the new one is approved. A different `--hub` without `--rejoin` is refused.
+old join stays until the new one is approved, and so does its key (the new join brings a fresh one).
+A root that joined before the tunnel (no key in `root.json`) joins again by itself, with a key:
+approve it on the phone once more. A different `--hub` without `--rejoin` is refused.
 `--stop` stops the services. Other options: `--name` (default: the hostname),
 `--brain-port`/`--peer-port` (default 4180/4181, or the next free pair), `--project-dir` (default
 `$HOME`), `--no-start`, `--build`. `--cacert` is only for tests against a self-signed hub.

@@ -10,6 +10,8 @@
 //!   serve -c CONFIG     run the node (mesh + webrtc in one process)
 //!   bridge -c CONFIG    run the v0.9 bridge (rtc + opencode + root-link)
 //!   rootlink mint       mint a single-use link-token for a root dial-in
+//!   wg -c NODE.toml     run this root's WireGuard node (root <-> root brain calls, wg.rs)
+//!   wg-key FILE         the node's key: created mode 600 if missing; prints public + fingerprint
 //!   ap -c AP.TOML       run the access point (TLS edge; the bridge dials in)
 //!   ap-token            mint a bridge pairing token (+ its sha-256 for ap.toml)
 //!   ap-pin CERT.pem     print the pin bridge.toml [ap] must carry
@@ -33,6 +35,7 @@ mod keys;
 mod mesh;
 mod relay;
 mod serve;
+mod wg;
 mod ws;
 
 fn main() {
@@ -44,6 +47,37 @@ fn main() {
         Some("serve") => cmd_serve(&args[1..]),
         Some("bridge") => cmd_bridge(&args[1..]),
         Some("rootlink") => cmd_rootlink(&args[1..]),
+        Some("wg") => match config_arg(&args[1..]) {
+            Some(p) => match wg::run(p) {
+                Ok(()) => 0,
+                Err(e) => {
+                    eprintln!("wg: {e}");
+                    1
+                }
+            },
+            None => {
+                eprintln!("wg: missing -c NODE.toml");
+                2
+            }
+        },
+        Some("wg-key") => match args.get(1) {
+            Some(path) => match wg::load_or_create_key(path) {
+                Ok((_, public)) => {
+                    use base64::Engine as _;
+                    println!("public_key = \"{}\"", base64::engine::general_purpose::STANDARD.encode(public.as_bytes()));
+                    println!("fingerprint = \"{}\"", wg::fingerprint(public.as_bytes()));
+                    0
+                }
+                Err(e) => {
+                    eprintln!("wg-key: {e}");
+                    1
+                }
+            },
+            None => {
+                eprintln!("wg-key: FILE (created mode 600 with FILE.pub if missing; prints the public key + fingerprint)");
+                2
+            }
+        },
         Some("ap") => cmd_ap(&args[1..]),
         Some("ap-token") => {
             let (raw, hash) = ap::new_token();
@@ -83,7 +117,7 @@ fn main() {
         },
         _ => {
             eprintln!(
-                "usage: bifrost-net keygen | check -c CONFIG | selftest m0|m1|v9|ap | serve -c CONFIG | bridge -c CONFIG | rootlink mint --root ID --dev DEV --ttl SECS --secret SECRET [--out FILE] [--roots a,b] | ap -c AP.TOML | ap-token | ap-pin CERT.pem | ap-cert DIR NAME.."
+                "usage: bifrost-net keygen | check -c CONFIG | selftest m0|m1|v9|ap | serve -c CONFIG | bridge -c CONFIG | rootlink mint --root ID --dev DEV --ttl SECS --secret SECRET [--out FILE] [--roots a,b] | wg -c NODE.toml | wg-key FILE | ap -c AP.TOML | ap-token | ap-pin CERT.pem | ap-cert DIR NAME.."
             );
             2
         }

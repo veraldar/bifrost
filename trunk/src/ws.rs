@@ -114,6 +114,8 @@ pub struct Frame {
 }
 
 pub const OP_TEXT: u8 = 0x1;
+/// root-link binary frames carry WireGuard relay frames (wg.rs)
+pub const OP_BINARY: u8 = 0x2;
 pub const OP_PING: u8 = 0x9;
 pub const OP_PONG: u8 = 0xA;
 pub const OP_CLOSE: u8 = 0x8;

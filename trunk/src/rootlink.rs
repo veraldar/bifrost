@@ -31,7 +31,7 @@ use crate::registry::{ConnMsg, Registry, RootHandle};
 use crate::roots;
 use crate::switch::Switchboard;
 use crate::tokens::TokenStore;
-use crate::ws::{self, FrameReader, WsErr, OP_CLOSE, OP_PING, OP_PONG, OP_TEXT};
+use crate::ws::{self, FrameReader, WsErr, OP_BINARY, OP_CLOSE, OP_PING, OP_PONG, OP_TEXT};
 
 /// Largest frame a root may send (switchboard bodies ride base64 in one frame).
 const MAX_ROOT_FRAME: usize = 8 << 20;
@@ -45,8 +45,12 @@ pub struct RootLinkPlane {
     pub ping_secs: u64,
     pub registry: Registry,
     pub tokens: Arc<TokenStore>,
-    /// brain-to-brain `http` / `http.reply` ops (switch.rs)
+    /// brain-to-brain `http` / `http.reply` ops (switch.rs) — the OLD, plaintext path
     pub switch: Arc<Switchboard>,
+    /// the old path is served only when the bridge opts in ([root-link] plaintext_http)
+    pub plaintext_http: bool,
+    /// the root <-> root leg: binary frames are WireGuard relay frames (wg.rs)
+    pub wg: Arc<crate::wg::Relay>,
     /// sha256(link-token) of every CONSUMED token — single-use law
     used: Mutex<HashSet<String>>,
     /// conns still in the handshake / link-token phase
@@ -60,6 +64,8 @@ impl RootLinkPlane {
         tokens: Arc<TokenStore>,
         ping_secs: u64,
         switch: Arc<Switchboard>,
+        plaintext_http: bool,
+        wg: Arc<crate::wg::Relay>,
     ) -> Arc<RootLinkPlane> {
         Arc::new(RootLinkPlane {
             secret,
@@ -67,6 +73,8 @@ impl RootLinkPlane {
             registry,
             tokens,
             switch,
+            plaintext_http,
+            wg,
             used: Mutex::new(HashSet::new()),
             preauth: std::sync::atomic::AtomicUsize::new(0),
         })
@@ -318,6 +326,11 @@ impl RootLinkPlane {
                         }
                     }
                     OP_CLOSE => break,
+                    // the root <-> root leg: WireGuard datagrams, relayed by address only
+                    OP_BINARY => {
+                        let claim = self.registry.roots_of(&lt.root).unwrap_or_default();
+                        self.wg.from_link(&lt.root, &claim, &f.payload);
+                    }
                     OP_TEXT => {
                         let Ok(v) = serde_json::from_slice::<serde_json::Value>(&f.payload) else {
                             continue;
@@ -338,8 +351,14 @@ impl RootLinkPlane {
                                     let _ = reply.send(v);
                                 }
                             }
-                            // switchboard: brain-to-brain HTTP (switch.rs)
-                            Some("http") => self.switch.on_http(&lt.root, v),
+                            // switchboard: brain-to-brain HTTP (switch.rs), plaintext —
+                            // only for old roots, when the bridge opted in
+                            Some("http") if self.plaintext_http => self.switch.on_http(&lt.root, v),
+                            Some("http") => {
+                                let id = v.get("id").cloned().unwrap_or(serde_json::Value::Null);
+                                let r = crate::switch::HttpReply::error(403, crate::switch::PLAINTEXT_OFF);
+                                let _ = self.registry.send_text(&lt.root, &r.frame_for(&id));
+                            }
                             Some("http.reply") => self.switch.on_reply(&lt.root, v),
                             _ => {}
                         }

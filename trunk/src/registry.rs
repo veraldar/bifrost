@@ -136,6 +136,15 @@ impl Registry {
     /// writer is cloned out under the registry lock and written OUTSIDE it, so
     /// a slow root never stalls the registry; a failed write kicks that conn.
     pub fn send_text(&self, root: &str, text: &str) -> Result<u64, String> {
+        self.send_frame(root, crate::ws::OP_TEXT, text.as_bytes())
+    }
+
+    /// One BINARY frame onto a root's conn: a WireGuard relay frame (wg.rs). Same writer law.
+    pub fn send_binary(&self, root: &str, payload: &[u8]) -> Result<u64, String> {
+        self.send_frame(root, crate::ws::OP_BINARY, payload)
+    }
+
+    fn send_frame(&self, root: &str, op: u8, payload: &[u8]) -> Result<u64, String> {
         let (writer, kick, gen_no) = {
             let map = self.inner.lock().unwrap();
             match map.get(root) {
@@ -146,7 +155,7 @@ impl Registry {
                 _ => return Err("root not linked".to_string()),
             }
         };
-        let res = crate::ws::write_frame(&mut *writer.lock().unwrap(), crate::ws::OP_TEXT, text.as_bytes());
+        let res = crate::ws::write_frame(&mut *writer.lock().unwrap(), op, payload);
         if let Err(e) = res {
             let _ = kick.shutdown(std::net::Shutdown::Both);
             return Err(format!("root '{root}' write failed: {e}"));

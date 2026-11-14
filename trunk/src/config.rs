@@ -120,6 +120,19 @@ pub struct RootLinkConfig {
     /// a turn on a real brain can take minutes; default 20
     #[serde(default = "default_result_secs")]
     pub result_secs: u64,
+    /// the root <-> root leg (wg.rs): this bridge's loopback UDP socket for the hub's own
+    /// WireGuard node (that node's `relay`). Binary root-link frames are relayed root -> root
+    /// without it; `local` needs both wg_relay and wg_local.
+    #[serde(default)]
+    pub wg_relay: Option<String>,
+    /// the hub's own WireGuard node (its `udp`), where frames addressed `local` go
+    #[serde(default)]
+    pub wg_local: Option<String>,
+    /// the OLD root <-> root path: brain calls as plaintext `http` ops through the switchboard
+    /// (`/_root/<id>/` and a root's `local`). Off unless set true — for roots joined before
+    /// the WireGuard leg, which have no pinned key yet.
+    #[serde(default)]
+    pub plaintext_http: bool,
 }
 
 fn default_result_secs() -> u64 {

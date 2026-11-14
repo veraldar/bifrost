@@ -76,6 +76,12 @@ pub struct BridgeConfig {
     pub root_link_max_inflight: u64,
     /// how long a branch turn waits for its root's result (secs; default 20)
     pub root_link_result_secs: u64,
+    /// the root <-> root leg (wg.rs): the relay socket for the hub's own WireGuard node, and
+    /// that node's address (both or neither)
+    pub root_link_wg_relay: Option<String>,
+    pub root_link_wg_local: Option<String>,
+    /// the old plaintext brain calls (`/_root/`, a root's `http` ops): off unless true
+    pub root_link_plaintext_http: bool,
     /// v0.9 pairing: box name published on /identity (goes into the QR)
     pub name: String,
     /// persisted DTLS identity (base64 DER json, chmod 600); None = ephemeral
@@ -257,6 +263,15 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
     // the switchboard: brain-to-brain HTTP over the root links (switch.rs);
     // `to = local` is this box's own brain
     let switch = Switchboard::new((*roots_reg).clone(), &cfg.opencode_url);
+    let plaintext_http = cfg.root_link_plaintext_http;
+    let wg_addr = |k: &str, v: &Option<String>| -> Result<Option<SocketAddr>, String> {
+        v.as_deref().map(|s| s.parse().map_err(|e| format!("bridge.root-link.{k}: {e}"))).transpose()
+    };
+    let wg_relay = crate::wg::Relay::new(
+        (*roots_reg).clone(),
+        wg_addr("wg_relay", &cfg.root_link_wg_relay)?,
+        wg_addr("wg_local", &cfg.root_link_wg_local)?,
+    )?;
 
     let speech = Arc::new(SpeechClient::new(
         cfg.speaches_url.clone(),
@@ -302,6 +317,8 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
                 tokens.clone(),
                 ping,
                 switch.clone(),
+                plaintext_http,
+                wg_relay.clone(),
             );
             plane.spawn(l);
             eprintln!(
@@ -442,6 +459,10 @@ pub fn start(cfg: BridgeConfig) -> Result<BridgeHandle, String> {
             // the switchboard's hub end: the box's own brain calls a linked
             // root (loopback only; blocks up to 120 s → its own thread)
             if request.url() == "/_root" || request.url().starts_with("/_root/") || request.url().starts_with("/_root?") {
+                if !plaintext_http {
+                    let _ = request.respond(switch_response(HttpReply::error(403, crate::switch::PLAINTEXT_OFF)));
+                    continue;
+                }
                 root_call_splice(request, &switch, &calls);
                 continue;
             }
@@ -1861,6 +1882,9 @@ pub fn bridge_test() -> Result<(), String> {
         root_link_ping_secs: 15,
         root_link_max_inflight: 1,
         root_link_result_secs: 20,
+        root_link_wg_relay: None,
+        root_link_wg_local: None,
+        root_link_plaintext_http: false,
         name: "selftest".into(),
         dtls_cert_file: Some(dir.join("dtls.json")),
         public_url: None,

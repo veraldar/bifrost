@@ -48,6 +48,9 @@ pub fn run(path: &str) -> Result<(), String> {
         root_link_ping_secs: cfg.root_link.as_ref().map(|rl| rl.ping_secs).unwrap_or(15),
         root_link_max_inflight: cfg.root_link.as_ref().map(|rl| rl.max_inflight).unwrap_or(1),
         root_link_result_secs: cfg.root_link.as_ref().map(|rl| rl.result_secs).unwrap_or(20),
+        root_link_wg_relay: cfg.root_link.as_ref().and_then(|rl| rl.wg_relay.clone()),
+        root_link_wg_local: cfg.root_link.as_ref().and_then(|rl| rl.wg_local.clone()),
+        root_link_plaintext_http: cfg.root_link.as_ref().is_some_and(|rl| rl.plaintext_http),
         // v0.9 pairing identity: /identity publishes the persisted DTLS fingerprint
         name: loaded.config.node.name.clone(),
         dtls_cert_file: cfg.dtls_cert_file.clone().map(Into::into),
@@ -67,10 +70,21 @@ pub fn run(path: &str) -> Result<(), String> {
         Some(p) => println!("  bridge: root-link dial-in ws on port {p} (link-token first frame)"),
         None => println!("  bridge: root-link dial-in off"),
     }
-    println!(
-        "  bridge: switchboard — http://{}/_root/<root>/<path> (loopback) reaches a linked root's brain; `local` = {}",
-        handle.http, cfg.opencode_url
-    );
+    let rl = cfg.root_link.as_ref();
+    match (rl.and_then(|r| r.wg_relay.as_deref()), rl.and_then(|r| r.wg_local.as_deref())) {
+        (Some(r), Some(l)) => println!(
+            "  bridge: root <-> root over WireGuard — relays ciphertext only: root -> root, and `local` via udp {r} <-> the hub's node {l}"
+        ),
+        _ => println!("  bridge: root <-> root over WireGuard — relays root -> root only (no wg_relay/wg_local: the hub runs no node)"),
+    }
+    if rl.is_some_and(|r| r.plaintext_http) {
+        println!(
+            "  bridge: switchboard (PLAINTEXT, opted in for old roots) — http://{}/_root/<root>/<path> (loopback); `local` = {}",
+            handle.http, cfg.opencode_url
+        );
+    } else {
+        println!("  bridge: plaintext switchboard OFF (/_root/ and `http` ops answer 403; [bridge.root-link] plaintext_http = true for old roots)");
+    }
     println!(
         "  bridge: linked roots — GET http://{}/_roots (loopback; the hub brain's YGG_PEERS_FROM)",
         handle.http

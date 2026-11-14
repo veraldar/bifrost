@@ -36,6 +36,10 @@ use serde_json::{json, Map, Value};
 
 use crate::registry::Registry;
 
+/// What a root (or the hub brain) hears when it tries the plaintext path on a bridge that
+/// has not opted in: brain calls between roots ride the WireGuard tunnel (wg.rs).
+pub const PLAINTEXT_OFF: &str = "plaintext brain calls between roots are off on this trunk: they ride the WireGuard tunnel (bifrost-net wg, /_wg/<root>/). A root joined before the tunnel needs [bridge.root-link] plaintext_http = true";
+
 /// How long one exchange may wait for its reply before the caller gets 504.
 pub const HTTP_WAIT: Duration = Duration::from_secs(120);
 /// Largest body carried either way (raw bytes; base64 on the wire).
@@ -72,6 +76,11 @@ impl HttpReply {
             .and_then(|b| B64.decode(b).ok())
             .unwrap_or_default();
         HttpReply { status, headers: pass_headers(v.get("headers")), body }
+    }
+
+    /// The `http.reply` frame answering request `id`.
+    pub fn frame_for(&self, id: &Value) -> String {
+        self.frame(id)
     }
 
     fn frame(&self, id: &Value) -> String {
@@ -272,33 +281,7 @@ impl Switchboard {
 
     /// Perform a request against the box's own brain.
     pub fn perform_local(&self, req: &HttpReq) -> HttpReply {
-        let url = format!("{}{}", self.local_brain, req.path);
-        let mut r = self.http.request(&req.method, &url);
-        for (k, v) in &req.headers {
-            if let Some(s) = v.as_str() {
-                r = r.set(k, s);
-            }
-        }
-        let resp = match if req.body.is_empty() && req.method == "GET" { r.call() } else { r.send_bytes(&req.body) } {
-            Ok(resp) => resp,
-            Err(ureq::Error::Status(_, resp)) => resp,
-            Err(e) => return HttpReply::error(502, &format!("local brain unreachable: {e}")),
-        };
-        let status = resp.status();
-        let mut headers = Map::new();
-        for k in PASS_HEADERS {
-            if let Some(v) = resp.header(k) {
-                headers.insert(k.to_string(), json!(v));
-            }
-        }
-        let mut body = Vec::new();
-        if let Err(e) = resp.into_reader().take(MAX_BODY as u64 + 1).read_to_end(&mut body) {
-            return HttpReply::error(502, &format!("local brain body: {e}"));
-        }
-        if body.len() > MAX_BODY {
-            return HttpReply::error(502, &format!("local brain body over {MAX_BODY} bytes"));
-        }
-        HttpReply { status, headers: pass_headers(Some(&Value::Object(headers))), body }
+        perform(&self.http, &self.local_brain, req)
     }
 
     /// An `http` frame from link `from`; its link-token `roots` claim is the
@@ -390,6 +373,38 @@ impl Switchboard {
             self.deliver(e.waiter, HttpReply::error(502, &format!("root '{root}' went away mid-call")));
         }
     }
+}
+
+/// Perform one exchange against a brain at `base` (no redirects; only the pass headers cross).
+/// The switchboard's `local` and the WireGuard node's in-tunnel door (wg.rs) both use it.
+pub fn perform(http: &ureq::Agent, base: &str, req: &HttpReq) -> HttpReply {
+    let url = format!("{}{}", base.trim_end_matches('/'), req.path);
+    let mut r = http.request(&req.method, &url);
+    for (k, v) in &req.headers {
+        if let Some(s) = v.as_str() {
+            r = r.set(k, s);
+        }
+    }
+    let resp = match if req.body.is_empty() && req.method == "GET" { r.call() } else { r.send_bytes(&req.body) } {
+        Ok(resp) => resp,
+        Err(ureq::Error::Status(_, resp)) => resp,
+        Err(e) => return HttpReply::error(502, &format!("local brain unreachable: {e}")),
+    };
+    let status = resp.status();
+    let mut headers = Map::new();
+    for k in PASS_HEADERS {
+        if let Some(v) = resp.header(k) {
+            headers.insert(k.to_string(), json!(v));
+        }
+    }
+    let mut body = Vec::new();
+    if let Err(e) = resp.into_reader().take(MAX_BODY as u64 + 1).read_to_end(&mut body) {
+        return HttpReply::error(502, &format!("local brain body: {e}"));
+    }
+    if body.len() > MAX_BODY {
+        return HttpReply::error(502, &format!("local brain body over {MAX_BODY} bytes"));
+    }
+    HttpReply { status, headers: pass_headers(Some(&Value::Object(headers))), body }
 }
 
 #[cfg(test)]

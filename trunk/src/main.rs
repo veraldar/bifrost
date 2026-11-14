@@ -16,24 +16,44 @@
 //!   ap-token            mint a bridge pairing token (+ its sha-256 for ap.toml)
 //!   ap-pin CERT.pem     print the pin bridge.toml [ap] must carry
 //!   ap-cert DIR NAME..  self-signed cert+key for local runs (prints the pin)
+//!
+//! Two builds. The default (`bridge` feature) is all of the above. `cargo build --release
+//! --no-default-features` is the ROOT build, what a joined root runs: keygen, wg-key, wg,
+//! rootlink mint — no WebRTC, no audio, so no cmake and no libopus to build or run it.
 
+// the root build compiles the shared modules without the bridge that uses most of them
+#![cfg_attr(not(feature = "bridge"), allow(dead_code))]
+
+#[cfg(feature = "bridge")]
 mod ap;
+#[cfg(feature = "bridge")]
 mod bridge;
+#[cfg(feature = "bridge")]
 mod bridge_main;
+#[cfg(feature = "bridge")]
 mod cand;
+#[cfg(feature = "bridge")]
 mod config;
+#[cfg(feature = "bridge")]
 mod echo;
+#[cfg(feature = "bridge")]
 mod opencode;
+#[cfg(feature = "bridge")]
 mod region;
 mod registry;
+#[cfg(feature = "bridge")]
 mod rootlink;
 mod roots;
+#[cfg(feature = "bridge")]
 mod speech;
 mod switch;
 mod tokens;
 mod keys;
+#[cfg(feature = "bridge")]
 mod mesh;
+#[cfg(feature = "bridge")]
 mod relay;
+#[cfg(feature = "bridge")]
 mod serve;
 mod wg;
 mod ws;
@@ -42,9 +62,13 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let code = match args.first().map(String::as_str) {
         Some("keygen") => cmd_keygen(),
+        #[cfg(feature = "bridge")]
         Some("check") => cmd_check(&args[1..]),
+        #[cfg(feature = "bridge")]
         Some("selftest") => cmd_selftest(&args[1..]),
+        #[cfg(feature = "bridge")]
         Some("serve") => cmd_serve(&args[1..]),
+        #[cfg(feature = "bridge")]
         Some("bridge") => cmd_bridge(&args[1..]),
         Some("rootlink") => cmd_rootlink(&args[1..]),
         Some("wg") => match config_arg(&args[1..]) {
@@ -78,13 +102,16 @@ fn main() {
                 2
             }
         },
+        #[cfg(feature = "bridge")]
         Some("ap") => cmd_ap(&args[1..]),
+        #[cfg(feature = "bridge")]
         Some("ap-token") => {
             let (raw, hash) = ap::new_token();
             println!("token = \"{raw}\"                      # bridge.toml [ap] — keep secret");
             println!("bridge_token_sha256 = \"{hash}\"   # ap.toml [ap]");
             0
         }
+        #[cfg(feature = "bridge")]
         Some("ap-pin") => match args.get(1).map(|p| ap::pin_of_pem(p)) {
             Some(Ok(pin)) => {
                 println!("pin = \"{pin}\"");
@@ -99,6 +126,7 @@ fn main() {
                 2
             }
         },
+        #[cfg(feature = "bridge")]
         Some("ap-cert") => match args.get(1) {
             Some(dir) => match ap::self_signed(dir, args[2..].to_vec()) {
                 Ok((cert, key, pin)) => {
@@ -115,10 +143,23 @@ fn main() {
                 2
             }
         },
-        _ => {
+        #[cfg(not(feature = "bridge"))]
+        Some(other @ ("check" | "selftest" | "serve" | "bridge" | "ap" | "ap-token" | "ap-pin" | "ap-cert")) => {
             eprintln!(
-                "usage: bifrost-net keygen | check -c CONFIG | selftest m0|m1|v9|ap | serve -c CONFIG | bridge -c CONFIG | rootlink mint --root ID --dev DEV --ttl SECS --secret SECRET [--out FILE] [--roots a,b] | wg -c NODE.toml | wg-key FILE | ap -c AP.TOML | ap-token | ap-pin CERT.pem | ap-cert DIR NAME.."
+                "bifrost-net: '{other}' is not in this build — the root build (keygen, wg-key, wg, rootlink mint) has no bridge, access point or WebRTC; build the full one (cargo build --release in trunk/)"
             );
+            2
+        }
+        _ => {
+            if cfg!(feature = "bridge") {
+                eprintln!(
+                    "usage: bifrost-net keygen | check -c CONFIG | selftest m0|m1|v9|ap | serve -c CONFIG | bridge -c CONFIG | rootlink mint --root ID --dev DEV --ttl SECS --secret SECRET [--out FILE] [--roots a,b] | wg -c NODE.toml | wg-key FILE | ap -c AP.TOML | ap-token | ap-pin CERT.pem | ap-cert DIR NAME.."
+                );
+            } else {
+                eprintln!(
+                    "usage (the root build): bifrost-net keygen | wg -c NODE.toml | wg-key FILE | rootlink mint --root ID --dev DEV --ttl SECS --secret SECRET [--out FILE] [--roots a,b]"
+                );
+            }
             2
         }
     };
@@ -266,6 +307,7 @@ fn cmd_keygen() -> i32 {
     0
 }
 
+#[cfg(feature = "bridge")]
 fn cmd_check(args: &[String]) -> i32 {
     let Some(path) = config_arg(args) else {
         eprintln!("check: missing -c CONFIG");
@@ -289,6 +331,7 @@ fn cmd_check(args: &[String]) -> i32 {
     }
 }
 
+#[cfg(feature = "bridge")]
 fn cmd_selftest(args: &[String]) -> i32 {
     match args.first().map(String::as_str) {
         Some("m0") => selftest_m0(),
@@ -302,6 +345,7 @@ fn cmd_selftest(args: &[String]) -> i32 {
     }
 }
 
+#[cfg(feature = "bridge")]
 fn selftest_m0() -> i32 {
     println!("bifrost-net M0 — boringtun mesh + str0m echo");
     let mut failed = false;
@@ -332,6 +376,7 @@ fn selftest_m0() -> i32 {
     }
 }
 
+#[cfg(feature = "bridge")]
 fn selftest_m1() -> i32 {
     println!("bifrost-net M1 — service meshes + relay under one binary");
     let mut failed = false;
@@ -362,6 +407,7 @@ fn selftest_m1() -> i32 {
     }
 }
 
+#[cfg(feature = "bridge")]
 fn cmd_bridge(args: &[String]) -> i32 {
     let Some(path) = config_arg(args) else {
         eprintln!("bridge: missing -c CONFIG");
@@ -376,6 +422,7 @@ fn cmd_bridge(args: &[String]) -> i32 {
     }
 }
 
+#[cfg(feature = "bridge")]
 fn selftest_v9() -> i32 {
     println!("bifrost-net v9 — bridge over the real seam");
     let mut failed = false;
@@ -404,6 +451,7 @@ fn selftest_v9() -> i32 {
     }
 }
 
+#[cfg(feature = "bridge")]
 fn selftest_ap() -> i32 {
     println!("bifrost-net ap — access point + dial-out bridge channel (loopback)");
     match ap::selftest() {
@@ -419,6 +467,7 @@ fn selftest_ap() -> i32 {
     }
 }
 
+#[cfg(feature = "bridge")]
 fn cmd_ap(args: &[String]) -> i32 {
     let Some(path) = config_arg(args) else {
         eprintln!("ap: missing -c AP.TOML");
@@ -433,6 +482,7 @@ fn cmd_ap(args: &[String]) -> i32 {
     }
 }
 
+#[cfg(feature = "bridge")]
 fn cmd_serve(args: &[String]) -> i32 {
     let Some(path) = config_arg(args) else {
         eprintln!("serve: missing -c CONFIG");

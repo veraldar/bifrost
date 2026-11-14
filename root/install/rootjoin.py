@@ -491,7 +491,9 @@ def cmd_wg_config(o):
 
 
 def cmd_fetch_net(o):
-    """bifrost-net-<ver>-linux-<arch> from a release (BASE/SHA256SUMS names it), checked, mode 755."""
+    """The release's bifrost-net for linux-<arch> (BASE/SHA256SUMS names it), checked, mode 755: the root
+    build bifrost-net-root-<ver>-linux-<arch> when the release has one (no libopus needed), else the full
+    bifrost-net-<ver>-linux-<arch>."""
     import hashlib
     base = o.base.rstrip("/")
 
@@ -504,8 +506,10 @@ def cmd_fetch_net(o):
         except (urllib.error.URLError, OSError) as e:
             fail("cannot download %s: %s" % (url, getattr(e, "reason", e)))
     sums = get(base + "/SHA256SUMS").decode(errors="replace")
-    pat = re.compile(r"^([0-9a-f]{64})  (bifrost-net-[0-9][0-9A-Za-z.+-]*-linux-%s)$" % re.escape(o.arch))
-    hit = next((m for m in map(pat.match, sums.splitlines()) if m), None)
+    hit = None
+    for kind in ("root-", ""):
+        pat = re.compile(r"^([0-9a-f]{64})  (bifrost-net-%s[0-9][0-9A-Za-z.+-]*-linux-%s)$" % (kind, re.escape(o.arch)))
+        hit = hit or next((m for m in map(pat.match, sums.splitlines()) if m), None)
     if not hit:
         fail("the release has no bifrost-net for linux-%s" % o.arch)
     want, asset = hit.groups()

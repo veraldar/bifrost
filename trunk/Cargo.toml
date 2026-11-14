@@ -7,21 +7,30 @@ edition = "2024"
 serde = { version = "1", features = ["derive"] }
 base64 = "0.23.1"
 boringtun = "0.7.1"
-etherparse = "0.21.0"
+etherparse = { version = "0.21.0", optional = true }
 rand_core = { version = "0.6.4", features = ["getrandom"] }
-str0m = "0.24.0"
+str0m = { version = "0.24.0", optional = true }
 tiny_http = "0.12.0"
 toml = "1.1.6"
 serde_json = "1"
 ureq = { version = "2", features = ["json"] }
 sha2 = "0.10"
-opus = "0.3"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+opus = { version = "0.3", optional = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "net", "io-util", "sync", "time", "macros"] }
-tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12", "logging"] }
-rustls = { version = "0.23", default-features = false, features = ["ring", "tls12", "std", "logging"] }
-rustls-pki-types = { version = "1", features = ["std"] }
-webpki = { package = "rustls-webpki", version = "0.103", default-features = false, features = ["ring", "std"] }
-rcgen = { version = "0.14", default-features = false, features = ["crypto", "pem", "ring"] }
-sha1 = "0.10"
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12", "logging"], optional = true }
+rustls = { version = "0.23", default-features = false, features = ["ring", "tls12", "std", "logging"], optional = true }
+rustls-pki-types = { version = "1", features = ["std"], optional = true }
+webpki = { package = "rustls-webpki", version = "0.103", default-features = false, features = ["ring", "std"], optional = true }
+rcgen = { version = "0.14", default-features = false, features = ["crypto", "pem", "ring"], optional = true }
+sha1 = { version = "0.10", optional = true }
 smoltcp = { version = "0.12", default-features = false, features = ["std", "medium-ip", "proto-ipv4", "socket-tcp"] }
+
+[features]
+# The full bifrost-net: the bridge (WebRTC, voice, speech), the access point, the mesh lab. Its
+# native parts need cmake and system libraries (libopus; aws-lc-sys under str0m).
+default = ["bridge"]
+bridge = ["dep:etherparse", "dep:str0m", "dep:opus", "dep:tracing-subscriber", "dep:tokio-rustls", "dep:rustls",
+          "dep:rustls-pki-types", "dep:webpki", "dep:rcgen", "dep:sha1"]
+# `cargo build --release --no-default-features`: the ROOT build — what a joined root runs
+# (keygen, wg-key, wg, rootlink mint). Pure Rust plus ring's C (any C compiler): no cmake, no libopus.

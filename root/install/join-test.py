@@ -786,16 +786,28 @@ def run_tests(hub, new_env, tmp):
 
     # --- the release download (Linux/WSL x86_64): bifrost-net-<ver>-linux-x86_64 checked against SHA256SUMS
     print("\n[release] bifrost-net from the (fake) GitHub release, checked against SHA256SUMS", flush=True)
-    net = os.path.join(os.path.dirname(os.path.dirname(HERE)), "trunk", "target", "release", "bifrost-net")
-    asset = "bifrost-net-0.9.9-test-linux-x86_64"
-    data = open(net, "rb").read()
-    hub.release = {asset: data, "SHA256SUMS": ("%s  %s\n" % (hashlib.sha256(data).hexdigest(), asset)).encode()}
+    trunk = os.path.join(os.path.dirname(os.path.dirname(HERE)), "trunk", "target")
+    full = open(os.path.join(trunk, "release", "bifrost-net"), "rb").read()
+    full_asset = "bifrost-net-0.9.9-test-linux-x86_64"
+    root_path = os.path.join(trunk, "root", "release", "bifrost-net")     # where join.sh builds the root build
+    sums = lambda d: "".join("%s  %s\n" % (hashlib.sha256(v).hexdigest(), k) for k, v in d.items()).encode()
+    hub.release = {full_asset: full}
+    hub.release["SHA256SUMS"] = sums(hub.release)
     out = os.path.join(tmp, "fetched")
-    fr = subprocess.run([sys.executable, HELPER, "fetch-net", "--base", hub.base + "/releases/latest/download",
-                         "--arch", "x86_64", "--out", out, "--cacert", hub_ca(tmp)], capture_output=True, text=True)
+    fetch = lambda o: subprocess.run([sys.executable, HELPER, "fetch-net", "--base", hub.base + "/releases/latest/download",
+                                      "--arch", "x86_64", "--out", o, "--cacert", hub_ca(tmp)], capture_output=True, text=True)
+    fr = fetch(out)
     check("release: fetch-net takes the asset SHA256SUMS names, checks it, installs it mode 755",
-          fr.returncode == 0 and fr.stdout.strip() == asset and open(out, "rb").read() == data and mode(out) == 0o755,
+          fr.returncode == 0 and fr.stdout.strip() == full_asset and open(out, "rb").read() == full and mode(out) == 0o755,
           fr.stdout + fr.stderr)
+    asset, data = full_asset, full
+    if os.path.exists(root_path):   # a release that also ships the root build: joined roots take that one
+        asset, data = "bifrost-net-root-0.9.9-test-linux-x86_64", open(root_path, "rb").read()
+        hub.release = {asset: data, full_asset: full}
+        hub.release["SHA256SUMS"] = sums(hub.release)
+        fr = fetch(out)
+        check("release: with a root build in it (bifrost-net-root-…), fetch-net takes that one (no libopus needed)",
+              fr.returncode == 0 and fr.stdout.strip() == asset and open(out, "rb").read() == data, fr.stdout + fr.stderr)
     hub.release[asset] = data[:-1] + bytes([data[-1] ^ 1])
     fr = subprocess.run([sys.executable, HELPER, "fetch-net", "--base", hub.base + "/releases/latest/download",
                          "--arch", "x86_64", "--out", out + "2", "--cacert", hub_ca(tmp)], capture_output=True, text=True)
@@ -891,7 +903,7 @@ def bootstrap_test(hub, new_env, tmp):
     wbin = os.path.join(w.dir, "bin", "bifrost-net")
     check("bootstrap: bifrost-net downloaded from the release (SHA256SUMS checked), the key made, the tunnel granted",
           "downloading bifrost-net" in w.out() and os.path.exists(wbin) and mode(wbin) == 0o755
-          and hashlib.sha256(open(wbin, "rb").read()).hexdigest() == hashlib.sha256(hub.release[next(iter(hub.release))]).hexdigest()
+          and open(wbin, "rb").read() == hub.release[next(iter(hub.release))]
           and j.get("wg_pub") and w.root().get("wg") == j.get("wg"), w.out()[-800:])
     check("bootstrap: sparse clone into ~/veraldar/yggdrasil (root/ + trunk/scripts, not branch/)",
           os.path.isfile(os.path.join(co, "root", "install", "join.sh")) and os.path.isfile(os.path.join(co, "trunk", "scripts", "root-dial.py"))

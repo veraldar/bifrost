@@ -516,8 +516,16 @@ roots linked for hours (only the node restart is simulated).
 - **macOS cannot be cross-checked here.** `cargo check --target aarch64-apple-darwin` stops in
   C build scripts (ring, libopus) without the macOS SDK: it must be built on the Mac. It also
   showed that CMake ≥ 4 refuses the bundled libopus (`Compatibility with CMake < 3.5 has been
-  removed`); `CMAKE_POLICY_VERSION_MINIMUM=3.5` fixes it (proven here with CMake 4.4), so join.sh
-  sets it. Homebrew's opus + pkg-config avoids CMake entirely.
+  removed`; `CMAKE_POLICY_VERSION_MINIMUM=3.5` fixes that). On the real Mac the full build then
+  failed anyway: no cmake at all.
+- **A joined root needs none of that: the root build.** opus, str0m (whose aws-lc-sys also
+  build-depends on cmake), the access point's TLS stack and the mesh lab sit behind the default
+  `bridge` feature. `cargo build --release --no-default-features` builds keygen, wg-key, wg and
+  rootlink mint only: no cmake, no libopus (in `rust:1-bookworm`, which has neither, it builds in
+  50 s while the full build fails in audiopus_sys); 69 s clean here, 4.8 MB, links only libc.
+  join.sh builds that one wherever it builds (macOS; Linux when the release cannot be fetched),
+  into `trunk/target/root`, and a release may ship it as `bifrost-net-root-<ver>-linux-<arch>`
+  (join.sh prefers it: no libopus0 needed).
 - **Joined roots reach each other through a directory, not the claim.** The hub's node serves
   `/_wg/directory` inside the tunnel; joined nodes refresh it every 5 s and drop a copy older than
   20 s. The relay now carries root → root between any two linked roots: keys decide, not the

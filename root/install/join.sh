@@ -21,7 +21,8 @@
 #                         else cargo build --release in root/)           --build   rebuild with cargo anyway
 #   --net-bin FILE        use this bifrost-net binary (the tunnel's node; default: DIR/bin, the repo's build,
 #                         ~/.local/bin, PATH, else the release on Linux/WSL x86_64 — checked against
-#                         SHA256SUMS — or cargo build --release in trunk/ on macOS, about 3-5 minutes)
+#                         SHA256SUMS — or, on macOS, the root build: cargo build --release
+#                         --no-default-features in trunk/, about 1-2 minutes, no cmake or libopus)
 #   --brain-port P / --peer-port P   loopback ports (first join: 4180/4181, or the next free pair); the peer
 #                         port is the node's door (tcp) and its udp, the brain port the dialer's udp too
 #   --project-dir DIR     where the brain's tools work (default: your home)
@@ -228,14 +229,17 @@ copy "$DIAL_SRC" "$BIN/root-dial.py" 755
 
 # ---------------------------------------------------------------- 1b. the tunnel's node binary
 # bifrost-net runs this root's WireGuard node: a given binary, the one installed before, the repo's build,
-# ~/.local/bin or PATH; else the release (Linux/WSL x86_64: bifrost-net-<ver>-linux-x86_64, checked against
-# the release's SHA256SUMS) or, on macOS and other CPUs, cargo build --release in trunk/.
+# ~/.local/bin or PATH; else the release (Linux/WSL x86_64, checked against the release's SHA256SUMS: the
+# root binary bifrost-net-root-<ver>-linux-x86_64 when the release has one, else the full bifrost-net, which
+# needs libopus0) or, on macOS and other CPUs, the ROOT build from trunk/ (--no-default-features: the node,
+# keys and link tokens only — no WebRTC or audio, so no cmake and no libopus).
 ARCH=$(uname -m); case $ARCH in amd64) ARCH=x86_64 ;; arm64) ARCH=aarch64 ;; esac
 RELEASES=${JOIN_RELEASES:-https://github.com/veraldar/yggdrasil/releases}
 find_net() {
   local c
   if [ -n "$NET_BIN" ]; then echo "$NET_BIN"; return; fi
-  for c in "$BIN/bifrost-net" "$REPO/trunk/target/release/bifrost-net" "$HOME/.local/bin/bifrost-net" "$(command -v bifrost-net || true)"; do
+  for c in "$BIN/bifrost-net" "$REPO/trunk/target/release/bifrost-net" "$REPO/trunk/target/root/release/bifrost-net" \
+    "$HOME/.local/bin/bifrost-net" "$(command -v bifrost-net || true)"; do
     [ -n "$c" ] && [ -x "$c" ] && { echo "$c"; return; }
   done
   return 0   # none found: the release, or a build
@@ -243,23 +247,22 @@ find_net() {
 NET_SRC=$(find_net)
 if [ -z "$NET_SRC" ] && [ $OS != macos ] && [ "$ARCH" = x86_64 ]; then
   say "downloading bifrost-net (this root's WireGuard node) from $RELEASES/latest/download, checked against SHA256SUMS"
-  "$PY" "$HELPER" fetch-net --base "$RELEASES/latest/download" --arch "$ARCH" --out "$BIN/bifrost-net.dl" ${CACERT:+--cacert "$CACERT"} \
-    || die "no bifrost-net: pass --net-bin FILE (cargo build --release in trunk/ makes one)"
-  NET_SRC=$BIN/bifrost-net.dl
+  if "$PY" "$HELPER" fetch-net --base "$RELEASES/latest/download" --arch "$ARCH" --out "$BIN/bifrost-net.dl" ${CACERT:+--cacert "$CACERT"}; then
+    NET_SRC=$BIN/bifrost-net.dl
+  else
+    warn "no bifrost-net from the release: building the root build instead (or pass --net-bin FILE)"
+  fi
 fi
 if [ -z "$NET_SRC" ]; then
   # shellcheck disable=SC1091
   command -v cargo >/dev/null || { [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"; } || true
   [ -f "$REPO/trunk/Cargo.toml" ] || die "no bifrost-net here and no trunk/ to build it from: pass --net-bin FILE"
   command -v cargo >/dev/null || die "no bifrost-net binary for $OS/$ARCH, and no Rust to build one: install Rust (rustup.rs) or pass --net-bin FILE"
-  # libopus: Homebrew's through pkg-config (brew install opus pkg-config), else built from source with cmake
-  if ! command -v cmake >/dev/null && ! { command -v pkg-config >/dev/null && pkg-config --exists opus; }; then
-    die "building bifrost-net needs cmake, or opus + pkg-config (libopus): $(pkg_hint cmake)"
-  fi
-  say "building bifrost-net (cargo build --release in $REPO/trunk — about 3-5 minutes the first time)"
-  # CMake >= 4 refuses the bundled libopus' old minimum version without this (older CMake ignores it)
-  CMAKE_POLICY_VERSION_MINIMUM=3.5 cargo build --release --manifest-path "$REPO/trunk/Cargo.toml"
-  NET_SRC=$REPO/trunk/target/release/bifrost-net
+  command -v cc >/dev/null || die "building bifrost-net needs a C compiler (for ring): $(pkg_hint build-essential)"
+  # the root build (its own target dir: a full build there is never overwritten)
+  say "building bifrost-net, the root build (cargo build --release --no-default-features in $REPO/trunk — about 1-2 minutes the first time)"
+  cargo build --release --no-default-features --manifest-path "$REPO/trunk/Cargo.toml" --target-dir "$REPO/trunk/target/root"
+  NET_SRC=$REPO/trunk/target/root/release/bifrost-net
 fi
 [ -x "$NET_SRC" ] || die "bifrost-net not found or not executable: $NET_SRC"
 [ "$NET_SRC" = "$BIN/bifrost-net" ] || copy "$NET_SRC" "$BIN/bifrost-net" 755

@@ -313,9 +313,13 @@ and its dialer adds `--wg-udp 127.0.0.1:<A> --wg-node 127.0.0.1:<B>` (trunk/scri
 
 **join.sh does all of this on a joined machine.** It finds `bifrost-net` (`--net-bin`, the copy
 it installed before, the repo's build, `~/.local/bin`, `PATH`), else downloads the release on
-Linux/WSL x86_64 (`bifrost-net-<ver>-linux-x86_64`, checked against the release's `SHA256SUMS`;
-the binary needs `libopus0`, which wsl-bootstrap.sh installs), else builds it with cargo (macOS:
-about 3 to 5 minutes, with cmake or Homebrew's opus + pkg-config). It makes `DIR/wg.key` (mode
+Linux/WSL x86_64, checked against the release's `SHA256SUMS`: the root build
+`bifrost-net-root-<ver>-linux-x86_64` when the release carries one, else the full
+`bifrost-net-<ver>-linux-x86_64`, which needs `libopus0` (wsl-bootstrap.sh installs it). Else
+(macOS, other CPUs, no release) it builds the ROOT build: `cargo build --release
+--no-default-features` in `trunk/` (into `trunk/target/root`), about a minute on 16 cores. The
+root build is the node, its keys and link-token minting only: no WebRTC, no audio, so no cmake
+and no libopus, just a C compiler for ring. It makes `DIR/wg.key` (mode
 600) before the join, sends `wg_pub`, and prints the fingerprint under the code. A join again
 uses a fresh key, which replaces the old one only once it is approved. A root whose `root.json`
 has no key (joined before the tunnel), or whose key no longer matches it, joins again by itself:

@@ -184,9 +184,11 @@ What happens:
    (`build-essential pkg-config` + rustup, or `xcode-select --install` on macOS) and stops.
    **The tunnel's node** (`bifrost-net`): `--net-bin`, then `bin/bifrost-net`, the repo's
    `trunk/target/release/bifrost-net`, `~/.local/bin` or `PATH`; else the release on Linux/WSL
-   x86_64 (`bifrost-net-<ver>-linux-x86_64`, checked against the release's `SHA256SUMS`; it needs
-   `libopus0`); else `cargo build --release` in `trunk/` (macOS: about 3 to 5 minutes, with cmake
-   or `brew install opus pkg-config`). It makes the WireGuard key `wg.key` (mode 600).
+   x86_64 (checked against the release's `SHA256SUMS`: `bifrost-net-root-<ver>-linux-x86_64`
+   when the release has it, else the full `bifrost-net-<ver>-linux-x86_64`, which needs
+   `libopus0`); else the **root build**, `cargo build --release --no-default-features` in
+   `trunk/` (macOS, other CPUs: about 1-2 minutes; no cmake, no libopus — just the node, keys and
+   link tokens). It makes the WireGuard key `wg.key` (mode 600).
 2. **Join request.** `POST <hub>/api/roots/join {name, os, host, wg_pub}`. A **QR of the approve URL**
    appears in the terminal (`qrencode -t ANSIUTF8` if it's installed, otherwise a built-in
    encoder). It's also saved as a PNG (`--qr-png`, opened with `--open-qr`). The code, the tunnel

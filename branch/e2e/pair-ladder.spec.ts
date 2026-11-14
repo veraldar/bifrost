@@ -11,7 +11,7 @@ import { type BrowserContext, type Page, devices, expect, test } from '@playwrig
  *   pixel   = Android-emulated second device
  *
  * pair via QR (the rendered QR is DECODED with zbarimg — no URL is read from
- * the DOM) → token mint (HttpOnly cookie) → land on MAIN → P2P data channel
+ * the DOM) → token mint (HttpOnly cookie) → land on home (a fresh phone: the door) → P2P data channel
  * against the QR-pinned box key → app round-trip through the transport (the
  * prompt lands in the MAIN brain session) → a spent QR replays as "used" →
  * revoke from the device list severs the phone mid-session → two live
@@ -47,7 +47,7 @@ async function pairAndLink(page: Page, qrUrl: string) {
   // a fragment-only change is a same-document navigation — start clean
   await page.goto('about:blank');
   await page.goto(qrUrl);
-  await page.waitForURL(new RegExp(`/session/${MAIN_SLUG}\\?id=ses_`), { timeout: 30_000 });
+  await page.waitForURL(`${LAN}/`, { timeout: 30_000 }); // home decides: the door or the list
   await page.goto(`${LAN}/p2p?session=${MAIN_SLUG}`);
   await expect(page.getByTestId('p2p-phase')).toHaveText('open', { timeout: 30_000 });
 }
@@ -82,10 +82,15 @@ test('v0.9 ladder: QR pair → P2P round-trip → revoke → kill-switch → re-
     await expect(box.getByTestId('pair-fp')).toHaveText(frag.get('fp')!);
   });
 
-  await test.step('2 phone scans: pairs, mints its token, lands on MAIN', async () => {
+  await test.step('2 phone scans: pairs, mints its token, lands on home — the door (fresh)', async () => {
     await phone.goto(firstQr);
-    await phone.waitForURL(new RegExp(`/session/${MAIN_SLUG}\\?id=ses_`), { timeout: 30_000 });
-    mainId = new URL(phone.url()).searchParams.get('id')!;
+    // never straight into MAIN: a phone that never walked the door gets the door first
+    await phone.waitForURL(`${LAN}/`, { timeout: 30_000 });
+    await expect(phone.getByTestId('tree-first')).toBeVisible();
+    const main = await phoneCtx.request.get(`${LAN}/api/session/${MAIN_SLUG}`);
+    expect(main.status()).toBe(200);
+    mainId = String((await main.json()).id || '');
+    expect(mainId).toMatch(/^ses_/);
     const cookie = (await phoneCtx.cookies()).find((c) => c.name === 'bifrost_device');
     expect(cookie?.value).toMatch(/^bfnd-/);
     expect(cookie?.httpOnly).toBe(true);

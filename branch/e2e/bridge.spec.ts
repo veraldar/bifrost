@@ -3,7 +3,7 @@ import { type BrowserContext, type Page, devices, expect, test } from '@playwrig
 
 /**
  * v0.9 /bridge — the QR-pinned direct transport, ONE WebRTC session:
- *   the box console mints a QR → the phone claims it (lands on MAIN, pins the
+ *   the box console mints a QR → the phone claims it (lands on home, pins the
  *   bridge key) → /bridge connects with this device's session token, no
  *   typing → data-channel message round-trip → revoke severs the live link →
  *   a re-paired phone whose pinned key does not match the bridge's answer is
@@ -52,7 +52,7 @@ async function qrUrl(ctx: BrowserContext): Promise<string> {
 async function pair(page: Page, url: string) {
   await page.goto('about:blank'); // a fragment-only change is a same-document navigation
   await page.goto(url);
-  await page.waitForURL(/\/session\/[^/?]+\?id=/, { timeout: 30_000 });
+  await page.waitForURL((u) => u.pathname === '/', { timeout: 30_000 }); // home: the door or the list
 }
 
 async function connect(page: Page, origin: string, bridgeHost?: string) {
@@ -75,7 +75,7 @@ test('QR pair → pinned bridge → message round-trip → revoke severs → wro
   const phoneCtx = await browser.newContext({ ...devices['iPhone 13'] });
   const phone = await phoneCtx.newPage();
 
-  await test.step('1 phone claims the QR: lands on MAIN, pins the box key', async () => {
+  await test.step('1 phone claims the QR: lands on home, pins the box key', async () => {
     const url = await qrUrl(desk);
     expect(url.startsWith(`${LAN}/pair#`)).toBe(true);
     await pair(phone, url);

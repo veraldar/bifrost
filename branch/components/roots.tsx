@@ -33,6 +33,7 @@ import type { RootsLine, RootsSnap } from '@/lib/roots-voice';
 import { slugify } from '@/lib/slug';
 import { FIRST_TURN_KEY, MAIN_SLUG, TF_SHRINK_KEY, isOnboardPrompt } from '@/lib/tree-first';
 import { VOICE_TEST_SLUG, voiceTestOn } from '@/lib/voice-test';
+import { VOICE_OFF_NOTE, voiceOff, voiceProbe } from '@/lib/voice-token';
 
 /** past this, a press is a hold (C: 0.3 s — a tap opens MAIN) */
 export const HOLD_MS = 300;
@@ -57,7 +58,7 @@ export type RootsRow = {
   pending?: boolean;
 };
 
-type Gate = '' | 'first' | 'denied' | 'prompt';
+type Gate = '' | 'first' | 'denied' | 'prompt' | 'na';
 type Press = {
   id: number | 'key';
   at: number;
@@ -219,6 +220,15 @@ export function Roots({
     }
     const perm = await (permRef.current ?? micPermission());
     if (pressRef.current !== p) return;
+    // voice cannot work on this connection (the trunk): say so, never ask for
+    // the mic, never load the room — a tap still opens MAIN. Asked before any
+    // mic prompt (GET /api/token mints nothing); a granted mic goes straight on
+    // and the mint itself answers
+    if (voiceOff() || (perm !== 'granted' && perm !== 'unknown' && !(await voiceProbe()))) {
+      p.gate = 'na';
+      say(VOICE_OFF_NOTE.en, 8_000);
+      return;
+    }
     if (perm === 'denied') {
       p.gate = 'denied';
       setArmed('denied');
@@ -285,7 +295,7 @@ export function Roots({
       say('the mic is blocked — allow it in the site settings', 8_000);
       return;
     }
-    if (p.gate === 'prompt') return; // the prompt answers for itself
+    if (p.gate === 'prompt' || p.gate === 'na') return; // the prompt / the note answers for itself
     const l = lineRef.current;
     if (l && !l.gone) void l.holdEnd(p.drop);
     // (no line yet: arm() hands the release over when the module lands)

@@ -13,8 +13,11 @@ import { type BrowserContext, type Page, devices, expect, test } from '@playwrig
  * The phone ONLY ever talks to the trunk's name (https://<trunk>), asserted at the end.
  *
  *   1 `install.sh pair phone` on the home computer prints the QR (+ PNG) → decoded → the phone
- *     opens it through the trunk → paired; the region the hub bound is the phone's real address
- *   2 the phone talks to MAIN: "Reply with exactly: HELLO-<TRUNK>" → on its screen
+ *     opens it through the trunk → paired; the region the hub bound is the phone's real address;
+ *     it lands on home — this phone walked the door, so the session list (never MAIN directly)
+ *   2 the roots open MAIN; voice over the trunk is a state (one calm line, no error box, one
+ *     /api/token ask, 503 voice-unavailable); the phone types to MAIN: "Reply with exactly:
+ *     HELLO-<TRUNK>" → on its screen
  *   3 (full) the third machine runs join.sh --hub https://<trunk> → its QR → the phone approves →
  *     the root links home through wss://<trunk>/rootlink
  *   4 (full) the hub brain learns it without a restart → MAIN delegates a session to it → the report
@@ -183,9 +186,12 @@ test('own trunk: a lay user pairs a phone, talks to MAIN, joins a root, delegate
       const frag = new URLSearchParams(qrUrl.split('#')[1]);
       expect(frag.get('code')).toMatch(/^bfnp-/);
       await phone.goto(qrUrl);
-      await phone.waitForURL(/\/session\/main\?id=ses_/, { timeout: 30_000 });
-      expect(phone.url().startsWith(`${AP}/`)).toBe(true);
-      mainId = new URL(phone.url()).searchParams.get('id') || '';
+      // home decides (11-14): the door walked on this phone → the list, never straight into MAIN
+      await phone.waitForURL(`${AP}/`, { timeout: 30_000 });
+      await expect(phone.getByRole('heading', { name: 'BIFROST' })).toBeVisible();
+      await expect(phone.getByTestId('roots')).toBeVisible();
+      await expect(phone.getByTestId('tree-first')).toHaveCount(0);
+      mainId = String((await phoneFetch(phone, '/api/session/main')).body.id || '');
       const cookie = (await phoneCtx.cookies(AP)).find((c) => c.name === 'bifrost_device');
       expect(cookie?.value).toMatch(/^bfnd-/);
       expect(cookie?.httpOnly && cookie?.secure).toBe(true);
@@ -203,8 +209,26 @@ test('own trunk: a lay user pairs a phone, talks to MAIN, joins a root, delegate
     // ---------------------------------------------------------------- 2 MAIN answers
     // a word of its own per trunk: a second walk (another trunk, the same MAIN) must not pass on the first one's
     const hello = `HELLO-${new URL(AP).hostname.split('.')[0].toUpperCase()}`;
-    await step('2', `phone → MAIN through the trunk: "Reply with exactly: ${hello}" on its screen`, async () => {
+    await step('2', `roots → MAIN; voice is one calm line; "Reply with exactly: ${hello}" on its screen`, async () => {
       expect(mainId, 'needs step 1').toMatch(/^ses_/);
+      const tokens: Array<{ status: number; body: string }> = [];
+      phone.on('response', (r) => {
+        if (!r.url().endsWith('/api/token')) return;
+        const at = tokens.push({ status: r.status(), body: '' }) - 1;
+        void r.text().then((t) => (tokens[at].body = t)).catch(() => {});
+      });
+      await phone.getByTestId('roots-hit').tap(); // a tap on the roots opens MAIN
+      await phone.waitForURL(/\/session\/main/, { timeout: 20_000 });
+      const mic = phone.getByTestId('composer-mic');
+      await expect(mic).toHaveAttribute('data-voice', 'unavailable', { timeout: 20_000 });
+      await mic.tap();
+      await mic.tap();
+      await expect(phone.getByTestId('voice-unavailable')).toHaveText(/Voice isn't available over the trunk yet — type instead/);
+      await expect(phone.locator('main [role="alert"]')).toHaveCount(0); // no error box (Next's route announcer is outside <main>)
+      await expect(phone.getByRole('button', { name: 'fix this' })).toHaveCount(0);
+      await expect(phone.getByTestId('free-strip')).toHaveCount(0);
+      expect(tokens.map((t) => t.status)).toEqual([503]); // asked once, never again
+      await expect.poll(() => tokens[0].body).toContain('"error":"voice-unavailable"');
       await send(phone, `Reply with exactly: ${hello}`);
       await expect(agentSays(phone, hello).first()).toBeVisible({ timeout: 60_000 });
       expect(JSON.stringify(brain(`/session/${mainId}/message`))).toContain(hello);

@@ -37,6 +37,7 @@ import {
   tellDeckState,
   withTimeout,
 } from '@/lib/voice-room';
+import { VOICE_OFF_NOTE, isVoiceUnavailable, voiceToken } from '@/lib/voice-token';
 
 export type RootsPhase =
   | 'off' // no voice here: the roots show MAIN's row
@@ -180,6 +181,16 @@ export class RootsLine {
       if (!this.live) await this.micOn(room);
       else this.set({ phase: this.holding ? 'talk' : 'listening' });
     } catch (e) {
+      // the hold is over either way: its release has nothing to send or to say
+      this.holding = false;
+      if (isVoiceUnavailable(e)) {
+        // a state of this connection (the trunk), not a failure: one calm line
+        diagEvent('roots', `voice unavailable here — ${e.why || 'no reason given'}`);
+        this.exitFree('voice unavailable');
+        this.set({ phase: 'off' });
+        this.say(VOICE_OFF_NOTE.en, 8_000);
+        return;
+      }
       diagEvent('voice-fail', `roots: ${e instanceof Error ? e.message : e}`);
       this.exitFree('connect failed');
       this.set({ phase: 'off' });
@@ -310,13 +321,9 @@ export class RootsLine {
 
   private async connect(): Promise<Room> {
     const slug = this.slug;
-    const r = await fetch('/api/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ room: slug }),
-    });
-    if (!r.ok) throw new Error(`token ${r.status}`);
-    const d = await r.json();
+    // MAIN's own token path: a clear error for an unreadable answer, and
+    // voice-unavailable remembered for the page (never asked again)
+    const d = await voiceToken(slug);
     const room = new Room({ adaptiveStream: false });
     room.on(RoomEvent.Disconnected, () => {
       diagEvent('roots', 'room disconnected');
@@ -408,7 +415,14 @@ export class RootsLine {
               return this.micOn(room);
             return undefined;
           })
-          .catch(() => {
+          .catch((e) => {
+            if (isVoiceUnavailable(e)) {
+              this.exitFree('voice unavailable');
+              this.endCycle();
+              this.set({ phase: 'off' });
+              this.say(VOICE_OFF_NOTE.en, 8_000);
+              return;
+            }
             this.reconnectFails += 1;
             this.reconnect();
           });

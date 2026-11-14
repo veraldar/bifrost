@@ -4,7 +4,8 @@
  * why=expired; unknown 401. On success: device cookies set + the access token
  * returned for the P2P transport. Revoke-on-repair: if this browser still
  * holds an old refresh cookie, the device it belonged to is retired.
- * `main` = the MAIN brain session (created on first pair) the phone lands on.
+ * `main` = the MAIN brain session (created on first pair) — the door's destination;
+ * the phone itself lands on home (the door, or the list once it walked it).
  */
 import { NextResponse } from 'next/server';
 import { cookieOf } from '@/lib/admin';

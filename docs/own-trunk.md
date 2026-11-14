@@ -60,7 +60,8 @@ the whole path. Look for `trunk https://trunk.example.org/pair → 200`.
 ```
 
 A QR code appears in the terminal. Scan it with the phone's camera within 5 minutes. The phone opens
-`https://trunk.example.org`, pairs itself and lands on your main session. Add it to the home screen.
+`https://trunk.example.org` and pairs itself: the first time it walks you through the door (typing — voice
+over the trunk is not wired yet), then it shows your sessions. Add it to the home screen.
 
 **4. More computers: join them.** On each one (Linux, macOS, Windows with WSL2):
 

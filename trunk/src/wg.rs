@@ -67,9 +67,11 @@ pub const IN_TUNNEL_PORT: u16 = 80;
 const CONNECT_WAIT: Duration = Duration::from_secs(10);
 /// One exchange, end to end (the switchboard's wait).
 const CALL_WAIT: Duration = Duration::from_secs(120);
-/// Inbound connections served at once; listening sockets kept ready.
+/// Inbound connections served at once; listening sockets kept ready (smoltcp gives each
+/// listening socket ONE connection: a burst of SYNs beyond them is refused, and the caller's
+/// front door retries within its connect window).
 const MAX_INBOUND: usize = 32;
-const LISTENERS: usize = 4;
+const LISTENERS: usize = 16;
 /// Streams of all kinds at once.
 const MAX_STREAMS: usize = 96;
 const TCP_BUF: usize = 256 * 1024;
@@ -1238,35 +1240,51 @@ fn serve_inbound(id: u64, rx: mpsc::Receiver<Ev>, ctl: Ctl, brain: Option<String
 
 /// The front door's half: one exchange with `peer`'s brain through the tunnel.
 fn tunnel_call(ctl: &Ctl, peer: &str, req: &HttpReq) -> HttpReply {
-    let (ev_tx, ev_rx) = mpsc::channel();
-    let (rtx, rrx) = mpsc::channel();
-    if !ctl.send(Cmd::Open { peer: peer.to_string(), events: ev_tx, reply: rtx }) {
-        return HttpReply::error(503, "the tunnel engine is not running");
-    }
-    let id = match rrx.recv_timeout(Duration::from_secs(5)) {
-        Ok(Ok(id)) => id,
-        Ok(Err(e)) => return HttpReply::error(502, &e),
-        Err(_) => return HttpReply::error(503, "the tunnel engine did not answer"),
+    // 1. the TCP connection inside the tunnel (the WireGuard handshake rides in this wait); a
+    //    refused connect (the far side's listeners all busy) is tried again inside the window
+    let until = Instant::now() + CONNECT_WAIT;
+    let mut backoff = Duration::from_millis(20);
+    let (id, ev_rx) = loop {
+        let (ev_tx, ev_rx) = mpsc::channel();
+        let (rtx, rrx) = mpsc::channel();
+        if !ctl.send(Cmd::Open { peer: peer.to_string(), events: ev_tx, reply: rtx }) {
+            return HttpReply::error(503, "the tunnel engine is not running");
+        }
+        let id = match rrx.recv_timeout(Duration::from_secs(5)) {
+            Ok(Ok(id)) => id,
+            Ok(Err(e)) => return HttpReply::error(502, &e),
+            Err(_) => return HttpReply::error(503, "the tunnel engine did not answer"),
+        };
+        let refused = loop {
+            match ev_rx.recv_timeout(until.saturating_duration_since(Instant::now())) {
+                Ok(Ev::Connected) => break None,
+                Ok(Ev::Reset(e)) => break Some(e),
+                Ok(_) => continue,
+                Err(_) => {
+                    ctl.send(Cmd::Release { id });
+                    return HttpReply::error(
+                        504,
+                        &format!("no tunnel to root '{peer}' (no answer inside WireGuard in {}s: not linked, or its key is not approved)", CONNECT_WAIT.as_secs()),
+                    );
+                }
+            }
+        };
+        match refused {
+            None => break (id, ev_rx),
+            Some(e) => {
+                ctl.send(Cmd::Release { id });
+                if Instant::now() + backoff >= until {
+                    return HttpReply::error(502, &format!("root '{peer}': {e}"));
+                }
+                std::thread::sleep(backoff);
+                backoff = (backoff * 2).min(Duration::from_millis(500));
+            }
+        }
     };
     let release = |r: HttpReply| {
         ctl.send(Cmd::Release { id });
         r
     };
-    // 1. the TCP connection inside the tunnel (the WireGuard handshake rides in this wait)
-    let until = Instant::now() + CONNECT_WAIT;
-    loop {
-        match ev_rx.recv_timeout(until.saturating_duration_since(Instant::now())) {
-            Ok(Ev::Connected) => break,
-            Ok(Ev::Reset(e)) => return release(HttpReply::error(502, &format!("root '{peer}': {e}"))),
-            Ok(_) => continue,
-            Err(_) => {
-                return release(HttpReply::error(
-                    504,
-                    &format!("no tunnel to root '{peer}' (no answer inside WireGuard in {}s: not linked, or its key is not approved)", CONNECT_WAIT.as_secs()),
-                ))
-            }
-        }
-    }
     ctl.send(Cmd::Write { id, data: encode_request(peer, req) });
     // 2. the whole reply, until the far side closes
     let until = Instant::now() + CALL_WAIT;
@@ -1769,6 +1787,19 @@ mod tests {
         }
         lat.sort_by(|x, y| x.partial_cmp(y).unwrap());
         eprintln!("LATENCY in-process relay: median {:.2} ms, max {:.2} ms", lat[10], lat[19]);
+        // 40 calls at once, both directions, each with its own body: every stream gets its own
+        // answer (more than the far side keeps listening: refused connects are retried)
+        let calls: Vec<_> = (0..40u32)
+            .map(|i| {
+                let (from, peer) = if i % 2 == 0 { (a.http, "b") } else { (b.http, "local") };
+                std::thread::spawn(move || {
+                    let body: Vec<u8> = format!("call-{i}-").repeat(2000 + i as usize * 300).into_bytes();
+                    let (st, got) = http(from, "POST", &format!("/_wg/{peer}/echo"), &body, "");
+                    st == 200 && got == body
+                })
+            })
+            .collect();
+        assert!(calls.into_iter().all(|h| h.join().unwrap()), "concurrent tunnel calls crossed or failed");
         let (st, _) = http(a.http, "GET", "/_wg/b/nope", b"", "");
         assert_eq!(st, 404, "the brain's own status crosses");
         let (st, _) = http(a.http, "GET", "/_wg/ghost/root", b"", "");

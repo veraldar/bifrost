@@ -480,10 +480,14 @@ drops anything not WireGuard-shaped. Each root's key is pinned when the phone ap
   delayed ACK. In-process the tunnel is 0.6 ms. With TCP_NODELAY the two paths are within noise.
 - **boringtun does not pad transport data** (the spec says pad to 16; it sends the exact size), so
   the relay's shape check is `type 4, ≥ 32 bytes`, not a multiple of 16.
+- **A burst of calls found the far side's door shut.** smoltcp gives one connection per listening
+  socket; with 4 kept ready, the 9th of 16 simultaneous calls was refused. Now 16 listen, and a
+  refused connect is retried inside the 10 s connect window: 40 calls at once pass both ways.
 - **A restarted hub node waited 11 s** for WireGuard's own retry. Every node now dials each peer
   until its first handshake (static peer every 2 s, pinned roots every 5 s): 1 s.
 
-**Proof:** `cargo test` (wg: two nodes through a fake relay, both ways, header law, 300 KB, the
+**Proof:** `cargo test` (wg: two nodes through a fake relay, both ways, header law, 300 KB, 40
+concurrent calls, the
 relay sees WireGuard only, replay + tamper dropped, unpinned key refused, revoke cuts),
 `scripts/rootlink-sim.py` T15 (the real bridge's relay law), `sim/trunk-roots-e2e.py` (real brains
 through the ap; a tap where the ap hands the link to the bridge; unapproved key, stolen key,

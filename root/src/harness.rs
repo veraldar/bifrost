@@ -536,7 +536,7 @@ pub mod claude {
 
         #[test]
         fn mangles_like_claude_code() {
-            assert_eq!(mangle("/home/dweeb_xyz/.cache/root-sim/preview/work"), "-home-dweeb-xyz--cache-root-sim-preview-work");
+            assert_eq!(mangle("/home/user_x/.cache/root-sim/preview/work"), "-home-user-x--cache-root-sim-preview-work");
             assert_eq!(mangle("/tmp/tmp.AbC12"), "-tmp-tmp-AbC12");
             assert!(is_uuid("3b6f7db4-a74a-4425-a4dd-9f8c5b7b7e95"));
             assert!(!is_uuid("3b6f7db4-a74a-4425-a4dd-9f8c5b7b7e9") && !is_uuid("../../etc/passwd") && !is_uuid("ses_123"));
@@ -907,7 +907,7 @@ mod tests {
         let out = run(Kind::Antigravity, Some("gemini-3.8-flash-low"), None, &dir, "check missing.txt", Some("be terse"), Attach::default(), |e| seen.push(e.clone())).await.unwrap();
         assert_eq!(
             out.text,
-            "I will check for the file in this directory.\n\nThe file [missing.txt](file:///home/dweeb_xyz/.cache/tmp/agy-try/tooldir/missing.txt) could not be read because it does not exist."
+            "I will check for the file in this directory.\n\nThe file [missing.txt](file:///home/user/.cache/tmp/agy-try/tooldir/missing.txt) could not be read because it does not exist."
         );
         assert_eq!(out.session.as_deref(), Some("e420cd9c-2b8b-4d5c-9b3a-80ab383516f3"));
         assert!(seen.contains(&Ev::Delta("\nThe file".into())), "the phone's stream gets the same paragraph break: {seen:?}");

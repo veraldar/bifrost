@@ -163,7 +163,7 @@ test('join: QR approve → 20 link tokens once → bridge accepts → allowlist 
   const expiringAt = Date.now();
 
   let deviceId = '';
-  await test.step('pair a phone (the box mints a code; the phone claims it and lands on MAIN)', async () => {
+  await test.step('pair a phone (the box mints a code; the phone claims it and lands on home)', async () => {
     const code = await request.post(`${BASE}/api/pair/code`, {
       headers: { Authorization: `Bearer ${ADMIN}` },
     });
@@ -172,8 +172,10 @@ test('join: QR approve → 20 link tokens once → bridge accepts → allowlist 
     expect(url.startsWith(`${LAN}/pair#`)).toBe(true);
     await phone.goto('about:blank');
     await phone.goto(url);
-    await phone.waitForURL(new RegExp(`/session/${MAIN_SLUG}\\?id=ses_`), { timeout: 30_000 });
-    mainId = new URL(phone.url()).searchParams.get('id') || '';
+    await phone.waitForURL(`${LAN}/`, { timeout: 30_000 }); // home decides: the door or the list
+    mainId = String(
+      (await (await phoneCtx.request.get(`${LAN}/api/session/${MAIN_SLUG}`)).json()).id || ''
+    );
     const pin = await phone.evaluate(() =>
       JSON.parse(localStorage.getItem('bifrost.pin') || 'null')
     );

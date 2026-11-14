@@ -2,7 +2,14 @@ import { type ChildProcess, execFileSync, spawn } from 'child_process';
 import { appendFileSync, existsSync, openSync, readFileSync, writeFileSync } from 'fs';
 import http from 'node:http';
 import { join, resolve } from 'path';
-import { type BrowserContext, type Page, devices, expect, test } from '@playwright/test';
+import {
+  type BrowserContext,
+  type Locator,
+  type Page,
+  devices,
+  expect,
+  test,
+} from '@playwright/test';
 
 /**
  * THE WHOLE TREE, END TO END, WITH A SIMULATED PHONE — run by sim/trunk-full-e2e.sh, which
@@ -15,7 +22,13 @@ import { type BrowserContext, type Page, devices, expect, test } from '@playwrig
  * from every request and websocket it made.
  *
  *   1 the box console shows the pairing QR → decoded (zbarimg) → the phone opens it through
- *     the ap → paired (device cookie, pinned box key)
+ *     the ap → paired (device cookie, pinned box key) → it lands on home: this phone walked the
+ *     door already, so the session list (never straight into MAIN)
+ *  1d a FRESH phone pairs the same way → home is the door → it walks it → MAIN's first turn is
+ *     typed (voice cannot ride the trunk yet: the voice ways are skipped) → "you are in" → list
+ *  1v voice over the trunk is a state, not an error: holding the roots, tapping and holding the
+ *     mic → one calm line, no error box, no "fix this", one /api/token call per page load (503
+ *     voice-unavailable, JSON)
  *   2 the phone talks to MAIN: "Reply with exactly: HELLO-PHONE" → the reply on its screen
  *   3 join: the new machine (sim/trunk-full-joiner.py, its own address) POSTs /api/roots/join
  *     through the ap and shows the approve QR (qrencode) → the phone scans it (zbarimg), sees
@@ -63,6 +76,12 @@ test.use({
 
 type J = Record<string, unknown>;
 const failed: string[] = [];
+/** the screens a failed step photographs (STATE/fail-<step>-<name>.png) */
+const screens: Array<[string, Page]> = [];
+const VOICE_NA = /Voice isn't available over the trunk yet — type instead/;
+/** the app's error box (components/app/error-box.tsx) — inside the page's <main>; Next's own
+ *  route announcer (role=alert too, outside <main>) is not it */
+const errorBox = (page: Page) => page.locator('main [role="alert"]');
 
 function record(n: string, ok: boolean, what: string, detail = '') {
   const clean = (s: string) =>
@@ -85,8 +104,25 @@ async function step(n: string, what: string, fn: () => Promise<void>): Promise<b
   } catch (e) {
     failed.push(n);
     record(n, false, what, String(e instanceof Error ? e.message : e));
+    for (const [name, p] of screens) {
+      await p.screenshot({ path: join(STATE, `fail-${n}-${name}.png`) }).catch(() => {});
+    }
     return false;
   }
+}
+
+/** what the phone's browser saw go wrong: failed requests, HTTP errors, console errors */
+function netLog(ctx: BrowserContext, who: string) {
+  const log = (line: string) => appendFileSync(join(STATE, 'phone-net.log'), `${who} ${line}\n`);
+  ctx.on('requestfailed', (r) => log(`FAILED ${r.method()} ${r.url()} ${r.failure()?.errorText}`));
+  ctx.on('response', (r) => {
+    if (r.status() >= 400) log(`HTTP ${r.status()} ${r.request().method()} ${r.url()}`);
+  });
+  ctx.on('page', (p) =>
+    p.on('console', (m) => {
+      if (m.type() === 'error') log(`console ${m.text().slice(0, 300)}`);
+    })
+  );
 }
 
 /** the harness reads the box's own processes (never the phone) — plain node:http: the
@@ -128,12 +164,66 @@ const joinerError = () =>
 /** the mock's scripted tool call: one step of [[name, args], …] (sim/tree-e2e.py's tool()) */
 const tool = (calls: Array<[string, J]>) => `tool:${JSON.stringify([calls])}`;
 
+/** the box console's QR, as the phone's camera reads it (zbarimg on a screenshot) */
+async function scanQr(box: Page, name: string): Promise<string> {
+  await box.goto(`${BASE}/pair`);
+  const qr = box.getByTestId('pair-qr');
+  await expect(qr.locator('svg')).toBeVisible();
+  const png = join(STATE, `${name}.png`);
+  writeFileSync(png, await qr.screenshot());
+  return execFileSync('zbarimg', ['--raw', '-q', png]).toString().trim();
+}
+
+/** a finger held on an element (real touch events — the phone's own gesture) */
+async function touchHold(page: Page, sel: Locator, ms: number) {
+  const b = (await sel.boundingBox())!;
+  const at = { x: b.x + b.width * 0.4, y: b.y + b.height * 0.55 };
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [at] });
+  await page.waitForTimeout(ms);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await cdp.detach();
+}
+
+/** React has hydrated this element: its handlers are attached (a touch before that is a plain
+ *  link tap — the server HTML is on screen first) */
+const hydrated = (page: Page, testId: string) =>
+  page.waitForFunction(
+    (id) => {
+      const el = document.querySelector(`[data-testid="${id}"]`);
+      return !!el && Object.keys(el).some((k) => k.startsWith('__reactProps'));
+    },
+    testId,
+    { timeout: 30_000 }
+  );
+
+/** home after pairing, for a phone that walked the door: the list, the roots — no door */
+async function onTheList(page: Page) {
+  await expect(page.getByRole('heading', { name: 'BIFROST' })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('roots')).toBeVisible();
+  await expect(page.getByTestId('tree-first')).toHaveCount(0);
+}
+
+/** every /api/token answer a page got: status + the body as text */
+function tokenTap(ctx: BrowserContext) {
+  const seen: Array<{ status: number; body: string }> = [];
+  ctx.on('response', (r) => {
+    if (!r.url().endsWith('/api/token')) return;
+    const at = seen.push({ status: r.status(), body: '' }) - 1;
+    void r
+      .text()
+      .then((t) => (seen[at].body = t))
+      .catch(() => {});
+  });
+  return seen;
+}
+
 /** type into the composer and tap send — the way a thumb does it (root-coord-ui.spec.ts) */
 async function send(page: Page, text: string) {
   const box = page.getByPlaceholder('message…');
-  await box.tap();
-  await box.fill(text);
-  await page.getByRole('button', { name: 'send', exact: true }).tap();
+  await box.tap({ timeout: 30_000 });
+  await box.fill(text, { timeout: 30_000 });
+  await page.getByRole('button', { name: 'send', exact: true }).tap({ timeout: 30_000 });
 }
 /** an agent message holding `text` shows on the phone's screen (polls, never a reload) */
 const agentSays = (page: Page, text: string | RegExp) =>
@@ -178,6 +268,7 @@ test('trunk full: phone ↔ ap ↔ hub ↔ joined root — pair, talk, join, del
   const phoneCtx: BrowserContext = await browser.newContext({
     ...devices['Pixel 7'],
     ignoreHTTPSErrors: true,
+    permissions: ['microphone'], // it talked before (tailnet): the mic is allowed
     storageState: {
       cookies: [],
       origins: [
@@ -203,6 +294,19 @@ test('trunk full: phone ↔ ap ↔ hub ↔ joined root — pair, talk, join, del
   const watch = (p: Page) => p.on('websocket', (ws) => see(ws.url()));
   phoneCtx.on('page', watch);
   const phone = await phoneCtx.newPage();
+  const phoneTokens = tokenTap(phoneCtx);
+  netLog(phoneCtx, 'phone');
+  netLog(desk, 'box');
+  screens.push(['phone', phone], ['box', box]);
+  // a fresh phone: nothing on it yet — the door is its first screen, the mic never asked (1d)
+  const freshCtx: BrowserContext = await browser.newContext({
+    ...devices['Pixel 7'],
+    ignoreHTTPSErrors: true,
+  });
+  freshCtx.on('request', (r) => see(r.url()));
+  freshCtx.on('page', watch);
+  const freshTokens = tokenTap(freshCtx);
+  netLog(freshCtx, 'fresh');
 
   let mainId = '';
   let deviceId = '';
@@ -214,21 +318,18 @@ test('trunk full: phone ↔ ap ↔ hub ↔ joined root — pair, talk, join, del
     // ---------------------------------------------------------------- 1 pair
     await step(
       '1',
-      'box console QR → phone pairs through the ap (device cookie, box key pinned)',
+      'box console QR → phone pairs through the ap (cookie, key pinned) → home: the list',
       async () => {
-        await box.goto(`${BASE}/pair`);
-        const qr = box.getByTestId('pair-qr');
-        await expect(qr.locator('svg')).toBeVisible();
-        const png = join(STATE, 'pair-qr.png');
-        writeFileSync(png, await qr.screenshot());
-        const qrUrl = execFileSync('zbarimg', ['--raw', '-q', png]).toString().trim();
+        const qrUrl = await scanQr(box, 'pair-qr');
         expect(qrUrl.startsWith(`${AP}/pair#`), qrUrl).toBe(true);
         const frag = new URLSearchParams(qrUrl.split('#')[1]);
         expect(frag.get('code')).toMatch(/^bfnp-/);
         await phone.goto(qrUrl);
-        await phone.waitForURL(/\/session\/main\?id=ses_/, { timeout: 30_000 });
-        expect(phone.url().startsWith(`${AP}/`)).toBe(true);
-        mainId = new URL(phone.url()).searchParams.get('id') || '';
+        // home decides (11-14): this phone walked the door → the list, never straight into MAIN
+        await phone.waitForURL(`${AP}/`, { timeout: 30_000 });
+        await onTheList(phone);
+        mainId = String((await phoneFetch(phone, '/api/session/main')).body.id || '');
+        expect(mainId).toMatch(/^ses_/);
         const cookie = (await phoneCtx.cookies(AP)).find((c) => c.name === 'bifrost_device');
         expect(cookie?.value).toMatch(/^bfnd-/);
         expect(cookie?.httpOnly && cookie?.secure).toBe(true);
@@ -246,12 +347,141 @@ test('trunk full: phone ↔ ap ↔ hub ↔ joined root — pair, talk, join, del
       }
     );
 
+    // ---------------------------------------------------------------- 1d a fresh phone: the door
+    await step(
+      '1d',
+      'a fresh phone pairs through the ap → the door → typed first turn (no voice) → in → list',
+      async () => {
+        const fresh = await freshCtx.newPage();
+        screens.push(['fresh', fresh]);
+        await fresh.goto(await scanQr(box, 'pair-qr-fresh'));
+        await fresh.waitForURL(`${AP}/`, { timeout: 30_000 });
+        // never walked the door on this phone: home IS the door
+        const tree = fresh.getByTestId('tree-first');
+        await expect(tree).toBeVisible();
+        await expect(fresh.getByText('hold the tree to begin')).toBeVisible();
+        const door = fresh.getByTestId('door');
+        await hydrated(fresh, 'tree-first');
+        await tree.tap();
+        await expect(door).toHaveAttribute('data-step', 'lang');
+        await fresh.getByTestId('door-lang-en').tap();
+        await expect(door).toHaveAttribute('data-step', 'style');
+        await fresh.getByTestId('door-style-short').tap();
+        await expect(door).toHaveAttribute('data-step', 'brain');
+        await expect(fresh.getByTestId('door-enter')).toBeEnabled({ timeout: 20_000 });
+        await fresh.getByTestId('door-enter').tap();
+        // the door's destination stays MAIN, its last step the first turn there
+        await fresh.waitForURL(/\/session\/main\?id=ses_[^&]+&first=1/, { timeout: 30_000 });
+        const card = fresh.getByTestId('first-turn');
+        await expect(card).toHaveAttribute('data-way', 'type');
+        // voice cannot ride the trunk yet: the card says so once, its voice ways are struck
+        await expect(fresh.getByTestId('first-voice-na')).toHaveText(VOICE_NA, { timeout: 20_000 });
+        await expect(card.locator('li[data-way="hold"]')).toHaveAttribute('data-s', 'skip');
+        await expect(card.locator('li[data-way="free"]')).toHaveAttribute('data-s', 'skip');
+        await fresh.getByTestId('first-type').tap();
+        const input = fresh.getByPlaceholder('message…');
+        await expect(input).toBeFocused();
+        await input.fill('Reply with exactly: DOOR-TYPED');
+        await fresh.getByRole('button', { name: 'send', exact: true }).tap();
+        await expect(agentSays(fresh, 'DOOR-TYPED').first()).toBeVisible({ timeout: 60_000 });
+        // the typed turn was the walk's turn: straight on to "you are in"
+        await expect(card).toHaveAttribute('data-state', 'in', { timeout: 60_000 });
+        await expect(fresh.getByTestId('first-in')).toBeVisible();
+        await expect(errorBox(fresh)).toHaveCount(0); // no error box on the way
+        await expect(fresh.getByRole('button', { name: 'fix this' })).toHaveCount(0);
+        await fresh.getByTestId('first-ok').tap();
+        await expect(card).toHaveCount(0);
+        const ls = await fresh.evaluate(() => ({
+          door: localStorage.getItem('bifrost-door'),
+          first: localStorage.getItem('bifrost-first-turn'),
+          mode: localStorage.getItem('oz-mode'),
+        }));
+        expect(ls.door).toBe('v2');
+        expect(ls.first).toBeTruthy();
+        expect(ls.mode).toBe('text');
+        // one ask for the whole walk (MAIN's page load), answered as a state, as JSON
+        expect(freshTokens.length, JSON.stringify(freshTokens)).toBe(1);
+        // home now: the list; holding the roots (the mic never allowed here) says the line
+        // without a mic prompt — asked first (GET, mints nothing), once for this page
+        await fresh.goto(`${AP}/`);
+        await onTheList(fresh);
+        await hydrated(fresh, 'roots-hit');
+        // the first visit after the door, the roots grow up from the bottom edge once
+        await expect(fresh.getByTestId('roots')).not.toHaveClass(/grow/, { timeout: 10_000 });
+        for (let i = 0; i < 2; i++) {
+          await touchHold(fresh, fresh.getByTestId('roots-hit'), 1_000);
+          await expect(fresh.getByTestId('roots-say')).toHaveText(VOICE_NA, { timeout: 10_000 });
+          await expect(fresh.getByTestId('roots')).not.toHaveAttribute('data-armed', 'prompt');
+        }
+        expect(freshTokens.length, JSON.stringify(freshTokens)).toBe(2);
+        for (const t of freshTokens) {
+          expect(t.status).toBe(503);
+          await expect.poll(() => t.body).toContain('"error":"voice-unavailable"');
+        }
+      }
+    );
+
+    // ---------------------------------------------------------------- 1v voice: a state
+    await step(
+      '1v',
+      'voice over the trunk: roots hold, mic tap + hold → one calm line, no error box, no storm',
+      async () => {
+        expect(mainId, 'needs step 1').toMatch(/^ses_/);
+        if (!/\/$/.test(phone.url())) await phone.goto(`${AP}/`);
+        await onTheList(phone);
+        await hydrated(phone, 'roots-hit');
+        const roots = phone.getByTestId('roots-hit');
+        // the roots: hold = talk to MAIN right here → the line, and the roots stay roots
+        await touchHold(phone, roots, 1_200);
+        await expect(phone.getByTestId('roots-say')).toHaveText(VOICE_NA, { timeout: 10_000 });
+        await expect(phone.getByTestId('roots')).toHaveAttribute('data-phase', 'off');
+        await touchHold(phone, roots, 1_200); // again: known now, nothing is asked
+        await expect(phone.getByTestId('roots-say')).toHaveText(VOICE_NA);
+        // a tap opens MAIN
+        await roots.tap();
+        await phone.waitForURL(/\/session\/main/, { timeout: 20_000 });
+        const mic = phone.getByTestId('composer-mic');
+        await expect(mic).toHaveAttribute('data-voice', 'unavailable', { timeout: 20_000 });
+        const calm = async () => {
+          await expect(phone.getByTestId('voice-unavailable')).toHaveText(VOICE_NA);
+          await expect(errorBox(phone)).toHaveCount(0); // the error box
+          await expect(phone.getByRole('button', { name: 'fix this' })).toHaveCount(0);
+          await expect(phone.getByTestId('free-strip')).toHaveCount(0); // no hands-free
+        };
+        await mic.tap(); // a tap = the hands-free toggle
+        await calm();
+        await touchHold(phone, mic, 1_000); // a hold = push to talk
+        await calm();
+        // a reload is a new page: it asks once more, then never again
+        await phone.reload();
+        await expect(mic).toHaveAttribute('data-voice', 'unavailable', { timeout: 20_000 });
+        for (let i = 0; i < 3; i++) {
+          await mic.tap();
+          await touchHold(phone, mic, 700);
+        }
+        await calm();
+        await phone.waitForTimeout(3_000); // no retry timer fires behind it
+        expect(phoneTokens.length, JSON.stringify(phoneTokens)).toBe(2);
+        for (const t of phoneTokens) {
+          expect(t.status).toBe(503);
+          expect(JSON.parse(t.body)).toMatchObject({ error: 'voice-unavailable' });
+          expect(String(JSON.parse(t.body).why)).not.toBe('');
+        }
+        expect(await phone.evaluate(() => localStorage.getItem('oz-mode'))).toBe('text');
+        const diag = await phone.evaluate(() => localStorage.getItem('oz-diag') || '');
+        expect(diag).not.toContain('voice connect failed');
+        expect(diag).not.toContain('Unexpected end of JSON input');
+      }
+    );
+
     // ---------------------------------------------------------------- 2 MAIN answers
     await step(
       '2',
       'phone → MAIN (through the ap): "Reply with exactly: HELLO-PHONE" shows on screen',
       async () => {
         expect(mainId, 'needs step 1').toMatch(/^ses_/);
+        if (!/\/session\/main/.test(phone.url()))
+          await phone.goto(`${AP}/session/main?id=${mainId}`);
         await send(phone, 'Reply with exactly: HELLO-PHONE');
         await expect(agentSays(phone, 'HELLO-PHONE').first()).toBeVisible({ timeout: 60_000 });
         const msgs = (await brain(HOME, `/session/${mainId}/message`)).body as unknown as J[];
@@ -527,7 +757,7 @@ test('trunk full: phone ↔ ap ↔ hub ↔ joined root — pair, talk, join, del
       expect(offAp, [...reached].join(' ')).toEqual([]);
     });
     if (joiner) (joiner as ChildProcess).kill('SIGTERM');
-    await Promise.all([desk.close(), phoneCtx.close()]);
+    await Promise.all([desk.close(), phoneCtx.close(), freshCtx.close()]);
   }
   expect(failed, `failed steps: ${failed.join(' ')}`).toEqual([]);
 });

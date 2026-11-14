@@ -48,7 +48,8 @@ kept, and a unit is restarted only if something it uses changed.
      same URL there.
 2. **Scan the QR with the phone's camera.** The phone must be on the same Wi-Fi. It opens
    `http://<box LAN IP>:8082/pair`, redeems the one-time code, pins the bridge's fingerprint
-   and lands on your **main** session. There's nothing to type.
+   and opens bifrost: the first time, the door walks you in (it ends in your **main** session);
+   after that, your sessions. There's nothing to type.
 3. **Add it to the home screen** from the browser menu.
 
 Pairing is the lock (`BIFROST_AUTH=devices`). A device that hasn't paired gets `401` on every

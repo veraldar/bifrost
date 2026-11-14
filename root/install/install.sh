@@ -688,7 +688,8 @@ bifrost is installed, connected to your trunk $T_PUBLIC.  Config: $BF_ENV  ·  b
 $( [ $BRAIN_READY = 1 ] || printf '\n  FIRST: set your model upstream in %s\n         (YGG_UPSTREAM_BASE_URL + YGG_UPSTREAM_API_KEY), then re-run ./install.sh\n' "$ENV_FILE")
   1. Pair your phone:   $HERE/install.sh pair      (a QR code appears right here)
   2. Scan it with the phone's camera — Wi-Fi or mobile data, from anywhere. The phone opens
-     $T_PUBLIC, pairs itself and lands on your main session. Add it to the home screen.
+     $T_PUBLIC and pairs itself: the first time it walks you through the door, then your sessions.
+     Add it to the home screen. (Voice over the trunk is not wired yet — type from anywhere.)
   3. More computers:    on each, ./join.sh --hub $T_PUBLIC  — approve its QR on your phone.
   Lost a phone?         $HERE/install.sh pair --list   ·   $HERE/install.sh pair --revoke NAME
 EOF
@@ -699,7 +700,8 @@ $( [ $BRAIN_READY = 1 ] || printf '\n  FIRST: set your model upstream in %s\n   
   1. On THIS box, open   http://127.0.0.1:$APP_PORT/pair      (a QR code appears)
      headless box? from your laptop: ssh -L $APP_PORT:127.0.0.1:$APP_PORT <box>, then open the same URL
   2. Scan the QR with your phone's camera (same Wi-Fi). The phone opens
-     http://$LAN:$APP_PORT, pairs itself and lands on your main session — no typing.
+     http://$LAN:$APP_PORT and pairs itself — no typing. The first time it walks you through
+     the door, then your sessions.
   3. Add it to the home screen from the browser menu.
 EOF
 fi

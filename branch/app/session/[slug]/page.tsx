@@ -66,6 +66,13 @@ import {
   voiceTestOn,
   voiceTestRedirect,
 } from '@/lib/voice-test';
+import {
+  VOICE_OFF_NOTE,
+  isVoiceUnavailable,
+  voiceOff,
+  voiceProbe,
+  voiceToken,
+} from '@/lib/voice-token';
 
 type Mode = 'text' | 'free';
 /** the door's last step, in MAIN — the walk-through (UX-CALM 10-27: the
@@ -82,6 +89,14 @@ const WAYS: Way[] = ['type', 'hold', 'free'];
 const ALL_TODO: Ways = { type: 'todo', hold: 'todo', free: 'todo' };
 /** the first way still to walk, in order — null = all three walked */
 const nextWay = (w: Ways): Way | null => WAYS.find((k) => w[k] === 'todo') ?? null;
+/** voice cannot work on this connection (lib/voice-token.ts): its two ways are
+ *  skipped — the typed way is the walk's turn, and the door still ends on
+ *  "you are in" (a phone paired through the trunk, 11-14) */
+const withoutVoice = (w: Ways): Ways => ({
+  ...w,
+  hold: w.hold === 'todo' ? 'skip' : w.hold,
+  free: w.free === 'todo' ? 'skip' : w.free,
+});
 const FT = {
   en: {
     planted: 'ready. this is main — your main conversation.',
@@ -316,6 +331,12 @@ export default function SessionView({
   const pressAtRef = useRef(0);
   const [pttSecs, setPttSecs] = useState(0);
   const [voiceState, setVoiceState] = useState<'off' | 'connecting' | 'ready'>('off');
+  // voice cannot work on this connection (lib/voice-token.ts: a phone paired
+  // through the trunk) — a state, not an error: the walk skips its voice ways,
+  // the mic dims, and a voice tap shows ONE calm line (voiceNaNote), no error
+  // box, no fix offer, no retry
+  const [voiceNa, setVoiceNa] = useState(() => !!voiceOff());
+  const [voiceNaNote, setVoiceNaNote] = useState(false);
   const [error, setError] = useState('');
   const [attachments, setAttachments] = useState<Attach[]>([]);
   const [total, setTotal] = useState(0);
@@ -1124,6 +1145,12 @@ export default function SessionView({
   async function ensureVoice(): Promise<Room> {
     if (roomRef.current && voiceState === 'ready') return roomRef.current;
     if (voicePromiseRef.current) return voicePromiseRef.current;
+    // known unavailable here: never ask again (the controls just say so)
+    const na = voiceOff();
+    if (na) {
+      setVoiceNa(true);
+      throw na;
+    }
     // params unwrap is async: on first mount slug is still '' — minting
     // then would create a random fallback room in the token route (and the
     // agent would spawn a phantom opencode session titled after it, live
@@ -1154,7 +1181,8 @@ export default function SessionView({
             if (modeRef.current === 'free') return mic(true, r);
             return undefined;
           })
-          .catch(() => {
+          .catch((e) => {
+            if (isVoiceUnavailable(e)) return; // a state of the connection: nothing to retry
             reconnectFailsRef.current += 1; // next attempt waits longer
             if (!norefreshOnceRef.current) {
               // mic-norefresh2: the ONE auto retry — a second failure hands
@@ -1189,18 +1217,17 @@ export default function SessionView({
         const p = await navigator.permissions.query({ name: 'microphone' as PermissionName });
         diagEvent('voice', `mic permission: ${p.state}`);
         if (p.state === 'denied') {
+          // a blocked mic only matters where voice can work at all: on the
+          // trunk the answer is the calm line, never "allow the mic"
+          if (!(await voiceProbe())) throw voiceOff() ?? new Error('voice unavailable');
           throw new Error('microphone blocked — allow it in browser site settings (lock icon)');
         }
       } catch (e) {
-        if (String(e).includes('blocked')) throw e;
+        if (String(e).includes('blocked') || isVoiceUnavailable(e)) throw e;
         diagEvent('voice', 'permissions API unavailable');
       }
-      const r = await fetch('/api/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ room: slug }),
-      });
-      const d = await r.json();
+      // empty / non-JSON answers become a clear error; voice-unavailable a state
+      const d = await voiceToken(slug);
       const room = new Room({ adaptiveStream: false });
       room.on(RoomEvent.SignalConnected, () => diagEvent('voice', 'signal connected'));
       room.on(RoomEvent.Connected, () => diagEvent('voice', 'room connected'));
@@ -1354,11 +1381,24 @@ export default function SessionView({
       diagEvent('voice', 'ready');
       return room;
     } catch (e) {
-      setError(`voice connect failed: ${e instanceof Error ? e.message : e}`);
+      if (isVoiceUnavailable(e)) {
+        diagEvent('voice', `voice unavailable here — ${e.why || 'no reason given'}`);
+        setVoiceNa(true);
+      } else {
+        setError(`voice connect failed: ${e instanceof Error ? e.message : e}`);
+      }
       setVoiceState('off');
       voicePromiseRef.current = null;
       throw e;
     }
+  }
+
+  /** a voice control was touched where voice cannot work: the one calm line
+   *  (no error box, no fix offer) — and the control stays as it was */
+  function voiceNaTap(what: string) {
+    setVoiceNa(true);
+    setVoiceNaNote(true);
+    diagEvent('voice', `${what}: voice unavailable here — type instead`);
   }
 
   async function mic(on: boolean, room: Room | null = roomRef.current) {
@@ -1395,6 +1435,11 @@ export default function SessionView({
 
   async function switchMode(next: Mode) {
     if (next === mode) return;
+    if (next === 'free' && voiceOff()) {
+      // hands-free needs the voice line, which this connection does not have
+      voiceNaTap('hands-free');
+      return;
+    }
     setError('');
     setMode(next); // optimistic — bottom UX must react immediately
     // sync the ref NOW: the disconnect below fires RoomEvent.Disconnected
@@ -1453,12 +1498,28 @@ export default function SessionView({
           setError('voice agent missing from the room — is lk-agent running? tap the mic button to retry');
         }, 10_000);
       }
-    } catch {
+    } catch (e) {
       setMode('text'); // connect/mic failed (error surfaced by ensureVoice)
+      if (isVoiceUnavailable(e)) {
+        // learned on this very tap: back to the keyboard, for good — a reload
+        // must not try to restore a hands-free that cannot work here
+        modeRef.current = 'text';
+        try {
+          localStorage.setItem('oz-mode', 'text');
+        } catch {
+          /* private mode */
+        }
+        voiceNaTap('hands-free');
+      }
     }
   }
 
   async function pttDown(e?: React.PointerEvent<HTMLButtonElement>) {
+    if (voiceOff()) {
+      // nothing can be captured on this connection: no hold UI, no connect
+      voiceNaTap('hold');
+      return;
+    }
     // deliberately NOT gated on busy: talking while the agent works queues
     // the turn (opencode serializes per session); stop is the only cancel
     pttWantRef.current = true;
@@ -1516,8 +1577,12 @@ export default function SessionView({
           /* no haptics: the words + amber carry it */
         }
       }
-    } catch {
+    } catch (err) {
       setHolding(false); // connect/mic failed — error already surfaced by ensureVoice
+      if (isVoiceUnavailable(err)) {
+        pttWantRef.current = false; // the release has nothing to send or blame
+        voiceNaTap('hold');
+      }
     }
   }
 
@@ -1612,6 +1677,10 @@ export default function SessionView({
     setPttCancelArm(false);
     setHolding(false);
     const room = roomRef.current;
+    if (!room && voiceOff()) {
+      voiceNaTap('hold'); // no room will ever come on this connection
+      return;
+    }
     if (!room) {
       // released while the room was still connecting (refresh + immediate
       // press on a laggy link): nothing was captured — say so, don't swallow
@@ -2128,6 +2197,21 @@ export default function SessionView({
     }
   }, [slug, first, ways]);
 
+  // voice learned unavailable while the walk is up: its voice ways go at once
+  // (struck through on the card) — on a voice way now, the walk moves on
+  useEffect(() => {
+    if (!voiceNa || first === 'off' || first === 'in') return;
+    const w = waysRef.current;
+    if (w.hold === 'todo' || w.free === 'todo') {
+      const n = withoutVoice(w);
+      setWays(n);
+      waysRef.current = n;
+      diagEvent('voice', 'first-turn: voice unavailable here — the voice ways skipped');
+    }
+    if (way !== 'type' && (first === 'practice' || first === 'mic' || first === 'denied'))
+      enterWay(nextWay(waysRef.current));
+  }, [voiceNa, first, way]);
+
   // type and hold need the composer: a hands-free carried over from an
   // earlier visit (oz-mode, restored once the room is up) goes back to the
   // keyboard for them — the walk reaches hands-free by its own tap
@@ -2144,6 +2228,13 @@ export default function SessionView({
    *  prompt steals the finger and the turn is lost */
   function enterWay(w: Way | null) {
     setFirstHint('');
+    if (w && w !== 'type' && voiceOff()) {
+      const n = withoutVoice(waysRef.current);
+      setWays(n);
+      waysRef.current = n;
+      diagEvent('voice', `first-turn: voice unavailable here — way ${w} skipped`);
+      w = nextWay(n);
+    }
     if (!w) {
       try {
         // walked (or skipped) to the end: this device is through the door
@@ -2565,6 +2656,12 @@ export default function SessionView({
    *  way — say what happened instead of switching modes. The hands-free way
    *  is walked BY this tap. */
   function pressTap() {
+    if (voiceOff()) {
+      // a tap is the hands-free toggle — which needs the voice line
+      clearHoldArm();
+      voiceNaTap('tap');
+      return;
+    }
     if ((first === 'practice' || first === 'sent' || first === 'mic') && way !== 'free') {
       clearHoldArm();
       setFirstHint(FT[firstLang].released);
@@ -2890,6 +2987,15 @@ export default function SessionView({
           <ErrorBox error={error} onDismiss={() => setError('')} slug={slug} />
         </div>
       )}
+      {voiceNaNote && first === 'off' && (
+        <p
+          className="mt-2 text-xs text-[var(--oz-dim)]"
+          data-testid="voice-unavailable"
+          role="status"
+        >
+          {VOICE_OFF_NOTE[firstLang]}
+        </p>
+      )}
 
       {/* transcript */}
       <div
@@ -3140,6 +3246,12 @@ export default function SessionView({
                 </li>
               ))}
             </ol>
+          )}
+          {/* voice cannot ride this connection (the trunk): said once, here — its ways are struck */}
+          {voiceNa && (
+            <p className="sub" data-testid="first-voice-na">
+              {VOICE_OFF_NOTE[firstLang]}
+            </p>
           )}
           {first === 'practice' && way === 'type' && (
             <>
@@ -3399,8 +3511,9 @@ export default function SessionView({
                 {...micHoldHandlers}
                 data-testid="composer-mic"
                 aria-label="push to talk"
+                data-voice={voiceNa ? 'unavailable' : undefined}
                 className={`oz-k mic ${holding && micLive ? `heard ${pttCancelArm ? 'drop' : ''}` : ''} ${
-                  voiceState === 'connecting' ? 'opacity-50' : ''
+                  voiceState === 'connecting' || voiceNa ? 'opacity-50' : ''
                 }`}
               >
                 {/* a quick TAP is the hands-free toggle (req 09-30), a hold

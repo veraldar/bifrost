@@ -457,3 +457,39 @@ phone) and `trunk/deploy/sni-443-test.py`.
 
 **Not proven:** real Let's Encrypt (Pebble speaks the same ACME, but the run never leaves docker),
 a real VPS provider's firewall and DNS, IPv6 end to end, voice over the trunk (not wired).
+
+## Root ↔ root inside WireGuard (trunk-wg, 2026-11-14)
+
+Until now the VPS (TLS ends there) and the hub's bridge could read every brain call between
+roots: the switchboard carried them as `http` ops with the body in base64. Now each root runs a
+`bifrost-net wg` node (trunk/src/wg.rs): boringtun + a userspace TCP stack (smoltcp), no TUN, no
+privileges. The brain only gets URLs (`/_wg/<root>/…` on the node's loopback front door) and is
+unchanged. The datagrams ride the root link as binary ws frames; the bridge relays them by
+address (root → root under the claim law, root ↔ the hub's node over a loopback UDP pair) and
+drops anything not WireGuard-shaped. Each root's key is pinned when the phone approves its join
+(docs/spec-join.md). The plaintext switchboard is off unless `plaintext_http = true`.
+
+- **A relay that rewrites the source is what binds a key to a link.** The bridge stamps every
+  frame with the id of the link it came in on; the hub's node drops a pinned key arriving on any
+  other link (`wrong_link`). A copied private key is useless from another root's link.
+- **Revocation finally cuts a live root.** The hub's node re-reads roots.json + devices.json every
+  second: revoking the approving device, or `revoked: true` on the root, drops its peer and resets
+  its streams, while the ws link stays up (the old gap: links already up were never cut).
+- **40 ms per call was Nagle.** The first tunnel bench gave 43 ms medians against 3 ms on the old
+  path: root-dial.py's socket had no TCP_NODELAY, so each small WireGuard frame waited for a
+  delayed ACK. In-process the tunnel is 0.6 ms. With TCP_NODELAY the two paths are within noise.
+- **boringtun does not pad transport data** (the spec says pad to 16; it sends the exact size), so
+  the relay's shape check is `type 4, ≥ 32 bytes`, not a multiple of 16.
+- **A restarted hub node waited 11 s** for WireGuard's own retry. Every node now dials each peer
+  until its first handshake (static peer every 2 s, pinned roots every 5 s): 1 s.
+
+**Proof:** `cargo test` (wg: two nodes through a fake relay, both ways, header law, 300 KB, the
+relay sees WireGuard only, replay + tamper dropped, unpinned key refused, revoke cuts),
+`scripts/rootlink-sim.py` T15 (the real bridge's relay law), `sim/trunk-roots-e2e.py` (real brains
+through the ap; a tap where the ap hands the link to the bridge; unapproved key, stolen key,
+replay, tamper; revoke/restore/root revoke; node restart; `--rekey` 200 s; `--plaintext` baseline),
+`sim/trunk-full-e2e.sh` (the phone sees the fingerprint and approves; revoking it cuts the tunnel).
+
+**Not proven:** the real installer (join.sh) does not make a key or run a node yet; joined ↔
+joined roots (no key directory); a direct UDP leg; a real VPS and its packet loss (TCP inside the
+link's TCP); a hub restart with roots linked for hours (only the node restart is simulated).

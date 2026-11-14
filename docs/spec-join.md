@@ -14,6 +14,17 @@ always `/local`. A joiner that gets no `hub`, an empty one, or an older hub's `"
 name `hub`, as before. The other side of the same gap is closed in the hub brain: it learns
 every root that links to the trunk by itself (`YGG_PEERS_FROM`, below).
 
+**Change (trunk-wg, 2026-11-14): approving a join pins the machine's WireGuard key.** Brain
+calls between roots (`GET /root`, `session_start` on another root, reports home) now ride a
+WireGuard tunnel end to end between the two roots (`bifrost-net wg`, trunk/src/wg.rs). The hub's
+bridge and the access point only relay its datagrams. The joining machine makes its own key and
+sends the public half with the join (`wg_pub`). The approve page shows the key's fingerprint
+next to the code, so approving the code pins that key. The hub stores it in `roots.json` with a
+tunnel address, and the poll hands back the hub's public key and the addresses (`wg`). The
+plaintext switchboard (`/_root/<id>/`, a root's `http` ops) is off on the bridge unless it opts
+in for roots joined before this (`[bridge.root-link] plaintext_http = true`). See
+[The tunnel](#the-tunnel-root--root-over-wireguard) below.
+
 ## The shape in one paragraph
 
 The **hub** is the box whose app is the access point's upstream. A **new machine** (Linux,
@@ -38,14 +49,14 @@ All are reached through the public URL (`BIFROST_PUBLIC_URL`).
 
 | # | call | auth | answer |
 |---|---|---|---|
-| 1 | `POST /api/roots/join` `{name, os, host}` | none; rate-limited per client address | `201 {req, secret, code, approve_url, poll_url, expires_in}` |
-| 2 | `GET /join?r=<req>` (page) | a paired device. Without one, the page sends you to `/pair?unpaired=1` | name, os, host, the code; **Add to my tree** / **Refuse** |
+| 1 | `POST /api/roots/join` `{name, os, host, wg_pub?}` | none; rate-limited per client address | `201 {req, secret, code, approve_url, poll_url, expires_in}` |
+| 2 | `GET /join?r=<req>` (page) | a paired device. Without one, the page sends you to `/pair?unpaired=1` | name, os, host, the code, the tunnel key's fingerprint; **Add to my tree** / **Refuse** |
 | 3a | `POST /api/roots/join/<req>/approve` | a paired device | `200 {status:"approved", root_id, name, os, host}` |
 | 3b | `POST /api/roots/join/<req>/refuse` | a paired device | `200 {status:"refused"}` |
-| 4 | `GET /api/roots/join/<req>`, header `x-join-secret` | the join secret | `202 {status:"pending"}`, `200 {status:"approved", root_id, root_secret, link_tokens[20], rootlink_url, peer_token, hub}` exactly once, or `410 {status:"refused"\|"expired"}` |
+| 4 | `GET /api/roots/join/<req>`, header `x-join-secret` | the join secret | `202 {status:"pending"}`, `200 {status:"approved", root_id, root_secret, link_tokens[20], rootlink_url, peer_token, hub, wg?}` exactly once, or `410 {status:"refused"\|"expired"}` |
 | 5 | `POST /api/roots/<root_id>/tokens`, header `x-root-secret` | the root credential | `200 {link_tokens[20]}` |
-| 6 | `GET /api/roots` | a paired device | `{roots:[{id, name, os, host, joined_at, delivered_at}]}` |
-| – | `GET /api/roots/join/<req>/view` | a paired device | the page's data: `{req, name, os, host, code, status, expires_at, root_id}`. Has no secrets |
+| 6 | `GET /api/roots` | a paired device | `{roots:[{id, name, os, host, joined_at, delivered_at, wg_fp}]}` |
+| – | `GET /api/roots/join/<req>/view` | a paired device | the page's data: `{req, name, os, host, code, wg_fp, status, expires_at, root_id}`. Has no secrets |
 
 Field details:
 - `req` is 18 random bytes, base64url.
@@ -61,6 +72,19 @@ Field details:
   joining side checks the same shape, refuses a name equal to its own `root_id`, and writes
   `YGG_PEERS <hub>=http://127.0.0.1:<peer port>/local`. Do not name the hub brain `local`:
   joiners read that as an older hub and use `hub`.
+- `wg_pub` is the machine's WireGuard public key: canonical base64 of 32 bytes (what
+  `bifrost-net wg-key FILE` prints). Anything else answers `400`. A join without it is an older
+  joiner: it gets no tunnel.
+- `wg_fp` is the key's fingerprint, the same on every screen: the first 6 bytes of
+  sha256(the raw 32-byte key), hex, `xxxx-xxxx-xxxx`. `bifrost-net wg-key` prints it, the
+  joining machine shows it next to the code, the approve page shows it under the code
+  (`data-testid="join-wg-fp"`). Reference: the all-zero key is `6668-7aad-f862`.
+- `wg` (in the approval, only when the machine sent `wg_pub` and the hub has a WireGuard node:
+  `BIFROST_WG_PUB_FILE` is readable) is `{public_key, hub_ip, ip, net}`: the hub node's public
+  key, its tunnel address (`.1` of the tree's range), this root's address, and the range
+  (`10.x.y.0/24`). The joining side runs its node with `address = <ip>/<prefix>` and one peer,
+  `local` = `public_key` at `hub_ip`, and writes `YGG_PEERS <hub>=http://127.0.0.1:<node
+  http>/_wg/local`.
 - `name` is capped at 40 characters, `os` at 24, `host` at 64. Control, zero-width and
   bidi characters are stripped. Whitespace is collapsed. If `name` is empty, `host` is used.
   If both are empty, the answer is `400`.
@@ -72,6 +96,9 @@ Other answers:
   happens after a hub restart: start over.
 - A second poll after delivery answers `410 {status:"expired", why:"delivered"}`.
 - An approval the machine never collected answers `410 {status:"expired", why:"undelivered"}`.
+- Approving a join whose `wg_pub` is already pinned to another root answers `409` (a key pins
+  one root: the hub's node could not tell two roots apart). When the tree's range is full (252
+  roots), `503`.
 - A refill answers `401` for an unknown root or a bad secret, and `409 {why:"device-revoked"}`
   when the device that approved the root has been revoked. Join again in that case.
 - `429` comes with `Retry-After`.
@@ -114,6 +141,9 @@ Approval still needs a paired device, so joins are a devices-mode feature.
    Minting comes first because it has no side effects.
 3. **Create the root credential.** It is 32 hex characters. Only its sha256 goes into
    `roots.json`, in a record `{id, name, os, host, joined_at, dev, secretHash, delivered_at}`.
+   **Pin the key:** with a `wg_pub`, the record also gets `wg_pub` and `wg_ip`, the next free
+   address in the tree's range. The range is chosen once, at the first such approval (a random
+   `10.x.y.0/24`), and kept in `roots.json` as `wg: {net}`. The hub's node is `.1`.
 4. **Allow the approving device to reach the root.** It adds `root_id` to that device's
    `roots` in `devices.json`. It edits that one record in the raw file and writes every other
    record back exactly as it was read, v1 `tokenHash` records included. The write is atomic
@@ -121,12 +151,14 @@ Approval still needs a paired device, so joins are a devices-mode feature.
    `lib/devices.ts` now keeps `roots` through every rewrite. Before this change, a token
    refresh silently dropped it.
 5. **Hold the result for the poller.** `{root_secret, link_tokens, rootlink_url, peer_token,
-   hub}` is kept **in memory only**. The first poll with the right secret takes it, and it
+   hub, wg?}` is kept **in memory only**. The first poll with the right secret takes it, and it
    is dropped from memory as it is sent. That poll also stamps `delivered_at`.
 
-Approval does not touch the hub brain. Once the new root links, the bridge lists it on
-`GET /_roots`, and a hub brain started with `YGG_PEERS_FROM` adds it as a peer within about
-5 s. It needs no restart and no edit to `YGG_PEERS`.
+Approval does not touch the hub brain. The hub's WireGuard node re-reads `roots.json` every
+second and lists the pinned roots on `GET /_wg`; a hub brain started with
+`YGG_PEERS_FROM=http://127.0.0.1:<node http>/_wg` and `YGG_PEERS_VIA=http://127.0.0.1:<node
+http>/_wg/{id}` adds it as a peer within about 5 s. It needs no restart and no edit to
+`YGG_PEERS`. (Without a node, the bridge's `GET /_roots` still lists the linked roots.)
 
 ## Security choices
 
@@ -168,6 +200,12 @@ sha256 with `timingSafeEqual`.
 and only when its code matches the phone's. A mismatch means you are looking at someone
 else's request.
 
+**The key:** the request carries the key, and nothing can change it after the POST. So
+approving the code pins the key of that one request: a stranger's request has its own code.
+The fingerprint is a second look at the same thing (48 bits: a check for the eye, not the
+binding). The private key never leaves the machine (mode 600 in its state dir); the hub's
+never leaves the hub's node.
+
 **CSRF and framing:** approve and refuse are POSTs authenticated by a `SameSite=Strict`
 cookie or a Bearer token. A cross-site form or a framed `/join` page carries no session.
 
@@ -183,16 +221,24 @@ cookie or a Bearer token. A cross-site form or a framed `/join` page carries no 
 | `OPENCODE_URL` | the hub brain. Its `GET /root` `name` is handed out as `hub` |
 | `YGG_ROOT_NAME` | the hub brain's name. It is used for `hub` only when the brain does not answer or gives no plain name (default `hub`) |
 | `BIFROST_ROOTS_FILE` | the roots registry (default: `roots.json` next to `devices.json`) |
+| `BIFROST_WG_PUB_FILE` | the hub's WireGuard node's public key (`<key file>.pub`, written by `bifrost-net wg-key`). Unset or unreadable: approvals pin the key but hand back no `wg`, and the machine gets no tunnel |
 | `BIFROST_PUBLIC_URL` | base of `approve_url` and `poll_url`. It must be **https** wherever the poll crosses a network you do not own, because the poll carries the root credential |
 
 The bridge must have:
 - `root_link_secret` set;
 - `[bridge.root-link] enabled = true`;
+- `[bridge.root-link] wg_relay` and `wg_local` (the loopback UDP pair with the hub's node), for
+  the tunnel to reach the hub; `plaintext_http = true` only while roots joined before the tunnel
+  still need the old plaintext path;
 - the same `tokens_file` as the app's `BIFROST_DEVICES_FILE`, because the bridge checks the
   token's `dev` claim against it.
 
 The hub brain (yggdrasil) should have:
-- `YGG_PEERS_FROM=http://127.0.0.1:<bridge http>/_roots`. The bridge answers
+- with a WireGuard node (the tunnel): `YGG_PEERS_FROM=http://127.0.0.1:<node http>/_wg` and
+  `YGG_PEERS_VIA=http://127.0.0.1:<node http>/_wg/{id}`. The node lists the pinned roots whose
+  approver is live; the brain adds each, and calls it inside the tunnel;
+- without one (old roots, `plaintext_http = true`): `YGG_PEERS_FROM=http://127.0.0.1:<bridge
+  http>/_roots`. The bridge answers
   `[{"id","since"}]` for the roots linked right now, to loopback clients without browser or
   proxy headers, like `/_root/`. The brain reads the list every 5 s and adds a peer per linked
   root: the name is the root's id, and the url is `YGG_PEERS_VIA` with `{id}` replaced. The
@@ -200,6 +246,59 @@ The hub brain (yggdrasil) should have:
   `YGG_PEERS` entry wins a name clash, and the brain never adds its own name. A root that
   unlinks stays known and shows as unreachable, like any peer that is down;
 - the same `YGG_PEER_TOKEN` as the app.
+
+## The tunnel (root ↔ root over WireGuard)
+
+Every root runs one `bifrost-net wg -c NODE.toml`: boringtun (the WireGuard protocol) with a
+userspace TCP stack (smoltcp) on top. No TUN device and no privileges: the tunnel addresses
+exist only inside the node. It has two doors:
+- the **front door**, loopback only: `ANY http://127.0.0.1:<http>/_wg/<root>/<path>` is one
+  HTTP exchange with that root's brain, inside the tunnel (`local` = the hub). `GET /_wg` lists
+  the peers `[{id, ip, fingerprint, up, handshakes, …}]`; `GET /_wg/_node` shows the node and
+  what it dropped (`unknown_key`, `wrong_link`, `replay`, `auth_fail`, …). Browsers and proxied
+  requests are refused, as on `/_root/`.
+- the **in-tunnel door**, TCP port 80 on its tunnel address: a peer's exchange is performed
+  against this root's own brain. Only `content-type` and `x-ygg-peer` cross, both ways.
+
+The datagrams never touch the internet as UDP (the provider admits tcp 22/80/443 only). They
+ride the root-link that exists already: one **relay frame** `[n][address][datagram]` per
+binary ws frame on the dial-out wss. The address is the destination on the way to the relay
+and the source on the way out, as the bridge saw it: the id of the authenticated link it came
+in on, never what the sender claimed. The bridge relays root → root (under the link-token
+`roots` claim, like the switchboard) and root ↔ the hub's own node (a loopback UDP pair,
+`[bridge.root-link] wg_relay` / `wg_local`). It drops anything that is not a WireGuard-shaped
+message. It holds no key and reads nothing.
+
+**Who may talk:** a joined root has one peer, the hub (`local`), whose key came with its
+approval. The hub's peers are the records in `roots.json` with `wg_pub` + `wg_ip`, not
+`revoked`, whose approving device (`dev`) is live in `devices.json`. The hub's node re-reads both
+every second: **revoking the approving device, or marking the root `revoked: true` (or deleting
+it), cuts its tunnel at once**, both ways, even while its root link stays up. A datagram is
+accepted only from the relay, only for a pinned key, and only when the relay's source is the
+link that key is pinned to (a copied key on another link gets nothing); inner packets only from
+the peer's own tunnel address. Replayed and tampered datagrams are dropped (WireGuard's counter
+and AEAD). Sessions rekey on WireGuard's own timers (120 s).
+
+**A joined root's node** (`NODE.toml`):
+
+    [wg]
+    key_file = "<state>/wg.key"          # mode 600; created with wg.key.pub if missing
+    udp = "127.0.0.1:<B>"                # the dialer sends here
+    relay = "127.0.0.1:<A>"              # the dialer's --wg-udp
+    http = "127.0.0.1:<front door>"
+    brain = "http://127.0.0.1:<its brain>"
+    address = "<wg.ip>/<prefix of wg.net>"
+    [[wg.peer]]
+    id = "local"
+    public_key = "<wg.public_key>"
+    ip = "<wg.hub_ip>"
+
+and its dialer adds `--wg-udp 127.0.0.1:<A> --wg-node 127.0.0.1:<B>` (trunk/scripts/root-dial.py).
+
+**The hub's node:** the same, without `address` and `[[wg.peer]]`, with `roots_file` (the app's
+`roots.json`) and `devices_file` (the app's `devices.json`); `udp` = the bridge's `wg_local`,
+`relay` = the bridge's `wg_relay`, `brain` = the hub brain. Its key: `bifrost-net wg-key
+<file>`; the app gets the public half (`<file>.pub`) through `BIFROST_WG_PUB_FILE`.
 
 ## Limits (known, not hidden)
 
@@ -212,7 +311,15 @@ The hub brain (yggdrasil) should have:
   nobody leaves a root record with `delivered_at: null` that no one can use. The owner sees
   it in `GET /api/roots`.
 - **No rotation or removal endpoint for roots in v1.** The root credential does not expire.
-  To remove a root, delete it from `roots.json` and from the allowlists by hand.
+  To remove a root, delete it from `roots.json` (or set `"revoked": true` on its record, which
+  cuts its tunnel within a second) and from the allowlists by hand. A WireGuard key is not
+  rotated either: join again with a fresh key.
+- **The tunnel covers root ↔ root brain calls only.** A phone turn naming a root (`/branch`,
+  `root.job` ops) still rides the root link as text the bridge reads; that is the phone ↔ box
+  leg. A joined root reaches the hub (and the hub any root); two joined roots do not reach each
+  other yet: a joined root learns no other root's key (the link-token claim names only itself).
+- **TCP inside TCP.** The datagrams ride the wss root link, so the tunnel's TCP runs inside the
+  link's TCP. On a lossy path, retransmits stack; a direct UDP leg between roots is not built.
 - **Link tokens hang on the approving device.** The tokens' `dev` claim is that device. If
   it is revoked (or the kill-switch is pulled), the bridge refuses new dials, refills answer
   409, and the machine must join again.

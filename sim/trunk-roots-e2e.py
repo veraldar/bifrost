@@ -559,6 +559,17 @@ rootlink = "127.0.0.1:{tap.port}"
             check(f"rekey: {n} calls over 200 s all answered across the 120 s rekey timer (handshakes {hs0} → {hs1})",
                   not bad and hs1 > hs0, bad)
 
+        # ---- the hub's node restarts (a deploy, a crash): the tunnel comes back by itself ----
+        if wg:
+            procs["wg-hub"].terminate()
+            procs["wg-hub"].wait(timeout=5)
+            node("hub", hub_udp, relay_udp, hub_wg, home_p, roots=True)
+            t0 = time.time()
+            back = wait(lambda: call(mac_wg, "GET", "/_wg/local/root", timeout=15)[0] == 200
+                        and call(hub_wg, "GET", "/_wg/mac/root", timeout=15)[0] == 200, 60, 1)
+            check(f"the hub's node restarted: the tunnel came back by itself in {time.time() - t0:.0f} s (no root restarted)", back,
+                  log("wg-hub")[-300:])
+
         # ---- revocation cuts the tunnel ----
         if wg:
             write_devices(phone_revoked=True)

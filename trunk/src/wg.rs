@@ -346,7 +346,7 @@ struct PeerSpec {
     id: String,
     public: [u8; 32],
     ip: Ipv4Addr,
-    /// dial it at start (a static peer: the joined root's hub)
+    /// a static peer (the joined root's hub): dialed every 2 s until up, else every 5 s
     proactive: bool,
 }
 
@@ -787,7 +787,11 @@ impl Engine {
             let send = {
                 let p = self.peers.get_mut(&id).unwrap();
                 let mut v = vec![];
-                if p.spec.proactive && p.tun.stats().0.is_none() && p.last_init.elapsed() > Duration::from_secs(2) {
+                // dial every peer until its first handshake: a static peer (the hub) every 2 s, a
+                // pinned root every 5 s (the bridge drops frames to a root that is not linked).
+                // So a node that restarts brings its tunnels back at once, from either end.
+                let every = Duration::from_secs(if p.spec.proactive { 2 } else { 5 });
+                if p.tun.stats().0.is_none() && p.last_init.elapsed() > every {
                     p.last_init = Instant::now();
                     if let TunnResult::WriteToNetwork(b) = p.tun.format_handshake_initiation(&mut out, false) {
                         v.push(b.to_vec());
@@ -1205,7 +1209,7 @@ fn encode_request(peer: &str, req: &HttpReq) -> Vec<u8> {
 }
 
 /// The in-tunnel door: one exchange from a peer, performed against this root's brain.
-fn serve_inbound(id: u64, rx: mpsc::Receiver<Ev>, ctl: Ctl, brain: Option<String>, agent: ureq::Agent, peer: String) {
+fn serve_inbound(id: u64, rx: mpsc::Receiver<Ev>, ctl: Ctl, brain: Option<String>, agent: ureq::Agent, _peer: String) {
     let deadline = Instant::now() + Duration::from_secs(30);
     let got = read_request(|buf| loop {
         let left = deadline.saturating_duration_since(Instant::now());
@@ -1227,7 +1231,6 @@ fn serve_inbound(id: u64, rx: mpsc::Receiver<Ev>, ctl: Ctl, brain: Option<String
             (Ok(req), Some(b)) => switch::perform(&agent, b, &req),
         },
     };
-    let _ = peer;
     ctl.send(Cmd::Write { id, data: encode_reply(&reply) });
     ctl.send(Cmd::Shutdown { id });
     ctl.send(Cmd::Release { id });

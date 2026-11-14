@@ -22,7 +22,10 @@ sends the public half with the join (`wg_pub`). The approve page shows the key's
 next to the code, so approving the code pins that key. The hub stores it in `roots.json` with a
 tunnel address, and the poll hands back the hub's public key and the addresses (`wg`). The
 plaintext switchboard (`/_root/<id>/`, a root's `http` ops) is off on the bridge unless it opts
-in for roots joined before this (`[bridge.root-link] plaintext_http = true`). See
+in for roots joined before this (`[bridge.root-link] plaintext_http = true`). Joined roots also
+reach each other: the hub's node publishes the tree's directory of pinned keys inside the
+tunnel. The joining side is `root/install/join.sh`: it makes the key, sends it, shows the
+fingerprint, and runs the node next to the dialer. See
 [The tunnel](#the-tunnel-root--root-over-wireguard) below.
 
 ## The shape in one paragraph
@@ -156,7 +159,7 @@ Approval still needs a paired device, so joins are a devices-mode feature.
 
 Approval does not touch the hub brain. The hub's WireGuard node re-reads `roots.json` every
 second and lists the pinned roots on `GET /_wg`; a hub brain started with
-`YGG_PEERS_FROM=http://127.0.0.1:<node http>/_wg` and `YGG_PEERS_VIA=http://127.0.0.1:<node
+`YGG_PEERS_FROM=http://127.0.0.1:<node http>/_wg/_roots` and `YGG_PEERS_VIA=http://127.0.0.1:<node
 http>/_wg/{id}` adds it as a peer within about 5 s. It needs no restart and no edit to
 `YGG_PEERS`. (Without a node, the bridge's `GET /_roots` still lists the linked roots.)
 
@@ -234,7 +237,7 @@ The bridge must have:
   token's `dev` claim against it.
 
 The hub brain (yggdrasil) should have:
-- with a WireGuard node (the tunnel): `YGG_PEERS_FROM=http://127.0.0.1:<node http>/_wg` and
+- with a WireGuard node (the tunnel): `YGG_PEERS_FROM=http://127.0.0.1:<node http>/_wg/_roots` and
   `YGG_PEERS_VIA=http://127.0.0.1:<node http>/_wg/{id}`. The node lists the pinned roots whose
   approver is live; the brain adds each, and calls it inside the tunnel;
 - without one (old roots, `plaintext_http = true`): `YGG_PEERS_FROM=http://127.0.0.1:<bridge
@@ -254,7 +257,8 @@ userspace TCP stack (smoltcp) on top. No TUN device and no privileges: the tunne
 exist only inside the node. It has two doors:
 - the **front door**, loopback only: `ANY http://127.0.0.1:<http>/_wg/<root>/<path>` is one
   HTTP exchange with that root's brain, inside the tunnel (`local` = the hub). `GET /_wg` lists
-  the peers `[{id, ip, fingerprint, up, handshakes, …}]`; `GET /_wg/_node` shows the node and
+  the peers `[{id, ip, fingerprint, up, handshakes, …}]`; `GET /_wg/_roots` the same without
+  `local` (what a brain learns its peers from); `GET /_wg/_node` shows the node and
   what it dropped (`unknown_key`, `wrong_link`, `replay`, `auth_fail`, …). Browsers and proxied
   requests are refused, as on `/_root/`.
 - the **in-tunnel door**, TCP port 80 on its tunnel address: a peer's exchange is performed
@@ -264,10 +268,22 @@ The datagrams never touch the internet as UDP (the provider admits tcp 22/80/443
 ride the root-link that exists already: one **relay frame** `[n][address][datagram]` per
 binary ws frame on the dial-out wss. The address is the destination on the way to the relay
 and the source on the way out, as the bridge saw it: the id of the authenticated link it came
-in on, never what the sender claimed. The bridge relays root → root (under the link-token
-`roots` claim, like the switchboard) and root ↔ the hub's own node (a loopback UDP pair,
-`[bridge.root-link] wg_relay` / `wg_local`). It drops anything that is not a WireGuard-shaped
-message. It holds no key and reads nothing.
+in on, never what the sender claimed. The bridge relays root → root between any two linked
+roots and root ↔ the hub's own node (a loopback UDP pair, `[bridge.root-link] wg_relay` /
+`wg_local`). The link-token `roots` claim gates only the old plaintext switchboard: for
+WireGuard, who may talk to whom is decided by the keys each node holds. The bridge drops
+anything that is not a WireGuard-shaped message. It holds no key and reads nothing.
+
+**Joined root ↔ joined root:** the hub's node answers `GET /_wg/directory` on its in-tunnel door,
+so only to roots it pinned, with the answer authenticated by the hub's key:
+`{net, roots:[{id, public_key, ip}]}`, every root it allows right now. A joined node asks for it
+every 5 s from `local` and takes those roots as peers; a copy older than 20 s is dropped. So
+revoking a root takes it off every other root within about 5 s, and a root the hub stopped
+vouching for (its device revoked) loses the others within about 20 s. Two joined roots then
+talk through the hub's relay, which still sees only ciphertext. A joined root's brain learns
+them with `YGG_PEERS_FROM=http://127.0.0.1:<node http>/_wg/_roots` and
+`YGG_PEERS_VIA=http://127.0.0.1:<node http>/_wg/{id}`, and keeps the hub as
+`YGG_PEERS <hub>=http://127.0.0.1:<node http>/_wg/local`.
 
 **Who may talk:** a joined root has one peer, the hub (`local`), whose key came with its
 approval. The hub's peers are the records in `roots.json` with `wg_pub` + `wg_ip`, not
@@ -295,6 +311,20 @@ and AEAD). Sessions rekey on WireGuard's own timers (120 s).
 
 and its dialer adds `--wg-udp 127.0.0.1:<A> --wg-node 127.0.0.1:<B>` (trunk/scripts/root-dial.py).
 
+**join.sh does all of this on a joined machine.** It finds `bifrost-net` (`--net-bin`, the copy
+it installed before, the repo's build, `~/.local/bin`, `PATH`), else downloads the release on
+Linux/WSL x86_64 (`bifrost-net-<ver>-linux-x86_64`, checked against the release's `SHA256SUMS`;
+the binary needs `libopus0`, which wsl-bootstrap.sh installs), else builds it with cargo (macOS:
+about 3 to 5 minutes, with cmake or Homebrew's opus + pkg-config). It makes `DIR/wg.key` (mode
+600) before the join, sends `wg_pub`, and prints the fingerprint under the code. A join again
+uses a fresh key, which replaces the old one only once it is approved. A root whose `root.json`
+has no key (joined before the tunnel), or whose key no longer matches it, joins again by itself:
+the owner approves once more. With the tunnel granted it writes `DIR/wg.toml` (the node's door
+and udp on the peer port, the dialer's udp on the brain port) and supervises `bifrost-net wg` as
+a third service: `yggdrasil-root-wg.service` (systemd --user), `org.veraldar.yggdrasil-root.wg`
+(launchd), or a third loop of the nohup supervisor. Without it (an older hub) it keeps the old
+plaintext peer port and says so.
+
 **The hub's node:** the same, without `address` and `[[wg.peer]]`, with `roots_file` (the app's
 `roots.json`) and `devices_file` (the app's `devices.json`); `udp` = the bridge's `wg_local`,
 `relay` = the bridge's `wg_relay`, `brain` = the hub brain. Its key: `bifrost-net wg-key
@@ -316,8 +346,10 @@ and its dialer adds `--wg-udp 127.0.0.1:<A> --wg-node 127.0.0.1:<B>` (trunk/scri
   rotated either: join again with a fresh key.
 - **The tunnel covers root ↔ root brain calls only.** A phone turn naming a root (`/branch`,
   `root.job` ops) still rides the root link as text the bridge reads; that is the phone ↔ box
-  leg. A joined root reaches the hub (and the hub any root); two joined roots do not reach each
-  other yet: a joined root learns no other root's key (the link-token claim names only itself).
+  leg.
+- **The directory trusts the hub.** A joined root takes the hub's word for the other roots' keys
+  (the hub is where the owner approves them). A root that cannot reach the hub keeps its copy
+  for 20 s; its tunnels to other roots ride the hub's relay anyway.
 - **TCP inside TCP.** The datagrams ride the wss root link, so the tunnel's TCP runs inside the
   link's TCP. On a lossy path, retransmits stack; a direct UDP leg between roots is not built.
 - **Link tokens hang on the approving device.** The tokens' `dev` claim is that device. If

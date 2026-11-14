@@ -163,6 +163,9 @@ def main():
            "YGG_ROOT_NAME": root["root_id"],
            # the hub brain by the name the join answered (reports go to that name), via `local`
            "YGG_PEERS": f"{root['hub'] or 'hub'}={hub_peer}",
+           # the other roots of the tree, from this root's node (the hub's directory)
+           **({"YGG_PEERS_FROM": f"http://127.0.0.1:{o.wg_port}/_wg/_roots",
+               "YGG_PEERS_VIA": f"http://127.0.0.1:{o.wg_port}/_wg/{{id}}"} if g else {}),
            "YGG_PEER_TOKEN": root["peer_token"] or ""}
     kids.append(subprocess.Popen([o.brain_bin], env=env, stdout=open(os.path.join(o.state, "brain.log"), "w"),
                                  stderr=subprocess.STDOUT, cwd=data))

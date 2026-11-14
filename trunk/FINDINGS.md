@@ -494,6 +494,39 @@ through the ap; a tap where the ap hands the link to the bridge; unapproved key,
 replay, tamper; revoke/restore/root revoke; node restart; `--rekey` 200 s; `--plaintext` baseline),
 `sim/trunk-full-e2e.sh` (the phone sees the fingerprint and approves; revoking it cuts the tunnel).
 
-**Not proven:** the real installer (join.sh) does not make a key or run a node yet; joined ↔
-joined roots (no key directory); a direct UDP leg; a real VPS and its packet loss (TCP inside the
-link's TCP); a hub restart with roots linked for hours (only the node restart is simulated).
+**Not proven (then):** the real installer; joined ↔ joined roots — both done below. Still not: a
+direct UDP leg; a real VPS and its packet loss (TCP inside the link's TCP); a hub restart with
+roots linked for hours (only the node restart is simulated).
+
+### Real machines: join.sh, the directory, macOS (trunk-wg, 2026-11-14, later)
+
+- **join.sh runs the node.** It finds or downloads (Linux/WSL x86_64, SHA256SUMS) or builds
+  (macOS) `bifrost-net`, makes the key before the join, shows the fingerprint, and supervises
+  `bifrost-net wg` as a third service (systemd --user, launchd, nohup). A keyless root re-joins
+  by itself. join-test.sh's fake hub learns the key and grants the tunnel; it also serves a fake
+  release, and a tampered asset is refused.
+- **`NET_SRC=$(find_net)` ended join.sh in silence** when no binary was found: the function's last
+  test failed, and a failing `$(…)` in an assignment trips `set -e`. `find_brain` had the same
+  latent bug (a machine without a brain binary never reached the cargo build). Both end in
+  `return 0` now.
+- **The Linux binary links libopus.** In a clean ubuntu:24.04 the repo build stopped with
+  `libopus.so.0: cannot open shared object file`. join.sh now names the package, wsl-bootstrap.sh
+  installs `libopus0` with the rest, and the docker run lists it as a runtime need (as trunk.sh
+  already did on the VPS).
+- **macOS cannot be cross-checked here.** `cargo check --target aarch64-apple-darwin` stops in
+  C build scripts (ring, libopus) without the macOS SDK: it must be built on the Mac. It also
+  showed that CMake ≥ 4 refuses the bundled libopus (`Compatibility with CMake < 3.5 has been
+  removed`); `CMAKE_POLICY_VERSION_MINIMUM=3.5` fixes it (proven here with CMake 4.4), so join.sh
+  sets it. Homebrew's opus + pkg-config avoids CMake entirely.
+- **Joined roots reach each other through a directory, not the claim.** The hub's node serves
+  `/_wg/directory` inside the tunnel; joined nodes refresh it every 5 s and drop a copy older than
+  20 s. The relay now carries root → root between any two linked roots: keys decide, not the
+  link-token claim (which still gates the plaintext switchboard). Revoking a root takes it off
+  the others in ~5 s; revoking the device that approved them all, in ≤ 20 s.
+
+**Proof:** `cargo test` (a fourth node: B ↔ D via the directory, the unpinned C in none, revoking
+D drops it from B), rootlink-sim T15, trunk-roots-e2e (mac ↔ lab, brains learn each other, a
+session on lab reports to mac, the tap sees WireGuard only for the pair, a rogue holding mac's
+key is refused by mac), trunk-full-e2e 4e–4h (a third root approved on the phone; the tap where
+the ap hands the links over: 202 mac ↔ lab frames, all WireGuard), join-test.sh (local + docker
+ubuntu:24.04), win/launcher-test.sh (wine).

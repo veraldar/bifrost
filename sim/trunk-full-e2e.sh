@@ -23,7 +23,10 @@
 # line, never an error box or a retry storm · 2 MAIN answers the phone ·
 # 3 join by QR, approved on the phone (it shows the machine's tunnel-key fingerprint: approving
 # pins it), the root links through the ap and the hub reaches its brain inside WireGuard · 4 MAIN
-# delegates to the joined root over the tunnel, the report comes home, the phone sees it · 5 the
+# delegates to the joined root over the tunnel, the report comes home, the phone sees it · 4e-4h a
+# third root (lab) joins the same way; mac and lab learn each other from the hub's directory and
+# call each other through the hub's relay — a tap where the ap hands the root links to the bridge
+# sees WireGuard only for the pair · 5 the
 # phone talks to the joined root directly (/branch through the ap) · 6 revoke from the box console
 # → refused, and the root it approved loses its tunnel.
 #
@@ -53,6 +56,7 @@ add() { ip link add "$1" type dummy && ip addr add "$2" dev "$1" && ip link set 
 add wan0 198.51.100.7/24   # the access point's public address (TEST-NET-2)
 add lan0 192.168.77.2/24   # the hub box's LAN
 add far0 203.0.113.9/24    # the new machine, somewhere else (TEST-NET-3)
+add far1 203.0.113.10/24   # the third root, somewhere else again
 AP_IP=198.51.100.7 LAN=192.168.77.2 FAR=203.0.113.9 AP_HOST=ap.tree.test
 AP_URL="https://$AP_HOST"
 STATE=${TRUNK_FULL_STATE:-$(mktemp -d /tmp/trunk-full.XXXXXX)}
@@ -65,6 +69,8 @@ mount --bind "$STATE/hosts" /etc/hosts
 APP=18395 HOMEP=18396 MOCK=18397 BR=18398 MEDIA=18399 RL=18400 MACP=18401 PEERP=18402
 # the root <-> root leg: the hub's node (front door, its udp, the bridge's relay socket) and mac's
 HUBWG=18403 HUBUDP=18404 RELAYUDP=18405 MACWG=18406 MACUDP=18407 MACPIPE=18408
+# the third root (lab), and the tap on the root links (between the ap's /rootlink and the bridge)
+LABP=18409 LABWG=18410 LABUDP=18411 LABPIPE=18412 LABPEER=18413 TAP=18414
 RLSECRET=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
 PEER="peer-$(head -c 12 /dev/urandom | od -An -tx1 | tr -d ' \n')"
 
@@ -89,7 +95,7 @@ env -i PATH="$PATH" HOME="$STATE/home" YGG_UPSTREAM_BASE_URL="http://127.0.0.1:$
   YGG_ARTIFACTS_DIR="$STATE/home/artifacts" YGG_DATA_DIR="$STATE/home/data" \
   YGG_PROFILES="$STATE/home/agents.json" YGG_PROJECT_DIR="$STATE/home/work" \
   YGG_LISTEN="127.0.0.1:$HOMEP" YGG_ROOT_NAME=home YGG_PEER_TOKEN="$PEER" \
-  YGG_PEERS_FROM="http://127.0.0.1:$HUBWG/_wg" YGG_PEERS_VIA="http://127.0.0.1:$HUBWG/_wg/{id}" \
+  YGG_PEERS_FROM="http://127.0.0.1:$HUBWG/_wg/_roots" YGG_PEERS_VIA="http://127.0.0.1:$HUBWG/_wg/{id}" \
   "$YGG_BIN" >>"$STATE/home.log" 2>&1 &
 pids+=($!)
 echo $! >"$STATE/home.pid"
@@ -140,8 +146,12 @@ url = "wss://$AP_HOST/ap"
 pin = "$PIN"
 token = "$APTOK"
 upstream = "127.0.0.1:$APP"
+rootlink = "127.0.0.1:$TAP"
 TOML
 chmod 600 "$STATE/bridge.toml"
+# every /rootlink stream the ap hands over passes the tap first: what the VPS and the bridge see
+python3 "$ROOT/sim/rootlink_tap.py" --listen "$TAP" --upstream "$RL" --out "$STATE/tap" >"$STATE/tap.log" 2>&1 &
+pids+=($!)
 "$BIN" bridge -c "$STATE/bridge.toml" >"$STATE/bridge.log" 2>&1 &
 pids+=($!)
 
@@ -202,7 +212,8 @@ PW_AP_URL="$AP_URL" PW_AP_IP="$AP_IP" PW_BASE_URL="http://127.0.0.1:$APP" PW_STA
   PW_PEER_PORT="$PEERP" PW_MOCK="http://127.0.0.1:$MOCK" PW_FAR="$FAR" PW_YGG_BIN="$YGG_BIN" \
   PW_CAFILE="$STATE/tls/cert.pem" PW_PEER_TOKEN="$PEER" \
   PW_HUBWG="http://127.0.0.1:$HUBWG" PW_NET_BIN="$BIN" PW_MAC_WG="$MACWG" PW_MAC_WG_UDP="$MACUDP" \
-  PW_MAC_PIPE="$MACPIPE" \
+  PW_MAC_PIPE="$MACPIPE" PW_FAR2=203.0.113.10 PW_LAB_PORT="$LABP" PW_LAB_WG="$LABWG" PW_LAB_WG_UDP="$LABUDP" \
+  PW_LAB_PIPE="$LABPIPE" PW_LAB_PEER="$LABPEER" PW_TAP="$STATE/tap" \
   npx playwright test e2e/trunk-full.spec.ts --reporter=list 2>&1 | tee "$STATE/e2e.log"
 rc=${PIPESTATUS[0]}
 set -e

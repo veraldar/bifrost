@@ -43,6 +43,14 @@ import {
  *     makes MAIN run session_start with
  *     root = the joined root → the session runs on that root's brain → its report comes home
  *     → the phone sees MAIN come back and the tree row on that root done with MAC-DONE
+ *  4e a third machine (lab, its own address) joins the same way: QR, the phone sees the code and
+ *     its tunnel key, approves → it links
+ *  4f mac and lab learn each other from the hub's directory (inside their tunnels) — their
+ *     brains too (YGG_PEERS_FROM = their node's list), no restart
+ *  4g mac ↔ lab call each other through the hub's relay: MAIN on mac runs a session on lab and
+ *     lab's report comes back to mac
+ *  4h a tap where the ap hands the root links to the hub's bridge: the frames between mac and
+ *     lab are WireGuard, nothing of the brief or the report is readable
  *   5 the phone names the joined root itself: POST /branch {root} through the ap (its own
  *     device token, its own region) → answered by the joined root's brain
  *   6 the box console revokes the phone → its next calls through the ap are refused, and the
@@ -69,6 +77,11 @@ const HUBWG = process.env.PW_HUBWG || '';
 const NET_BIN = process.env.PW_NET_BIN || '';
 const MAC_WG = process.env.PW_MAC_WG || '';
 const MACWG = `http://127.0.0.1:${MAC_WG}`;
+/** the third root (lab) and the tap on the root links */
+const LAB = `http://127.0.0.1:${process.env.PW_LAB_PORT || ''}`;
+const LABWG = `http://127.0.0.1:${process.env.PW_LAB_WG || ''}`;
+const LABST = join(STATE, 'lab');
+const TAPDIR = process.env.PW_TAP || '';
 const MACST = join(STATE, 'mac');
 const JOINER = resolve(__dirname, '../../sim/trunk-full-joiner.py');
 
@@ -320,6 +333,7 @@ test('trunk full: phone ↔ ap ↔ hub ↔ joined root — pair, talk, join, del
   let deviceId = '';
   let rootId = '';
   let joiner: ChildProcess | null = null;
+  let joiner2: ChildProcess | null = null;
   let accessToken = '';
 
   try {
@@ -740,6 +754,174 @@ test('trunk full: phone ↔ ap ↔ hub ↔ joined root — pair, talk, join, del
       }
     );
 
+    // ---------------------------------------------------------------- 4e-4h a third root
+    let J2: J = {};
+    await step(
+      '4e',
+      'a third machine (lab) joins: the phone sees its code + tunnel key, approves; it links',
+      async () => {
+        const out = openSync(join(STATE, 'joiner-lab.log'), 'a');
+        joiner2 = spawn(
+          'python3',
+          [
+            JOINER,
+            '--state',
+            LABST,
+            '--hub',
+            AP,
+            '--cafile',
+            CAFILE,
+            '--from',
+            process.env.PW_FAR2 || '',
+            '--name',
+            'lab',
+            '--os',
+            'linux',
+            '--host',
+            'lab.local',
+            '--brain-bin',
+            YGG_BIN,
+            '--mock-url',
+            MOCK,
+            '--brain-port',
+            process.env.PW_LAB_PORT || '',
+            '--peer-port',
+            process.env.PW_LAB_PEER || '',
+            '--net-bin',
+            NET_BIN,
+            '--wg-port',
+            process.env.PW_LAB_WG || '',
+            '--wg-udp',
+            process.env.PW_LAB_WG_UDP || '',
+            '--wg-pipe',
+            process.env.PW_LAB_PIPE || '',
+          ],
+          { stdio: ['ignore', out, out] }
+        );
+        await expect
+          .poll(() => existsSync(join(LABST, 'join.json')), { timeout: 30_000 })
+          .toBe(true);
+        J2 = JSON.parse(readFileSync(join(LABST, 'join.json'), 'utf8'));
+        await phone.goto(String(J2.approve_url));
+        await expect(phone.getByTestId('join-code')).toHaveText(String(J2.code));
+        await expect(phone.getByTestId('join-wg-fp')).toHaveText(String(J2.wg_fp));
+        await phone.getByTestId('join-approve').tap();
+        await expect(phone.getByTestId('join-status')).toContainText('lab', { timeout: 20_000 });
+        await expect.poll(() => existsSync(join(LABST, 'linked')), { timeout: 40_000 }).toBe(true);
+        expect(existsSync(join(LABST, 'error'))).toBe(false);
+        const reg = JSON.parse(readFileSync(join(STATE, 'roots.json'), 'utf8'));
+        expect(reg.roots.find((r: J) => r.id === 'lab')?.wg_pub).toBe(J2.wg_pub);
+      }
+    );
+
+    await step(
+      '4f',
+      'mac and lab learn each other from the hub directory, and so do their brains',
+      async () => {
+        const ids = async (base: string) =>
+          ((await brain(base, '/_wg/_roots')).body as unknown as J[]).map((p) => p.id);
+        await expect.poll(() => ids(MACWG), { timeout: 30_000 }).toEqual(['lab']);
+        await expect.poll(() => ids(LABWG), { timeout: 30_000 }).toEqual([rootId]);
+        // their brains learn the other root from their node (YGG_PEERS_FROM), no restart
+        await expect
+          .poll(async () => ((await brain(MAC, '/root')).body.peers as string[]) || [], {
+            timeout: 30_000,
+          })
+          .toContain('lab');
+        await expect
+          .poll(async () => ((await brain(LAB, '/root')).body.peers as string[]) || [], {
+            timeout: 30_000,
+          })
+          .toContain(rootId);
+        // the hub brain learned it too (two roots now)
+        await expect
+          .poll(async () => ((await brain(HOME, '/root')).body.peers as string[]) || [], {
+            timeout: 20_000,
+          })
+          .toEqual([rootId, 'lab']);
+      }
+    );
+
+    await step(
+      '4g',
+      'mac and lab call each other through the hub relay: a session on lab reports to mac',
+      async () => {
+        const there = await brain(MACWG, '/_wg/lab/root');
+        expect(there.status).toBe(200);
+        expect(there.body.name).toBe('lab');
+        const back = await brain(LABWG, `/_wg/${rootId}/root`);
+        expect(back.status).toBe(200);
+        expect(back.body.name).toBe(rootId);
+        // MAIN on mac starts a session on lab; lab's report comes home to mac
+        const post = (base: string, path: string, body: unknown) =>
+          new Promise<J>((done, fail) => {
+            const data = JSON.stringify(body);
+            const req = http.request(
+              `${base}${path}`,
+              { method: 'POST', headers: { 'content-type': 'application/json' }, timeout: 90_000 },
+              (res) => {
+                let text = '';
+                res.setEncoding('utf8');
+                res.on('data', (c) => (text += c));
+                res.on('end', () => done(JSON.parse(text || '{}') as J));
+              }
+            );
+            req.on('error', fail);
+            req.end(data);
+          });
+        const main = await post(MAC, '/session', { title: '[MAIN]' });
+        await post(MAC, `/session/${main.id}/message`, {
+          parts: [
+            {
+              type: 'text',
+              text: tool([
+                [
+                  'session_start',
+                  {
+                    title: 'on lab',
+                    agent: 'build',
+                    brief: 'Reply with exactly: LAB-DONE',
+                    root: 'lab',
+                  },
+                ],
+              ]),
+            },
+          ],
+        });
+        await expect
+          .poll(async () => (await treeOf(MAC))['on lab']?.card?.status, { timeout: 60_000 })
+          .toBe('done');
+        expect(String((await treeOf(MAC))['on lab'].card?.headline)).toContain('LAB-DONE');
+        expect(Object.keys(await treeOf(LAB))).toContain('on lab');
+      }
+    );
+
+    await step(
+      '4h',
+      "the hub's bridge saw only WireGuard between mac and lab (a tap where the ap hands it over)",
+      async () => {
+        const frames = readFileSync(join(TAPDIR, 'frames.jsonl'), 'utf8')
+          .trim()
+          .split('\n')
+          .map((l) => JSON.parse(l) as J);
+        const pair = frames.filter(
+          (f) =>
+            [rootId, 'lab'].includes(String(f.root)) &&
+            f.op === 2 &&
+            [rootId, 'lab'].includes(String(f.addr))
+        );
+        expect(pair.length).toBeGreaterThan(20);
+        expect(pair.filter((f) => f.kind === null)).toEqual([]);
+        expect(pair.filter((f) => f.kind === 'data').length).toBeGreaterThan(10);
+        // no plaintext brain op on either root's link, and nothing of the brief or the report readable
+        const ops = frames.filter((f) => [rootId, 'lab'].includes(String(f.root)) && f.op === 1);
+        expect(ops.filter((f) => f.text_op === 'http' || f.text_op === 'http.reply')).toEqual([]);
+        const seen = readFileSync(join(TAPDIR, 'payload.bin'));
+        for (const needle of ['LAB-DONE', 'Reply with exactly: LAB-DONE', 'on lab', 'MAC-DONE'])
+          expect(seen.includes(Buffer.from(needle)), needle).toBe(false);
+      }
+    );
+
     // ---------------------------------------------------------------- 5 phone names the root
     await step(
       '5',
@@ -825,6 +1007,12 @@ test('trunk full: phone ↔ ap ↔ hub ↔ joined root — pair, talk, join, del
         expect(readFileSync(join(STATE, 'wg-hub.log'), 'utf8')).toContain(
           `peer '${rootId}' REMOVED`
         );
+        // the phone approved lab too: mac and lab lose each other once the hub stops vouching
+        // (their copy of the directory goes stale: 20 s)
+        await expect
+          .poll(async () => (await brain(MACWG, '/_wg/_roots')).body, { timeout: 40_000 })
+          .toEqual([]);
+        expect((await brain(MACWG, '/_wg/lab/root')).status).toBe(502);
       }
     );
   } finally {
@@ -833,6 +1021,7 @@ test('trunk full: phone ↔ ap ↔ hub ↔ joined root — pair, talk, join, del
       expect(offAp, [...reached].join(' ')).toEqual([]);
     });
     if (joiner) (joiner as ChildProcess).kill('SIGTERM');
+    if (joiner2) (joiner2 as ChildProcess).kill('SIGTERM');
     await Promise.all([desk.close(), phoneCtx.close(), freshCtx.close()]);
   }
   expect(failed, `failed steps: ${failed.join(' ')}`).toEqual([]);

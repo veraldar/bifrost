@@ -43,7 +43,7 @@ pub struct Profile {
     pub fold: bool,
     pub sessions: bool,
     pub rules: Vec<Rule>,
-    /// another agent harness runs this session's turns (`claude` | `opencode` | `codex`)
+    /// another agent harness runs this session's turns (`claude` | `opencode` | `codex` | `gemini`)
     pub harness: Option<String>,
     /// the role text for lite-tier models (short, few rules); `None` = the full prompt
     pub prompt_lite: Option<String>,
@@ -240,7 +240,7 @@ pub fn builtins() -> Vec<Profile> {
         build,
         fix,
         p("research", "reads, fetches and compares; answers with evidence", RESEARCH_PROMPT, 60, false, false, allow_all()),
-        // few agents (user 11-13: "too many agent types"; fix asked for 11-13); opencode / codex stay a harness choice
+        // few agents (user 11-13: "too many agent types"; fix asked for 11-13); opencode / codex / gemini stay a harness choice
         // for agents you make in the editor
         review_profile(),
         harness_profile("AGI", "claude", Some("opus"), "the strongest: Claude Code on Opus — hard, long, multi-file work"),
@@ -487,8 +487,8 @@ impl Profiles {
             }
             p.harness = match h {
                 "root" | "" => None,
-                "claude" | "opencode" | "codex" => Some(h.into()),
-                other => return Err(format!("unknown harness {other:?} (root | claude | opencode | codex)")),
+                "claude" | "opencode" | "codex" | "gemini" => Some(h.into()),
+                other => return Err(format!("unknown harness {other:?} (root | claude | opencode | codex | gemini)")),
             };
         }
         if let Some(d) = body["description"].as_str() {
@@ -868,6 +868,12 @@ mod tests {
         assert!(t.check("bash", &json!({"command": "pytest"})).is_ok() && t.check("write", &json!({"filePath": "x"})).is_err());
         assert!(ps.upsert("bad name!", &json!({})).is_err());
         assert!(ps.upsert("x", &json!({"harness": "emacs"})).is_err());
+        // Google's harness, offered like Claude Code's and Codex's: description + model, its own tools
+        ps.upsert("gem", &json!({"harness": "gemini", "model": "gemini-3.5-flash"})).unwrap();
+        let g = ps.detail("gem").unwrap();
+        assert_eq!(g["harness"], "gemini");
+        assert_eq!(g["customizable"], json!(["description", "model"]));
+        assert!(ps.remove("gem").is_ok());
         let again = Profiles::load(f.to_str());
         assert_eq!(again.get("tester").unwrap().model.as_deref(), Some("glm-5.3"));
         assert_eq!(again.get("coordinator").unwrap().model.as_deref(), Some("glm-5.2"));

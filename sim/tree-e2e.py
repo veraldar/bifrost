@@ -83,7 +83,8 @@ def main():
         for name, port, other, oport in (("home", HOME_PORT, "lab", LAB_PORT), ("lab", LAB_PORT, "home", HOME_PORT)):
             d = os.path.join(tmp, name)
             os.makedirs(os.path.join(d, "work"))
-            extra = {"YGG_EXTENSIONS": f"librarian=http://127.0.0.1:{LIB_PORT}"} if name == "home" else {}
+            # home reads Claude Code's sessions from a scratch config dir (one fake terminal session)
+            extra = {"YGG_EXTENSIONS": f"librarian=http://127.0.0.1:{LIB_PORT}", "CLAUDE_CONFIG_DIR": os.path.join(tmp, "claude")} if name == "home" else {}
             unit(f"tree-e2e-{name}", [a.bin], dict(base, YGG_LISTEN=f"127.0.0.1:{port}", YGG_DATA_DIR=os.path.join(d, "data"), YGG_PROFILES=os.path.join(d, "agents.json"),
                  YGG_PROJECT_DIR=os.path.join(d, "work"), YGG_ROOT_NAME=name, YGG_PEERS=f"{other}=http://127.0.0.1:{oport}", **extra))
         check("brains up", wait(lambda: req(HOME_PORT, "GET", "/root") and req(LAB_PORT, "GET", "/root"), 10))
@@ -204,6 +205,40 @@ def main():
             check("…and only within Claude's models", e.code == 400, e.code)
         agi2 = req(HOME_PORT, "GET", "/agent/AGI")
         check("model labels for the picker", agi2["model_labels"]["claude"]["opus"].startswith("strongest"), agi2.get("model_labels", {}).get("claude"))
+
+        # 6c. continue a Claude Code session from the phone: the list (metadata only), attach, refusals
+        cc_id, cc_cwd = "0f1e2d3c-4b5a-4968-8776-655443322110", os.path.join(tmp, "home", "work", "proj")
+        os.makedirs(cc_cwd)
+        pdir = os.path.join(tmp, "claude", "projects", "".join(c if c.isascii() and c.isalnum() else "-" for c in cc_cwd))
+        os.makedirs(pdir)
+        lines = [{"type": "user", "cwd": cc_cwd, "sessionId": cc_id, "message": {"role": "user", "content": "remember the word walrus; reply ok"}},
+                 {"type": "assistant", "cwd": cc_cwd, "message": {"content": [{"type": "text", "text": "ok"}]}},
+                 {"type": "user", "cwd": cc_cwd, "message": {"role": "user", "content": [{"type": "tool_result", "content": "TOOL-OUTPUT-NEVER-LISTED"}]}}]
+        with open(os.path.join(pdir, cc_id + ".jsonl"), "w") as f:
+            f.writelines(json.dumps(l) + "\n" for l in lines)
+        listed = req(HOME_PORT, "GET", "/harness/claude/sessions")
+        row = next((r for r in listed if r["id"] == cc_id), None)
+        check("Claude Code's sessions are listed: id, cwd, modified, title", row and row["cwd"] == cc_cwd and row["title"] == "remember the word walrus; reply ok" and row["modified"] > 0 and set(row) == {"id", "cwd", "modified", "title"}, row)
+        check("…metadata only, no transcript content", "TOOL-OUTPUT" not in json.dumps(listed) and '"ok"' not in json.dumps(listed))
+        att = req(HOME_PORT, "POST", "/session", {"agent": "AGI", "harness": {"id": cc_id}, "cwd": cc_cwd})
+        check("attach: an AGI session holding the terminal's conversation", att["agent"] == "AGI" and att["harness"] == {"kind": "claude", "id": cc_id, "attached": True} and att["cwd"] == cc_cwd, (att.get("agent"), att.get("harness"), att.get("cwd")))
+        check("attach: titled after it · Claude Code", att["title"] == "remember the word walrus; reply ok · Claude Code", att["title"])
+        for name, body in (("a non-uuid id", {"harness": {"id": "../../etc/passwd"}, "cwd": cc_cwd}),
+                           ("a folder that does not exist", {"harness": {"id": cc_id}, "cwd": cc_cwd + "-gone"}),
+                           ("a session not started in that folder", {"harness": {"id": cc_id}, "cwd": os.path.join(tmp, "home", "work")}),
+                           ("an agent that does not run on Claude Code", {"agent": "build", "harness": {"id": cc_id}, "cwd": cc_cwd})):
+            try:
+                req(HOME_PORT, "POST", "/session", body)
+                check(f"attach refuses {name}", False, "accepted")
+            except urllib.error.HTTPError as e:
+                msg = json.loads(e.read() or b"{}").get("error", "")
+                check(f"attach refuses {name} (400, said plainly)", e.code == 400 and len(msg) > 20, (e.code, msg))
+
+        # 6d. Google's harness next to Claude Code's and Codex's: an agent on Gemini CLI
+        gem = req(HOME_PORT, "PUT", "/agent/gem", {"harness": "gemini", "description": "Gemini CLI"})
+        check("an agent can run on Gemini CLI", gem["harness"] == "gemini" and gem["customizable"] == ["description", "model"], (gem.get("harness"), gem.get("customizable")))
+        check("the editor gets Gemini CLI's model list", "gemini" in gem["models_by_harness"], list(gem.get("models_by_harness", {})))
+        req(HOME_PORT, "DELETE", "/agent/gem")
         try:
             req(HOME_PORT, "PUT", "/agent/coordinator", {"tools": {"bash": True}})
             check("the coordinator's tools are locked", False, "accepted")

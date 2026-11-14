@@ -47,8 +47,48 @@ you ⇄ [MAIN] coordinator            the transcript you read: only you + MAIN
   `/tree/report` home; reading or talking to the proxy (tree tools or the phone) forwards.
   `GET /root` describes a root; the door's `[roots]` view lists them so work goes where the
   hardware fits. Transport-agnostic: tailnet, an SSH line, or the bifrost-net trunk.
-- **Harness sessions**: the turn runs `claude -p` / `opencode run` / `codex exec`
+- **Harness sessions**: the turn runs `claude -p` / `opencode run` / `codex exec` / `gemini`
   non-interactively, resuming the harness's own session (`info.harness.id`).
+
+## Continue a Claude Code session from the phone (11-13)
+
+`GET /harness/claude/sessions` lists the newest 20 Claude Code sessions on this box
+(`~/.claude/projects/*/*.jsonl`, or `$CLAUDE_CONFIG_DIR`): `{id, cwd, modified, title}` — read from
+metadata lines only (the transcript's `cwd`; custom-title › newest ai-title › summary › the first line
+the owner typed, ≤80 chars, never tool output). `POST /session {agent:"AGI", harness:{id}, cwd}`
+attaches one: the agent must run on Claude Code, the id must be a uuid, `cwd` must exist on this root
+and `~/.claude/projects/<cwd mangled>/<id>.jsonl` must be there — else 400 saying which. The session is
+`info.harness = {kind:"claude", id, attached:true}` + `info.cwd`, titled "<title, 40> · Claude Code".
+
+Its turns (`harness.rs` `Attach`): the first is `claude -p --resume <id> --fork-session`, so the
+terminal's transcript is never written; the fork's id replaces `harness.id` (`forked:true`,
+`origin:<id>`) and later turns `--resume` the fork. An attached session ALWAYS runs
+`--permission-mode auto`, never `--dangerously-skip-permissions` — the owner's guard stays on when a
+guarded conversation continues from the phone. Sessions the brain started itself are unchanged.
+Phone: + new session → "continue a Claude Code session…" → tap one → an [AGI] session.
+
+## Gemini CLI — Google's harness (11-13)
+
+An agent can run on `gemini` like on `claude` / `codex` (agent editor → runs on → Gemini CLI; no
+built-in agent). Turn: `gemini --output-format stream-json --approval-mode yolo --skip-trust
+[--model m] [--resume <session uuid>]` in the session's folder, the prompt on stdin (headless).
+Models: `gemini models --output-format json` at startup (`auto`, `gemini-2.5-pro`,
+`gemini-3.5-flash`, `gemini-3.1-flash-lite` on 0.68.0). Stream: init(session_id) · message(assistant
+`delta` chunks) · tool_use · tool_result · error(severity) · result(status) — fixtures in
+`fixtures/gemini/` (the success stream is from the CLI's source, not seen live: not signed in here).
+
+**Install** (no sudo): `mkdir -p ~/.cache/tmp && TMPDIR=~/.cache/tmp mise use -g gemini`. Plain `mise use -g gemini` failed
+("lifecycle script install failed for node-pty@1.0.0") because /tmp is at this user's tmpfs quota
+(usrquota, ~44 MB left on 11-13): node-gyp could not unpack Node's headers there to build node-pty
+(EDQUOT, errno 122). The preview brain gets it on PATH from `preview-up.sh` (mise's
+`gemini/latest/node_modules/.bin` + `node/latest/bin`) and `~/.gemini` bound in.
+
+**Sign-in** — until then every turn ends with the session error "Gemini CLI is not signed in — …":
+1. an API key: a `GEMINI_API_KEY=<key>` line in the brain's environment (live: its EnvironmentFile
+   `~/.config/yggdrasil/yggdrasil.env`; preview: `GEMINI_API_KEY=<key> lab/root-sim/preview-up.sh`,
+   kept on later restarts), then restart the brain; or
+2. a one-time Google sign-in: run `gemini` in a terminal, choose "Login with Google", finish in the
+   browser; the CLI keeps it in `~/.gemini`, which the brain shares.
 
 ## Extensions (outside the core)
 
@@ -95,7 +135,7 @@ thinking off.
 
 What used to be "profiles" is one concept, **agents**. Every agent runs on a harness: `root` (this brain:
 model, thinking, system prompt, tools, steps, manages-sessions are all customizable) or `claude` /
-`opencode` / `codex` (description + model; Claude Code also takes extra instructions via
+`opencode` / `codex` / `gemini` (description + model; Claude Code also takes extra instructions via
 `--append-system-prompt`). Built in: coordinator (MAIN's alone, tools locked), lead, build, fix, research,
 review (read-only; writes only its report), **AGI** (Claude Code on Opus). `GET /agent/:name` is the editor's
 detail (incl. `customizable`, `locked`, `models`); `PUT /agent/:name` creates or edits (partial body,
@@ -104,6 +144,6 @@ stamps the agent's model + thinking (+ harness); the model can be changed afterw
 
 ## Endpoints added
 
-`GET /tree` · `GET /root` · `GET/PUT /shared-prompt` · `GET /extensions` · `GET /session/:id/inbox` · `POST /session/:id/close` · `GET/PUT/DELETE /agent/:name` ·
+`GET /tree` · `GET /root` · `GET /harness/claude/sessions` · `GET/PUT /shared-prompt` · `GET /extensions` · `GET /session/:id/inbox` · `POST /session/:id/close` · `GET/PUT/DELETE /agent/:name` ·
 `POST /tree/report` (peer token). `POST /session` takes `agent`, `model`, `variant`,
-`report_to`. `GET /agent` lists the profiles.
+`report_to`, and `harness:{id}` + `cwd` (continue a Claude Code session). `GET /agent` lists the profiles.

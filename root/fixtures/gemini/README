@@ -1,0 +1,9 @@
+Gemini CLI 0.68.0 stream-json (`gemini --output-format stream-json`), for src/harness.rs.
+
+bad-key.stream.jsonl     REAL, captured 11-13 with GEMINI_API_KEY=not-a-real-key: init → user
+                         message → result {status:"error", error:{type,message}}; exit 144.
+signed-out.stderr.txt    REAL, captured 11-13 with no auth at all: nothing on stdout, this on
+                         stderr, exit 41 (FatalAuthenticationError). Home path shortened to ~.
+documented.stream.jsonl  NOT seen live (the CLI is not signed in on this box): a successful turn
+                         with a tool call, written from the CLI's own emit sites
+                         (bundle nonInteractiveCli: INIT/MESSAGE delta/TOOL_USE/TOOL_RESULT/RESULT).

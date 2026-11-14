@@ -43,7 +43,7 @@ pub struct Profile {
     pub fold: bool,
     pub sessions: bool,
     pub rules: Vec<Rule>,
-    /// another agent harness runs this session's turns (`claude` | `opencode` | `codex`)
+    /// another agent harness runs this session's turns (`claude` | `opencode` | `codex` | `antigravity`)
     pub harness: Option<String>,
     /// the role text for lite-tier models (short, few rules); `None` = the full prompt
     pub prompt_lite: Option<String>,
@@ -240,7 +240,7 @@ pub fn builtins() -> Vec<Profile> {
         build,
         fix,
         p("research", "reads, fetches and compares; answers with evidence", RESEARCH_PROMPT, 60, false, false, allow_all()),
-        // few agents (user 11-13: "too many agent types"; fix asked for 11-13); opencode / codex stay a harness choice
+        // few agents (user 11-13: "too many agent types"; fix asked for 11-13); opencode / codex / antigravity stay a harness choice
         // for agents you make in the editor
         review_profile(),
         harness_profile("AGI", "claude", Some("opus"), "the strongest: Claude Code on Opus — hard, long, multi-file work"),
@@ -411,7 +411,14 @@ impl Profiles {
                 p.sessions = b;
             }
             if let Some(h) = a["harness"].as_str() {
+                // Gemini CLI is gone (11-14): an agent saved on it runs on Antigravity, Google's
+                // harness now, keeping its model only when agy runs that model too
+                let legacy = h == "gemini";
+                let h = if legacy || h == "agy" { "antigravity" } else { h };
                 p.harness = Some(h.into()).filter(|h: &String| !h.is_empty() && h != "root");
+                if legacy {
+                    p.model = p.model.take().filter(|m| crate::harness::antigravity::carry_model(m));
+                }
             }
             // The coordinator's tool scope is the brain's contract (it routes, it does not
             // write); a file entry may describe it but not widen it.
@@ -487,8 +494,9 @@ impl Profiles {
             }
             p.harness = match h {
                 "root" | "" => None,
-                "claude" | "opencode" | "codex" => Some(h.into()),
-                other => return Err(format!("unknown harness {other:?} (root | claude | opencode | codex)")),
+                "claude" | "opencode" | "codex" | "antigravity" => Some(h.into()),
+                "agy" => Some("antigravity".into()),
+                other => return Err(format!("unknown harness {other:?} (root | claude | opencode | codex | antigravity)")),
             };
         }
         if let Some(d) = body["description"].as_str() {
@@ -854,6 +862,27 @@ mod tests {
     }
 
     #[test]
+    fn a_gemini_agent_loads_on_antigravity() {
+        let dir = std::env::temp_dir().join(format!("ygg-agents-gem-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let f = dir.join("agents.json");
+        std::fs::write(&f, r#"{"agent":{"gem":{"harness":"gemini","model":"gemini-3.5-flash","description":"Google"},
+            "gem2":{"harness":"gemini","model":"gemini-3.8-flash"},"agy2":{"harness":"agy"}}}"#).unwrap();
+        let mut ps = Profiles::load(f.to_str());
+        let g = ps.get("gem").unwrap();
+        assert_eq!(g.harness.as_deref(), Some("antigravity"));
+        assert_eq!(g.model, None, "a Gemini CLI model agy does not run: agy's own pick");
+        assert_eq!(g.description, "Google");
+        assert_eq!(ps.get("gem2").unwrap().model.as_deref(), Some("gemini-3.8-flash"));
+        assert_eq!(ps.get("agy2").unwrap().harness.as_deref(), Some("antigravity"));
+        // the next edit saves it as antigravity
+        ps.upsert("gem", &json!({"description": "Google's"})).unwrap();
+        let raw: Value = serde_json::from_slice(&std::fs::read(&f).unwrap()).unwrap();
+        assert_eq!(raw["agent"]["gem"]["harness"], "antigravity");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn edit_create_delete_persist() {
         let dir = std::env::temp_dir().join(format!("ygg-agents-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
@@ -868,6 +897,13 @@ mod tests {
         assert!(t.check("bash", &json!({"command": "pytest"})).is_ok() && t.check("write", &json!({"filePath": "x"})).is_err());
         assert!(ps.upsert("bad name!", &json!({})).is_err());
         assert!(ps.upsert("x", &json!({"harness": "emacs"})).is_err());
+        // Google's harness, offered like Claude Code's and Codex's: description + model, its own tools
+        ps.upsert("agy1", &json!({"harness": "antigravity", "model": "gemini-3.8-flash-low"})).unwrap();
+        let g = ps.detail("agy1").unwrap();
+        assert_eq!(g["harness"], "antigravity");
+        assert_eq!(g["customizable"], json!(["description", "model"]));
+        assert!(ps.remove("agy1").is_ok());
+        assert!(ps.upsert("gem", &json!({"harness": "gemini"})).is_err(), "Gemini CLI is no longer a harness");
         let again = Profiles::load(f.to_str());
         assert_eq!(again.get("tester").unwrap().model.as_deref(), Some("glm-5.3"));
         assert_eq!(again.get("coordinator").unwrap().model.as_deref(), Some("glm-5.2"));

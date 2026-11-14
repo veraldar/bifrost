@@ -29,7 +29,18 @@ export async function ocFetch(path: string, init?: RequestInit) {
     dispatcher: ocAgent,
   } as Parameters<typeof undiciFetch>[1]);
   console.log(`[oc] ${init?.method || 'GET'} ${path} → ${r.status} ${Date.now() - t0}ms`);
-  if (!r.ok) throw new Error(`opencode ${r.status} on ${path}`);
+  if (!r.ok) {
+    // the brain says why ({error}): kept on the error for whoever shows it (a failed run's reason,
+    // e.g. "Antigravity is not signed in"); the message stays the same for everything else
+    const why = await r
+      .json()
+      .then((d) => {
+        const e = (d as { error?: unknown } | null)?.error;
+        return typeof e === 'string' ? e : '';
+      })
+      .catch(() => '');
+    throw Object.assign(new Error(`opencode ${r.status} on ${path}`), { brainError: why });
+  }
   // 204s (v2 switch endpoints) have no body — null, not a JSON parse error
   const text = await r.text();
   return text ? JSON.parse(text) : null;

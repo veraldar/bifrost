@@ -5,6 +5,7 @@
  * Routes:
  *   GET    /api/session                 → enriched session list (title + preview, cached 60s)
  *   POST   /api/session                 → {name} create session (title = name)
+ *                                          {attach: {id, cwd}} continue a Claude Code session
  *   GET    /api/session/[id]/messages   → transcript
  *   POST   /api/session/[id]/prompt     → {text, images?: string[](dataURL), files?: {name, content}[]}
  *   DELETE /api/session/[id]            → delete
@@ -164,7 +165,25 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { name } = await req.json();
+    const body = await req.json();
+    // continue a Claude Code session from the terminal: {attach: {id, cwd}} → an AGI session on
+    // it; the brain checks the id, the folder and the transcript and says plainly what is wrong
+    if (body?.attach?.id) {
+      const r = await fetch(`${OC}/session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agent: 'AGI',
+          harness: { id: String(body.attach.id) },
+          cwd: String(body.attach.cwd || ''),
+        }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) return NextResponse.json({ error: d.error || `brain ${r.status}` }, { status: r.status });
+      bustCache();
+      return NextResponse.json({ id: d.id, title: d.title });
+    }
+    const { name } = body;
     const title = String(name || '').slice(0, 80) || 'session';
     // slug `main` is reserved for THE MAIN session (/api/onboard creates it)
     if (slugify(title) === MAIN_SLUG) {

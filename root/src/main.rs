@@ -689,9 +689,13 @@ fn load_sessions(dir: &std::path::Path) -> HashMap<String, Session> {
         match std::fs::read(&path).map_err(|e| e.to_string()).and_then(|b| {
             serde_json::from_slice::<Session>(&b).map_err(|e| e.to_string())
         }) {
-            Ok(s) => match s.info["id"].as_str() {
+            Ok(mut s) => match s.info["id"].as_str().map(String::from) {
                 Some(id) => {
-                    out.insert(id.to_string(), s);
+                    // a session saved on Gemini CLI (gone 11-14) continues on Antigravity
+                    if harness::migrate_session(&mut s.info) {
+                        persist(dir, &id, &s);
+                    }
+                    out.insert(id, s);
                 }
                 None => eprintln!("skip {}: no info.id", path.display()),
             },
@@ -795,9 +799,13 @@ fn new_session(st: &AppState, title: &str, parent: Option<&str>, agent: Option<&
 }
 
 /// `POST /session` — body `{title?, parentID?, agent?, model?, variant?}` (opencode accepts an
-/// empty body too; `model` may be a string or `{id}`).
-async fn create_session(State(st): State<AppState>, body: Option<Json<Value>>) -> Json<Value> {
+/// empty body too; `model` may be a string or `{id}`). With `harness: {id}` + `cwd` it continues a
+/// Claude Code conversation started in a terminal (`attach_claude`).
+async fn create_session(State(st): State<AppState>, body: Option<Json<Value>>) -> Response {
     let body = body.map(|Json(b)| b).unwrap_or(Value::Null);
+    if body["harness"]["id"].is_string() {
+        return attach_claude(&st, &body);
+    }
     let title = body["title"].as_str().filter(|t| !t.is_empty()).unwrap_or("New session");
     let model = body["model"].as_str().or(body["model"]["id"].as_str());
     let info = new_session(&st, title, body["parentID"].as_str(), body["agent"].as_str(), model, body["variant"].as_str());
@@ -808,10 +816,63 @@ async fn create_session(State(st): State<AppState>, body: Option<Json<Value>>) -
             s.info["report_to"] = body["report_to"].clone();
             s.info.clone()
         }) {
-            return Json(i);
+            return Json(i).into_response();
         }
     }
-    Json(info)
+    Json(info).into_response()
+}
+
+/// `POST /session {agent?, harness: {id}, cwd}` — a session that continues the owner's own Claude
+/// Code conversation `id` (started in a terminal in `cwd`) with its full context. The agent must run
+/// on Claude Code (default AGI). Its first turn forks the conversation, so the terminal's transcript
+/// is never written; Claude Code's permission guard stays on (harness.rs `Attach`).
+fn attach_claude(st: &AppState, body: &Value) -> Response {
+    let id = body["harness"]["id"].as_str().unwrap_or_default().trim();
+    let agent_name = body["agent"].as_str().unwrap_or("AGI");
+    match agent(st, agent_name) {
+        Some(a) if a.harness.as_deref() == Some("claude") => {}
+        Some(_) => return bad_request(&format!("agent {agent_name} does not run on Claude Code — continue a Claude Code session with AGI or another Claude Code agent")),
+        None => return bad_request(&format!("unknown agent {agent_name}")),
+    }
+    if !harness::claude::is_uuid(id) {
+        return bad_request(&format!("{id:?} is not a Claude Code session id (a uuid like 3f2a9c1e-0b4d-4e8f-9a6b-1c2d3e4f5a6b)"));
+    }
+    let Some(raw) = body["cwd"].as_str().map(str::trim).filter(|c| !c.is_empty()) else {
+        return bad_request("cwd required: the folder the Claude Code session was started in");
+    };
+    let cwd = match raw.trim_end_matches('/') {
+        "" => "/",
+        c => c,
+    };
+    if !std::path::Path::new(cwd).is_absolute() || !std::path::Path::new(cwd).is_dir() {
+        return bad_request(&format!("folder {cwd} does not exist on this root — the Claude Code session runs in the folder it was started in"));
+    }
+    let path = harness::claude::transcript(cwd, id);
+    if !path.is_file() {
+        return bad_request(&format!("no Claude Code session {id} was started in {cwd} (looked for {})", path.display()));
+    }
+    let title = harness::claude::meta(&path).and_then(|m| m["title"].as_str().map(String::from)).unwrap_or_else(|| "Claude Code session".into());
+    let title = format!("{} · Claude Code", title.chars().take(40).collect::<String>().trim_end());
+    let model = body["model"].as_str().or(body["model"]["id"].as_str());
+    let info = new_session(st, &title, body["parentID"].as_str(), Some(agent_name), model, None);
+    let sid = info["id"].as_str().unwrap_or_default().to_string();
+    match with_session(st, &sid, |s| {
+        s.info["harness"] = json!({ "kind": "claude", "id": id, "attached": true });
+        s.info["cwd"] = json!(cwd);
+        s.info.clone()
+    }) {
+        Some(info) => {
+            publish(st, "session.updated", json!({ "info": info }));
+            Json(info).into_response()
+        }
+        None => not_found(&sid),
+    }
+}
+
+/// `GET /harness/claude/sessions` — the newest 20 Claude Code sessions on this box, to continue
+/// one from the phone: `{id, cwd, modified, title}` (metadata only, harness.rs `claude`).
+async fn claude_sessions() -> Json<Value> {
+    Json(Value::Array(tokio::task::spawn_blocking(|| harness::claude::recent(20)).await.unwrap_or_default()))
 }
 
 /// `GET /tree` — every session's tree fields (id, title, parentID, agent, model, card, archived,
@@ -1025,7 +1086,7 @@ async fn switch_model(State(st): State<AppState>, Path(id): Path<String>, Json(b
         return bad_request("model needs id + providerID");
     };
     // a session on a harness picks from that harness's models (providerID = the harness)
-    if matches!(pid, "claude" | "opencode" | "codex") {
+    if matches!(pid, "claude" | "opencode" | "codex" | "antigravity") {
         let on = st.sessions.lock().unwrap().get(&id).and_then(|s| s.info["harness"]["kind"].as_str().map(String::from));
         if on.as_deref() != Some(pid) {
             return bad_request(&format!("this session does not run on {pid}"));
@@ -1181,6 +1242,8 @@ async fn get_agent(State(st): State<AppState>, Path(name): Path<String>) -> Resp
                     .collect::<Vec<_>>(),
                 Some(h) => vec![json!({ "tier": h, "models": [], "text": if h == "claude" {
                     format!("Claude Code brings its own system prompt; this agent adds:\n\n{}", harness_system(&shared, &prof))
+                } else if h == "antigravity" {
+                    format!("Antigravity brings its own system prompt; this agent's first message adds:\n\n{}", harness_system(&shared, &prof))
                 } else {
                     format!("{h} brings its own system prompt (it takes no extra instructions)")
                 } })],
@@ -1188,7 +1251,7 @@ async fn get_agent(State(st): State<AppState>, Path(name): Path<String>) -> Resp
             // the models this agent can pick from: the upstream's for a root agent, else its harness's
             d["models"] = json!(models_for(&st, d["harness"].as_str().unwrap_or("root")));
             // every harness's list, so the editor's picker follows a harness change before saving
-            d["models_by_harness"] = json!(["root", "claude", "opencode", "codex"].iter().map(|h| (h.to_string(), json!(models_for(&st, h)))).collect::<serde_json::Map<_, _>>());
+            d["models_by_harness"] = json!(["root", "claude", "opencode", "codex", "antigravity"].iter().map(|h| (h.to_string(), json!(models_for(&st, h)))).collect::<serde_json::Map<_, _>>());
             d["model_labels"] = json!(st.harness_labels.lock().unwrap().clone());
             Json(d).into_response()
         }
@@ -1230,8 +1293,8 @@ fn models_for(st: &AppState, harness: &str) -> Vec<String> {
 /// Reads each harness's own model list once at startup: `opencode models` (its providers'
 /// `provider/model` ids) and `codex debug models` (its catalog: listed slugs by priority, with
 /// display names). A harness that cannot be read keeps "default" (any id then accepted).
-fn spawn_harness_models(st: &AppState) {
-    let st = st.clone();
+fn spawn_harness_models(app: &AppState) {
+    let st = app.clone();
     tokio::spawn(async move {
         let run = |cmd: &'static str, args: &'static [&'static str]| async move {
             tokio::time::timeout(Duration::from_secs(90), tokio::process::Command::new(cmd).args(args).output())
@@ -1266,6 +1329,21 @@ fn spawn_harness_models(st: &AppState) {
                 st.harness_labels.lock().unwrap().insert("codex".into(), labels);
             }
         }
+    });
+    // `agy models` (`slug<TAB>label` lines; exit 1 when signed out), on its own (it needs no wait
+    // for the others), merged with Google's current models — the floor stays when agy says nothing
+    let st = app.clone();
+    tokio::spawn(async move {
+        let out = tokio::time::timeout(Duration::from_secs(60), tokio::process::Command::new("agy").arg("models").kill_on_drop(true).output())
+            .await
+            .ok()
+            .and_then(Result::ok)
+            .filter(|o| o.status.success())
+            .map(|o| String::from_utf8_lossy(&o.stdout).to_string());
+        let (list, labels) = harness::antigravity::models(out.as_deref(), harness::antigravity::api_key());
+        eprintln!("harness models: antigravity offers {}{}", list.len(), if out.is_some() { "" } else { " (agy did not list: Google's current models)" });
+        st.harness_models.lock().unwrap().insert("antigravity".into(), list);
+        st.harness_labels.lock().unwrap().insert("antigravity".into(), labels);
     });
 }
 
@@ -2072,18 +2150,30 @@ async fn harness_loop(st: &AppState, id: &str, history: Vec<Value>, tx: &mpsc::S
     if prompt.trim().is_empty() {
         return Err("nothing to send".into());
     }
-    let (model, resume, cwd) = {
+    let (model, resume, cwd, dir, h) = {
         let sessions = st.sessions.lock().unwrap();
         let info = sessions.get(id).map(|s| s.info.clone()).unwrap_or_default();
         let model = info["model"]["id"].as_str().filter(|m| *m != "default").map(String::from);
-        let cwd = info["cwd"].as_str().map(PathBuf::from).filter(|p| p.is_dir()).unwrap_or_else(|| st.tools.project_dir.clone());
-        (model, info["harness"]["id"].as_str().map(String::from), cwd)
+        let dir = info["cwd"].as_str().unwrap_or("?").to_string();
+        let cwd = info["cwd"].as_str().map(PathBuf::from).filter(|p| p.is_dir());
+        // only this harness's own session id resumes (another harness's would not be found)
+        let resume = info["harness"]["id"].as_str().filter(|_| info["harness"]["kind"] == kind.name()).map(String::from);
+        (model, resume, cwd, dir, info["harness"].clone())
+    };
+    // a conversation continued from the terminal: guarded always, forked on its first turn here
+    let attached = kind == harness::Kind::Claude && h["attached"] == true;
+    let attach = harness::Attach { guarded: attached, fork: attached && h["forked"] != true };
+    let cwd = match cwd {
+        Some(c) => c,
+        // its folder is where Claude Code finds the conversation: never run it anywhere else
+        None if attached => return Err(format!("the folder this Claude Code session was started in ({dir}) is gone")),
+        None => st.tools.project_dir.clone(),
     };
     // the shared prompt + the agent's own instructions ride on top of the harness's (Claude Code)
     let system = Some(harness_system(&shared_prompt(st), &session_profile(st, id)));
     let _slot = st.harness_slots.acquire().await.map_err(|e| e.to_string())?;
     let (etx, mut erx) = mpsc::unbounded_channel::<harness::Ev>();
-    let fut = harness::run(kind, model.as_deref(), resume.as_deref(), &cwd, &prompt, system.as_deref(), move |ev| {
+    let fut = harness::run(kind, model.as_deref(), resume.as_deref(), &cwd, &prompt, system.as_deref(), attach, move |ev| {
         let _ = etx.send(ev.clone());
     });
     tokio::pin!(fut);
@@ -2098,7 +2188,15 @@ async fn harness_loop(st: &AppState, id: &str, history: Vec<Value>, tx: &mpsc::S
     }
     let out = result?;
     if let Some(sid) = &out.session {
-        with_session(st, id, |s| s.info["harness"] = json!({ "kind": kind.name(), "id": sid }));
+        let next = if attached {
+            // the fork is the session from now on; a turn that did not fork (same id back) forks again
+            let forked = h["forked"] == true || (attach.fork && Some(sid) != resume.as_ref());
+            let origin = h["origin"].as_str().map(String::from).or(resume.clone());
+            json!({ "kind": kind.name(), "id": sid, "attached": true, "forked": forked, "origin": origin })
+        } else {
+            json!({ "kind": kind.name(), "id": sid })
+        };
+        with_session(st, id, |s| s.info["harness"] = next);
     }
     run.text = out.text;
     run.flush_text(None);
@@ -2113,6 +2211,13 @@ async fn harness_event(st: &AppState, id: &str, tx: &mpsc::Sender<Event>, run: &
                 run.first_token_seen = true;
             }
             send_delta(st, id, tx, &format!("{t}\n\n")).await;
+        }
+        harness::Ev::Delta(t) => {
+            if run.first_delta_ms.is_none() {
+                run.first_delta_ms = Some(run.started.elapsed().as_millis() as u64);
+                run.first_token_seen = true;
+            }
+            send_delta(st, id, tx, &t).await;
         }
         harness::Ev::Tool { name, input, output } => {
             let now = now_ms();
@@ -3022,6 +3127,8 @@ async fn main() {
     }
     let max_inflight = env_num("YGG_MAX_INFLIGHT", 6).max(1) as usize;
 
+    // Antigravity's picker before `agy models` answers (or when it cannot): Google's current models
+    let floor_models = harness::antigravity::models(None, harness::antigravity::api_key());
     let state = AppState {
         sessions: Arc::new(Mutex::new(sessions)),
         running: Arc::default(),
@@ -3038,15 +3145,19 @@ async fn main() {
             ("claude".to_string(), vec!["opus".to_string(), "sonnet".to_string(), "haiku".to_string()]),
             ("opencode".to_string(), vec!["default".to_string()]),
             ("codex".to_string(), vec!["default".to_string()]),
+            ("antigravity".to_string(), floor_models.0),
         ]))),
-        harness_labels: Arc::new(Mutex::new(HashMap::from([(
-            "claude".to_string(),
-            HashMap::from([
-                ("opus".to_string(), "strongest — hard, long work".to_string()),
-                ("sonnet".to_string(), "balanced — most coding".to_string()),
-                ("haiku".to_string(), "fastest — small, quick tasks".to_string()),
-            ]),
-        )]))),
+        harness_labels: Arc::new(Mutex::new(HashMap::from([
+            (
+                "claude".to_string(),
+                HashMap::from([
+                    ("opus".to_string(), "strongest — hard, long work".to_string()),
+                    ("sonnet".to_string(), "balanced — most coding".to_string()),
+                    ("haiku".to_string(), "fastest — small, quick tasks".to_string()),
+                ]),
+            ),
+            ("antigravity".to_string(), floor_models.1),
+        ]))),
     };
     if !interrupted.is_empty() {
         eprintln!("restart: closed {} run(s) the previous process left open", interrupted.len());
@@ -3065,6 +3176,7 @@ async fn main() {
         .route("/shared-prompt", get(get_shared).put(put_shared))
         .route("/extensions", get(|State(st): State<AppState>| async move { Json(st.config.ext.describe()) }))
         .route("/agent/{name}", get(get_agent).put(put_agent).delete(delete_agent))
+        .route("/harness/claude/sessions", get(claude_sessions))
         .route("/event", get(events))
         .route("/tree", get(get_tree))
         .route("/tree/report", post(tree_report))

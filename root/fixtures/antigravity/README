@@ -1,0 +1,25 @@
+Antigravity CLI (`agy`) 1.5.9 — every file here is REAL output, captured 11-14 on this tree's
+computer from ~/.local/bin/agy (signed in with the owner's Google account), for src/harness.rs.
+The turns ran as the brain runs them: `agy --input-format stream-json --output-format stream-json
+[--model m] [--conversation id] --dangerously-skip-permissions`, one NDJSON user line on stdin.
+
+help-1.5.9.txt              `agy --help`
+pong.stream.jsonl           a one-word turn (gemini-3.8-flash-low): init → step_update(user_input) →
+                            agent_response text_delta chunks (ACTIVE…DONE) → result SUCCESS
+tools.stream.jsonl          a turn with two tools (run_command `ls`, read_file): each tool step comes
+                            ACTIVE (parameters) then DONE (+ output); permission_mode always-proceed
+tool-error.stream.jsonl     text → a failing read_file (state ERROR, tool_info.error {type,message})
+                            → text; result.response joins every text step
+resume.stream.jsonl         `--conversation <pong's id>`: the same conversation_id, and it remembered
+unknown-model.stream.jsonl  `--model no-such-model`: only a result ERROR (exit 1), the error lists
+                            the models this sign-in offers
+signed-out.stream.jsonl     no credentials (HOME scratch + no D-Bus session bus, so the keyring that
+signed-out.stderr.txt       holds the sign-in is out of reach): result ERROR "authentication failed
+                            or timed out", exit 1
+bad-key.stream.jsonl        GEMINI_API_KEY=<fake> + `--settings {"modelProvider":"gemini"}` against a
+                            local fake Gemini API answering 400 API_KEY_INVALID: error_message step →
+                            result ERROR; exit 3
+models.signed-in.txt        `agy models` (tab-separated slug, label) with the Google sign-in
+models.api-key.txt          `agy models` with modelProvider "gemini" + a key (built in: no request
+                            reached the fake API) — Gemini 4 Carbon/Hydrogen/Argon live here
+models.signed-out.stderr.txt  `agy models` signed out: exit 1

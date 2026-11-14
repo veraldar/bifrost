@@ -83,6 +83,16 @@ def main():
         for name, port, other, oport in (("home", HOME_PORT, "lab", LAB_PORT), ("lab", LAB_PORT, "home", HOME_PORT)):
             d = os.path.join(tmp, name)
             os.makedirs(os.path.join(d, "work"))
+            if name == "home":
+                # saved while Gemini CLI was a harness (≤ 11-13): an agent and a session on it
+                with open(os.path.join(d, "agents.json"), "w") as f:
+                    json.dump({"agent": {"gem-old": {"harness": "gemini", "model": "gemini-3.5-flash", "description": "saved on Gemini CLI"}}}, f)
+                os.makedirs(os.path.join(d, "data", "session"))
+                now = int(time.time() * 1000)
+                with open(os.path.join(d, "data", "session", "ses_gemold.json"), "w") as f:
+                    json.dump({"info": {"id": "ses_gemold", "title": "gemini old", "agent": "gem-old", "time": {"created": now, "updated": now},
+                                        "model": {"id": "gemini-3.5-flash", "providerID": "gemini"},
+                                        "harness": {"kind": "gemini", "id": "5a0c1f9e-2b7d-4c55-9e0a-7f3b2d1c4e5f"}}, "messages": []}, f)
             # home reads Claude Code's sessions from a scratch config dir (one fake terminal session)
             extra = {"YGG_EXTENSIONS": f"librarian=http://127.0.0.1:{LIB_PORT}", "CLAUDE_CONFIG_DIR": os.path.join(tmp, "claude")} if name == "home" else {}
             unit(f"tree-e2e-{name}", [a.bin], dict(base, YGG_LISTEN=f"127.0.0.1:{port}", YGG_DATA_DIR=os.path.join(d, "data"), YGG_PROFILES=os.path.join(d, "agents.json"),
@@ -234,11 +244,31 @@ def main():
                 msg = json.loads(e.read() or b"{}").get("error", "")
                 check(f"attach refuses {name} (400, said plainly)", e.code == 400 and len(msg) > 20, (e.code, msg))
 
-        # 6d. Google's harness next to Claude Code's and Codex's: an agent on Gemini CLI
-        gem = req(HOME_PORT, "PUT", "/agent/gem", {"harness": "gemini", "description": "Gemini CLI"})
-        check("an agent can run on Gemini CLI", gem["harness"] == "gemini" and gem["customizable"] == ["description", "model"], (gem.get("harness"), gem.get("customizable")))
-        check("the editor gets Gemini CLI's model list", "gemini" in gem["models_by_harness"], list(gem.get("models_by_harness", {})))
-        req(HOME_PORT, "DELETE", "/agent/gem")
+        # 6d. Google's harness next to Claude Code's and Codex's: an agent on Antigravity (agy)
+        agy = req(HOME_PORT, "PUT", "/agent/agy", {"harness": "antigravity", "description": "Antigravity"})
+        check("an agent can run on Antigravity", agy["harness"] == "antigravity" and agy["customizable"] == ["description", "model"], (agy.get("harness"), agy.get("customizable")))
+        mbh = agy["models_by_harness"]
+        check("Gemini CLI is no longer a harness", "gemini" not in mbh and set(mbh) == {"root", "claude", "opencode", "codex", "antigravity"}, list(mbh))
+        am = mbh["antigravity"]
+        check("Antigravity's picker: its own pick first, then Google's current models strongest first",
+              am[:4] == ["default", "gemini-4-carbon", "gemini-4-argon", "gemini-4-hydrogen"] and "gemini-3.8-flash" in am, am)
+        al = agy["model_labels"]["antigravity"]
+        check("…each with a label", all(al.get(m) for m in am) and al["gemini-4-carbon"].startswith("Gemini 4 Carbon — strongest"), {m: al.get(m) for m in am[:3]})
+        if shutil.which("agy"):
+            check("…merged with what `agy models` lists (agy on this tree's PATH)", len(am) > 6 or all(not al[m].endswith("needs GEMINI_API_KEY") for m in am), am)
+        try:
+            req(HOME_PORT, "PUT", "/agent/agy", {"harness": "gemini"})
+            check("an agent cannot be put on Gemini CLI", False, "accepted")
+        except urllib.error.HTTPError as e:
+            check("an agent cannot be put on Gemini CLI", e.code == 400, e.code)
+        req(HOME_PORT, "PUT", "/agent/agy", {"model": "gemini-4-hydrogen"})
+        check("an Antigravity agent takes a model of its list", req(HOME_PORT, "GET", "/agent/agy")["model"] == "gemini-4-hydrogen")
+        req(HOME_PORT, "DELETE", "/agent/agy")
+        old = req(HOME_PORT, "GET", "/agent/gem-old")
+        check("an agent saved on Gemini CLI loads on Antigravity (its model dropped: agy does not run it)", old["harness"] == "antigravity" and old["model"] is None, (old.get("harness"), old.get("model")))
+        olds = req(HOME_PORT, "GET", "/session/ses_gemold")
+        check("…and its session moves too (a new agy conversation)", olds["harness"] == {"kind": "antigravity"} and olds["model"] == {"id": "default", "providerID": "antigravity"}, (olds.get("harness"), olds.get("model")))
+        req(HOME_PORT, "DELETE", "/agent/gem-old")
         try:
             req(HOME_PORT, "PUT", "/agent/coordinator", {"tools": {"bash": True}})
             check("the coordinator's tools are locked", False, "accepted")

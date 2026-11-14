@@ -19,7 +19,7 @@ import { slugify } from '@/lib/slug';
 import { isMainSlug } from '@/lib/tree-first';
 
 /** sessions on these run another agent harness; their models are the harness's own */
-const HARNESSES = new Set(['claude', 'opencode', 'codex', 'gemini']);
+const HARNESSES = new Set(['claude', 'opencode', 'codex', 'antigravity']);
 
 type ModelRef = {
   providerID: string;

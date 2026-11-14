@@ -689,9 +689,13 @@ fn load_sessions(dir: &std::path::Path) -> HashMap<String, Session> {
         match std::fs::read(&path).map_err(|e| e.to_string()).and_then(|b| {
             serde_json::from_slice::<Session>(&b).map_err(|e| e.to_string())
         }) {
-            Ok(s) => match s.info["id"].as_str() {
+            Ok(mut s) => match s.info["id"].as_str().map(String::from) {
                 Some(id) => {
-                    out.insert(id.to_string(), s);
+                    // a session saved on Gemini CLI (gone 11-14) continues on Antigravity
+                    if harness::migrate_session(&mut s.info) {
+                        persist(dir, &id, &s);
+                    }
+                    out.insert(id, s);
                 }
                 None => eprintln!("skip {}: no info.id", path.display()),
             },
@@ -1082,7 +1086,7 @@ async fn switch_model(State(st): State<AppState>, Path(id): Path<String>, Json(b
         return bad_request("model needs id + providerID");
     };
     // a session on a harness picks from that harness's models (providerID = the harness)
-    if matches!(pid, "claude" | "opencode" | "codex" | "gemini") {
+    if matches!(pid, "claude" | "opencode" | "codex" | "antigravity") {
         let on = st.sessions.lock().unwrap().get(&id).and_then(|s| s.info["harness"]["kind"].as_str().map(String::from));
         if on.as_deref() != Some(pid) {
             return bad_request(&format!("this session does not run on {pid}"));
@@ -1238,6 +1242,8 @@ async fn get_agent(State(st): State<AppState>, Path(name): Path<String>) -> Resp
                     .collect::<Vec<_>>(),
                 Some(h) => vec![json!({ "tier": h, "models": [], "text": if h == "claude" {
                     format!("Claude Code brings its own system prompt; this agent adds:\n\n{}", harness_system(&shared, &prof))
+                } else if h == "antigravity" {
+                    format!("Antigravity brings its own system prompt; this agent's first message adds:\n\n{}", harness_system(&shared, &prof))
                 } else {
                     format!("{h} brings its own system prompt (it takes no extra instructions)")
                 } })],
@@ -1245,7 +1251,7 @@ async fn get_agent(State(st): State<AppState>, Path(name): Path<String>) -> Resp
             // the models this agent can pick from: the upstream's for a root agent, else its harness's
             d["models"] = json!(models_for(&st, d["harness"].as_str().unwrap_or("root")));
             // every harness's list, so the editor's picker follows a harness change before saving
-            d["models_by_harness"] = json!(["root", "claude", "opencode", "codex", "gemini"].iter().map(|h| (h.to_string(), json!(models_for(&st, h)))).collect::<serde_json::Map<_, _>>());
+            d["models_by_harness"] = json!(["root", "claude", "opencode", "codex", "antigravity"].iter().map(|h| (h.to_string(), json!(models_for(&st, h)))).collect::<serde_json::Map<_, _>>());
             d["model_labels"] = json!(st.harness_labels.lock().unwrap().clone());
             Json(d).into_response()
         }
@@ -1287,8 +1293,8 @@ fn models_for(st: &AppState, harness: &str) -> Vec<String> {
 /// Reads each harness's own model list once at startup: `opencode models` (its providers'
 /// `provider/model` ids) and `codex debug models` (its catalog: listed slugs by priority, with
 /// display names). A harness that cannot be read keeps "default" (any id then accepted).
-fn spawn_harness_models(st: &AppState) {
-    let st = st.clone();
+fn spawn_harness_models(app: &AppState) {
+    let st = app.clone();
     tokio::spawn(async move {
         let run = |cmd: &'static str, args: &'static [&'static str]| async move {
             tokio::time::timeout(Duration::from_secs(90), tokio::process::Command::new(cmd).args(args).output())
@@ -1323,33 +1329,22 @@ fn spawn_harness_models(st: &AppState) {
                 st.harness_labels.lock().unwrap().insert("codex".into(), labels);
             }
         }
-        // `gemini models -o json` (signed in or not): [{id, displayName, description}], CLI order
-        if let Some(out) = run("gemini", &["models", "--output-format", "json"]).await {
-            let (list, labels) = gemini_models(&out);
-            if !list.is_empty() {
-                eprintln!("harness models: gemini offers {}", list.len());
-                st.harness_models.lock().unwrap().insert("gemini".into(), list);
-                st.harness_labels.lock().unwrap().insert("gemini".into(), labels);
-            }
-        }
     });
-}
-
-/// Gemini CLI's own model list → ids (its order) + a picker label per id.
-fn gemini_models(out: &str) -> (Vec<String>, HashMap<String, String>) {
-    let v: Value = serde_json::from_str(out).unwrap_or(Value::Null);
-    let ms: Vec<&Value> = v.as_array().into_iter().flatten().filter(|m| m["id"].is_string()).collect();
-    let list = ms.iter().filter_map(|m| m["id"].as_str().map(String::from)).collect();
-    let labels = ms
-        .iter()
-        .filter_map(|m| {
-            let id = m["id"].as_str()?;
-            let name = m["displayName"].as_str().unwrap_or(id);
-            let desc = m["description"].as_str().unwrap_or_default().trim();
-            Some((id.to_string(), if desc.is_empty() { name.to_string() } else { format!("{name} — {desc}") }))
-        })
-        .collect();
-    (list, labels)
+    // `agy models` (`slug<TAB>label` lines; exit 1 when signed out), on its own (it needs no wait
+    // for the others), merged with Google's current models — the floor stays when agy says nothing
+    let st = app.clone();
+    tokio::spawn(async move {
+        let out = tokio::time::timeout(Duration::from_secs(60), tokio::process::Command::new("agy").arg("models").kill_on_drop(true).output())
+            .await
+            .ok()
+            .and_then(Result::ok)
+            .filter(|o| o.status.success())
+            .map(|o| String::from_utf8_lossy(&o.stdout).to_string());
+        let (list, labels) = harness::antigravity::models(out.as_deref(), harness::antigravity::api_key());
+        eprintln!("harness models: antigravity offers {}{}", list.len(), if out.is_some() { "" } else { " (agy did not list: Google's current models)" });
+        st.harness_models.lock().unwrap().insert("antigravity".into(), list);
+        st.harness_labels.lock().unwrap().insert("antigravity".into(), labels);
+    });
 }
 
 /// `DELETE /agent/:name` — only agents you made.
@@ -2161,7 +2156,9 @@ async fn harness_loop(st: &AppState, id: &str, history: Vec<Value>, tx: &mpsc::S
         let model = info["model"]["id"].as_str().filter(|m| *m != "default").map(String::from);
         let dir = info["cwd"].as_str().unwrap_or("?").to_string();
         let cwd = info["cwd"].as_str().map(PathBuf::from).filter(|p| p.is_dir());
-        (model, info["harness"]["id"].as_str().map(String::from), cwd, dir, info["harness"].clone())
+        // only this harness's own session id resumes (another harness's would not be found)
+        let resume = info["harness"]["id"].as_str().filter(|_| info["harness"]["kind"] == kind.name()).map(String::from);
+        (model, resume, cwd, dir, info["harness"].clone())
     };
     // a conversation continued from the terminal: guarded always, forked on its first turn here
     let attached = kind == harness::Kind::Claude && h["attached"] == true;
@@ -3130,6 +3127,8 @@ async fn main() {
     }
     let max_inflight = env_num("YGG_MAX_INFLIGHT", 6).max(1) as usize;
 
+    // Antigravity's picker before `agy models` answers (or when it cannot): Google's current models
+    let floor_models = harness::antigravity::models(None, harness::antigravity::api_key());
     let state = AppState {
         sessions: Arc::new(Mutex::new(sessions)),
         running: Arc::default(),
@@ -3146,16 +3145,19 @@ async fn main() {
             ("claude".to_string(), vec!["opus".to_string(), "sonnet".to_string(), "haiku".to_string()]),
             ("opencode".to_string(), vec!["default".to_string()]),
             ("codex".to_string(), vec!["default".to_string()]),
-            ("gemini".to_string(), vec!["default".to_string()]),
+            ("antigravity".to_string(), floor_models.0),
         ]))),
-        harness_labels: Arc::new(Mutex::new(HashMap::from([(
-            "claude".to_string(),
-            HashMap::from([
-                ("opus".to_string(), "strongest — hard, long work".to_string()),
-                ("sonnet".to_string(), "balanced — most coding".to_string()),
-                ("haiku".to_string(), "fastest — small, quick tasks".to_string()),
-            ]),
-        )]))),
+        harness_labels: Arc::new(Mutex::new(HashMap::from([
+            (
+                "claude".to_string(),
+                HashMap::from([
+                    ("opus".to_string(), "strongest — hard, long work".to_string()),
+                    ("sonnet".to_string(), "balanced — most coding".to_string()),
+                    ("haiku".to_string(), "fastest — small, quick tasks".to_string()),
+                ]),
+            ),
+            ("antigravity".to_string(), floor_models.1),
+        ]))),
     };
     if !interrupted.is_empty() {
         eprintln!("restart: closed {} run(s) the previous process left open", interrupted.len());

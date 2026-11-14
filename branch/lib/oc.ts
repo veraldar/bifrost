@@ -31,7 +31,7 @@ export async function ocFetch(path: string, init?: RequestInit) {
   console.log(`[oc] ${init?.method || 'GET'} ${path} → ${r.status} ${Date.now() - t0}ms`);
   if (!r.ok) {
     // the brain says why ({error}): kept on the error for whoever shows it (a failed run's reason,
-    // e.g. "Gemini CLI is not signed in"); the message stays the same for everything else
+    // e.g. "Antigravity is not signed in"); the message stays the same for everything else
     const why = await r
       .json()
       .then((d) => {

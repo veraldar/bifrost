@@ -47,7 +47,7 @@ you ⇄ [MAIN] coordinator            the transcript you read: only you + MAIN
   `/tree/report` home; reading or talking to the proxy (tree tools or the phone) forwards.
   `GET /root` describes a root; the door's `[roots]` view lists them so work goes where the
   hardware fits. Transport-agnostic: tailnet, an SSH line, or the bifrost-net trunk.
-- **Harness sessions**: the turn runs `claude -p` / `opencode run` / `codex exec` / `gemini`
+- **Harness sessions**: the turn runs `claude -p` / `opencode run` / `codex exec` / `agy`
   non-interactively, resuming the harness's own session (`info.harness.id`).
 
 ## Continue a Claude Code session from the phone (11-13)
@@ -67,28 +67,51 @@ terminal's transcript is never written; the fork's id replaces `harness.id` (`fo
 guarded conversation continues from the phone. Sessions the brain started itself are unchanged.
 Phone: + new session → "continue a Claude Code session…" → tap one → an [AGI] session.
 
-## Gemini CLI — Google's harness (11-13)
+## Antigravity — Google's harness (11-14)
 
-An agent can run on `gemini` like on `claude` / `codex` (agent editor → runs on → Gemini CLI; no
-built-in agent). Turn: `gemini --output-format stream-json --approval-mode yolo --skip-trust
-[--model m] [--resume <session uuid>]` in the session's folder, the prompt on stdin (headless).
-Models: `gemini models --output-format json` at startup (`auto`, `gemini-2.5-pro`,
-`gemini-3.5-flash`, `gemini-3.1-flash-lite` on 0.68.0). Stream: init(session_id) · message(assistant
-`delta` chunks) · tool_use · tool_result · error(severity) · result(status) — fixtures in
-`fixtures/gemini/` (the success stream is from the CLI's source, not seen live: not signed in here).
+Google replaced Gemini CLI with **Antigravity CLI** (`agy`); since 2026-06-18 Gemini CLI no longer
+serves personal accounts, so it is gone as a harness. An agent runs on `antigravity` like on
+`claude` / `codex` (agent editor → runs on → Antigravity; no built-in agent). An agent or session
+saved on `gemini` loads as `antigravity` (its model kept only if agy runs it; a Gemini CLI session id
+is dropped, so the next turn starts a new agy conversation).
 
-**Install** (no sudo): `mkdir -p ~/.cache/tmp && TMPDIR=~/.cache/tmp mise use -g gemini`. Plain `mise use -g gemini` failed
-("lifecycle script install failed for node-pty@1.0.0") because /tmp is at this user's tmpfs quota
-(usrquota, ~44 MB left on 11-13): node-gyp could not unpack Node's headers there to build node-pty
-(EDQUOT, errno 122). The preview brain gets it on PATH from `preview-up.sh` (mise's
-`gemini/latest/node_modules/.bin` + `node/latest/bin`) and `~/.gemini` bound in.
+**Turn** (verified with agy 1.5.9): `agy --input-format stream-json --output-format stream-json
+--dangerously-skip-permissions [--model m] [--conversation <id>]`, cwd = the session's folder (agy's
+workspace; it reads AGENTS.md/GEMINI.md walking up from there). The prompt goes on stdin as ONE NDJSON
+line `{"event":"user","message":{"content":…}}` — never argv, any length. agy has no system-prompt
+flag: the shared prompt + the agent's instructions open the conversation's first message
+(`<instructions>…</instructions>`); resumed turns send the prompt alone. Stream: `{event, <event>:{…}}`
+lines — init (conversation_id) · step_update (agent_response `text_delta` chunks → streamed and
+joined; tool steps ACTIVE then DONE/ERROR → one tool part with `tool_info` parameters + output or
+error) · result (SUCCESS → `response`; any other status → the error). An unknown `--conversation`
+id only warns and starts a new conversation. Every shape is REAL output in `fixtures/antigravity/`.
 
-**Sign-in** — until then every turn ends with the session error "Gemini CLI is not signed in — …":
-1. an API key: a `GEMINI_API_KEY=<key>` line in the brain's environment (live: its EnvironmentFile
-   `~/.config/yggdrasil/yggdrasil.env`; preview: `GEMINI_API_KEY=<key> lab/root-sim/preview-up.sh`,
-   kept on later restarts), then restart the brain; or
-2. a one-time Google sign-in: run `gemini` in a terminal, choose "Login with Google", finish in the
-   browser; the CLI keeps it in `~/.gemini`, which the brain shares.
+**Models**: `agy models` (`slug<TAB>label`) at startup, merged with a built-in floor of Google's
+current models (aistudio.google.com/docs/models, 11-14) — the picker reads `default` (agy's own
+pick) · gemini-4-carbon · gemini-4-argon · gemini-4-hydrogen · gemini-3.8-flash (+ agy's -high /
+-medium / -low) · gemini-3.6-flash · then agy's other models (on the owner's Google sign-in 11-14:
+Claude Sonnet 4.6, Claude Opus 4.6, GPT-OSS 120B). The Google sign-in serves only Gemini 3.8 Flash of
+Google's own: the Gemini 4 models and 3.6 Flash are labelled "needs GEMINI_API_KEY", and picking one
+fails with "Antigravity does not offer … on this sign-in". gemini-3.5-flash-lite and the
+gemini-flash-latest alias are not offered: agy 1.5.9 refuses them on either sign-in.
+
+**Install** (no sudo; the owner did it 11-14): Antigravity CLI 1.5.9 at `~/.local/bin/agy`, which is
+on the systemd --user PATH (`systemctl --user show-environment`) — units started with
+`systemd-run --user` find it. A sandboxed brain (ProtectHome=tmpfs: `sim/brain-up.sh` with
+SIM_HARNESS=1 binds them; the preview's `preview-up.sh` does not yet) needs `~/.local/bin/agy` and
+`~/.gemini` bound in. There (11-14) turns ran signed in, but `agy models` answered "Please sign in"
+(ProtectHome also hides /run/user, the keyring's D-Bus socket), so the picker showed the floor only.
+agy updates itself in the background (`AGY_CLI_DISABLE_AUTO_UPDATE=1` stops that).
+
+**Sign-in** — until then every turn ends with the session error "Antigravity is not signed in — …":
+1. a one-time Google sign-in: run `agy` in a terminal and sign in with Google. agy keeps the token in
+   the desktop keyring (Secret Service — gnome-keyring here — over the user's D-Bus session bus), so a brain unit with
+   `DBUS_SESSION_BUS_ADDRESS` (every `systemd-run --user` unit) shares it; or
+2. an API key: a `GEMINI_API_KEY=<key>` line in the brain's environment, then restart the brain. agy
+   reads the key only with `modelProvider: "gemini"`, so the brain adds
+   `--settings {"modelProvider":"gemini"}` to every turn while the key is set (seen against a fake API:
+   the request goes to `/v1beta/models/<model>:streamGenerateContent`). On the key, agy serves the
+   Gemini 4 models; a key Google refuses ends the turn with "Google refused the GEMINI_API_KEY…".
 
 ## Extensions (outside the core)
 
@@ -135,8 +158,8 @@ thinking off.
 
 What used to be "profiles" is one concept, **agents**. Every agent runs on a harness: `root` (this brain:
 model, thinking, system prompt, tools, steps, manages-sessions are all customizable) or `claude` /
-`opencode` / `codex` / `gemini` (description + model; Claude Code also takes extra instructions via
-`--append-system-prompt`). Built in: coordinator (MAIN's alone, tools locked), lead, build, fix, research,
+`opencode` / `codex` / `antigravity` (description + model; Claude Code also takes extra instructions via
+`--append-system-prompt`; Antigravity reads the shared prompt on its first message). Built in: coordinator (MAIN's alone, tools locked), lead, build, fix, research,
 review (read-only; writes only its report), **AGI** (Claude Code on Opus). `GET /agent/:name` is the editor's
 detail (incl. `customizable`, `locked`, `models`); `PUT /agent/:name` creates or edits (partial body,
 persisted to `YGG_PROFILES`, live at once); `DELETE` removes agents you made. Switching a session's agent

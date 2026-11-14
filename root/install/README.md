@@ -48,11 +48,19 @@ kept, and a unit is restarted only if something it uses changed.
      same URL there.
 2. **Scan the QR with the phone's camera.** The phone must be on the same Wi-Fi. It opens
    `http://<box LAN IP>:8082/pair`, redeems the one-time code, pins the bridge's fingerprint
-   and lands on your **main** session. There's nothing to type.
+   and opens bifrost: the first time, the door walks you in (it ends in your **main** session);
+   after that, your sessions. There's nothing to type.
 3. **Add it to the home screen** from the browser menu.
 
 Pairing is the lock (`BIFROST_AUTH=devices`). A device that hasn't paired gets `401` on every
 `/api` call. You can list or revoke phones at `/devices`.
+
+**From anywhere, not just your Wi-Fi:** connect this box to [your own trunk](../../docs/own-trunk.md),
+a small server you rent. `trunk.sh` on that server prints one line; here you run
+`./install.sh --trunk '<that line>'`, then `./install.sh pair` shows the phone's QR right in the
+terminal. The phone then opens `https://<your trunk>` on Wi-Fi or mobile data, and the app listens
+only on `127.0.0.1`. `./install.sh pair --list` / `--revoke NAME` / `--kill` manage paired devices from
+the terminal.
 
 ## Where things live
 
@@ -64,6 +72,7 @@ Pairing is the lock (`BIFROST_AUTH=devices`). A device that hasn't paired gets `
 | `~/.config/bifrost/install-manifest.txt` | every file, unit, env key **name** and network call of the last run |
 | `~/.config/systemd/user/{yggdrasil,bifrost-*}.service` | the units (644, no secrets inside) |
 | `~/.local/state/bifrost/devices.json` | paired phones (the app and bridge share it) |
+| `~/.local/state/bifrost/pair-qr.png` (600) | the last pairing QR from `install.sh pair` (one use, 5 minutes) |
 | `~/.local/share/bifrost/voice/models/` | speech models (downloaded on first start) |
 | `~/.local/bin/{yggdrasil,bifrost-net,livekit-server}` | the binaries |
 
@@ -79,7 +88,8 @@ on the command line, for example `BIFROST_APP_PORT=8090 ./install.sh`. It is sav
   `LIVEKIT_URL=wss://….livekit.cloud`, `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET`.
 
 Options: `--no-start` (install only), `--skip voice,agent` (leave components out),
-`--direct` (no systemd, see failure 2), `--brain-only` (the brain alone, below).
+`--direct` (no systemd, see failure 2), `--brain-only` (the brain alone, below),
+`--trunk '<line>'` (your own trunk; `--trunk off` removes it; kept as `BIFROST_TRUNK` in `bifrost.env`).
 
 ## When it fails
 

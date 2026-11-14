@@ -8,6 +8,10 @@
 #                                 runs each unit's own command with nohup; logs in ~/.local/state/bifrost/log/
 #   ./install.sh --skip voice,agent   leave components out: brain app bridge voice livekit agent
 #   ./install.sh --brain-only [--now] the brain alone, as before (it starts only with --now)
+#   ./install.sh --trunk 'wss://NAME/ap#pin=…,token=…'   connect to YOUR trunk (the line trunk.sh printed on your
+#                                 VPS): phones and other roots then reach this box at https://NAME, from anywhere.
+#                                 Kept in bifrost.env (BIFROST_TRUNK) for every later run; --trunk off removes it.
+#   ./install.sh pair [NAME]      a one-time pairing QR for a phone, in this terminal (pair.sh --help: list, revoke)
 #
 # Config, created once (mode 600) and never overwritten — install.sh re-reads them on every run:
 #   ~/.config/bifrost/bifrost.env       the stack: ports, LAN IP, pairing, voice, LIVEKIT_MODE=binary|cloud
@@ -19,7 +23,8 @@
 set -euo pipefail
 trap 'printf "\033[1;31mxx\033[0m  install.sh stopped at line %s: %s\n" "$LINENO" "$BASH_COMMAND" >&2' ERR
 
-MODE=full NOW=0 START=1 DIRECT=0 SKIP=,
+MODE=full NOW=0 START=1 DIRECT=0 SKIP=, TRUNK_ARG=
+[ "${1:-}" = pair ] && { shift; exec bash "$(dirname "$0")/pair.sh" "$@"; }
 while [ $# -gt 0 ]; do
   case $1 in
     --brain-only) MODE=brain ;;
@@ -28,7 +33,9 @@ while [ $# -gt 0 ]; do
     --direct) DIRECT=1 ;;
     --skip) shift; SKIP="$SKIP${1:-},," ;;
     --skip=*) SKIP="$SKIP${1#--skip=}," ;;
-    -h|--help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --trunk) shift; TRUNK_ARG=${1:-}; [ -n "$TRUNK_ARG" ] || { echo "--trunk needs the connect line trunk.sh printed (or: off)" >&2; exit 64; } ;;
+    --trunk=*) TRUNK_ARG=${1#--trunk=} ;;
+    -h|--help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown option: $1" >&2; exit 64 ;;
   esac
   shift
@@ -188,8 +195,8 @@ place_secret() { # new target unit what — generated config, mode 600, restart 
   FILES+=("$2  600  $4")
 }
 unit_from() { # template unit — fill the @…@ placeholders
-  sed -e "s|@BIN@|$BIN_DIR|g" -e "s|@CONF@|$BF_CONF|g" -e "s|@STATE@|$BF_STATE|g" -e "s|@PWA@|$ROOT/pwa|g" \
-      -e "s|@NODE@|${NODE:-node}|g" -e "s|@VOICE@|$BF_DATA/voice|g" -e "s|@AGENT@|$ROOT/agent|g" \
+  sed -e "s|@BIN@|$BIN_DIR|g" -e "s|@CONF@|$BF_CONF|g" -e "s|@STATE@|$BF_STATE|g" -e "s|@PWA@|$ROOT/branch|g" \
+      -e "s|@NODE@|${NODE:-node}|g" -e "s|@VOICE@|$BF_DATA/voice|g" -e "s|@AGENT@|$ROOT/branch/voice|g" \
       -e "s|@AGENTVENV@|$BF_DATA/agent/venv|g" -e "s|@LAN@|$LAN|g" "$HERE/$1" >"$UNIT_DIR/$1.new"
   place_unit "$UNIT_DIR/$1.new" "$UNIT_DIR/$1"
 }
@@ -215,6 +222,34 @@ for k in $(sed -n 's/^#\{0,1\}\([A-Z][A-Z0-9_]*\)=.*/\1/p' "$HERE/bifrost.env.ex
 done
 cfg() { local v; v=$(envget "$BF_ENV" "$1"); printf '%s' "${v:-${2:-}}"; }
 [ -n "$(cfg BIFROST_ADMIN_TOKEN)" ] || envset "$BF_ENV" BIFROST_ADMIN_TOKEN "admin-$(rand 32)"
+
+# ------------------------------------------------------------------- your trunk (BIFROST_TRUNK)
+# The connect line trunk.sh printed on your VPS: wss://NAME[:PORT]/ap#pin=AA:BB:…,token=HEX.
+# With it, the bridge dials OUT to the trunk (pinned key, the token), the app is served through it
+# at https://NAME (devices mode, loopback only), other roots join through it, and the brain learns them.
+case $TRUNK_ARG in
+  '') ;;
+  off|none) [ -n "$(cfg BIFROST_TRUNK)" ] && { envset "$BF_ENV" BIFROST_TRUNK ""; say "trunk   off (BIFROST_TRUNK cleared)"; } ;;
+  *) if [ "$(cfg BIFROST_TRUNK)" != "$TRUNK_ARG" ]; then envset "$BF_ENV" BIFROST_TRUNK "$TRUNK_ARG"; say "config  BIFROST_TRUNK from --trunk → bifrost.env"; fi ;;
+esac
+TRUNK=$(cfg BIFROST_TRUNK)
+if [ -n "$TRUNK" ]; then
+  T_URL=${TRUNK%%#*} T_FRAG=${TRUNK#*#}
+  [ "$T_FRAG" != "$TRUNK" ] || die "BIFROST_TRUNK: no #pin=…,token=… part — copy the WHOLE line trunk.sh printed (in single quotes)"
+  T_FRAG=$(printf '%s' "$T_FRAG" | sed 's/%20/ /g; s/%3[Aa]/:/g; s/[&;]/,/g')
+  T_PIN=$(printf '%s\n' "$T_FRAG" | tr ',' '\n' | sed -n 's/^pin=//p' | head -1 | sed 's/^sha-256[ :]*//I' | tr '[:lower:]' '[:upper:]')
+  T_TOKEN=$(printf '%s\n' "$T_FRAG" | tr ',' '\n' | sed -n 's/^token=//p' | head -1)
+  printf '%s' "$T_PIN" | grep -Eqx '([0-9A-F]{2}:){31}[0-9A-F]{2}' || die "BIFROST_TRUNK: the pin is not 32 hex bytes (AA:BB:…) — copy the whole line trunk.sh printed"
+  printf '%s' "$T_TOKEN" | grep -Eqx '[0-9a-f]{32,128}' || die "BIFROST_TRUNK: no token=… (hex) in the line — copy the whole line trunk.sh printed"
+  T_HOSTPORT=$(printf '%s' "$T_URL" | sed -n 's|^wss://\([A-Za-z0-9.-]*\(:[0-9]*\)\{0,1\}\)/[A-Za-z0-9/_-]*$|\1|p')
+  [ -n "$T_HOSTPORT" ] || die "BIFROST_TRUNK: '$T_URL' is not wss://NAME[:PORT]/ap"
+  T_HOSTPORT=${T_HOSTPORT%:443}
+  T_PIN="sha-256 $T_PIN"
+  T_PUBLIC=https://$T_HOSTPORT
+  [ "$(cfg BIFROST_AUTH devices)" = devices ] || die "a trunk needs BIFROST_AUTH=devices (pairing) — tailnet mode would let anyone on the internet in. Fix $BF_ENV and re-run"
+  [ -n "$(cfg BIFROST_ROOTLINK_SECRET)" ] || envset "$BF_ENV" BIFROST_ROOTLINK_SECRET "$(rand 64)"
+  say "trunk   $T_PUBLIC (pinned $(printf '%s' "$T_PIN" | cut -c1-24)…)"
+fi
 FILES+=("$BF_ENV  600  stack config (edit this, then re-run install.sh)")
 
 LAN=$(cfg BIFROST_LAN_IP)
@@ -222,6 +257,9 @@ LAN=$(cfg BIFROST_LAN_IP)
 [ -n "$LAN" ] || LAN=$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -1)
 [ -n "$LAN" ] || { warn "no LAN address found — phones cannot reach this box; set BIFROST_LAN_IP"; LAN=127.0.0.1; }
 APP_HOST=$(cfg BIFROST_APP_HOST 0.0.0.0) APP_PORT=$(cfg BIFROST_APP_PORT 8082)
+# behind the trunk the app trusts X-Forwarded-For from the bridge: it must not be reachable from the LAN
+[ -n "$TRUNK" ] && APP_HOST=127.0.0.1
+ROOTLINK_PORT=$(cfg BIFROST_ROOTLINK_PORT 7892)
 BRIDGE_PORT=$(cfg BIFROST_BRIDGE_PORT 7890) MEDIA_PORT=$(cfg BIFROST_MEDIA_PORT 7891)
 VOICE_PORT=$(cfg BIFROST_VOICE_PORT 8000) AGENT_PORT=$(cfg AGENT_HTTP_PORT 8081)
 LK_MODE=$(cfg LIVEKIT_MODE binary) LK_PORT=$(cfg LIVEKIT_PORT 7880)
@@ -259,18 +297,37 @@ BRAIN_LISTEN=$(envget "$ENV_FILE" YGG_LISTEN); BRAIN_LISTEN=${BRAIN_LISTEN:-${YG
 on brain && check_port t "${BRAIN_LISTEN##*:}" yggdrasil.service
 on app && check_port t "$APP_PORT" bifrost-app.service
 on bridge && { check_port t "$BRIDGE_PORT" bifrost-bridge.service; check_port u "$MEDIA_PORT" bifrost-bridge.service; }
+on bridge && [ -n "$TRUNK" ] && check_port t "$ROOTLINK_PORT" bifrost-bridge.service
 on voice && [ $VOICE_LOCAL = 1 ] && check_port t "$VOICE_PORT" bifrost-voice.service
 on livekit && [ "$LK_MODE" = binary ] && { check_port t "$LK_PORT" bifrost-livekit.service; check_port t "$LK_TCP" bifrost-livekit.service; check_port u "$LK_UDP" bifrost-livekit.service; }
 on agent && check_port t "$AGENT_PORT" bifrost-agent.service
 if [ ${#BUSY[@]} -gt 0 ]; then
   for b in "${BUSY[@]}"; do warn "port $b"; done
-  die "pick free ports in $BF_ENV (BIFROST_APP_PORT, BIFROST_BRIDGE_PORT, BIFROST_MEDIA_PORT, BIFROST_VOICE_PORT, LIVEKIT_*_PORT, AGENT_HTTP_PORT; the brain's is YGG_LISTEN in $ENV_FILE), then re-run. Nothing was installed."
+  die "pick free ports in $BF_ENV (BIFROST_APP_PORT, BIFROST_BRIDGE_PORT, BIFROST_MEDIA_PORT, BIFROST_ROOTLINK_PORT, BIFROST_VOICE_PORT, LIVEKIT_*_PORT, AGENT_HTTP_PORT; the brain's is YGG_LISTEN in $ENV_FILE), then re-run. Nothing was installed."
 fi
 
 # ------------------------------------------------------------------------------------- 1. brain
 if on brain; then install_brain; fi
 BRAIN_LISTEN=$(envget "$ENV_FILE" YGG_LISTEN); BRAIN_LISTEN=${BRAIN_LISTEN:-127.0.0.1:4100}
 BRAIN_URL=http://$BRAIN_LISTEN
+# the trunk: the brain has a name in the tree, learns every root that links (the bridge's /_roots, no
+# restart) and shares the peer token with the app (handed to joining roots). Set once; yours win.
+ROOT_NAME='' PEER_TOKEN=''
+if [ -n "$TRUNK" ] && [ -f "$ENV_FILE" ]; then
+  brain_set() { # KEY VALUE — only when different; the brain restarts
+    [ "$(envget "$ENV_FILE" "$1")" = "$2" ] && return 0
+    envset "$ENV_FILE" "$1" "$2"; say "brain   $1 → $ENV_FILE"; CHANGED="${CHANGED}yggdrasil.service "
+  }
+  ROOT_NAME=$(envget "$ENV_FILE" YGG_ROOT_NAME)
+  if [ -z "$ROOT_NAME" ]; then
+    ROOT_NAME=$(uname -n | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g; s/^-*//; s/-*$//' | cut -c1-40)
+    case $ROOT_NAME in ''|local|join|localhost) ROOT_NAME=home ;; esac
+    brain_set YGG_ROOT_NAME "$ROOT_NAME"
+  fi
+  PEER_TOKEN=$(envget "$ENV_FILE" YGG_PEER_TOKEN)
+  [ -n "$PEER_TOKEN" ] || { PEER_TOKEN="peer-$(rand 40)"; brain_set YGG_PEER_TOKEN "$PEER_TOKEN"; }
+  brain_set YGG_PEERS_FROM "http://127.0.0.1:$BRIDGE_PORT/_roots"
+fi
 
 # ------------------------------------------------------------------------------------ 2. bridge
 if on bridge; then
@@ -305,6 +362,25 @@ candidates = ["$LAN"]
 dtls_cert_file = "$BF_STATE/bridge-dtls.json"
 public_url = "http://$LAN:$BRIDGE_PORT"
 TOML
+  if [ -n "$TRUNK" ]; then
+    cat >>"$BF_CONF/bridge.toml.new" <<TOML
+# the trunk (BIFROST_TRUNK): the switchboard's "local" is the hub brain; other roots link in through it
+opencode_url = "$BRAIN_URL"
+root_link_secret = "$(cfg BIFROST_ROOTLINK_SECRET)"
+
+[bridge.root-link]
+enabled = true
+listen = "127.0.0.1:$ROOTLINK_PORT"
+result_secs = 300
+
+# dial OUT to your trunk (pinned key + token); phones and roots reach this box through it
+[ap]
+url = "$T_URL"
+pin = "$T_PIN"
+token = "$T_TOKEN"
+upstream = "127.0.0.1:$APP_PORT"
+TOML
+  fi
   place_secret "$BF_CONF/bridge.toml.new" "$BF_CONF/bridge.toml" bifrost-bridge.service "bridge config (node private key)"
   unit_from bifrost-bridge.service
   FILES+=("$BF_STATE/devices.json  600  paired devices (app + bridge share it; created on first pair)"
@@ -336,7 +412,19 @@ if on app; then
     echo "BIFROST_ADMIN_TOKEN=$(cfg BIFROST_ADMIN_TOKEN)"
     echo "BIFROST_DEVICES_FILE=$BF_STATE/devices.json"
     echo "BIFROST_BRIDGE_URL=http://127.0.0.1:$BRIDGE_PORT"
-    echo "BIFROST_PUBLIC_URL=http://$LAN:$APP_PORT"
+    if [ -n "$TRUNK" ]; then
+      echo "BIFROST_PUBLIC_URL=$T_PUBLIC"
+      echo "BIFROST_TRUST_PROXY=1"
+      echo "BIFROST_NET_BIN=$BIN_DIR/bifrost-net"
+      echo "BIFROST_BRIDGE_CONFIG=$BF_CONF/bridge.toml"
+      echo "BIFROST_ROOTLINK_URL=wss://$T_HOSTPORT/rootlink"
+      echo "YGG_PEER_TOKEN=$PEER_TOKEN"
+      [ -n "$ROOT_NAME" ] && echo "YGG_ROOT_NAME=$ROOT_NAME"
+      # the phone lands on the brain's coordinator: only a session titled [MAIN] may start work on other roots
+      echo "BIFROST_MAIN_TITLE=$(cfg BIFROST_MAIN_TITLE '[MAIN]')"
+    else
+      echo "BIFROST_PUBLIC_URL=http://$LAN:$APP_PORT"
+    fi
     echo "SPEACHES_URL=$SPEACHES"
     echo "LIVEKIT_URL=$LK_PHONE"
     echo "LIVEKIT_API_URL=$LK_API"
@@ -538,6 +626,15 @@ if [ $START = 1 ]; then
   on bridge && HEALTH+=("bridge  http://127.0.0.1:$BRIDGE_PORT/identity → $(wait_http "http://127.0.0.1:$BRIDGE_PORT/identity" 20)")
   on app && HEALTH+=("app     http://$APP_LOCAL:$APP_PORT/pair → $(wait_http "http://$APP_LOCAL:$APP_PORT/pair" 60)")
   on livekit && [ "$LK_MODE" = binary ] && HEALTH+=("livekit http://127.0.0.1:$LK_PORT/ → $(wait_http "http://127.0.0.1:$LK_PORT/" 20)")
+  if [ -n "$TRUNK" ] && on bridge && on app; then
+    # the phone's way in, end to end: DNS → your VPS → the access point (its pinned key) → the bridge's
+    # dial-out → the app. 503 = the trunk answers but this box is not connected (token or pin wrong?)
+    B64PIN=$(printf '%s' "${T_PIN#sha-256 }" | tr -d ':' | basenc --base16 -d | base64)
+    c=000; for _ in $(seq 30); do c=$(curl -sk -o /dev/null -m 5 -w '%{http_code}' --pinnedpubkey "sha256//$B64PIN" "$T_PUBLIC/pair" || true); [ "$c" = 200 ] && break; sleep 1; done
+    case $c in 200) ;; 503) c="503 (the trunk answers, this box is not connected: run trunk.sh --rotate-token on the VPS and --trunk again with the new line)" ;;
+      000) c="000 (no answer from $T_PUBLIC: DNS name, VPS firewall, trunk running? — or a different key than the pin)" ;; esac
+    HEALTH+=("trunk   $T_PUBLIC/pair → $c")
+  fi
   if on voice && [ $VOICE_LOCAL = 1 ] && [ -f "$UNIT_DIR/bifrost-voice.service" ]; then
     c=$(wait_http "http://127.0.0.1:$VOICE_PORT/healthz" 5)
     [ "$c" = 200 ] || c="$c (first start downloads ~200 MB of models — check again in a few minutes)"
@@ -575,6 +672,7 @@ fi
   echo
   echo "[network at runtime]"
   echo "  brain → your YGG_UPSTREAM_BASE_URL (the only outbound call in normal use)"
+  [ -n "$TRUNK" ] && echo "  bridge → $T_URL (your trunk: dial-out, pinned key; phones + roots come back through it)"
   echo "  bifrost-voice first start → github.com/k2-fsa/sherpa-onnx/releases (models, once)"
   [ "$LK_MODE" = cloud ] && echo "  app + agent → $LK_PHONE (LiveKit Cloud)"
   echo "  listening: app $APP_HOST:$APP_PORT · bridge 0.0.0.0:$BRIDGE_PORT + udp $LAN:$MEDIA_PORT · brain $BRAIN_LISTEN · voice 127.0.0.1:$VOICE_PORT$([ "$LK_MODE" = binary ] && echo " · livekit 0.0.0.0:$LK_PORT + tcp $LK_TCP + udp $LK_UDP") · agent :$AGENT_PORT"
@@ -584,16 +682,29 @@ chmod 600 "$MANIFEST"
 say "manifest $MANIFEST"
 
 # ----------------------------------------------------------------------------------- next steps
-cat <<EOF
+if [ -n "$TRUNK" ]; then cat <<EOF
+
+bifrost is installed, connected to your trunk $T_PUBLIC.  Config: $BF_ENV  ·  brain: $ENV_FILE
+$( [ $BRAIN_READY = 1 ] || printf '\n  FIRST: set your model upstream in %s\n         (YGG_UPSTREAM_BASE_URL + YGG_UPSTREAM_API_KEY), then re-run ./install.sh\n' "$ENV_FILE")
+  1. Pair your phone:   $HERE/install.sh pair      (a QR code appears right here)
+  2. Scan it with the phone's camera — Wi-Fi or mobile data, from anywhere. The phone opens
+     $T_PUBLIC and pairs itself: the first time it walks you through the door, then your sessions.
+     Add it to the home screen. (Voice over the trunk is not wired yet — type from anywhere.)
+  3. More computers:    on each, ./join.sh --hub $T_PUBLIC  — approve its QR on your phone.
+  Lost a phone?         $HERE/install.sh pair --list   ·   $HERE/install.sh pair --revoke NAME
+EOF
+else cat <<EOF
 
 bifrost is installed.  Config: $BF_ENV  ·  brain: $ENV_FILE
 $( [ $BRAIN_READY = 1 ] || printf '\n  FIRST: set your model upstream in %s\n         (YGG_UPSTREAM_BASE_URL + YGG_UPSTREAM_API_KEY), then re-run ./install.sh\n' "$ENV_FILE")
   1. On THIS box, open   http://127.0.0.1:$APP_PORT/pair      (a QR code appears)
      headless box? from your laptop: ssh -L $APP_PORT:127.0.0.1:$APP_PORT <box>, then open the same URL
   2. Scan the QR with your phone's camera (same Wi-Fi). The phone opens
-     http://$LAN:$APP_PORT, pairs itself and lands on your main session — no typing.
+     http://$LAN:$APP_PORT and pairs itself — no typing. The first time it walks you through
+     the door, then your sessions.
   3. Add it to the home screen from the browser menu.
 EOF
+fi
 if [ ${#SOFT[@]} -gt 0 ]; then echo; for s in "${SOFT[@]}"; do warn "skipped $s"; done; fi
 if [ $SYSTEMD_SEES = 1 ] && [ $DIRECT = 0 ]; then
   echo "  Logs: journalctl --user -u 'bifrost-*' -u yggdrasil -f        Status: systemctl --user status 'bifrost-*' yggdrasil"

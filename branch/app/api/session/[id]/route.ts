@@ -135,9 +135,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       const m = body.model as { providerID: string; modelID: string; variant?: string | null };
       if (!m?.providerID || !m?.modelID)
         return NextResponse.json({ error: 'model needs providerID + modelID' }, { status: 400 });
-      // a harness session (Claude Code / opencode / Codex) picks from its harness's models:
+      // a harness session (Claude Code / opencode / Codex / Antigravity) picks from its harness's models:
       // the brain validates those against what the harness offers
-      if (['claude', 'opencode', 'codex'].includes(m.providerID)) {
+      if (['claude', 'opencode', 'codex', 'antigravity'].includes(m.providerID)) {
         const no = await ocWrite(`/api/session/${sid}/model`, 'POST', {
           model: { id: m.modelID, providerID: m.providerID },
         });

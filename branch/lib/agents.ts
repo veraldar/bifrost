@@ -1,7 +1,7 @@
 /** Agents (root-coord 11-13): the brain's GET/PUT /agent/:name shape, shared
  *  by /agents, /agents/[name] and the session settings' "what changes".
  *  The word on screen is AGENT. An agent runs on the root (lots to customize)
- *  or on a harness — Claude Code, opencode, Codex — which brings its own tools. */
+ *  or on a harness — Claude Code, opencode, Codex, Antigravity — which brings its own tools. */
 
 export type Rule = { permission: string; pattern: string; action: string };
 
@@ -9,7 +9,7 @@ export type AgentDetail = {
   name: string;
   description: string;
   builtin: boolean;
-  harness: string; // root | claude | opencode | codex
+  harness: string; // root | claude | opencode | codex | antigravity
   model: string | null;
   variant: string | null; // high | low | off | null (model default)
   prompt: string | null;
@@ -33,12 +33,13 @@ export type AgentRow = {
   model?: string | null;
 };
 
-export const HARNESSES = ['root', 'claude', 'opencode', 'codex'] as const;
+export const HARNESSES = ['root', 'claude', 'opencode', 'codex', 'antigravity'] as const;
 const LABEL: Record<string, string> = {
   root: 'root',
   claude: 'Claude Code',
   opencode: 'opencode',
   codex: 'Codex',
+  antigravity: 'Antigravity', // Google's Antigravity CLI (agy) — it replaced Gemini CLI (11-14)
 };
 export const harnessLabel = (h?: string | null) => LABEL[h || 'root'] || String(h);
 
@@ -49,6 +50,7 @@ export const CUSTOMIZABLE: Record<string, string[]> = {
   claude: ['description', 'model', 'prompt'],
   opencode: ['description', 'model'],
   codex: ['description', 'model'],
+  antigravity: ['description', 'model'],
 };
 
 export const TOOLS = ['read', 'glob', 'grep', 'bash', 'write', 'edit', 'webfetch', 'todowrite'];
@@ -58,6 +60,7 @@ export const MODEL_HINT: Record<string, string> = {
   claude: 'opus · sonnet · haiku',
   opencode: 'provider/model — empty = its default',
   codex: 'empty = its default',
+  antigravity: 'empty = its own pick',
 };
 
 const firstLine = (s: string | null) => {

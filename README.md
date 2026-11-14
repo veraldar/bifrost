@@ -17,6 +17,9 @@ veraldar/            the world: all your trees            → veraldar.org
 | `sim/` | human simulations (an LLM plays you and only talks to MAIN) and the deterministic tree test |
 | `scripts/`, `skills/`, `docs/` | install, release and operating the box; the install skill; history and specs |
 
+**Reach your tree from anywhere:** rent a small server, run one script on it, paste the line it prints
+at home, scan a QR with your phone — [your own trunk](docs/own-trunk.md) (no Tailscale, no open port at home).
+
 This repository was `veraldar/bifrost` until 2026-11-13; every old link and clone URL redirects.
 
 ## Bifrost — talk to your coding agent from your phone

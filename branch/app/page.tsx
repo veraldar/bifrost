@@ -8,6 +8,7 @@ import { BAND_VIEWBOX, YggTree } from '@/components/ygg';
 import { Door } from '@/components/tree-door';
 import { Roots } from '@/components/roots';
 import { Marked } from '@/components/marked';
+import { ContinueClaude } from '@/components/app/continue-claude';
 import { agentTag } from '@/lib/agents';
 import { askedSessions, clearAsked, notifyReply } from '@/lib/notify';
 import type { ArtifactEntry } from '@/lib/artifacts';
@@ -197,6 +198,8 @@ export default function SessionsPage() {
   const [unseenArts, setUnseenArts] = useState(0);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
+  // "continue a Claude Code session": the terminal's conversations, one tap to carry on
+  const [continuing, setContinuing] = useState(false);
   const [loading, setLoading] = useState(true);
   const loadInFlightRef = useRef(false);
   // undo window: row (and its sub-tree) vanishes instantly, but the DELETE
@@ -735,8 +738,18 @@ export default function SessionsPage() {
                 cancel
               </button>
             </div>
+            <button
+              onClick={() => {
+                setCreating(false);
+                setContinuing(true);
+              }}
+              className="oz-k mt-1.5 w-full justify-start px-3 text-[12px]"
+            >
+              continue a Claude Code session…
+            </button>
           </div>
         )}
+        {continuing && <ContinueClaude onClose={() => setContinuing(false)} />}
 
         {/* global search — expands from the search key into the query field */}
         {gOpen && (

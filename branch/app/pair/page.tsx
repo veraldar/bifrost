@@ -4,8 +4,11 @@
  *  On the box's console (no fragment): mints a one-time code and shows the
  *  QR, re-minting at expiry. On the phone (fragment v=1&code=…&fp=…&bridge=…):
  *  redeems the code, pins the bridge fingerprint (trust-on-first-scan) and
- *  lands on MAIN — zero typing, this IS the auto-setup. The fragment is wiped
- *  from history before anything else runs. */
+ *  lands on home — zero typing, this IS the auto-setup. Home decides: the
+ *  tree door for a device that never walked it (its last step is MAIN), the
+ *  session list for one that did. Never straight into MAIN: a fresh phone
+ *  would skip the door (11-14, a phone paired through the trunk). The
+ *  fragment is wiped from history before anything else runs. */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { LineIcon } from '@/components/line-icon';
@@ -96,8 +99,8 @@ export default function PairPage() {
         pairedAt: new Date().toISOString(),
       });
     }
-    setStatus(`paired as ${body.name} — opening MAIN`);
-    location.replace(body.main ? `/session/${body.main.slug}?id=${body.main.id}` : '/');
+    setStatus(`paired as ${body.name} — opening`);
+    location.replace('/');
   }
 
   return (

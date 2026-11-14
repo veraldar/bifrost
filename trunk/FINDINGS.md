@@ -405,3 +405,55 @@ older hub that sends no name (or `"local"`), keeps the name `hub`. See docs/spec
   - the live brain's `peers` is `[home-box]`;
   - an older hub, with no name, gets the peer `hub`;
   - a bad name is refused with exit 1.
+
+## Your own trunk, for a lay user (trunk-install, 2026-11-13)
+
+Two installers make the trunk a thing a non-expert can run (`docs/own-trunk.md`):
+`trunk/install/trunk.sh` on a rented server (Debian 12+ / Ubuntu 22.04+), and
+`root/install/install.sh --trunk '<the line it prints>'` on the home computer, then
+`install.sh pair` for the phone's QR. `trunk/deploy/sni-443.py` shares :443 with a website.
+
+**What the server side does:** the release binary (SHA256SUMS checked) or `--binary`; the ap's
+P-256 key made once (600, root); a Let's Encrypt certificate made from that key (`certbot --csr`:
+HTTP-01 standalone when :80 is free, `--webroot` through nginx/caddy/apache otherwise, with the
+snippet printed), renewed by a daily timer when a third of its life is left; :443 directly, or
+`--behind-proxy` on `127.0.0.1:4443` with `proxy_protocol = true`; ufw opened when active; the
+hub's token minted with `ap-token`, only its SHA-256 kept, the token shown once in the connect
+line `wss://NAME/ap#pin=AA:…,token=…`. Re-runs keep the key (the pin) and the token.
+
+**What the home side does with the line:** `[ap]` url/pin/token/upstream + `[bridge.root-link]` +
+`root_link_secret` + `opencode_url` in `bridge.toml`; the app in devices mode on **127.0.0.1 only**
+with `BIFROST_TRUST_PROXY=1`, `BIFROST_PUBLIC_URL=https://NAME`, the join env and
+`BIFROST_MAIN_TITLE=[MAIN]`; the brain's `YGG_ROOT_NAME`, `YGG_PEER_TOKEN`, `YGG_PEERS_FROM`.
+A health line proves the whole way in: `trunk https://NAME/pair → 200`, with curl pinning the key.
+
+**Found on the way (each would have stopped a real user):**
+- **`LoadCredential=` is unreadable on Debian 12 (systemd 252) in a container.** The credentials
+  directory stays `root 0700` with no ACL for the service's user, static or dynamic, so the ap
+  died with `Permission denied`. Container-based VPSes (LXC, OpenVZ) are common at the cheap end.
+  The unit now hands the key over itself: a root-run `ExecStartPre=+` copies it into the
+  service's private `RuntimeDirectory` (tmpfs, 0700, owned by the dynamic user, gone on stop).
+  The key on disk stays root-only.
+- **`. /etc/os-release` overwrites `NAME` and `VERSION`.** Sourced in the script, Debian's
+  `VERSION="12 (bookworm)"` became the release to download. It is read in a subshell now.
+- **ufw refuses a rule whose comment has an apostrophe** ("Let's Encrypt"), so :80 stayed closed
+  and Let's Encrypt timed out. The comment has none now, and a refused rule is reported.
+- **A token minted by a run that then failed was never shown**, but the next run said "token
+  kept". A marker now makes the next run mint and show a new one.
+- **The installed app could not delegate:** the phone landed on a session titled `main`, which the
+  brain runs as `build`. Only `[MAIN]` gets the coordinator. Trunk mode sets
+  `BIFROST_MAIN_TITLE=[MAIN]`. Plain LAN installs are unchanged and still get `main`; that is a
+  known gap.
+- **install.sh pointed the app and agent units at `pwa/` and `agent/`**, the folders from before
+  the rename. The app now runs from `branch/` and the agent from `branch/voice/`.
+- **Behind a :443 router the ap must get PROXY v1.** Without it every phone would arrive from the
+  VPS's loopback, which the hub reads as its own console. `--behind-proxy` always sets
+  `proxy_protocol = true`, so a router that sends no PROXY line fails closed. The simulation
+  checks that the region the hub binds is the phone's real address.
+
+**Proof:** `sim/own-trunk-e2e.sh` (docker: fresh Debian 12 servers with systemd as PID 1, Pebble as
+the ACME server, a Debian 12 + Node 24 home computer, an Ubuntu 24.04 joiner, Chromium as the
+phone) and `trunk/deploy/sni-443-test.py`.
+
+**Not proven:** real Let's Encrypt (Pebble speaks the same ACME, but the run never leaves docker),
+a real VPS provider's firewall and DNS, IPv6 end to end, voice over the trunk (not wired).

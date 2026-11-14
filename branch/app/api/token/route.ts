@@ -23,30 +23,49 @@ const API_KEY = process.env.LIVEKIT_API_KEY;
 const API_SECRET = process.env.LIVEKIT_API_SECRET;
 const LIVEKIT_URL = process.env.LIVEKIT_URL;
 
-// don't cache the results
+// don't cache the results (GET reads the env at request time, never at build)
 export const revalidate = 0;
+export const dynamic = 'force-dynamic';
+
+const NO_STORE = { 'Cache-Control': 'no-store' };
+
+/** Voice is a state of the connection, not an error (lib/voice-token.ts): the
+ *  app shows one calm line and stops asking. Always JSON — an empty 500 used
+ *  to surface on the phone as "Unexpected end of JSON input". */
+function unavailable(why: string) {
+  return NextResponse.json({ error: 'voice-unavailable', why }, { status: 503, headers: NO_STORE });
+}
+
+/** why voice cannot work from here, or null when it can. LiveKit tokens are
+ *  minted only where the network is the gate (the tailnet) or on a dev
+ *  server. Devices mode — a phone paired through the trunk, via the access
+ *  point — has no auth layer in front of this route's tokens and no LiveKit
+ *  the phone can reach: voice over the trunk is not built yet (it comes with
+ *  WebRTC through the access point's TURN). Not loosened here. */
+function whyUnavailable(): string | null {
+  if (process.env.NODE_ENV !== 'development' && process.env.BIFROST_AUTH !== 'tailnet') {
+    return 'voice over the trunk is not built yet — it rides the tailnet today (BIFROST_AUTH=tailnet)';
+  }
+  if (!LIVEKIT_URL || !API_KEY || !API_SECRET) {
+    return 'no LiveKit on this computer (LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET unset)';
+  }
+  return null;
+}
+
+/** GET: can voice work from here? Mints nothing, dispatches nothing — the app
+ *  asks before it would ask for the mic (lib/voice-token.ts voiceProbe). */
+export async function GET() {
+  const why = whyUnavailable();
+  return why ? unavailable(why) : NextResponse.json({ voice: 'available' }, { headers: NO_STORE });
+}
 
 export async function POST(req: Request) {
-  // make an exception for the vercel preview environment
-  if (process.env.NODE_ENV !== 'development' && process.env.BIFROST_AUTH !== 'tailnet') {
-    throw new Error(
-      'THIS API ROUTE IS INSECURE. DO NOT USE THIS ROUTE IN PRODUCTION WITHOUT AN AUTHENTICATION LAYER.'
-    );
-  }
+  const why = whyUnavailable();
+  if (why) return unavailable(why);
 
   try {
-    if (LIVEKIT_URL === undefined) {
-      throw new Error('LIVEKIT_URL is not defined');
-    }
-    if (API_KEY === undefined) {
-      throw new Error('LIVEKIT_API_KEY is not defined');
-    }
-    if (API_SECRET === undefined) {
-      throw new Error('LIVEKIT_API_SECRET is not defined');
-    }
-
-    // Parse room config from request body.
-    const body = await req.json();
+    // Parse room config from request body (an unreadable body = no room → 400 below).
+    const body = await req.json().catch(() => ({}));
     const roomConfig = body?.room_config
       ? RoomConfiguration.fromJson(body.room_config, { ignoreUnknownFields: true })
       : new RoomConfiguration();
@@ -67,7 +86,7 @@ export async function POST(req: Request) {
     // then spawned a phantom opencode session titled after it (2026-09-29
     // session_6898 storm). Refuse instead: callers must name the room.
     if (!roomName) {
-      return NextResponse.json({ error: 'room required' }, { status: 400 });
+      return NextResponse.json({ error: 'room required' }, { status: 400, headers: NO_STORE });
     }
 
     // Stable identity per room so reconnects resume the same participant.
@@ -103,20 +122,18 @@ export async function POST(req: Request) {
 
     // Return connection details
     const data: ConnectionDetails = {
-      serverUrl: LIVEKIT_URL,
+      serverUrl: LIVEKIT_URL!, // whyUnavailable() checked all three
       roomName,
       participantName,
       participantToken,
     };
-    const headers = new Headers({
-      'Cache-Control': 'no-store',
-    });
-    return NextResponse.json(data, { headers });
+    return NextResponse.json(data, { headers: NO_STORE });
   } catch (error) {
-    if (error instanceof Error) {
-      console.error(error);
-      return new NextResponse(error.message, { status: 500 });
-    }
+    console.error(error);
+    return NextResponse.json(
+      { error: 'token failed', why: error instanceof Error ? error.message : String(error) },
+      { status: 500, headers: NO_STORE }
+    );
   }
 }
 

@@ -21,17 +21,20 @@ MD
 set -a; . "$HOME/.config/yggdrasil/yggdrasil.env"; set +a
 # an agents file inside the root stays writable (the agent editor saves there); outside it, read-only
 RO_PROFILES=""; case "${SIM_PROFILES:-}" in "") ;; "$ROOT"/*) ;; *) RO_PROFILES=" $SIM_PROFILES" ;; esac
-# SIM_HARNESS=1: harness sessions (claude/opencode/codex) need their logins + binaries inside the
-# sandbox; opencode gets its own data dir (never the live opencode.db), auth copied in.
+# SIM_HARNESS=1: harness sessions (claude/opencode/codex/antigravity) need their logins + binaries
+# inside the sandbox; opencode gets its own data dir (never the live opencode.db), auth copied in;
+# agy (~/.local/bin) keeps its conversations in ~/.gemini, its Google sign-in in the keyring (D-Bus).
 HARNESS_PROPS=(); HPATH=""; SIMHOME="$ROOT/work"
 if [ "${SIM_HARNESS:-0}" = 1 ]; then
   mkdir -p "$ROOT/xdg/opencode" "$ROOT/xdgc" "$ROOT/xdg-cache" "$ROOT/xdg-state"
   install -m600 "$HOME/.local/share/opencode/auth.json" "$ROOT/xdg/opencode/auth.json" 2>/dev/null || true
   rsync -a --exclude node_modules "$HOME/.config/opencode/" "$ROOT/xdgc/opencode/" 2>/dev/null || true
-  HARNESS_PROPS=(-p "BindPaths=$HOME/.claude $HOME/.claude.json" -p "BindReadOnlyPaths=$HOME/.local/share/mise"
+  mkdir -p "$HOME/.gemini"
+  HARNESS_PROPS=(-p "BindPaths=$HOME/.claude $HOME/.claude.json $HOME/.gemini" -p "BindReadOnlyPaths=$HOME/.local/share/mise"
+    -p "BindReadOnlyPaths=-$HOME/.local/bin/agy"
     --setenv=XDG_CONFIG_HOME="$ROOT/xdgc" --setenv=XDG_CACHE_HOME="$ROOT/xdg-cache" --setenv=XDG_STATE_HOME="$ROOT/xdg-state")
   SIMHOME="$HOME"
-  HPATH="$HOME/.local/share/mise/installs/claude/latest:$HOME/.local/share/mise/installs/opencode/latest:$HOME/.local/share/mise/installs/codex/latest/bin:"
+  HPATH="$HOME/.local/share/mise/installs/claude/latest:$HOME/.local/share/mise/installs/opencode/latest:$HOME/.local/share/mise/installs/codex/latest/bin:$HOME/.local/bin:"
 fi
 systemctl --user stop "$UNIT" 2>/dev/null || true
 systemctl --user reset-failed "$UNIT" 2>/dev/null || true

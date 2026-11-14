@@ -66,9 +66,10 @@ function SourceTag({ f }: { f: ArtifactEntry }) {
 
 function fmtTime(t: number): string {
   const d = new Date(t);
+  const time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
   return d.toDateString() === new Date().toDateString()
-    ? d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
-    : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    ? time
+    : `${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}, ${time}`;
 }
 
 function fmtSize(n: number): string {

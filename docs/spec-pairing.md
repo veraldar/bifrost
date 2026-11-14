@@ -15,7 +15,9 @@ default none); `x-bifrost-peer` is read only in a process `server.mjs` started (
 
 The phone pairs to the **box**, not to a network. The box shows a QR; the phone scans it;
 the QR carries the box's key (the bridge's DTLS fingerprint), a one-time pairing code and
-where to dial. Redeeming the code mints the phone's credentials and lands it on MAIN. From
+where to dial. Redeeming the code mints the phone's credentials and lands it on home: the tree
+door for a device that never walked it (the door ends in MAIN), the session list for one that
+did — never straight into MAIN, which would skip the door. From
 then on every request carries a short-lived, region-bound access token, and the optional
 direct transport (WebRTC data channel to the bifrost-net bridge) refuses any peer that does
 not hold the key the QR pinned. Any device, or the box console, can revoke a device or pull
@@ -112,6 +114,13 @@ the kill-switch, which severs every live connection within a second.
   `{"op":"auth.refresh","token":…}` (same device, region checked against the media path).
 - **Voice** rides LiveKit as today; its P2P-first/relay-fallback is LiveKit ICE pointed at
   bifrost-net TURN (Part 15 §b) — configuration, not invention, and not changed by v0.9.
+  `/api/token` mints only behind the tailnet (`BIFROST_AUTH=tailnet`) or on a dev server. In
+  devices mode — a phone paired through the trunk — voice is not built yet (it comes with
+  WebRTC through the access point's TURN): the route answers `503
+  {error:"voice-unavailable", why}` (always JSON), and the app treats it as a state, not an
+  error — one calm line ("Voice isn't available over the trunk yet — type instead"), no error
+  box, no retry; the door's first turn in MAIN is typed and its voice ways are skipped, so a
+  trunk-paired phone still reaches "you are in" (`lib/voice-token.ts`).
 
 ## Relay fallback (NAT traversal) — user-owned, specified, not yet built
 

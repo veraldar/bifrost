@@ -15,7 +15,9 @@
 #           ROOTLINK_URL=wss://ap…/rootlink, PEER token)      (yggdrasil on the mock) + root-dial.py
 #     brain "home" (yggdrasil on root/mock/mock_upstream.py)    --tls --cafile --path /rootlink
 #       YGG_PEERS_FROM=bridge /_roots: learns joined roots      --brain --peer-port
-# Steps (branch/e2e/trunk-full.spec.ts): 1 pair by QR through the ap · 2 MAIN answers the phone ·
+# Steps (branch/e2e/trunk-full.spec.ts): 1 pair by QR through the ap → home (the list) · 1d a fresh
+# phone pairs → the door → a typed first turn → "you are in" · 1v voice over the trunk is one calm
+# line, never an error box or a retry storm · 2 MAIN answers the phone ·
 # 3 join by QR, approved on the phone, the root links through the ap · 4 MAIN delegates to the
 # joined root over the trunk, the report comes home, the phone sees it · 5 the phone talks to the
 # joined root directly (/branch through the ap) · 6 revoke from the box console → refused.
